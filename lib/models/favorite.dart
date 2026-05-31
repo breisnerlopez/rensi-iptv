@@ -1,6 +1,6 @@
-import 'package:another_iptv_player/models/content_type.dart';
+import 'package:rensi_iptv/models/content_type.dart';
 import 'package:drift/drift.dart';
-import 'package:another_iptv_player/database/database.dart';
+import 'package:rensi_iptv/database/database.dart';
 
 class Favorite {
   final String id;

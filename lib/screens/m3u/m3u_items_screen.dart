@@ -1,6 +1,11 @@
-import 'package:another_iptv_player/l10n/localization_extension.dart';
-import 'package:another_iptv_player/models/m3u_item.dart';
-import 'package:another_iptv_player/screens/m3u/m3u_player_screen.dart';
+import 'dart:async';
+
+import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/models/m3u_item.dart';
+import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/screens/m3u/m3u_player_screen.dart';
+import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../models/content_type.dart';
 import '../../models/playlist_content_model.dart';
@@ -8,8 +13,15 @@ import '../../utils/navigate_by_content_type.dart';
 
 class M3uItemsScreen extends StatefulWidget {
   final List<M3uItem> m3uItems;
+  final Playlist? playlist;
+  final int currentIndex;
 
-  const M3uItemsScreen({super.key, required this.m3uItems});
+  const M3uItemsScreen({
+    super.key,
+    required this.m3uItems,
+    this.playlist,
+    this.currentIndex = 1,
+  });
 
   @override
   State<M3uItemsScreen> createState() => _M3uItemsScreenState();
@@ -22,29 +34,55 @@ class _M3uItemsScreenState extends State<M3uItemsScreen> {
   bool isSearching = false;
   final ScrollController _chipScrollController = ScrollController();
 
+  /// Memoized list of unique group titles. Recomputed only when
+  /// `widget.m3uItems` changes.
+  late List<String> _uniqueGroups;
+
+  Timer? _debounce;
+  static const _debounceDuration = Duration(milliseconds: 200);
+
   @override
   void initState() {
     super.initState();
     filteredItems = widget.m3uItems;
+    _uniqueGroups = _computeUniqueGroups(widget.m3uItems);
+  }
+
+  @override
+  void didUpdateWidget(covariant M3uItemsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.m3uItems, widget.m3uItems)) {
+      _uniqueGroups = _computeUniqueGroups(widget.m3uItems);
+      _applyFilter(searchQuery);
+    }
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     _chipScrollController.dispose();
     super.dispose();
   }
 
-  void _filterItems(String query) {
+  void _onSearchChanged(String query) {
+    _debounce?.cancel();
+    _debounce = Timer(_debounceDuration, () {
+      if (!mounted) return;
+      _applyFilter(query);
+    });
+  }
+
+  void _applyFilter(String query) {
     setState(() {
       searchQuery = query;
       if (query.isEmpty) {
         filteredItems = widget.m3uItems;
       } else {
+        final searchLower = query.toLowerCase();
         filteredItems = widget.m3uItems.where((item) {
           final name = item.name?.toLowerCase() ?? '';
           final group = item.groupTitle?.toLowerCase() ?? '';
-          final searchLower = query.toLowerCase();
           return name.contains(searchLower) || group.contains(searchLower);
         }).toList();
       }
@@ -60,14 +98,14 @@ class _M3uItemsScreenState extends State<M3uItemsScreen> {
     });
   }
 
-  List<String> _getUniqueGroups() {
-    final groups = widget.m3uItems
+  static List<String> _computeUniqueGroups(List<M3uItem> items) {
+    final groups = items
         .where((item) => item.groupTitle != null)
         .map((item) => item.groupTitle!)
         .toSet()
         .toList();
     groups.sort();
-    return groups.toList();
+    return groups;
   }
 
   @override
@@ -84,7 +122,7 @@ class _M3uItemsScreenState extends State<M3uItemsScreen> {
                   hintText: context.loc.search,
                   border: InputBorder.none,
                 ),
-                onChanged: _filterItems,
+                onChanged: _onSearchChanged,
               )
             : SelectableText(
                 context.loc.iptv_channels_count(filteredItems.length),
@@ -98,16 +136,21 @@ class _M3uItemsScreenState extends State<M3uItemsScreen> {
                 isSearching = !isSearching;
                 if (!isSearching) {
                   _searchController.clear();
-                  _filterItems('');
+                  _applyFilter('');
                 }
               });
             },
           ),
+          if (widget.playlist != null)
+            PlaylistSwitcherButton(
+              currentPlaylist: widget.playlist!,
+              currentIndex: widget.currentIndex,
+            ),
         ],
       ),
       body: Column(
         children: [
-          if (!isSearching && _getUniqueGroups().isNotEmpty)
+          if (!isSearching && _uniqueGroups.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: SizedBox(
@@ -119,7 +162,7 @@ class _M3uItemsScreenState extends State<M3uItemsScreen> {
                         child: ListView.builder(
                           controller: _chipScrollController,
                           scrollDirection: Axis.horizontal,
-                          itemCount: _getUniqueGroups().length + 1,
+                          itemCount: _uniqueGroups.length + 1,
                           itemBuilder: (context, index) {
                             if (index == 0) {
                               return _buildFilterChip(
@@ -127,19 +170,19 @@ class _M3uItemsScreenState extends State<M3uItemsScreen> {
                                 null,
                               );
                             }
-                            final group = _getUniqueGroups()[index - 1];
+                            final group = _uniqueGroups[index - 1];
                             return _buildFilterChip(group, group);
                           },
                         ),
                       )
                     : ListView.builder(
                         scrollDirection: Axis.horizontal,
-                        itemCount: _getUniqueGroups().length + 1,
+                        itemCount: _uniqueGroups.length + 1,
                         itemBuilder: (context, index) {
                           if (index == 0) {
                             return _buildFilterChip(context.loc.see_all, null);
                           }
-                          final group = _getUniqueGroups()[index - 1];
+                          final group = _uniqueGroups[index - 1];
                           return _buildFilterChip(group, group);
                         },
                       ),
@@ -251,7 +294,7 @@ class _M3uItemsScreenState extends State<M3uItemsScreen> {
         selected: isSelected,
         onSelected: (selected) {
           if (groupFilter == null) {
-            _filterItems('');
+            _applyFilter('');
           } else {
             _filterByGroup(groupFilter);
           }
@@ -271,17 +314,15 @@ class _M3uItemsScreenState extends State<M3uItemsScreen> {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(6),
-          child: Image.network(
-            channel.tvgLogo!,
+          child: CachedNetworkImage(
+            imageUrl: channel.tvgLogo!,
             width: 50,
             height: 35,
             fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) =>
-                _buildPlaceholderIcon(),
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return _buildPlaceholderIcon();
-            },
+            memCacheWidth: 100,
+            memCacheHeight: 70,
+            errorWidget: (context, url, error) => _buildPlaceholderIcon(),
+            placeholder: (context, url) => _buildPlaceholderIcon(),
           ),
         ),
       );

@@ -224,8 +224,12 @@
   "continue_watching_label": "Продолжить: Сезон {season} Серия {episode}",
   "@continue_watching_label": {
     "placeholders": {
-      "season": { "type": "String" },
-      "episode": { "type": "String" }
+      "season": {
+        "type": "String"
+      },
+      "episode": {
+        "type": "String"
+      }
     }
   },
   "player_settings": "Настройки плеера",
@@ -289,5 +293,112 @@
   "series_content_type": "Сериал",
   "last_update": "Последнее Обновление",
   "minutes": "мин",
-  "duration_label": "Продолжительность"
+  "duration_label": "Продолжительность",
+  "tmdb_global_search": "Глобальный поиск TMDb",
+  "tmdb_credential_configured": "Учётные данные TMDb сохранены безопасно",
+  "tmdb_credential_missing": "Добавьте свой API-ключ TMDb или токен доступа на чтение, чтобы включить глобальный поиск",
+  "tmdb_credential_label": "API-токен TMDb",
+  "tmdb_credential_field_label": "API-ключ или токен доступа на чтение",
+  "tmdb_credential_save": "Сохранить учётные данные",
+  "tmdb_credential_saved": "Учётные данные TMDb сохранены",
+  "tmdb_search_hint": "Поиск фильмов и сериалов на TMDb",
+  "tmdb_search_button": "Поиск",
+  "tmdb_search_description": "Введите не менее 3 символов и нажмите Поиск. Результаты кэшируются на 24 часа для уменьшения использования API.",
+  "tmdb_exact_match": "Точное совпадение",
+  "tmdb_not_found_in_playlists": "Не найдено в ваших плейлистах",
+  "tmdb_available_in": "Доступно в {count} элемент(ах) плейлиста",
+  "tmdb_wishlist": "Список желаний",
+  "save": "Сохранить",
+  "export_playlists_and_settings": "Экспорт плейлистов и настроек",
+  "export_subtitle": "Сохранить все плейлисты, учётные данные и настройки приложения",
+  "import_playlists_and_settings": "Импорт плейлистов и настроек",
+  "import_subtitle": "Восстановить плейлисты и перезаписать совпадающие настройки",
+  "backup_section": "Резервная копия",
+  "tmdb_credential_section": "API-токен TMDb",
+  "export_success": "Резервная копия успешно экспортирована",
+  "export_cancelled": "Экспорт резервной копии отменён",
+  "export_failed": "Не удалось экспортировать резервную копию",
+  "import_success": "Резервная копия импортирована: восстановлено плейлистов — {count}",
+  "import_cancelled": "Импорт резервной копии отменён",
+  "import_failed": "Не удалось импортировать резервную копию",
+  "import_summary": "Импортировано: {created} новых, {updated} обновлено, {skipped} пропущено",
+  "@import_summary": {
+    "placeholders": {
+      "created": {"type": "int"},
+      "updated": {"type": "int"},
+      "skipped": {"type": "int"}
+    }
+  },
+  "backup_passphrase_title": "Защитить эту резервную копию",
+  "backup_passphrase_subtitle": "Выберите парольную фразу для шифрования резервной копии. Оставьте пустым для экспорта в простом JSON (учётные данные будут читаемыми).",
+  "backup_passphrase_field": "Парольная фраза",
+  "backup_passphrase_confirm": "Подтвердите парольную фразу",
+  "backup_passphrase_mismatch": "Парольные фразы не совпадают",
+  "backup_passphrase_required": "Эта резервная копия зашифрована. Введите парольную фразу, использованную при её создании.",
+  "backup_passphrase_invalid": "Неверная парольная фраза или повреждённая резервная копия",
+  "backup_invalid_format": "Недопустимый файл резервной копии",
+  "backup_schema_unsupported": "Неподдерживаемая версия резервной копии: {version}",
+  "@backup_schema_unsupported": {
+    "placeholders": {"version": {"type": "String"}}
+  },
+  "backup_plain_warning": "Экспорт без шифрования оставляет URL, имена пользователей и пароли читаемыми в файле.",
+  "backup_strategy_title": "Импорт заменит плейлисты с тем же идентификатором.",
+  "backup_strategy_overwrite": "Перезаписать существующие",
+  "backup_strategy_keep_local": "Сохранить локальные версии",
+  "backup_encrypt": "Шифровать",
+  "backup_skip_encryption": "Без шифрования",
+  "search_no_results": "Результаты не найдены",
+  "search_in_your_lists": "В ваших списках",
+  "search_from_your_iptv": "Из вашего IPTV",
+  "search_tmdb_section": "TMDb",
+  "search_watch_action": "Смотреть",
+  "playlist_load_failed": "Не удалось загрузить плейлисты: {error}",
+  "@playlist_load_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_save_failed": "Не удалось сохранить плейлист: {error}",
+  "@playlist_save_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_update_failed": "Не удалось обновить плейлист: {error}",
+  "@playlist_update_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_delete_failed": "Не удалось удалить плейлист: {error}",
+  "@playlist_delete_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "m3u_file_read_failed": "Не удалось прочитать файл M3U: {error}",
+  "@m3u_file_read_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "m3u_url_invalid_scheme": "URL должен начинаться с http:// или https://",
+  "m3u_url_http_status": "URL M3U вернул HTTP {status}",
+  "@m3u_url_http_status": {
+    "placeholders": {"status": {"type": "String"}}
+  },
+  "m3u_url_response_too_large": "Плейлист M3U превышает 50 МБ",
+  "m3u_url_fetch_failed": "Не удалось загрузить URL M3U: {error}",
+  "@m3u_url_fetch_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "search_filter_all": "Все",
+  "search_filter_movies": "Фильмы",
+  "search_filter_tv": "TV",
+  "search_filter_wishlist": "Список желаний",
+  "search_clear_history": "Очистить историю",
+  "search_clear_history_confirm": "Удалить все недавние запросы?",
+  "search_remove_from_wishlist": "Убрать из списка желаний",
+  "search_wishlist_empty": "Ваш список желаний пуст. Коснитесь закладки у любого результата TMDb, чтобы сохранить его здесь.",
+  "search_detail_overview": "Описание",
+  "search_detail_genres": "Жанры",
+  "search_detail_runtime": "{minutes} мин",
+  "@search_detail_runtime": {
+    "placeholders": {"minutes": {"type": "int"}}
+  },
+  "search_detail_open_in_playlist": "Открыть в {playlist}",
+  "@search_detail_open_in_playlist": {
+    "placeholders": {"playlist": {"type": "String"}}
+  },
+  "search_detail_not_in_playlists": "Нет ни в одном из ваших плейлистов"
 }

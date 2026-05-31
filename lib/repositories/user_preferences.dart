@@ -27,6 +27,125 @@ class UserPreferences {
   static const String _keySpeedUpOnLongPress = 'speed_up_on_long_press';
   static const String _keySeekOnDoubleTap = 'seek_on_double_tap';
 
+  static const List<String> _backupKeys = [
+    _keyLastPlaylist,
+    _keyVolume,
+    _keyAudioTrack,
+    _keySubtitleTrack,
+    _keyVideoQuality,
+    _keyBackgroundPlay,
+    _keySubtitleFontSize,
+    _keySubtitleHeight,
+    _keySubtitleLetterSpacing,
+    _keySubtitleWordSpacing,
+    _keySubtitleTextColor,
+    _keySubtitleBackgroundColor,
+    _keySubtitleFontWeight,
+    _keySubtitleTextAlign,
+    _keySubtitlePadding,
+    _keyLocale,
+    _hiddenCategoriesKey,
+    _keyThemeMode,
+    _keyBrightnessGesture,
+    _keyVolumeGesture,
+    _keySeekGesture,
+    _keySpeedUpOnLongPress,
+    _keySeekOnDoubleTap,
+  ];
+
+  static Future<Map<String, Object>> exportSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    final values = <String, Object>{};
+    for (final key in _backupKeys) {
+      final value = prefs.get(key);
+      if (value is Object) {
+        values[key] = value;
+      }
+    }
+    return values;
+  }
+
+  /// Per-key validators applied before persisting an imported value. A
+  /// validator may coerce the value to a safe one, or return null to skip
+  /// the key entirely. Only keys with sane bounds are listed; keys without
+  /// a validator are imported as-is (typed).
+  static final Map<String, Object? Function(Object?)> _importValidators = {
+    _keyVolume: (v) {
+      if (v is num) return v.toDouble().clamp(0.0, 100.0);
+      return null;
+    },
+    _keySubtitleFontSize: (v) {
+      if (v is num) return v.toDouble().clamp(8.0, 96.0);
+      return null;
+    },
+    _keySubtitleHeight: (v) {
+      if (v is num) return v.toDouble().clamp(0.8, 3.0);
+      return null;
+    },
+    _keySubtitleLetterSpacing: (v) {
+      if (v is num) return v.toDouble().clamp(-2.0, 8.0);
+      return null;
+    },
+    _keySubtitleWordSpacing: (v) {
+      if (v is num) return v.toDouble().clamp(-2.0, 16.0);
+      return null;
+    },
+    _keySubtitlePadding: (v) {
+      if (v is num) return v.toDouble().clamp(0.0, 96.0);
+      return null;
+    },
+    _keySubtitleFontWeight: (v) {
+      if (v is num) {
+        final i = v.toInt();
+        if (i < 0 || i >= FontWeight.values.length) return null;
+        return i;
+      }
+      return null;
+    },
+    _keySubtitleTextAlign: (v) {
+      if (v is num) {
+        final i = v.toInt();
+        if (i < 0 || i >= TextAlign.values.length) return null;
+        return i;
+      }
+      return null;
+    },
+    _keyThemeMode: (v) {
+      if (v is String && (v == 'system' || v == 'light' || v == 'dark')) {
+        return v;
+      }
+      return null;
+    },
+  };
+
+  static Future<void> importSettings(Map<String, dynamic> values) async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final key in _backupKeys) {
+      if (!values.containsKey(key)) continue;
+      var value = values[key];
+
+      final validator = _importValidators[key];
+      if (validator != null) {
+        value = validator(value);
+        if (value == null) continue;
+      }
+
+      if (value is bool) {
+        await prefs.setBool(key, value);
+      } else if (value is int) {
+        await prefs.setInt(key, value);
+      } else if (value is double) {
+        await prefs.setDouble(key, value);
+      } else if (value is num) {
+        await prefs.setDouble(key, value.toDouble());
+      } else if (value is String) {
+        await prefs.setString(key, value);
+      } else if (value is List) {
+        await prefs.setStringList(key, value.map((item) => '$item').toList());
+      }
+    }
+  }
+
   static Future<void> setLastPlaylist(String playlistId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyLastPlaylist, playlistId);
@@ -217,7 +336,7 @@ class UserPreferences {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getStringList(_hiddenCategoriesKey) ?? [];
   }
-  
+
   static Future<void> setThemeMode(ThemeMode mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyThemeMode, mode.toString().split('.').last);

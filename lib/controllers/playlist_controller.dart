@@ -1,7 +1,9 @@
-import 'package:another_iptv_player/screens/m3u/m3u_home_screen.dart';
+import 'package:rensi_iptv/screens/m3u/m3u_home_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:another_iptv_player/repositories/user_preferences.dart';
-import 'package:another_iptv_player/services/app_state.dart';
+import 'package:provider/provider.dart';
+import 'package:rensi_iptv/repositories/user_preferences.dart';
+import 'package:rensi_iptv/services/app_state.dart';
+import 'active_playlist_controller.dart';
 import '../models/playlist_model.dart';
 import '../screens/xtream-codes/xtream_code_home_screen.dart';
 import '../services/playlist_service.dart';
@@ -9,14 +11,30 @@ import '../services/playlist_service.dart';
 class PlaylistController extends ChangeNotifier {
   List<Playlist> _playlists = [];
   bool _isLoading = false;
-  String? _error;
+  String? _errorKey;
+  String? _errorDetail;
   bool _hasInitialized = false;
 
   List<Playlist> get playlists => List.unmodifiable(_playlists);
 
   bool get isLoading => _isLoading;
 
-  String? get error => _error;
+  /// Localization key for the last error (e.g. `playlist_load_failed`). Use
+  /// with `errorDetail` to render a translated message in the UI.
+  String? get errorKey => _errorKey;
+
+  /// Optional detail (often an exception string) appended to a localized
+  /// message via the `{error}` placeholder.
+  String? get errorDetail => _errorDetail;
+
+  /// Plain-English fallback. UI code should prefer translating `errorKey`
+  /// against the app localization, falling back to this when no translation
+  /// exists.
+  String? get error => _errorKey == null
+      ? null
+      : (_errorDetail == null
+          ? _englishFor(_errorKey!)
+          : '${_englishFor(_errorKey!)}: $_errorDetail');
 
   bool get hasInitialized => _hasInitialized;
 
@@ -39,8 +57,9 @@ class PlaylistController extends ChangeNotifier {
     try {
       _playlists = await PlaylistService.getPlaylists();
       _sortPlaylists();
+      _hasInitialized = true;
     } catch (e) {
-      setError('Playlistler yüklenemedi: ${e.toString()}');
+      _setError('playlist_load_failed', e.toString());
     } finally {
       _setLoading(false);
     }
@@ -49,6 +68,7 @@ class PlaylistController extends ChangeNotifier {
   Future<void> openPlaylist(BuildContext context, Playlist playlist) async {
     await UserPreferences.setLastPlaylist(playlist.id);
     AppState.currentPlaylist = playlist;
+    context.read<ActivePlaylistController>().setInitialPlaylist(playlist);
 
     if (context.mounted) {
       switch (playlist.type) {
@@ -101,7 +121,7 @@ class PlaylistController extends ChangeNotifier {
 
       return playlist;
     } catch (e) {
-      setError('Playlist kaydedilemedi: ${e.toString()}');
+      _setError('playlist_save_failed', e.toString());
       return null;
     } finally {
       _setLoading(false);
@@ -115,7 +135,7 @@ class PlaylistController extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      setError('Playlist silinemedi: ${e.toString()}');
+      _setError('playlist_delete_failed', e.toString());
       return false;
     }
   }
@@ -132,7 +152,7 @@ class PlaylistController extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      setError('Playlistler silinemedi: ${e.toString()}');
+      _setError('playlist_delete_failed', e.toString());
       return false;
     } finally {
       _setLoading(false);
@@ -145,7 +165,7 @@ class PlaylistController extends ChangeNotifier {
 
     try {
       if (_isDuplicateName(updatedPlaylist)) {
-        setError('Bu isimde bir playlist zaten mevcut');
+        _setError('playlist_name_already_exists');
         return false;
       }
 
@@ -159,7 +179,7 @@ class PlaylistController extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      setError('Playlist güncellenemedi: ${e.toString()}');
+      _setError('playlist_update_failed', e.toString());
       return false;
     } finally {
       _setLoading(false);
@@ -216,15 +236,6 @@ class PlaylistController extends ChangeNotifier {
     };
   }
 
-  Future<String> exportPlaylistsAsJson() async {
-    try {
-      final playlistData = _playlists.map((p) => p.toJson()).toList();
-      return playlistData.toString();
-    } catch (e) {
-      throw Exception('Export işlemi başarısız: ${e.toString()}');
-    }
-  }
-
   bool validatePlaylistData({
     required String name,
     required PlaylistType type,
@@ -236,6 +247,11 @@ class PlaylistController extends ChangeNotifier {
   }
 
   void clearError() => _clearError();
+
+  /// Set a localizable error directly (use l10n keys defined in app.arb).
+  void setError(String errorKey, [String? detail]) {
+    _setError(errorKey, detail);
+  }
 
   Future<void> refreshPlaylists(BuildContext context) async {
     await loadPlaylists(context);
@@ -249,32 +265,32 @@ class PlaylistController extends ChangeNotifier {
     String? password,
   ) {
     if (name.trim().isEmpty || name.trim().length < 2) {
-      setError('Playlist adı en az 2 karakter olmalıdır');
+      _setError('playlist_name_min_2');
       return false;
     }
 
     if (_playlists.any((p) => p.name.toLowerCase() == name.toLowerCase())) {
-      setError('Bu isimde bir playlist zaten mevcut');
+      _setError('playlist_name_already_exists');
       return false;
     }
 
     if (type == PlaylistType.xtream) {
       if (url?.trim().isEmpty ?? true) {
-        setError('URL gereklidir');
+        _setError('api_url_required');
         return false;
       }
       if (username?.trim().isEmpty ?? true) {
-        setError('Kullanıcı adı gereklidir');
+        _setError('username_required');
         return false;
       }
       if (password?.trim().isEmpty ?? true) {
-        setError('Şifre gereklidir');
+        _setError('password_required');
         return false;
       }
 
       final uri = Uri.tryParse(url!.trim());
       if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
-        setError('Geçerli bir URL giriniz');
+        _setError('url_format_validate_error');
         return false;
       }
     }
@@ -301,21 +317,50 @@ class PlaylistController extends ChangeNotifier {
     }
   }
 
-  void setError(String errorMessage) {
-    _error = errorMessage;
+  void _setError(String errorKey, [String? detail]) {
+    _errorKey = errorKey;
+    _errorDetail = detail;
     _isLoading = false;
     notifyListeners();
   }
 
   void _clearError() {
-    if (_error != null) {
-      _error = null;
+    if (_errorKey != null || _errorDetail != null) {
+      _errorKey = null;
+      _errorDetail = null;
       notifyListeners();
     }
   }
 
   String _generateUniqueId() {
     return '${DateTime.now().millisecondsSinceEpoch}_${_playlists.length}';
+  }
+
+  static String _englishFor(String key) {
+    switch (key) {
+      case 'playlist_load_failed':
+        return 'Failed to load playlists';
+      case 'playlist_save_failed':
+        return 'Failed to save playlist';
+      case 'playlist_update_failed':
+        return 'Failed to update playlist';
+      case 'playlist_delete_failed':
+        return 'Failed to delete playlist';
+      case 'playlist_name_min_2':
+        return 'Playlist name must be at least 2 characters';
+      case 'playlist_name_already_exists':
+        return 'A playlist with this name already exists';
+      case 'api_url_required':
+        return 'API URL required';
+      case 'username_required':
+        return 'Username is required';
+      case 'password_required':
+        return 'Password is required';
+      case 'url_format_validate_error':
+        return 'Please enter a valid URL (must start with http:// or https://)';
+      default:
+        return key;
+    }
   }
 
   @override

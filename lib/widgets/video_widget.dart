@@ -1,11 +1,11 @@
-import 'package:another_iptv_player/repositories/user_preferences.dart';
-import 'package:another_iptv_player/services/player_state.dart';
-import 'package:another_iptv_player/widgets/player-buttons/back_button_widget.dart';
-import 'package:another_iptv_player/widgets/player-buttons/video_channel_selector_widget.dart';
-import 'package:another_iptv_player/widgets/player-buttons/video_favorite_widget.dart';
-import 'package:another_iptv_player/widgets/player-buttons/video_info_widget.dart';
-import 'package:another_iptv_player/widgets/player-buttons/video_settings_widget.dart';
-import 'package:another_iptv_player/widgets/player-buttons/video_title_widget.dart';
+import 'package:rensi_iptv/repositories/user_preferences.dart';
+import 'package:rensi_iptv/services/player_state.dart';
+import 'package:rensi_iptv/widgets/player-buttons/back_button_widget.dart';
+import 'package:rensi_iptv/widgets/player-buttons/video_channel_selector_widget.dart';
+import 'package:rensi_iptv/widgets/player-buttons/video_favorite_widget.dart';
+import 'package:rensi_iptv/widgets/player-buttons/video_info_widget.dart';
+import 'package:rensi_iptv/widgets/player-buttons/video_settings_widget.dart';
+import 'package:rensi_iptv/widgets/player-buttons/video_title_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 

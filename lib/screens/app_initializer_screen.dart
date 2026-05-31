@@ -1,7 +1,9 @@
-import 'package:another_iptv_player/models/playlist_model.dart';
-import 'package:another_iptv_player/screens/m3u/m3u_home_screen.dart';
-import 'package:another_iptv_player/screens/playlist_screen.dart';
+import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/screens/m3u/m3u_home_screen.dart';
+import 'package:rensi_iptv/screens/playlist_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../controllers/active_playlist_controller.dart';
 import '../../repositories/user_preferences.dart';
 import '../../services/app_state.dart';
 import '../../services/playlist_service.dart';
@@ -30,7 +32,11 @@ class _AppInitializerScreenState extends State<AppInitializerScreen> {
     if (lastPlaylistId != null) {
       final playlist = await PlaylistService.getPlaylistById(lastPlaylistId);
       if (playlist != null) {
-        AppState.currentPlaylist = playlist;
+        if (mounted) {
+          context.read<ActivePlaylistController>().setInitialPlaylist(playlist);
+        } else {
+          AppState.currentPlaylist = playlist;
+        }
         _lastPlaylist = playlist;
       }
     }

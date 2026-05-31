@@ -224,8 +224,12 @@
   "continue_watching_label": "Continuar: T {season} Episódio {episode}",
   "@continue_watching_label": {
     "placeholders": {
-      "season": { "type": "String" },
-      "episode": { "type": "String" }
+      "season": {
+        "type": "String"
+      },
+      "episode": {
+        "type": "String"
+      }
     }
   },
   "player_settings": "Configurações do reprodutor",
@@ -289,5 +293,112 @@
   "series_content_type": "Série",
   "last_update": "Última Atualização",
   "minutes": "min",
-  "duration_label": "Duração"
+  "duration_label": "Duração",
+  "tmdb_global_search": "Pesquisa Global TMDb",
+  "tmdb_credential_configured": "Credencial TMDb armazenada com segurança",
+  "tmdb_credential_missing": "Adicione sua chave de API TMDb ou token de acesso de leitura para habilitar a pesquisa global",
+  "tmdb_credential_label": "Token de API TMDb",
+  "tmdb_credential_field_label": "Chave de API ou token de acesso de leitura",
+  "tmdb_credential_save": "Salvar credencial",
+  "tmdb_credential_saved": "Credencial TMDb salva",
+  "tmdb_search_hint": "Pesquisar filmes e séries no TMDb",
+  "tmdb_search_button": "Pesquisar",
+  "tmdb_search_description": "Digite pelo menos 3 caracteres e pressione Pesquisar. Os resultados ficam em cache por 24 horas para reduzir o uso da API.",
+  "tmdb_exact_match": "Correspondência exata",
+  "tmdb_not_found_in_playlists": "Não encontrado em suas listas",
+  "tmdb_available_in": "Disponível em {count} item(ns) de lista",
+  "tmdb_wishlist": "Lista de desejos",
+  "save": "Salvar",
+  "export_playlists_and_settings": "Exportar listas e configurações",
+  "export_subtitle": "Salvar todas as listas, credenciais e configurações do app",
+  "import_playlists_and_settings": "Importar listas e configurações",
+  "import_subtitle": "Restaurar listas e sobrescrever configurações correspondentes",
+  "backup_section": "Backup",
+  "tmdb_credential_section": "Token de API TMDb",
+  "export_success": "Backup exportado com sucesso",
+  "export_cancelled": "Exportação de backup cancelada",
+  "export_failed": "Falha ao exportar backup",
+  "import_success": "Backup importado: {count} listas restauradas",
+  "import_cancelled": "Importação de backup cancelada",
+  "import_failed": "Falha ao importar backup",
+  "import_summary": "Importado: {created} novos, {updated} atualizados, {skipped} ignorados",
+  "@import_summary": {
+    "placeholders": {
+      "created": {"type": "int"},
+      "updated": {"type": "int"},
+      "skipped": {"type": "int"}
+    }
+  },
+  "backup_passphrase_title": "Proteger este backup",
+  "backup_passphrase_subtitle": "Escolha uma frase secreta para criptografar o backup. Deixe em branco para uma exportação JSON sem criptografia (as credenciais ficarão legíveis).",
+  "backup_passphrase_field": "Frase secreta",
+  "backup_passphrase_confirm": "Confirmar frase secreta",
+  "backup_passphrase_mismatch": "As frases secretas não coincidem",
+  "backup_passphrase_required": "Este backup está criptografado. Digite a frase secreta usada para criá-lo.",
+  "backup_passphrase_invalid": "Frase secreta incorreta ou backup corrompido",
+  "backup_invalid_format": "Arquivo de backup inválido",
+  "backup_schema_unsupported": "Versão de backup não suportada: {version}",
+  "@backup_schema_unsupported": {
+    "placeholders": {"version": {"type": "String"}}
+  },
+  "backup_plain_warning": "Uma exportação sem criptografia mantém URLs, nomes de usuário e senhas legíveis no arquivo.",
+  "backup_strategy_title": "A importação substituirá listas com o mesmo id.",
+  "backup_strategy_overwrite": "Sobrescrever existentes",
+  "backup_strategy_keep_local": "Manter versões locais",
+  "backup_encrypt": "Criptografar",
+  "backup_skip_encryption": "Sem criptografia",
+  "search_no_results": "Nenhum resultado encontrado",
+  "search_in_your_lists": "Em suas listas",
+  "search_from_your_iptv": "Do seu IPTV",
+  "search_tmdb_section": "TMDb",
+  "search_watch_action": "Assistir",
+  "playlist_load_failed": "Falha ao carregar as listas: {error}",
+  "@playlist_load_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_save_failed": "Falha ao salvar a lista: {error}",
+  "@playlist_save_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_update_failed": "Falha ao atualizar a lista: {error}",
+  "@playlist_update_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_delete_failed": "Falha ao excluir a lista: {error}",
+  "@playlist_delete_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "m3u_file_read_failed": "Não foi possível ler o arquivo M3U: {error}",
+  "@m3u_file_read_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "m3u_url_invalid_scheme": "A URL deve começar com http:// ou https://",
+  "m3u_url_http_status": "A URL M3U retornou HTTP {status}",
+  "@m3u_url_http_status": {
+    "placeholders": {"status": {"type": "String"}}
+  },
+  "m3u_url_response_too_large": "A lista M3U é maior que 50 MB",
+  "m3u_url_fetch_failed": "Não foi possível baixar a URL M3U: {error}",
+  "@m3u_url_fetch_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "search_filter_all": "Tudo",
+  "search_filter_movies": "Filmes",
+  "search_filter_tv": "TV",
+  "search_filter_wishlist": "Lista de desejos",
+  "search_clear_history": "Limpar histórico",
+  "search_clear_history_confirm": "Remover todas as pesquisas recentes?",
+  "search_remove_from_wishlist": "Remover da lista de desejos",
+  "search_wishlist_empty": "Sua lista de desejos está vazia. Toque no marcador em qualquer resultado do TMDb para salvá-lo aqui.",
+  "search_detail_overview": "Sinopse",
+  "search_detail_genres": "Gêneros",
+  "search_detail_runtime": "{minutes} min",
+  "@search_detail_runtime": {
+    "placeholders": {"minutes": {"type": "int"}}
+  },
+  "search_detail_open_in_playlist": "Abrir em {playlist}",
+  "@search_detail_open_in_playlist": {
+    "placeholders": {"playlist": {"type": "String"}}
+  },
+  "search_detail_not_in_playlists": "Não está em nenhuma das suas listas"
 }

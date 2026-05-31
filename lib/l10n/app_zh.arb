@@ -224,8 +224,12 @@
   "continue_watching_label": "继续观看：第 {season} 季 第 {episode} 集",
   "@continue_watching_label": {
     "placeholders": {
-      "season": { "type": "String" },
-      "episode": { "type": "String" }
+      "season": {
+        "type": "String"
+      },
+      "episode": {
+        "type": "String"
+      }
     }
   },
   "player_settings": "播放器设置",
@@ -289,5 +293,112 @@
   "series_content_type": "剧集",
   "last_update": "最后更新",
   "minutes": "分钟",
-  "duration_label": "时长"
+  "duration_label": "时长",
+  "tmdb_global_search": "TMDb 全局搜索",
+  "tmdb_credential_configured": "TMDb 凭证已安全存储",
+  "tmdb_credential_missing": "添加您的 TMDb API 密钥或读取访问令牌以启用全局搜索",
+  "tmdb_credential_label": "TMDb API 令牌",
+  "tmdb_credential_field_label": "API 密钥或读取访问令牌",
+  "tmdb_credential_save": "保存凭证",
+  "tmdb_credential_saved": "TMDb 凭证已保存",
+  "tmdb_search_hint": "在 TMDb 上搜索电影和剧集",
+  "tmdb_search_button": "搜索",
+  "tmdb_search_description": "输入至少 3 个字符并按搜索。结果将缓存 24 小时以减少 API 使用。",
+  "tmdb_exact_match": "完全匹配",
+  "tmdb_not_found_in_playlists": "在您的播放列表中未找到",
+  "tmdb_available_in": "在 {count} 个播放列表项中可用",
+  "tmdb_wishlist": "心愿单",
+  "save": "保存",
+  "export_playlists_and_settings": "导出播放列表和设置",
+  "export_subtitle": "保存所有播放列表、凭证和应用设置",
+  "import_playlists_and_settings": "导入播放列表和设置",
+  "import_subtitle": "恢复播放列表并覆盖匹配的设置",
+  "backup_section": "备份",
+  "tmdb_credential_section": "TMDb API 令牌",
+  "export_success": "备份导出成功",
+  "export_cancelled": "备份导出已取消",
+  "export_failed": "备份导出失败",
+  "import_success": "备份已导入：已恢复 {count} 个播放列表",
+  "import_cancelled": "备份导入已取消",
+  "import_failed": "备份导入失败",
+  "import_summary": "已导入：{created} 个新增，{updated} 个更新，{skipped} 个跳过",
+  "@import_summary": {
+    "placeholders": {
+      "created": {"type": "int"},
+      "updated": {"type": "int"},
+      "skipped": {"type": "int"}
+    }
+  },
+  "backup_passphrase_title": "保护此备份",
+  "backup_passphrase_subtitle": "选择一个密码短语来加密备份。留空将以未加密的 JSON 导出（凭证将可读）。",
+  "backup_passphrase_field": "密码短语",
+  "backup_passphrase_confirm": "确认密码短语",
+  "backup_passphrase_mismatch": "密码短语不匹配",
+  "backup_passphrase_required": "此备份已加密。请输入创建时使用的密码短语。",
+  "backup_passphrase_invalid": "密码短语错误或备份已损坏",
+  "backup_invalid_format": "无效的备份文件",
+  "backup_schema_unsupported": "不支持的备份版本：{version}",
+  "@backup_schema_unsupported": {
+    "placeholders": {"version": {"type": "String"}}
+  },
+  "backup_plain_warning": "未加密的导出会使 URL、用户名和密码在文件中保持可读状态。",
+  "backup_strategy_title": "导入将替换具有相同 ID 的播放列表。",
+  "backup_strategy_overwrite": "覆盖现有",
+  "backup_strategy_keep_local": "保留本地版本",
+  "backup_encrypt": "加密",
+  "backup_skip_encryption": "不加密",
+  "search_no_results": "未找到结果",
+  "search_in_your_lists": "在您的列表中",
+  "search_from_your_iptv": "来自您的 IPTV",
+  "search_tmdb_section": "TMDb",
+  "search_watch_action": "观看",
+  "playlist_load_failed": "加载播放列表失败：{error}",
+  "@playlist_load_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_save_failed": "保存播放列表失败：{error}",
+  "@playlist_save_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_update_failed": "更新播放列表失败：{error}",
+  "@playlist_update_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_delete_failed": "删除播放列表失败：{error}",
+  "@playlist_delete_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "m3u_file_read_failed": "无法读取 M3U 文件：{error}",
+  "@m3u_file_read_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "m3u_url_invalid_scheme": "URL 必须以 http:// 或 https:// 开头",
+  "m3u_url_http_status": "M3U URL 返回了 HTTP {status}",
+  "@m3u_url_http_status": {
+    "placeholders": {"status": {"type": "String"}}
+  },
+  "m3u_url_response_too_large": "M3U 播放列表大于 50 MB",
+  "m3u_url_fetch_failed": "无法下载 M3U URL：{error}",
+  "@m3u_url_fetch_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "search_filter_all": "全部",
+  "search_filter_movies": "电影",
+  "search_filter_tv": "TV",
+  "search_filter_wishlist": "愿望清单",
+  "search_clear_history": "清除历史",
+  "search_clear_history_confirm": "要移除所有最近的搜索吗？",
+  "search_remove_from_wishlist": "从愿望清单中移除",
+  "search_wishlist_empty": "你的愿望清单是空的。点按任意 TMDb 结果上的书签将其保存到这里。",
+  "search_detail_overview": "简介",
+  "search_detail_genres": "类型",
+  "search_detail_runtime": "{minutes} 分钟",
+  "@search_detail_runtime": {
+    "placeholders": {"minutes": {"type": "int"}}
+  },
+  "search_detail_open_in_playlist": "在 {playlist} 中打开",
+  "@search_detail_open_in_playlist": {
+    "placeholders": {"playlist": {"type": "String"}}
+  },
+  "search_detail_not_in_playlists": "不在你的任何播放列表中"
 }

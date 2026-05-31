@@ -1,25 +1,32 @@
-import 'package:another_iptv_player/l10n/localization_extension.dart';
-import 'package:another_iptv_player/screens/search_screen.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:another_iptv_player/controllers/xtream_code_home_controller.dart';
-import 'package:another_iptv_player/models/api_configuration_model.dart';
-import 'package:another_iptv_player/models/category_view_model.dart';
-import 'package:another_iptv_player/models/playlist_model.dart';
-import 'package:another_iptv_player/repositories/iptv_repository.dart';
-import 'package:another_iptv_player/screens/category_detail_screen.dart';
-import 'package:another_iptv_player/screens/xtream-codes/xtream_code_playlist_settings_screen.dart';
-import 'package:another_iptv_player/screens/watch_history_screen.dart';
-import 'package:another_iptv_player/services/app_state.dart';
-import 'package:another_iptv_player/utils/navigate_by_content_type.dart';
-import 'package:another_iptv_player/utils/responsive_helper.dart';
-import 'package:another_iptv_player/widgets/category_section.dart';
+import 'package:rensi_iptv/controllers/xtream_code_home_controller.dart';
+import 'package:rensi_iptv/models/api_configuration_model.dart';
+import 'package:rensi_iptv/models/category_view_model.dart';
+import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/repositories/iptv_repository.dart';
+import 'package:rensi_iptv/screens/category_detail_screen.dart';
+import 'package:rensi_iptv/screens/global_search_screen.dart';
+import 'package:rensi_iptv/screens/search_screen.dart';
+import 'package:rensi_iptv/screens/xtream-codes/xtream_code_playlist_settings_screen.dart';
+import 'package:rensi_iptv/screens/watch_history_screen.dart';
+import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/widgets/category_section.dart';
+import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
 import '../../models/content_type.dart';
 
 class XtreamCodeHomeScreen extends StatefulWidget {
   final Playlist playlist;
+  final int initialIndex;
 
-  const XtreamCodeHomeScreen({super.key, required this.playlist});
+  const XtreamCodeHomeScreen({
+    super.key,
+    required this.playlist,
+    this.initialIndex = 4,
+  });
 
   @override
   State<XtreamCodeHomeScreen> createState() => _XtreamCodeHomeScreenState();
@@ -29,10 +36,10 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   late XtreamCodeHomeController _controller;
   static const double _desktopBreakpoint = 900.0;
   static const double _largeScreenBreakpoint = 1200.0;
-  static const double _defaultNavWidth = 80.0;
-  static const double _largeNavWidth = 100.0;
-  static const double _defaultItemHeight = 60.0;
-  static const double _largeItemHeight = 70.0;
+  static const double _defaultNavWidth = 72.0;
+  static const double _largeNavWidth = 88.0;
+  static const double _defaultItemHeight = 50.0;
+  static const double _largeItemHeight = 56.0;
   static const double _defaultIconSize = 24.0;
   static const double _largeIconSize = 28.0;
   static const double _defaultFontSize = 10.0;
@@ -53,6 +60,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   }
 
   void _initializeController() {
+    AppState.currentPlaylist = widget.playlist;
     final repository = IptvRepository(
       ApiConfig(
         baseUrl: widget.playlist.url!,
@@ -62,7 +70,10 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       widget.playlist.id,
     );
     AppState.xtreamCodeRepository = repository;
-    _controller = XtreamCodeHomeController(false);
+    _controller = XtreamCodeHomeController(
+      false,
+      initialIndex: widget.initialIndex,
+    );
   }
 
   @override
@@ -143,7 +154,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   List<Widget> _buildPages(XtreamCodeHomeController controller) {
     return [
       WatchHistoryScreen(
-        key: ValueKey('watch_history_${controller.currentIndex}'),
+        key: ValueKey('watch_history_${widget.playlist.id}'),
         playlistId: widget.playlist.id,
       ),
       _buildContentPage(
@@ -161,6 +172,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         ContentType.series,
         controller,
       ),
+      const GlobalSearchScreen(),
       XtreamCodePlaylistSettingsScreen(playlist: widget.playlist),
     ];
   }
@@ -182,12 +194,16 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     ContentType contentType,
   ) {
     if (ResponsiveHelper.isDesktopOrTV(context)) {
-      return _buildDesktopAppBar(context, contentType);
+      return _buildDesktopAppBar(context, controller, contentType);
     }
     return _buildMobileAppBar(context, controller, contentType);
   }
 
-  AppBar _buildDesktopAppBar(BuildContext context, ContentType contentType) {
+  AppBar _buildDesktopAppBar(
+    BuildContext context,
+    XtreamCodeHomeController controller,
+    ContentType contentType,
+  ) {
     return AppBar(
       title: SelectableText(
         _getDesktopTitle(context, contentType),
@@ -198,6 +214,10 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         IconButton(
           icon: const Icon(Icons.search),
           onPressed: () => _navigateToSearch(context, contentType),
+        ),
+        PlaylistSwitcherButton(
+          currentPlaylist: widget.playlist,
+          currentIndex: controller.currentIndex,
         ),
       ],
     );
@@ -229,6 +249,10 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         IconButton(
           icon: const Icon(Icons.search),
           onPressed: () => _navigateToSearch(context, contentType),
+        ),
+        PlaylistSwitcherButton(
+          currentPlaylist: widget.playlist,
+          currentIndex: controller.currentIndex,
         ),
       ],
     );
@@ -442,9 +466,14 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         index: 3,
       ),
       NavigationItem(
+        icon: Icons.search,
+        label: context.loc.tmdb_global_search,
+        index: 4,
+      ),
+      NavigationItem(
         icon: Icons.settings,
         label: context.loc.settings,
-        index: 4,
+        index: 5,
       ),
     ];
   }

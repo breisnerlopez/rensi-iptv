@@ -1,14 +1,14 @@
 import 'dart:ui';
 
-import 'package:another_iptv_player/l10n/localization_extension.dart';
-import 'package:another_iptv_player/models/api_configuration_model.dart';
-import 'package:another_iptv_player/models/content_type.dart';
-import 'package:another_iptv_player/models/playlist_content_model.dart';
-import 'package:another_iptv_player/models/watch_history.dart';
-import 'package:another_iptv_player/repositories/iptv_repository.dart';
-import 'package:another_iptv_player/services/app_state.dart';
-import 'package:another_iptv_player/services/watch_history_service.dart';
-import 'package:another_iptv_player/utils/get_playlist_type.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/models/api_configuration_model.dart';
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/models/watch_history.dart';
+import 'package:rensi_iptv/repositories/iptv_repository.dart';
+import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/services/watch_history_service.dart';
+import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:another_iptv_player/l10n/localization_extension.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 
 class ColorPickerTileWidget extends StatelessWidget {
   final String title;

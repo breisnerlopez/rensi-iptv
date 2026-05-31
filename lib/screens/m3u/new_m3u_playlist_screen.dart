@@ -1,8 +1,8 @@
-import 'package:another_iptv_player/controllers/m3u_controller.dart';
-import 'package:another_iptv_player/models/playlist_model.dart';
-import 'package:another_iptv_player/screens/m3u/m3u_data_loader_screen.dart';
-import 'package:another_iptv_player/services/m3u_parser.dart';
-import 'package:another_iptv_player/l10n/localization_extension.dart';
+import 'package:rensi_iptv/controllers/m3u_controller.dart';
+import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/screens/m3u/m3u_data_loader_screen.dart';
+import 'package:rensi_iptv/services/m3u_parser.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -145,10 +145,14 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            color: Colors.green,
+            color: colorScheme.tertiary,
             borderRadius: BorderRadius.circular(30),
           ),
-          child: Icon(Icons.playlist_play, size: 30, color: Colors.white),
+          child: Icon(
+            Icons.playlist_play,
+            size: 30,
+            color: colorScheme.onTertiary,
+          ),
         ),
         SizedBox(height: 16),
         Text(
@@ -397,8 +401,8 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                 Icon(
                   _selectedFilePath != null ? Icons.check_circle : Icons.folder,
                   color: _selectedFilePath != null
-                      ? Colors.green
-                      : colorScheme.primary,
+                      ? colorScheme.primary
+                      : colorScheme.primary.withOpacity(0.6),
                 ),
                 SizedBox(width: 12),
                 Expanded(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:another_iptv_player/models/api_response.dart';
-import 'package:another_iptv_player/l10n/localization_extension.dart';
+import 'package:rensi_iptv/models/api_response.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'info_tile_widget.dart';
 import 'section_title_widget.dart';
 

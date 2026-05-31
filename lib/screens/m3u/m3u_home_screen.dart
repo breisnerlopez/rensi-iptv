@@ -1,24 +1,31 @@
-import 'package:another_iptv_player/l10n/localization_extension.dart';
-import 'package:another_iptv_player/screens/m3u/m3u_items_screen.dart';
-import 'package:another_iptv_player/screens/m3u/m3u_playlist_settings_screen.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/screens/global_search_screen.dart';
+import 'package:rensi_iptv/screens/m3u/m3u_items_screen.dart';
+import 'package:rensi_iptv/screens/m3u/m3u_playlist_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:another_iptv_player/controllers/m3u_home_controller.dart';
-import 'package:another_iptv_player/models/playlist_model.dart';
-import 'package:another_iptv_player/models/category_view_model.dart';
-import 'package:another_iptv_player/repositories/m3u_repository.dart';
-import 'package:another_iptv_player/screens/category_detail_screen.dart';
-import 'package:another_iptv_player/widgets/category_section.dart';
-import 'package:another_iptv_player/utils/responsive_helper.dart';
-import 'package:another_iptv_player/utils/navigate_by_content_type.dart';
+import 'package:rensi_iptv/controllers/m3u_home_controller.dart';
+import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/models/category_view_model.dart';
+import 'package:rensi_iptv/repositories/m3u_repository.dart';
+import 'package:rensi_iptv/screens/category_detail_screen.dart';
+import 'package:rensi_iptv/widgets/category_section.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
+import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
 
 import '../../services/app_state.dart';
 import '../watch_history_screen.dart';
 
 class M3UHomeScreen extends StatefulWidget {
   final Playlist playlist;
+  final int initialIndex;
 
-  const M3UHomeScreen({super.key, required this.playlist});
+  const M3UHomeScreen({
+    super.key,
+    required this.playlist,
+    this.initialIndex = 2,
+  });
 
   @override
   State<M3UHomeScreen> createState() => _M3UHomeScreenState();
@@ -29,10 +36,10 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
 
   static const double _desktopBreakpoint = 900.0;
   static const double _largeScreenBreakpoint = 1200.0;
-  static const double _defaultNavWidth = 80.0;
-  static const double _largeNavWidth = 100.0;
-  static const double _defaultItemHeight = 60.0;
-  static const double _largeItemHeight = 70.0;
+  static const double _defaultNavWidth = 72.0;
+  static const double _largeNavWidth = 88.0;
+  static const double _defaultItemHeight = 50.0;
+  static const double _largeItemHeight = 56.0;
   static const double _defaultIconSize = 24.0;
   static const double _largeIconSize = 28.0;
   static const double _defaultFontSize = 10.0;
@@ -51,8 +58,9 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
   }
 
   void _initializeController() {
+    AppState.currentPlaylist = widget.playlist;
     AppState.m3uRepository = M3uRepository();
-    _controller = M3UHomeController();
+    _controller = M3UHomeController(initialIndex: widget.initialIndex);
   }
 
   @override
@@ -132,13 +140,15 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
   List<Widget> _buildPages(M3UHomeController controller) {
     return [
       WatchHistoryScreen(
-        key: ValueKey('watch_history_${controller.currentIndex}'),
+        key: ValueKey('watch_history_${widget.playlist.id}'),
         playlistId: widget.playlist.id,
       ),
-      M3uItemsScreen(m3uItems: controller.m3uItems!),
-      // _buildContentPage(controller.liveCategories!, controller),
-      // _buildContentPage(controller.vodCategories!, controller),
-      // _buildContentPage(controller.seriesCategories!, controller),
+      M3uItemsScreen(
+        m3uItems: controller.m3uItems!,
+        playlist: widget.playlist,
+        currentIndex: controller.currentIndex,
+      ),
+      const GlobalSearchScreen(),
       M3uPlaylistSettingsScreen(playlist: widget.playlist),
     ];
   }
@@ -160,13 +170,16 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     M3UHomeController controller,
   ) {
     if (ResponsiveHelper.isDesktopOrTV(context)) {
-      return _buildDesktopSliverAppBar(context);
+      return _buildDesktopSliverAppBar(context, controller);
     }
 
     return _buildMobileSliverAppBar(context, controller);
   }
 
-  SliverAppBar _buildDesktopSliverAppBar(BuildContext context) {
+  SliverAppBar _buildDesktopSliverAppBar(
+    BuildContext context,
+    M3UHomeController controller,
+  ) {
     return SliverAppBar(
       title: SelectableText(
         context.loc.live_streams,
@@ -175,6 +188,12 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       floating: true,
       snap: true,
       elevation: 0,
+      actions: [
+        PlaylistSwitcherButton(
+          currentPlaylist: widget.playlist,
+          currentIndex: controller.currentIndex,
+        ),
+      ],
     );
   }
 
@@ -190,7 +209,12 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       floating: true,
       snap: true,
       elevation: 0,
-      actions: [],
+      actions: [
+        PlaylistSwitcherButton(
+          currentPlaylist: widget.playlist,
+          currentIndex: controller.currentIndex,
+        ),
+      ],
     );
   }
 
@@ -365,21 +389,15 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     return [
       NavigationItem(icon: Icons.history, label: context.loc.history, index: 0),
       NavigationItem(icon: Icons.all_inbox, label: context.loc.all, index: 1),
-      // NavigationItem(icon: Icons.live_tv, label: context.loc.live, index: 2),
-      // NavigationItem(
-      //   icon: Icons.movie_outlined,
-      //   label: context.loc.movie,
-      //   index: 3,
-      // ),
-      // NavigationItem(
-      //   icon: Icons.tv,
-      //   label: context.loc.series_plural,
-      //   index: 4,
-      // ),
+      NavigationItem(
+        icon: Icons.search,
+        label: context.loc.tmdb_global_search,
+        index: 2,
+      ),
       NavigationItem(
         icon: Icons.settings,
         label: context.loc.settings,
-        index: 2,
+        index: 3,
       ),
     ];
   }

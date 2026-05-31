@@ -1,11 +1,11 @@
-import 'package:another_iptv_player/l10n/localization_extension.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:flutter/material.dart';
-import 'package:another_iptv_player/models/content_type.dart';
-import 'package:another_iptv_player/models/playlist_content_model.dart';
-import 'package:another_iptv_player/repositories/iptv_repository.dart';
-import 'package:another_iptv_player/services/app_state.dart';
-import 'package:another_iptv_player/utils/navigate_by_content_type.dart';
-import 'package:another_iptv_player/utils/responsive_helper.dart';
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/repositories/iptv_repository.dart';
+import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 import '../../widgets/content_card.dart';
 
 class SearchScreen extends StatefulWidget {

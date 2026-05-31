@@ -1,14 +1,12 @@
-import 'dart:convert' show utf8;
-import 'dart:io' show File, HttpClient;
-import 'package:another_iptv_player/database/database.dart'
+import 'package:rensi_iptv/database/database.dart'
     hide M3uEpisodes, M3uSeries;
-import 'package:another_iptv_player/models/category.dart';
-import 'package:another_iptv_player/models/category_type.dart';
-import 'package:another_iptv_player/models/content_type.dart';
-import 'package:another_iptv_player/models/m3u_item.dart';
-import 'package:another_iptv_player/models/progress_step.dart';
-import 'package:another_iptv_player/services/m3u_parser.dart';
-import 'package:another_iptv_player/services/service_locator.dart';
+import 'package:rensi_iptv/models/category.dart';
+import 'package:rensi_iptv/models/category_type.dart';
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/m3u_item.dart';
+import 'package:rensi_iptv/models/progress_step.dart';
+import 'package:rensi_iptv/services/m3u_parser.dart';
+import 'package:rensi_iptv/services/service_locator.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:uuid/uuid.dart';
@@ -311,38 +309,6 @@ class M3uController extends ChangeNotifier {
     return success;
   }
 
-  Future<List<M3uItem>> _parseFile(String playlistId, String filePath) async {
-    try {
-      final file = File(filePath);
-      final content = await file.readAsString(encoding: utf8);
-      return _parseM3u(playlistId, content);
-    } catch (e) {
-      print('M3U file parse error: $e');
-      throw Exception('M3U dosyası okunamadı: ${e.toString()}');
-    }
-  }
-
-  Future<List<M3uItem>> _parseUrl(String playlistId, String url) async {
-    try {
-      final client = HttpClient();
-      final request = await client.getUrl(Uri.parse(url));
-      final response = await request.close();
-
-      if (response.statusCode != 200) {
-        throw Exception(
-          'HTTP ${response.statusCode}: M3U URL\'sine erişilemedi',
-        );
-      }
-
-      final content = await response.transform(utf8.decoder).join();
-      client.close();
-      return _parseM3u(playlistId, content);
-    } catch (e) {
-      print('M3U URL parse error: $e');
-      throw Exception('M3U URL\'si okunamadı: ${e.toString()}');
-    }
-  }
-
   Map<CategoryWithContentType, List<M3uItem>> _groupChannels(
     List<M3uItem> channels,
   ) {
@@ -375,87 +341,6 @@ class M3uController extends ChangeNotifier {
     }
 
     return sortedGrouped;
-  }
-
-  List<M3uItem> _parseM3u(String playlistId, String content) {
-    final lines = content.split('\n').map((e) => e.trim()).toList();
-    final List<M3uItem> items = [];
-
-    Map<String, String?> currentMeta = {};
-    String? currentName;
-
-    for (int i = 0; i < lines.length; i++) {
-      final line = lines[i];
-
-      if (line.startsWith('#EXTINF')) {
-        final commaIndex = line.indexOf(',');
-        final metadataPart = (commaIndex != -1)
-            ? line.substring(0, commaIndex)
-            : line;
-
-        currentName = (commaIndex != -1)
-            ? line.substring(commaIndex + 1).trim()
-            : null;
-
-        currentMeta = {
-          'tvg-id': _extractAttribute(metadataPart, 'tvg-id'),
-          'tvg-name': _extractAttribute(metadataPart, 'tvg-name'),
-          'tvg-logo': _extractAttribute(metadataPart, 'tvg-logo'),
-          'tvg-url': _extractAttribute(metadataPart, 'tvg-url'),
-          'tvg-rec': _extractAttribute(metadataPart, 'tvg-rec'),
-          'tvg-shift': _extractAttribute(metadataPart, 'tvg-shift'),
-          'group-title': _extractAttribute(metadataPart, 'group-title'),
-          'user-agent': _extractAttribute(metadataPart, 'user-agent'),
-        };
-      } else if (line.startsWith('#EXTGRP:')) {
-        currentMeta['group-name'] = line.substring(8).trim();
-      } else if (line.isNotEmpty && !line.startsWith('#')) {
-        final url = line;
-
-        items.add(
-          M3uItem(
-            id: uuid.v4(),
-            playlistId: playlistId,
-            url: url,
-            contentType: _detectContentType(url),
-            name: currentName,
-            tvgId: currentMeta['tvg-id'],
-            tvgName: currentMeta['tvg-name'],
-            tvgLogo: currentMeta['tvg-logo'],
-            tvgUrl: currentMeta['tvg-url'],
-            tvgRec: currentMeta['tvg-rec'],
-            tvgShift: currentMeta['tvg-shift'],
-            groupTitle: currentMeta['group-title'],
-            groupName: currentMeta['group-name'],
-            userAgent: currentMeta['user-agent'],
-            referrer: null,
-          ),
-        );
-
-        currentMeta.clear();
-        currentName = null;
-      }
-    }
-
-    return items;
-  }
-
-  String? _extractAttribute(String line, String attribute) {
-    final regex = RegExp('$attribute="(.*?)"');
-    final match = regex.firstMatch(line);
-    return match?.group(1);
-  }
-
-  ContentType _detectContentType(String url) {
-    final lowerUrl = url.toLowerCase();
-
-    if (lowerUrl.contains('movie')) {
-      return ContentType.vod;
-    } else if (lowerUrl.contains('series')) {
-      return ContentType.series;
-    } else {
-      return ContentType.liveStream;
-    }
   }
 
   // Kategori bazlı filtreleme metodları

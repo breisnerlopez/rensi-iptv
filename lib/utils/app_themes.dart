@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 class AppThemes {
-  static const Color _seedColor = Colors.blue;
+  // Material Red 700 — deep, elegant red that anchors the whole palette
+  // (primary, secondary, tertiary, surface, error...) through ColorScheme.fromSeed.
+  static const Color _seedColor = Color(0xFFD32F2F);
 
   static final ThemeData lightTheme = ThemeData(
     useMaterial3: true,

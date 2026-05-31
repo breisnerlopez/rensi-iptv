@@ -1,13 +1,16 @@
-import 'package:another_iptv_player/database/database.dart';
-import 'package:another_iptv_player/screens/settings/subtitle_settings_section.dart';
-import 'package:another_iptv_player/services/service_locator.dart';
-import 'package:another_iptv_player/utils/get_playlist_type.dart';
-import 'package:another_iptv_player/utils/show_loading_dialog.dart';
+import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/screens/settings/subtitle_settings_section.dart';
+import 'package:rensi_iptv/services/backup_service.dart';
+import 'package:rensi_iptv/services/service_locator.dart';
+import 'package:rensi_iptv/services/tmdb_credentials_service.dart';
+import 'package:rensi_iptv/utils/backup_import_flow.dart';
+import 'package:rensi_iptv/utils/get_playlist_type.dart';
+import 'package:rensi_iptv/utils/show_loading_dialog.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:another_iptv_player/l10n/localization_extension.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../controllers/locale_provider.dart';
@@ -47,6 +50,8 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
   bool _speedUpOnLongPress = true;
   bool _seekOnDoubleTap = true;
   String _appVersion = '';
+  String _tmdbToken = '';
+  bool _hasTmdbCredential = false;
 
   @override
   void initState() {
@@ -64,6 +69,7 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
       final speedUpOnLongPress = await UserPreferences.getSpeedUpOnLongPress();
       final seekOnDoubleTap = await UserPreferences.getSeekOnDoubleTap();
       final packageInfo = await PackageInfo.fromPlatform();
+      final tmdb = await TmdbCredentialsService.getCredential();
       setState(() {
         _backgroundPlayEnabled = backgroundPlay;
         _selectedTheme = _themeModeToString(themeMode);
@@ -73,6 +79,7 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
         _speedUpOnLongPress = speedUpOnLongPress;
         _seekOnDoubleTap = seekOnDoubleTap;
         _appVersion = packageInfo.version;
+        _hasTmdbCredential = tmdb != null;
         _isLoading = false;
       });
     } catch (e) {
@@ -117,278 +124,552 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
     }
   }
 
+  Future<void> _saveTmdbCredential() async {
+    if (_tmdbToken.trim().isEmpty) return;
+    await TmdbCredentialsService.saveCredential(_tmdbToken);
+    setState(() {
+      _hasTmdbCredential = true;
+      _tmdbToken = '';
+    });
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(context.loc.tmdb_credential_saved)));
+  }
+
+  Future<void> _exportBackup() async {
+    final passphrase = await _askPassphrase(
+      title: context.loc.backup_passphrase_title,
+      subtitle: context.loc.backup_passphrase_subtitle,
+      requireConfirm: true,
+    );
+    // Returns null when the user cancels the dialog. An empty string means
+    // "export without encryption" and is still a valid choice.
+    if (passphrase == null) return;
+
+    try {
+      final exported = await BackupService.exportToFile(
+        passphrase: passphrase.isEmpty ? null : passphrase,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            exported
+                ? context.loc.export_success
+                : context.loc.export_cancelled,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.loc.export_failed)));
+    }
+  }
+
+  Future<void> _importBackup() async {
+    final result = await runBackupImportFlow(context);
+    if (!mounted) return;
+    if (result != null && result.total > 0) {
+      await _loadSettings();
+    }
+  }
+
+  Future<String?> _askPassphrase({
+    required String title,
+    required String subtitle,
+    bool requireConfirm = false,
+    bool forImport = false,
+  }) async {
+    final controller = TextEditingController();
+    final confirmController = TextEditingController();
+    String? errorText;
+    try {
+      return await showDialog<String?>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (statefulContext, setLocal) {
+              return AlertDialog(
+                title: Text(title),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(subtitle),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      obscureText: true,
+                      decoration: InputDecoration(
+                        labelText: context.loc.backup_passphrase_field,
+                        errorText: errorText,
+                      ),
+                    ),
+                    if (requireConfirm) ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: confirmController,
+                        obscureText: true,
+                        decoration: InputDecoration(
+                          labelText: context.loc.backup_passphrase_confirm,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        context.loc.backup_plain_warning,
+                        style: TextStyle(
+                          color: Theme.of(statefulContext).colorScheme.error,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, null),
+                    child: Text(context.loc.cancel),
+                  ),
+                  if (!forImport && !requireConfirm)
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext, ''),
+                      child: Text(context.loc.backup_skip_encryption),
+                    ),
+                  if (requireConfirm)
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext, ''),
+                      child: Text(context.loc.backup_skip_encryption),
+                    ),
+                  FilledButton(
+                    onPressed: () {
+                      final value = controller.text;
+                      if (requireConfirm && value != confirmController.text) {
+                        setLocal(() {
+                          errorText =
+                              context.loc.backup_passphrase_mismatch;
+                        });
+                        return;
+                      }
+                      Navigator.pop(dialogContext, value);
+                    },
+                    child: Text(
+                      forImport
+                          ? context.loc.tmdb_search_button
+                          : context.loc.backup_encrypt,
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    } finally {
+      controller.dispose();
+      confirmController.dispose();
+    }
+  }
+
+  Future<BackupMergeStrategy?> _askMergeStrategy() async {
+    return showDialog<BackupMergeStrategy?>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(context.loc.backup_strategy_title),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.merge_type),
+                title: Text(context.loc.backup_strategy_overwrite),
+                onTap: () =>
+                    Navigator.pop(dialogContext, BackupMergeStrategy.overwrite),
+              ),
+              ListTile(
+                leading: const Icon(Icons.shield_outlined),
+                title: Text(context.loc.backup_strategy_keep_local),
+                onTap: () =>
+                    Navigator.pop(dialogContext, BackupMergeStrategy.keepLocal),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, null),
+              child: Text(context.loc.cancel),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     return _isLoading
         ? const Center(child: CircularProgressIndicator())
         : Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.home),
-            title: Text(context.loc.playlist_list),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () async {
-              await UserPreferences.removeLastPlaylist();
-              if (mounted) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                      builder: (context) => PlaylistScreen()),
-                );
-              }
-            },
-          ),
-        ),
-        const SizedBox(height: 10),
-        SectionTitleWidget(title: context.loc.general_settings),
-        Card(
-          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ListTile(
-                leading: const Icon(Icons.refresh),
-                title: Text(context.loc.refresh_contents),
-                trailing: const Icon(Icons.cloud_download),
-                onTap: () {
-                  if (isXtreamCode) {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => XtreamCodeDataLoaderScreen(
-                          playlist: AppState.currentPlaylist!,
-                          refreshAll: true,
-                        ),
-                      ),
-                    );
-                  }
-
-                  if (isM3u) {
-                    refreshM3uPlaylist();
-                  }
-                },
-              ),
-              if (isXtreamCode) const Divider(height: 1),
-              if (isXtreamCode)
-                ListTile(
-                  leading: const Icon(Icons.subtitles_outlined),
-                  title: Text(context.loc.hide_category),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.home),
+                  title: Text(context.loc.playlist_list),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CategorySettingsScreen(
-                          controller: controller,
+                    await UserPreferences.removeLastPlaylist();
+                    if (mounted) {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PlaylistScreen(),
                         ),
-                      ),
-                    );
-
-                    if (result == true) {
-                      if (isXtreamCode) {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                XtreamCodeDataLoaderScreen(
-                                  playlist: AppState.currentPlaylist!,
-                                  refreshAll: true,
-                                ),
-                          ),
-                        );
-                      }
-
-                      if (isM3u) {
-                        refreshM3uPlaylist();
-                      }
+                      );
                     }
                   },
                 ),
-              const Divider(height: 1),
-              DropdownTileWidget<Locale>(
-                icon: Icons.language,
-                label: context.loc.app_language,
-                value: Localizations.localeOf(context),
-                items: [
-                  ...supportedLanguages.map(
-                        (language) => DropdownMenuItem(
-                      value: Locale(language['code']),
-                      child: Text(language['name']),
+              ),
+              const SizedBox(height: 10),
+              SectionTitleWidget(title: context.loc.general_settings),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.refresh),
+                      title: Text(context.loc.refresh_contents),
+                      trailing: const Icon(Icons.cloud_download),
+                      onTap: () {
+                        if (isXtreamCode) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => XtreamCodeDataLoaderScreen(
+                                playlist: AppState.currentPlaylist!,
+                                refreshAll: true,
+                              ),
+                            ),
+                          );
+                        }
+
+                        if (isM3u) {
+                          refreshM3uPlaylist();
+                        }
+                      },
                     ),
-                  ),
-                ],
-                onChanged: (v) {
-                  Provider.of<LocaleProvider>(
-                    context,
-                    listen: false,
-                  ).setLocale(v!);
-                },
-              ),
-              const Divider(height: 1),
-              DropdownTileWidget<String>(
-                icon: Icons.color_lens_outlined,
-                label: context.loc.theme,
-                value: _selectedTheme,
-                items: [
-                  DropdownMenuItem(
-                    value: 'system',
-                    child: Text(context.loc.standard),
-                  ),
-                  DropdownMenuItem(
-                    value: 'light',
-                    child: Text(context.loc.light),
-                  ),
-                  DropdownMenuItem(
-                    value: 'dark',
-                    child: Text(context.loc.dark),
-                  ),
-                ],
-                onChanged: (value) async {
-                  if (value != null) {
-                    final themeMode = _stringToThemeMode(value);
-                    await themeProvider.setTheme(themeMode);
-                    setState(() {
-                      _selectedTheme = value;
-                    });
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        SectionTitleWidget(title: context.loc.player_settings),
-        Card(
-          child: Column(
-            children: [
-              SwitchListTile(
-                secondary: const Icon(Icons.play_circle_outline),
-                title: Text(context.loc.continue_on_background),
-                subtitle: Text(
-                    context.loc.continue_on_background_description),
-                value: _backgroundPlayEnabled,
-                onChanged: _saveBackgroundPlaySetting,
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.subtitles_outlined),
-                title: Text(context.loc.subtitle_settings),
-                subtitle:
-                Text(context.loc.subtitle_settings_description),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                      const SubtitleSettingsScreen(),
+                    if (isXtreamCode) const Divider(height: 1),
+                    if (isXtreamCode)
+                      ListTile(
+                        leading: const Icon(Icons.subtitles_outlined),
+                        title: Text(context.loc.hide_category),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CategorySettingsScreen(
+                                controller: controller,
+                              ),
+                            ),
+                          );
+
+                          if (result == true) {
+                            if (isXtreamCode) {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      XtreamCodeDataLoaderScreen(
+                                        playlist: AppState.currentPlaylist!,
+                                        refreshAll: true,
+                                      ),
+                                ),
+                              );
+                            }
+
+                            if (isM3u) {
+                              refreshM3uPlaylist();
+                            }
+                          }
+                        },
+                      ),
+                    const Divider(height: 1),
+                    DropdownTileWidget<Locale>(
+                      icon: Icons.language,
+                      label: context.loc.app_language,
+                      value: Localizations.localeOf(context),
+                      items: [
+                        ...supportedLanguages.map(
+                          (language) => DropdownMenuItem(
+                            value: Locale(language['code']),
+                            child: Text(language['name']),
+                          ),
+                        ),
+                      ],
+                      onChanged: (v) {
+                        Provider.of<LocaleProvider>(
+                          context,
+                          listen: false,
+                        ).setLocale(v!);
+                      },
                     ),
-                  );
-                },
+                    const Divider(height: 1),
+                    DropdownTileWidget<String>(
+                      icon: Icons.color_lens_outlined,
+                      label: context.loc.theme,
+                      value: _selectedTheme,
+                      items: [
+                        DropdownMenuItem(
+                          value: 'system',
+                          child: Text(context.loc.standard),
+                        ),
+                        DropdownMenuItem(
+                          value: 'light',
+                          child: Text(context.loc.light),
+                        ),
+                        DropdownMenuItem(
+                          value: 'dark',
+                          child: Text(context.loc.dark),
+                        ),
+                      ],
+                      onChanged: (value) async {
+                        if (value != null) {
+                          final themeMode = _stringToThemeMode(value);
+                          await themeProvider.setTheme(themeMode);
+                          setState(() {
+                            _selectedTheme = value;
+                          });
+                        }
+                      },
+                    ),
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 12, right: 12),
+                            child: Icon(Icons.key, size: 24),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  context.loc.tmdb_credential_label,
+                                  style: Theme.of(context).textTheme.titleSmall,
+                                ),
+                                const SizedBox(height: 2),
+                                if (_hasTmdbCredential)
+                                  Text(
+                                    context.loc.tmdb_credential_configured,
+                                    style: const TextStyle(color: Colors.green),
+                                  )
+                                else
+                                  Text(context.loc.tmdb_credential_missing),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  obscureText: true,
+                                  onChanged: (v) => _tmdbToken = v,
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    border: const OutlineInputBorder(),
+                                    labelText:
+                                        context.loc.tmdb_credential_field_label,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: FilledButton(
+                                    onPressed: _saveTmdbCredential,
+                                    child: Text(context.loc.save),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              // Player gesture settings - Only show on mobile platforms (Android & iOS)
-              if (Theme.of(context).platform == TargetPlatform.android ||
-                  Theme.of(context).platform == TargetPlatform.iOS) ...[
-                const Divider(height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.brightness_6),
-                  title: Text(context.loc.brightness_gesture),
-                  subtitle: Text(context.loc.brightness_gesture_description),
-                  value: _brightnessGesture,
-                  onChanged: (value) async {
-                    await UserPreferences.setBrightnessGesture(value);
-                    setState(() {
-                      _brightnessGesture = value;
-                    });
-                  },
+              const SizedBox(height: 10),
+              SectionTitleWidget(title: context.loc.backup_section),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.upload_file),
+                      title: Text(context.loc.export_playlists_and_settings),
+                      subtitle: Text(context.loc.export_subtitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _exportBackup,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.download),
+                      title: Text(context.loc.import_playlists_and_settings),
+                      subtitle: Text(context.loc.import_subtitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _importBackup,
+                    ),
+                  ],
                 ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.volume_up),
-                  title: Text(context.loc.volume_gesture),
-                  subtitle: Text(context.loc.volume_gesture_description),
-                  value: _volumeGesture,
-                  onChanged: (value) async {
-                    await UserPreferences.setVolumeGesture(value);
-                    setState(() {
-                      _volumeGesture = value;
-                    });
-                  },
+              ),
+              const SizedBox(height: 10),
+              SectionTitleWidget(title: context.loc.player_settings),
+              Card(
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      secondary: const Icon(Icons.play_circle_outline),
+                      title: Text(context.loc.continue_on_background),
+                      subtitle: Text(
+                        context.loc.continue_on_background_description,
+                      ),
+                      value: _backgroundPlayEnabled,
+                      onChanged: _saveBackgroundPlaySetting,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.subtitles_outlined),
+                      title: Text(context.loc.subtitle_settings),
+                      subtitle: Text(context.loc.subtitle_settings_description),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const SubtitleSettingsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                    if (Theme.of(context).platform == TargetPlatform.android ||
+                        Theme.of(context).platform == TargetPlatform.iOS) ...[
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.brightness_6),
+                        title: Text(context.loc.brightness_gesture),
+                        subtitle: Text(
+                          context.loc.brightness_gesture_description,
+                        ),
+                        value: _brightnessGesture,
+                        onChanged: (value) async {
+                          await UserPreferences.setBrightnessGesture(value);
+                          setState(() {
+                            _brightnessGesture = value;
+                          });
+                        },
+                      ),
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.volume_up),
+                        title: Text(context.loc.volume_gesture),
+                        subtitle: Text(context.loc.volume_gesture_description),
+                        value: _volumeGesture,
+                        onChanged: (value) async {
+                          await UserPreferences.setVolumeGesture(value);
+                          setState(() {
+                            _volumeGesture = value;
+                          });
+                        },
+                      ),
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.swipe),
+                        title: Text(context.loc.seek_gesture),
+                        subtitle: Text(context.loc.seek_gesture_description),
+                        value: _seekGesture,
+                        onChanged: (value) async {
+                          await UserPreferences.setSeekGesture(value);
+                          setState(() {
+                            _seekGesture = value;
+                          });
+                        },
+                      ),
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.fast_forward),
+                        title: Text(context.loc.speed_up_on_long_press),
+                        subtitle: Text(
+                          context.loc.speed_up_on_long_press_description,
+                        ),
+                        value: _speedUpOnLongPress,
+                        onChanged: (value) async {
+                          await UserPreferences.setSpeedUpOnLongPress(value);
+                          setState(() {
+                            _speedUpOnLongPress = value;
+                          });
+                        },
+                      ),
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.touch_app),
+                        title: Text(context.loc.seek_on_double_tap),
+                        subtitle: Text(
+                          context.loc.seek_on_double_tap_description,
+                        ),
+                        value: _seekOnDoubleTap,
+                        onChanged: (value) async {
+                          await UserPreferences.setSeekOnDoubleTap(value);
+                          setState(() {
+                            _seekOnDoubleTap = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ],
                 ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.swipe),
-                  title: Text(context.loc.seek_gesture),
-                  subtitle: Text(context.loc.seek_gesture_description),
-                  value: _seekGesture,
-                  onChanged: (value) async {
-                    await UserPreferences.setSeekGesture(value);
-                    setState(() {
-                      _seekGesture = value;
-                    });
-                  },
+              ),
+              const SizedBox(height: 10),
+              SectionTitleWidget(title: context.loc.about),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.info_outline),
+                      title: Text(context.loc.app_version),
+                      subtitle: Text(
+                        _appVersion.isNotEmpty ? _appVersion : 'Loading...',
+                      ),
+                      dense: true,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.code),
+                      title: Text(context.loc.support_on_github),
+                      subtitle: Text(context.loc.support_on_github_description),
+                      trailing: const Icon(Icons.open_in_new, size: 18),
+                      dense: true,
+                      onTap: () async {
+                        final url = Uri.parse(
+                          'https://github.com/bsogulcan/another-iptv-player',
+                        );
+                        if (await canLaunchUrl(url)) {
+                          await launchUrl(
+                            url,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        }
+                      },
+                    ),
+                  ],
                 ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.fast_forward),
-                  title: Text(context.loc.speed_up_on_long_press),
-                  subtitle: Text(context.loc.speed_up_on_long_press_description),
-                  value: _speedUpOnLongPress,
-                  onChanged: (value) async {
-                    await UserPreferences.setSpeedUpOnLongPress(value);
-                    setState(() {
-                      _speedUpOnLongPress = value;
-                    });
-                  },
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  secondary: const Icon(Icons.touch_app),
-                  title: Text(context.loc.seek_on_double_tap),
-                  subtitle: Text(context.loc.seek_on_double_tap_description),
-                  value: _seekOnDoubleTap,
-                  onChanged: (value) async {
-                    await UserPreferences.setSeekOnDoubleTap(value);
-                    setState(() {
-                      _seekOnDoubleTap = value;
-                    });
-                  },
-                ),
-              ],
+              ),
             ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        SectionTitleWidget(title: context.loc.about),
-        Card(
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.info_outline),
-                title: Text(context.loc.app_version),
-                subtitle: Text(_appVersion.isNotEmpty ? _appVersion : 'Loading...'),
-                dense: true,
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.code),
-                title: Text(context.loc.support_on_github),
-                subtitle: Text(context.loc.support_on_github_description),
-                trailing: const Icon(Icons.open_in_new, size: 18),
-                dense: true,
-                onTap: () async {
-                  final url = Uri.parse('https://github.com/bsogulcan/another-iptv-player');
-                  if (await canLaunchUrl(url)) {
-                    await launchUrl(url, mode: LaunchMode.externalApplication);
-                  }
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+          );
   }
 
   refreshM3uPlaylist() async {
@@ -448,9 +729,9 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(context.loc.file_selection_error)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(context.loc.file_selection_error)));
     }
   }
 

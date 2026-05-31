@@ -1,11 +1,11 @@
-import 'package:another_iptv_player/database/database.dart';
-import 'package:another_iptv_player/models/content_type.dart';
-import 'package:another_iptv_player/models/favorite.dart';
-import 'package:another_iptv_player/models/playlist_content_model.dart';
-import 'package:another_iptv_player/services/app_state.dart';
-import 'package:another_iptv_player/services/service_locator.dart';
-import 'package:another_iptv_player/utils/get_playlist_type.dart';
-import 'package:another_iptv_player/repositories/m3u_repository.dart';
+import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/favorite.dart';
+import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/services/service_locator.dart';
+import 'package:rensi_iptv/utils/get_playlist_type.dart';
+import 'package:rensi_iptv/repositories/m3u_repository.dart';
 import 'package:uuid/uuid.dart';
 
 class FavoritesRepository {

@@ -851,4 +851,254 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get duration_label => 'Duración';
+
+  @override
+  String get tmdb_global_search => 'Búsqueda Global TMDb';
+
+  @override
+  String get tmdb_credential_configured =>
+      'Credencial TMDb almacenada de forma segura';
+
+  @override
+  String get tmdb_credential_missing =>
+      'Añade tu API key o token de acceso TMDb para habilitar la búsqueda global';
+
+  @override
+  String get tmdb_credential_label => 'Token API TMDb';
+
+  @override
+  String get tmdb_credential_field_label => 'API key o token de acceso';
+
+  @override
+  String get tmdb_credential_save => 'Guardar credencial';
+
+  @override
+  String get tmdb_credential_saved => 'Credencial TMDb guardada';
+
+  @override
+  String get tmdb_search_hint => 'Buscar películas y series en TMDb';
+
+  @override
+  String get tmdb_search_button => 'Buscar';
+
+  @override
+  String get tmdb_search_description =>
+      'Escribe al menos 3 caracteres y pulsa Buscar. Los resultados se cachean 24 horas para reducir el uso de la API.';
+
+  @override
+  String get tmdb_exact_match => 'Coincidencia exacta';
+
+  @override
+  String get tmdb_not_found_in_playlists => 'No encontrado en tus listas';
+
+  @override
+  String tmdb_available_in(Object count) {
+    return 'Disponible en $count elemento(s) de lista';
+  }
+
+  @override
+  String get tmdb_wishlist => 'Lista de deseos';
+
+  @override
+  String get save => 'Guardar';
+
+  @override
+  String get export_playlists_and_settings => 'Exportar listas y configuración';
+
+  @override
+  String get export_subtitle =>
+      'Guardar todas las listas, credenciales y ajustes';
+
+  @override
+  String get import_playlists_and_settings => 'Importar listas y configuración';
+
+  @override
+  String get import_subtitle =>
+      'Restaurar listas y sobrescribir ajustes coincidentes';
+
+  @override
+  String get backup_section => 'Respaldo';
+
+  @override
+  String get tmdb_credential_section => 'Token API TMDb';
+
+  @override
+  String get export_success => 'Respaldo exportado correctamente';
+
+  @override
+  String get export_cancelled => 'Exportación de respaldo cancelada';
+
+  @override
+  String get export_failed => 'Error al exportar respaldo';
+
+  @override
+  String import_success(Object count) {
+    return 'Respaldo importado: $count listas restauradas';
+  }
+
+  @override
+  String get import_cancelled => 'Importación de respaldo cancelada';
+
+  @override
+  String get import_failed => 'Error al importar respaldo';
+
+  @override
+  String import_summary(int created, int updated, int skipped) {
+    return 'Importado: $created nuevos, $updated actualizados, $skipped omitidos';
+  }
+
+  @override
+  String get backup_passphrase_title => 'Proteger este respaldo';
+
+  @override
+  String get backup_passphrase_subtitle =>
+      'Elige una contraseña para cifrar el respaldo. Déjalo en blanco para un JSON sin cifrar (las credenciales serán legibles).';
+
+  @override
+  String get backup_passphrase_field => 'Contraseña';
+
+  @override
+  String get backup_passphrase_confirm => 'Confirmar contraseña';
+
+  @override
+  String get backup_passphrase_mismatch => 'Las contraseñas no coinciden';
+
+  @override
+  String get backup_passphrase_required =>
+      'Este respaldo está cifrado. Introduce la contraseña usada al crearlo.';
+
+  @override
+  String get backup_passphrase_invalid =>
+      'Contraseña incorrecta o respaldo corrupto';
+
+  @override
+  String get backup_invalid_format => 'Archivo de respaldo no válido';
+
+  @override
+  String backup_schema_unsupported(String version) {
+    return 'Versión de respaldo no soportada: $version';
+  }
+
+  @override
+  String get backup_plain_warning =>
+      'Una exportación sin cifrar deja URLs, usuarios y contraseñas legibles en el archivo.';
+
+  @override
+  String get backup_strategy_title =>
+      'Importar reemplazará las listas con el mismo id.';
+
+  @override
+  String get backup_strategy_overwrite => 'Sobrescribir existentes';
+
+  @override
+  String get backup_strategy_keep_local => 'Conservar las locales';
+
+  @override
+  String get backup_encrypt => 'Cifrar';
+
+  @override
+  String get backup_skip_encryption => 'Sin cifrar';
+
+  @override
+  String get search_no_results => 'No se encontraron resultados';
+
+  @override
+  String get search_in_your_lists => 'En tus listas';
+
+  @override
+  String get search_from_your_iptv => 'Desde tu IPTV';
+
+  @override
+  String get search_tmdb_section => 'TMDb';
+
+  @override
+  String get search_watch_action => 'Ver';
+
+  @override
+  String playlist_load_failed(String error) {
+    return 'Error al cargar las listas: $error';
+  }
+
+  @override
+  String playlist_save_failed(String error) {
+    return 'Error al guardar la lista: $error';
+  }
+
+  @override
+  String playlist_update_failed(String error) {
+    return 'Error al actualizar la lista: $error';
+  }
+
+  @override
+  String playlist_delete_failed(String error) {
+    return 'Error al eliminar la lista: $error';
+  }
+
+  @override
+  String m3u_file_read_failed(String error) {
+    return 'No se pudo leer el archivo M3U: $error';
+  }
+
+  @override
+  String get m3u_url_invalid_scheme =>
+      'La URL debe comenzar con http:// o https://';
+
+  @override
+  String m3u_url_http_status(String status) {
+    return 'La URL M3U devolvió HTTP $status';
+  }
+
+  @override
+  String get m3u_url_response_too_large => 'La lista M3U supera los 50 MB';
+
+  @override
+  String m3u_url_fetch_failed(String error) {
+    return 'No se pudo descargar la URL M3U: $error';
+  }
+
+  @override
+  String get search_filter_all => 'Todo';
+
+  @override
+  String get search_filter_movies => 'Películas';
+
+  @override
+  String get search_filter_tv => 'TV';
+
+  @override
+  String get search_filter_wishlist => 'Lista de deseos';
+
+  @override
+  String get search_clear_history => 'Borrar historial';
+
+  @override
+  String get search_clear_history_confirm =>
+      '¿Quitar todas las búsquedas recientes?';
+
+  @override
+  String get search_remove_from_wishlist => 'Quitar de la lista de deseos';
+
+  @override
+  String get search_wishlist_empty =>
+      'Tu lista de deseos está vacía. Toca el marcador en cualquier resultado de TMDb para guardarlo aquí.';
+
+  @override
+  String get search_detail_overview => 'Sinopsis';
+
+  @override
+  String get search_detail_genres => 'Géneros';
+
+  @override
+  String search_detail_runtime(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String search_detail_open_in_playlist(String playlist) {
+    return 'Abrir en $playlist';
+  }
+
+  @override
+  String get search_detail_not_in_playlists =>
+      'No está en ninguna de tus listas';
 }

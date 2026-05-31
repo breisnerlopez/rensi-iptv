@@ -819,4 +819,241 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get duration_label => '时长';
+
+  @override
+  String get tmdb_global_search => 'TMDb 全局搜索';
+
+  @override
+  String get tmdb_credential_configured => 'TMDb 凭证已安全存储';
+
+  @override
+  String get tmdb_credential_missing => '添加您的 TMDb API 密钥或读取访问令牌以启用全局搜索';
+
+  @override
+  String get tmdb_credential_label => 'TMDb API 令牌';
+
+  @override
+  String get tmdb_credential_field_label => 'API 密钥或读取访问令牌';
+
+  @override
+  String get tmdb_credential_save => '保存凭证';
+
+  @override
+  String get tmdb_credential_saved => 'TMDb 凭证已保存';
+
+  @override
+  String get tmdb_search_hint => '在 TMDb 上搜索电影和剧集';
+
+  @override
+  String get tmdb_search_button => '搜索';
+
+  @override
+  String get tmdb_search_description => '输入至少 3 个字符并按搜索。结果将缓存 24 小时以减少 API 使用。';
+
+  @override
+  String get tmdb_exact_match => '完全匹配';
+
+  @override
+  String get tmdb_not_found_in_playlists => '在您的播放列表中未找到';
+
+  @override
+  String tmdb_available_in(Object count) {
+    return '在 $count 个播放列表项中可用';
+  }
+
+  @override
+  String get tmdb_wishlist => '心愿单';
+
+  @override
+  String get save => '保存';
+
+  @override
+  String get export_playlists_and_settings => '导出播放列表和设置';
+
+  @override
+  String get export_subtitle => '保存所有播放列表、凭证和应用设置';
+
+  @override
+  String get import_playlists_and_settings => '导入播放列表和设置';
+
+  @override
+  String get import_subtitle => '恢复播放列表并覆盖匹配的设置';
+
+  @override
+  String get backup_section => '备份';
+
+  @override
+  String get tmdb_credential_section => 'TMDb API 令牌';
+
+  @override
+  String get export_success => '备份导出成功';
+
+  @override
+  String get export_cancelled => '备份导出已取消';
+
+  @override
+  String get export_failed => '备份导出失败';
+
+  @override
+  String import_success(Object count) {
+    return '备份已导入：已恢复 $count 个播放列表';
+  }
+
+  @override
+  String get import_cancelled => '备份导入已取消';
+
+  @override
+  String get import_failed => '备份导入失败';
+
+  @override
+  String import_summary(int created, int updated, int skipped) {
+    return '已导入：$created 个新增，$updated 个更新，$skipped 个跳过';
+  }
+
+  @override
+  String get backup_passphrase_title => '保护此备份';
+
+  @override
+  String get backup_passphrase_subtitle =>
+      '选择一个密码短语来加密备份。留空将以未加密的 JSON 导出（凭证将可读）。';
+
+  @override
+  String get backup_passphrase_field => '密码短语';
+
+  @override
+  String get backup_passphrase_confirm => '确认密码短语';
+
+  @override
+  String get backup_passphrase_mismatch => '密码短语不匹配';
+
+  @override
+  String get backup_passphrase_required => '此备份已加密。请输入创建时使用的密码短语。';
+
+  @override
+  String get backup_passphrase_invalid => '密码短语错误或备份已损坏';
+
+  @override
+  String get backup_invalid_format => '无效的备份文件';
+
+  @override
+  String backup_schema_unsupported(String version) {
+    return '不支持的备份版本：$version';
+  }
+
+  @override
+  String get backup_plain_warning => '未加密的导出会使 URL、用户名和密码在文件中保持可读状态。';
+
+  @override
+  String get backup_strategy_title => '导入将替换具有相同 ID 的播放列表。';
+
+  @override
+  String get backup_strategy_overwrite => '覆盖现有';
+
+  @override
+  String get backup_strategy_keep_local => '保留本地版本';
+
+  @override
+  String get backup_encrypt => '加密';
+
+  @override
+  String get backup_skip_encryption => '不加密';
+
+  @override
+  String get search_no_results => '未找到结果';
+
+  @override
+  String get search_in_your_lists => '在您的列表中';
+
+  @override
+  String get search_from_your_iptv => '来自您的 IPTV';
+
+  @override
+  String get search_tmdb_section => 'TMDb';
+
+  @override
+  String get search_watch_action => '观看';
+
+  @override
+  String playlist_load_failed(String error) {
+    return '加载播放列表失败：$error';
+  }
+
+  @override
+  String playlist_save_failed(String error) {
+    return '保存播放列表失败：$error';
+  }
+
+  @override
+  String playlist_update_failed(String error) {
+    return '更新播放列表失败：$error';
+  }
+
+  @override
+  String playlist_delete_failed(String error) {
+    return '删除播放列表失败：$error';
+  }
+
+  @override
+  String m3u_file_read_failed(String error) {
+    return '无法读取 M3U 文件：$error';
+  }
+
+  @override
+  String get m3u_url_invalid_scheme => 'URL 必须以 http:// 或 https:// 开头';
+
+  @override
+  String m3u_url_http_status(String status) {
+    return 'M3U URL 返回了 HTTP $status';
+  }
+
+  @override
+  String get m3u_url_response_too_large => 'M3U 播放列表大于 50 MB';
+
+  @override
+  String m3u_url_fetch_failed(String error) {
+    return '无法下载 M3U URL：$error';
+  }
+
+  @override
+  String get search_filter_all => '全部';
+
+  @override
+  String get search_filter_movies => '电影';
+
+  @override
+  String get search_filter_tv => 'TV';
+
+  @override
+  String get search_filter_wishlist => '愿望清单';
+
+  @override
+  String get search_clear_history => '清除历史';
+
+  @override
+  String get search_clear_history_confirm => '要移除所有最近的搜索吗？';
+
+  @override
+  String get search_remove_from_wishlist => '从愿望清单中移除';
+
+  @override
+  String get search_wishlist_empty => '你的愿望清单是空的。点按任意 TMDb 结果上的书签将其保存到这里。';
+
+  @override
+  String get search_detail_overview => '简介';
+
+  @override
+  String get search_detail_genres => '类型';
+
+  @override
+  String search_detail_runtime(int minutes) {
+    return '$minutes 分钟';
+  }
+
+  @override
+  String search_detail_open_in_playlist(String playlist) {
+    return '在 $playlist 中打开';
+  }
+
+  @override
+  String get search_detail_not_in_playlists => '不在你的任何播放列表中';
 }

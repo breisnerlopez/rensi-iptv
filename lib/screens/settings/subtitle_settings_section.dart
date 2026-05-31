@@ -1,6 +1,6 @@
-import 'package:another_iptv_player/repositories/user_preferences.dart';
+import 'package:rensi_iptv/repositories/user_preferences.dart';
 import 'package:flutter/material.dart';
-import 'package:another_iptv_player/l10n/localization_extension.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import '../../widgets/color_picker_tile_widget.dart';
 import '../../widgets/dropdown_tile_widget.dart';
 import '../../widgets/slider_tile_widget.dart';

@@ -1,4 +1,4 @@
-import 'package:another_iptv_player/services/app_state.dart';
+import 'package:rensi_iptv/services/app_state.dart';
 
 import '../models/content_type.dart';
 import '../models/playlist_content_model.dart';

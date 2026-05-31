@@ -7,8 +7,8 @@ Future<MyAudioHandler> initAudioService() async {
   return await AudioService.init(
     builder: () => MyAudioHandler(),
     config: const AudioServiceConfig(
-      androidNotificationChannelId: 'dev.ogos.anotheriptvplayer',
-      androidNotificationChannelName: 'Another IPTV Player',
+      androidNotificationChannelId: 'info.breisner.rensi.iptv',
+      androidNotificationChannelName: 'Rensi IPTV',
       androidNotificationOngoing: false,
       androidShowNotificationBadge: true,
       androidStopForegroundOnPause: true,

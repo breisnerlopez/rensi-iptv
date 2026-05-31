@@ -1,5 +1,5 @@
-import 'package:another_iptv_player/l10n/localization_extension.dart';
-import 'package:another_iptv_player/screens/m3u/new_m3u_playlist_screen.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/screens/m3u/new_m3u_playlist_screen.dart';
 import 'package:flutter/material.dart';
 import 'xtream-codes/new_xtream_code_playlist_screen.dart';
 
@@ -8,11 +8,12 @@ class PlaylistTypeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: Text(
           context.loc.create_new_playlist,
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         elevation: 0,
       ),
@@ -23,31 +24,32 @@ class PlaylistTypeScreen extends StatelessWidget {
               constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: IntrinsicHeight(
                 child: Padding(
-                  padding: EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       Text(
                         context.loc.select_playlist_type,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
                         context.loc.select_playlist_message,
-                        style: TextStyle(fontSize: 16),
+                        style: const TextStyle(fontSize: 16),
                       ),
-                      SizedBox(height: 40),
+                      const SizedBox(height: 40),
                       _buildPlaylistTypeCard(
                         context,
                         title: 'Xtream Codes',
                         subtitle: context.loc.xtream_code_title,
                         description: context.loc.xtream_code_description,
                         icon: Icons.stream,
-                        color: Colors.blue,
+                        accent: colorScheme.primary,
+                        onAccent: colorScheme.onPrimary,
                         onTap: () {
                           Navigator.push(
                             context,
@@ -58,14 +60,15 @@ class PlaylistTypeScreen extends StatelessWidget {
                           );
                         },
                       ),
-                      SizedBox(height: 20),
+                      const SizedBox(height: 20),
                       _buildPlaylistTypeCard(
                         context,
                         title: 'M3U Playlist',
                         subtitle: context.loc.m3u_playlist_title,
                         description: context.loc.m3u_playlist_description,
                         icon: Icons.playlist_play,
-                        color: Colors.green,
+                        accent: colorScheme.tertiary,
+                        onAccent: colorScheme.onTertiary,
                         onTap: () {
                           Navigator.push(
                             context,
@@ -75,22 +78,25 @@ class PlaylistTypeScreen extends StatelessWidget {
                           );
                         },
                       ),
-                      Spacer(),
+                      const Spacer(),
                       Container(
-                        padding: EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
+                          color: colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.info_outline, color: Colors.blue),
-                            SizedBox(width: 12),
+                            Icon(
+                              Icons.info_outline,
+                              color: colorScheme.onPrimaryContainer,
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 context.loc.select_playlist_type_footer,
                                 style: TextStyle(
-                                  color: Colors.blue[800],
+                                  color: colorScheme.onPrimaryContainer,
                                   fontSize: 14,
                                 ),
                               ),
@@ -98,7 +104,7 @@ class PlaylistTypeScreen extends StatelessWidget {
                           ],
                         ),
                       ),
-                      SizedBox(height: 24),
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -116,9 +122,11 @@ class PlaylistTypeScreen extends StatelessWidget {
     required String subtitle,
     required String description,
     required IconData icon,
-    required Color color,
+    required Color accent,
+    required Color onAccent,
     required VoidCallback onTap,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -126,48 +134,52 @@ class PlaylistTypeScreen extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Row(
             children: [
               Container(
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: color,
+                  color: accent,
                   borderRadius: BorderRadius.circular(30),
                 ),
-                child: Icon(icon, size: 30, color: Colors.white),
+                child: Icon(icon, size: 30, color: onAccent),
               ),
-              SizedBox(width: 20),
+              const SizedBox(width: 20),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       subtitle,
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
-                        color: color,
+                        color: accent,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
                       description,
-                      style: TextStyle(fontSize: 13, height: 1.3),
+                      style: const TextStyle(fontSize: 13, height: 1.3),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 20),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: colorScheme.onSurface.withOpacity(0.4),
+                size: 20,
+              ),
             ],
           ),
         ),

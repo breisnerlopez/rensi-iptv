@@ -843,4 +843,251 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get duration_label => 'Duration';
+
+  @override
+  String get tmdb_global_search => 'TMDb Global Search';
+
+  @override
+  String get tmdb_credential_configured => 'TMDb credential stored securely';
+
+  @override
+  String get tmdb_credential_missing =>
+      'Add your TMDb API key or read access token to enable global search';
+
+  @override
+  String get tmdb_credential_label => 'TMDb API token';
+
+  @override
+  String get tmdb_credential_field_label => 'API key or read access token';
+
+  @override
+  String get tmdb_credential_save => 'Save credential';
+
+  @override
+  String get tmdb_credential_saved => 'TMDb credential saved';
+
+  @override
+  String get tmdb_search_hint => 'Search movies and series on TMDb';
+
+  @override
+  String get tmdb_search_button => 'Search';
+
+  @override
+  String get tmdb_search_description =>
+      'Type at least 3 characters and press Search. Results are cached for 24 hours to reduce API usage.';
+
+  @override
+  String get tmdb_exact_match => 'Exact match';
+
+  @override
+  String get tmdb_not_found_in_playlists => 'Not found in your playlists';
+
+  @override
+  String tmdb_available_in(Object count) {
+    return 'Available in $count playlist item(s)';
+  }
+
+  @override
+  String get tmdb_wishlist => 'Wishlist';
+
+  @override
+  String get save => 'Save';
+
+  @override
+  String get export_playlists_and_settings => 'Export playlists and settings';
+
+  @override
+  String get export_subtitle =>
+      'Save all playlists, credentials, and app settings';
+
+  @override
+  String get import_playlists_and_settings => 'Import playlists and settings';
+
+  @override
+  String get import_subtitle =>
+      'Restore playlists and overwrite matching settings';
+
+  @override
+  String get backup_section => 'Backup';
+
+  @override
+  String get tmdb_credential_section => 'TMDb API token';
+
+  @override
+  String get export_success => 'Backup exported successfully';
+
+  @override
+  String get export_cancelled => 'Backup export cancelled';
+
+  @override
+  String get export_failed => 'Backup export failed';
+
+  @override
+  String import_success(Object count) {
+    return 'Backup imported: $count playlists restored';
+  }
+
+  @override
+  String get import_cancelled => 'Backup import cancelled';
+
+  @override
+  String get import_failed => 'Backup import failed';
+
+  @override
+  String import_summary(int created, int updated, int skipped) {
+    return 'Imported: $created new, $updated updated, $skipped skipped';
+  }
+
+  @override
+  String get backup_passphrase_title => 'Protect this backup';
+
+  @override
+  String get backup_passphrase_subtitle =>
+      'Pick a passphrase to encrypt the backup. Leave blank for a plain JSON export (credentials will be readable).';
+
+  @override
+  String get backup_passphrase_field => 'Passphrase';
+
+  @override
+  String get backup_passphrase_confirm => 'Confirm passphrase';
+
+  @override
+  String get backup_passphrase_mismatch => 'Passphrases do not match';
+
+  @override
+  String get backup_passphrase_required =>
+      'This backup is encrypted. Enter the passphrase used to create it.';
+
+  @override
+  String get backup_passphrase_invalid =>
+      'Wrong passphrase or corrupted backup';
+
+  @override
+  String get backup_invalid_format => 'Invalid backup file';
+
+  @override
+  String backup_schema_unsupported(String version) {
+    return 'Unsupported backup version: $version';
+  }
+
+  @override
+  String get backup_plain_warning =>
+      'Plain export keeps URLs, usernames and passwords readable in the file.';
+
+  @override
+  String get backup_strategy_title =>
+      'An import will replace playlists with the same id.';
+
+  @override
+  String get backup_strategy_overwrite => 'Overwrite existing';
+
+  @override
+  String get backup_strategy_keep_local => 'Keep local versions';
+
+  @override
+  String get backup_encrypt => 'Encrypt';
+
+  @override
+  String get backup_skip_encryption => 'Skip encryption';
+
+  @override
+  String get search_no_results => 'No results found';
+
+  @override
+  String get search_in_your_lists => 'In your lists';
+
+  @override
+  String get search_from_your_iptv => 'From your IPTV';
+
+  @override
+  String get search_tmdb_section => 'TMDb';
+
+  @override
+  String get search_watch_action => 'Watch';
+
+  @override
+  String playlist_load_failed(String error) {
+    return 'Failed to load playlists: $error';
+  }
+
+  @override
+  String playlist_save_failed(String error) {
+    return 'Failed to save playlist: $error';
+  }
+
+  @override
+  String playlist_update_failed(String error) {
+    return 'Failed to update playlist: $error';
+  }
+
+  @override
+  String playlist_delete_failed(String error) {
+    return 'Failed to delete playlist: $error';
+  }
+
+  @override
+  String m3u_file_read_failed(String error) {
+    return 'Could not read M3U file: $error';
+  }
+
+  @override
+  String get m3u_url_invalid_scheme =>
+      'URL must start with http:// or https://';
+
+  @override
+  String m3u_url_http_status(String status) {
+    return 'M3U URL returned HTTP $status';
+  }
+
+  @override
+  String get m3u_url_response_too_large => 'M3U playlist is larger than 50 MB';
+
+  @override
+  String m3u_url_fetch_failed(String error) {
+    return 'Could not download M3U URL: $error';
+  }
+
+  @override
+  String get search_filter_all => 'All';
+
+  @override
+  String get search_filter_movies => 'Movies';
+
+  @override
+  String get search_filter_tv => 'TV';
+
+  @override
+  String get search_filter_wishlist => 'Wishlist';
+
+  @override
+  String get search_clear_history => 'Clear history';
+
+  @override
+  String get search_clear_history_confirm => 'Remove all recent searches?';
+
+  @override
+  String get search_remove_from_wishlist => 'Remove from wishlist';
+
+  @override
+  String get search_wishlist_empty =>
+      'Your wishlist is empty. Tap the bookmark on any TMDb result to save it here.';
+
+  @override
+  String get search_detail_overview => 'Overview';
+
+  @override
+  String get search_detail_genres => 'Genres';
+
+  @override
+  String search_detail_runtime(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String search_detail_open_in_playlist(String playlist) {
+    return 'Open in $playlist';
+  }
+
+  @override
+  String get search_detail_not_in_playlists => 'Not in any of your playlists';
 }

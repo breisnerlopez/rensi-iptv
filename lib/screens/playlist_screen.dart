@@ -1,8 +1,9 @@
-import 'package:another_iptv_player/l10n/localization_extension.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/playlist_controller.dart';
 import '../../models/playlist_model.dart';
+import '../../utils/backup_import_flow.dart';
 import '../../widgets/playlist_card.dart';
 import '../../widgets/playlist_states.dart';
 import 'playlist_type_screen.dart';
@@ -77,6 +78,7 @@ class _PlaylistScreenBody extends StatelessWidget {
     if (controller.playlists.isEmpty) {
       return PlaylistEmptyState(
         onCreatePlaylist: () => _navigateToCreatePlaylist(context),
+        onImportBackup: () => _importBackup(context, controller),
       );
     }
 
@@ -121,6 +123,16 @@ class _PlaylistScreenBody extends StatelessWidget {
       context,
       MaterialPageRoute(builder: (context) => const PlaylistTypeScreen()),
     );
+  }
+
+  Future<void> _importBackup(
+    BuildContext context,
+    PlaylistController controller,
+  ) async {
+    final result = await runBackupImportFlow(context);
+    if (result != null && result.total > 0 && context.mounted) {
+      await controller.loadPlaylists(context);
+    }
   }
 
   void _showDeleteDialog(

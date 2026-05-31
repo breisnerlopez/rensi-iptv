@@ -1,12 +1,12 @@
-import 'package:another_iptv_player/repositories/user_preferences.dart';
-import 'package:another_iptv_player/services/app_state.dart';
+import 'package:rensi_iptv/repositories/user_preferences.dart';
+import 'package:rensi_iptv/services/app_state.dart';
 import 'package:flutter/material.dart';
-import 'package:another_iptv_player/controllers/iptv_controller.dart';
-import 'package:another_iptv_player/models/api_configuration_model.dart';
-import 'package:another_iptv_player/models/playlist_model.dart';
-import 'package:another_iptv_player/models/progress_step.dart';
-import 'package:another_iptv_player/repositories/iptv_repository.dart';
-import 'package:another_iptv_player/l10n/localization_extension.dart';
+import 'package:rensi_iptv/controllers/iptv_controller.dart';
+import 'package:rensi_iptv/models/api_configuration_model.dart';
+import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/models/progress_step.dart';
+import 'package:rensi_iptv/repositories/iptv_repository.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:provider/provider.dart';
 import 'xtream_code_home_screen.dart';
 import '../playlist_screen.dart';
@@ -214,12 +214,13 @@ class XtreamCodeDataLoaderScreenState extends State<XtreamCodeDataLoaderScreen>
                           ),
                           SizedBox(height: 24),
                           Text(
-                            'Another IPTV Player',
+                            'Rensi IPTV',
                             style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w300,
+                              fontFamily: 'BabaPro',
+                              fontSize: 36,
+                              fontWeight: FontWeight.w700,
                               color: Colors.white,
-                              letterSpacing: 2,
+                              letterSpacing: 1.5,
                             ),
                           ),
                           SizedBox(height: 8),

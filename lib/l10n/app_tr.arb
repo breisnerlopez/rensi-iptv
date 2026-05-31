@@ -222,6 +222,16 @@
     "description": "İçeriği baştan oynatma butonu"
   },
   "continue_watching_label": "Devam Et: {season}. Sezon {episode}. Bölüm",
+  "@continue_watching_label": {
+    "placeholders": {
+      "season": {
+        "type": "String"
+      },
+      "episode": {
+        "type": "String"
+      }
+    }
+  },
   "player_settings": "Oynatıcı Ayarları",
   "brightness_gesture": "Parlaklık Hareketi",
   "brightness_gesture_description": "Sol tarafta dikey kaydırarak parlaklığı kontrol et",
@@ -283,5 +293,112 @@
   "series_content_type": "Dizi",
   "last_update": "Son Güncelleme",
   "minutes": "dk",
-  "duration_label": "Süre"
+  "duration_label": "Süre",
+  "tmdb_global_search": "TMDb Genel Arama",
+  "tmdb_credential_configured": "TMDb kimlik bilgileri güvenli şekilde saklandı",
+  "tmdb_credential_missing": "Genel aramayı etkinleştirmek için TMDb API anahtarınızı veya okuma erişim tokenınızı ekleyin",
+  "tmdb_credential_label": "TMDb API tokenı",
+  "tmdb_credential_field_label": "API anahtarı veya okuma erişim tokenı",
+  "tmdb_credential_save": "Kimlik bilgisini kaydet",
+  "tmdb_credential_saved": "TMDb kimlik bilgisi kaydedildi",
+  "tmdb_search_hint": "TMDb'de film ve dizi ara",
+  "tmdb_search_button": "Ara",
+  "tmdb_search_description": "En az 3 karakter yazıp Ara'ya basın. Sonuçlar API kullanımını azaltmak için 24 saat önbelleğe alınır.",
+  "tmdb_exact_match": "Tam eşleşme",
+  "tmdb_not_found_in_playlists": "Oynatma listelerinizde bulunamadı",
+  "tmdb_available_in": "{count} oynatma listesi öğesinde mevcut",
+  "tmdb_wishlist": "İstek listesi",
+  "save": "Kaydet",
+  "export_playlists_and_settings": "Oynatma listelerini ve ayarları dışa aktar",
+  "export_subtitle": "Tüm oynatma listelerini, kimlik bilgilerini ve uygulama ayarlarını kaydet",
+  "import_playlists_and_settings": "Oynatma listelerini ve ayarları içe aktar",
+  "import_subtitle": "Oynatma listelerini geri yükle ve eşleşen ayarların üzerine yaz",
+  "backup_section": "Yedekleme",
+  "tmdb_credential_section": "TMDb API tokenı",
+  "export_success": "Yedek başarıyla dışa aktarıldı",
+  "export_cancelled": "Yedek dışa aktarımı iptal edildi",
+  "export_failed": "Yedek dışa aktarımı başarısız oldu",
+  "import_success": "Yedek içe aktarıldı: {count} oynatma listesi geri yüklendi",
+  "import_cancelled": "Yedek içe aktarımı iptal edildi",
+  "import_failed": "Yedek içe aktarımı başarısız oldu",
+  "import_summary": "İçe aktarıldı: {created} yeni, {updated} güncellendi, {skipped} atlandı",
+  "@import_summary": {
+    "placeholders": {
+      "created": {"type": "int"},
+      "updated": {"type": "int"},
+      "skipped": {"type": "int"}
+    }
+  },
+  "backup_passphrase_title": "Bu yedeği koru",
+  "backup_passphrase_subtitle": "Yedeği şifrelemek için bir parola seçin. Şifrelenmemiş bir JSON dışa aktarımı için boş bırakın (kimlik bilgileri okunabilir olacaktır).",
+  "backup_passphrase_field": "Parola",
+  "backup_passphrase_confirm": "Parolayı onayla",
+  "backup_passphrase_mismatch": "Parolalar eşleşmiyor",
+  "backup_passphrase_required": "Bu yedek şifrelenmiş. Oluştururken kullanılan parolayı girin.",
+  "backup_passphrase_invalid": "Yanlış parola veya bozuk yedek",
+  "backup_invalid_format": "Geçersiz yedek dosyası",
+  "backup_schema_unsupported": "Desteklenmeyen yedek sürümü: {version}",
+  "@backup_schema_unsupported": {
+    "placeholders": {"version": {"type": "String"}}
+  },
+  "backup_plain_warning": "Şifrelenmemiş bir dışa aktarım URL'leri, kullanıcı adlarını ve şifreleri dosyada okunabilir bırakır.",
+  "backup_strategy_title": "İçe aktarma, aynı kimliğe sahip oynatma listelerini değiştirecek.",
+  "backup_strategy_overwrite": "Mevcut olanların üzerine yaz",
+  "backup_strategy_keep_local": "Yerel sürümleri koru",
+  "backup_encrypt": "Şifrele",
+  "backup_skip_encryption": "Şifrelemeyi atla",
+  "search_no_results": "Sonuç bulunamadı",
+  "search_in_your_lists": "Listelerinizde",
+  "search_from_your_iptv": "IPTV'nizden",
+  "search_tmdb_section": "TMDb",
+  "search_watch_action": "İzle",
+  "playlist_load_failed": "Oynatma listeleri yüklenemedi: {error}",
+  "@playlist_load_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_save_failed": "Oynatma listesi kaydedilemedi: {error}",
+  "@playlist_save_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_update_failed": "Oynatma listesi güncellenemedi: {error}",
+  "@playlist_update_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_delete_failed": "Oynatma listesi silinemedi: {error}",
+  "@playlist_delete_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "m3u_file_read_failed": "M3U dosyası okunamadı: {error}",
+  "@m3u_file_read_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "m3u_url_invalid_scheme": "URL http:// veya https:// ile başlamalıdır",
+  "m3u_url_http_status": "M3U URL'si HTTP {status} döndürdü",
+  "@m3u_url_http_status": {
+    "placeholders": {"status": {"type": "String"}}
+  },
+  "m3u_url_response_too_large": "M3U oynatma listesi 50 MB'tan büyük",
+  "m3u_url_fetch_failed": "M3U URL'si indirilemedi: {error}",
+  "@m3u_url_fetch_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "search_filter_all": "Tümü",
+  "search_filter_movies": "Filmler",
+  "search_filter_tv": "TV",
+  "search_filter_wishlist": "İstek listesi",
+  "search_clear_history": "Geçmişi temizle",
+  "search_clear_history_confirm": "Tüm son aramalar kaldırılsın mı?",
+  "search_remove_from_wishlist": "İstek listesinden kaldır",
+  "search_wishlist_empty": "İstek listeniz boş. Buraya kaydetmek için herhangi bir TMDb sonucundaki yer iminize dokunun.",
+  "search_detail_overview": "Özet",
+  "search_detail_genres": "Türler",
+  "search_detail_runtime": "{minutes} dk",
+  "@search_detail_runtime": {
+    "placeholders": {"minutes": {"type": "int"}}
+  },
+  "search_detail_open_in_playlist": "{playlist} içinde aç",
+  "@search_detail_open_in_playlist": {
+    "placeholders": {"playlist": {"type": "String"}}
+  },
+  "search_detail_not_in_playlists": "Hiçbir oynatma listenizde yok"
 }

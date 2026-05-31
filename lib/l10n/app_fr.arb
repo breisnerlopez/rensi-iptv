@@ -195,9 +195,9 @@
   "removed_from_favorites": "Retiré des favoris",
   "remove_from_favorites": "Retirer des Favoris",
   "select_all": "Tout Sélectionner",
-  "deselect_all" : "Tout Désélectionner",
-  "hide_category" : "Masquer les catégories",
-  "rating" : "Note",
+  "deselect_all": "Tout Désélectionner",
+  "hide_category": "Masquer les catégories",
+  "rating": "Note",
   "remove_from_history": "Retirer de l'historique",
   "remove_from_history_confirmation": "Êtes-vous sûr de vouloir retirer cet élément de l'historique de lecture ?",
   "remove": "Retirer",
@@ -207,10 +207,10 @@
   "clear_all_history": "Effacer tout l'historique",
   "clear_all_history_confirmation": "Êtes-vous sûr de vouloir supprimer tout l'historique de lecture ?",
   "appearance": "Apparence",
-  "theme":"Thème",
-  "standard":"Défaut",
-  "light":"Clair",
-  "dark":"Sombre",
+  "theme": "Thème",
+  "standard": "Défaut",
+  "light": "Clair",
+  "dark": "Sombre",
   "trailer": "Bande-annonce",
   "new_ep": "Nouveau",
   "continue_watching": "Continuer à regarder",
@@ -224,8 +224,12 @@
   "continue_watching_label": "Continuer : S {season} Épisode {episode}",
   "@continue_watching_label": {
     "placeholders": {
-      "season": { "type": "String" },
-      "episode": { "type": "String" }
+      "season": {
+        "type": "String"
+      },
+      "episode": {
+        "type": "String"
+      }
     }
   },
   "player_settings": "Paramètres du lecteur",
@@ -289,5 +293,112 @@
   "series_content_type": "Série",
   "last_update": "Dernière Mise à Jour",
   "minutes": "min",
-  "duration_label": "Durée"
+  "duration_label": "Durée",
+  "tmdb_global_search": "Recherche globale TMDb",
+  "tmdb_credential_configured": "Identifiants TMDb stockés en toute sécurité",
+  "tmdb_credential_missing": "Ajoutez votre clé API TMDb ou jeton d'accès en lecture pour activer la recherche globale",
+  "tmdb_credential_label": "Jeton API TMDb",
+  "tmdb_credential_field_label": "Clé API ou jeton d'accès en lecture",
+  "tmdb_credential_save": "Enregistrer les identifiants",
+  "tmdb_credential_saved": "Identifiants TMDb enregistrés",
+  "tmdb_search_hint": "Rechercher des films et séries sur TMDb",
+  "tmdb_search_button": "Rechercher",
+  "tmdb_search_description": "Saisissez au moins 3 caractères et appuyez sur Rechercher. Les résultats sont mis en cache pendant 24 heures pour réduire l'utilisation de l'API.",
+  "tmdb_exact_match": "Correspondance exacte",
+  "tmdb_not_found_in_playlists": "Introuvable dans vos listes",
+  "tmdb_available_in": "Disponible dans {count} élément(s) de liste",
+  "tmdb_wishlist": "Liste de souhaits",
+  "save": "Enregistrer",
+  "export_playlists_and_settings": "Exporter les listes et paramètres",
+  "export_subtitle": "Sauvegarder toutes les listes, identifiants et paramètres de l'application",
+  "import_playlists_and_settings": "Importer les listes et paramètres",
+  "import_subtitle": "Restaurer les listes et écraser les paramètres correspondants",
+  "backup_section": "Sauvegarde",
+  "tmdb_credential_section": "Jeton API TMDb",
+  "export_success": "Sauvegarde exportée avec succès",
+  "export_cancelled": "Exportation de la sauvegarde annulée",
+  "export_failed": "Échec de l'exportation de la sauvegarde",
+  "import_success": "Sauvegarde importée : {count} listes restaurées",
+  "import_cancelled": "Importation de la sauvegarde annulée",
+  "import_failed": "Échec de l'importation de la sauvegarde",
+  "import_summary": "Importé : {created} nouveaux, {updated} mis à jour, {skipped} ignorés",
+  "@import_summary": {
+    "placeholders": {
+      "created": {"type": "int"},
+      "updated": {"type": "int"},
+      "skipped": {"type": "int"}
+    }
+  },
+  "backup_passphrase_title": "Protéger cette sauvegarde",
+  "backup_passphrase_subtitle": "Choisissez une phrase secrète pour chiffrer la sauvegarde. Laissez vide pour un export JSON en clair (les identifiants seront lisibles).",
+  "backup_passphrase_field": "Phrase secrète",
+  "backup_passphrase_confirm": "Confirmer la phrase secrète",
+  "backup_passphrase_mismatch": "Les phrases secrètes ne correspondent pas",
+  "backup_passphrase_required": "Cette sauvegarde est chiffrée. Saisissez la phrase secrète utilisée lors de sa création.",
+  "backup_passphrase_invalid": "Phrase secrète incorrecte ou sauvegarde corrompue",
+  "backup_invalid_format": "Fichier de sauvegarde invalide",
+  "backup_schema_unsupported": "Version de sauvegarde non prise en charge : {version}",
+  "@backup_schema_unsupported": {
+    "placeholders": {"version": {"type": "String"}}
+  },
+  "backup_plain_warning": "Un export en clair laisse les URL, noms d'utilisateur et mots de passe lisibles dans le fichier.",
+  "backup_strategy_title": "Une importation remplacera les listes ayant le même identifiant.",
+  "backup_strategy_overwrite": "Écraser les existantes",
+  "backup_strategy_keep_local": "Conserver les versions locales",
+  "backup_encrypt": "Chiffrer",
+  "backup_skip_encryption": "Sans chiffrement",
+  "search_no_results": "Aucun résultat trouvé",
+  "search_in_your_lists": "Dans vos listes",
+  "search_from_your_iptv": "Depuis votre IPTV",
+  "search_tmdb_section": "TMDb",
+  "search_watch_action": "Regarder",
+  "playlist_load_failed": "Échec du chargement des listes : {error}",
+  "@playlist_load_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_save_failed": "Échec de l'enregistrement de la liste : {error}",
+  "@playlist_save_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_update_failed": "Échec de la mise à jour de la liste : {error}",
+  "@playlist_update_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_delete_failed": "Échec de la suppression de la liste : {error}",
+  "@playlist_delete_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "m3u_file_read_failed": "Impossible de lire le fichier M3U : {error}",
+  "@m3u_file_read_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "m3u_url_invalid_scheme": "L'URL doit commencer par http:// ou https://",
+  "m3u_url_http_status": "L'URL M3U a renvoyé HTTP {status}",
+  "@m3u_url_http_status": {
+    "placeholders": {"status": {"type": "String"}}
+  },
+  "m3u_url_response_too_large": "La liste M3U dépasse 50 Mo",
+  "m3u_url_fetch_failed": "Impossible de télécharger l'URL M3U : {error}",
+  "@m3u_url_fetch_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "search_filter_all": "Tout",
+  "search_filter_movies": "Films",
+  "search_filter_tv": "TV",
+  "search_filter_wishlist": "Liste de souhaits",
+  "search_clear_history": "Effacer l'historique",
+  "search_clear_history_confirm": "Supprimer toutes les recherches récentes ?",
+  "search_remove_from_wishlist": "Retirer de la liste de souhaits",
+  "search_wishlist_empty": "Votre liste de souhaits est vide. Touchez le marque-page d'un résultat TMDb pour l'enregistrer ici.",
+  "search_detail_overview": "Synopsis",
+  "search_detail_genres": "Genres",
+  "search_detail_runtime": "{minutes} min",
+  "@search_detail_runtime": {
+    "placeholders": {"minutes": {"type": "int"}}
+  },
+  "search_detail_open_in_playlist": "Ouvrir dans {playlist}",
+  "@search_detail_open_in_playlist": {
+    "placeholders": {"playlist": {"type": "String"}}
+  },
+  "search_detail_not_in_playlists": "Absent de toutes vos listes"
 }

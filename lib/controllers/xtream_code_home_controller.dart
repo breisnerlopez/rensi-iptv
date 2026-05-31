@@ -1,11 +1,11 @@
-import 'package:another_iptv_player/l10n/localization_extension.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:flutter/material.dart';
-import 'package:another_iptv_player/models/category_view_model.dart';
-import 'package:another_iptv_player/models/content_type.dart';
-import 'package:another_iptv_player/models/playlist_content_model.dart';
-import 'package:another_iptv_player/models/view_state.dart';
-import 'package:another_iptv_player/repositories/iptv_repository.dart';
-import 'package:another_iptv_player/services/app_state.dart';
+import 'package:rensi_iptv/models/category_view_model.dart';
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/models/view_state.dart';
+import 'package:rensi_iptv/repositories/iptv_repository.dart';
+import 'package:rensi_iptv/services/app_state.dart';
 import '../repositories/user_preferences.dart';
 import '../screens/xtream-codes/xtream_code_data_loader_screen.dart';
 
@@ -13,24 +13,23 @@ class XtreamCodeHomeController extends ChangeNotifier {
   late PageController _pageController;
   final IptvRepository _repository = AppState.xtreamCodeRepository!;
   String? _errorMessage;
+  String? _errorKey;
   ViewState _viewState = ViewState.idle;
 
   int _currentIndex = 0;
-  final bool _isLoading = false;
 
   final List<CategoryViewModel> _liveCategories = [];
   final List<CategoryViewModel> _movieCategories = [];
   final List<CategoryViewModel> _seriesCategories = [];
 
-  // --- Categoriy hidden ---
   final Set<String> _hiddenMovieCategoryIds = {};
   final Set<String> _hiddenSeriesCategoryIds = {};
+  final Set<String> _hiddenLiveCategoryIds = {};
 
-  // Getters publics
   Set<String> get hiddenMovieCategoryIds => _hiddenMovieCategoryIds;
   Set<String> get hiddenSeriesCategoryIds => _hiddenSeriesCategoryIds;
+  Set<String> get hiddenLiveCategoryIds => _hiddenLiveCategoryIds;
 
-  // Fonctions toggle
   void toggleMovieCategoryVisibility(String categoryId) {
     if (_hiddenMovieCategoryIds.contains(categoryId)) {
       _hiddenMovieCategoryIds.remove(categoryId);
@@ -49,7 +48,24 @@ class XtreamCodeHomeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Getters filtrés
+  Future<void> reloadHiddenCategoriesFromPrefs() async {
+    final ids = (await UserPreferences.getHiddenCategories()).toSet();
+    _hiddenLiveCategoryIds
+      ..clear()
+      ..addAll(ids);
+    _hiddenMovieCategoryIds
+      ..clear()
+      ..addAll(ids);
+    _hiddenSeriesCategoryIds
+      ..clear()
+      ..addAll(ids);
+    notifyListeners();
+  }
+
+  Future<void> refreshCategoryVisibility() async {
+    await reloadHiddenCategoriesFromPrefs();
+  }
+
   List<CategoryViewModel> get visibleMovieCategories => _movieCategories
       .where((c) => !_hiddenMovieCategoryIds.contains(c.category.categoryId))
       .toList();
@@ -58,12 +74,17 @@ class XtreamCodeHomeController extends ChangeNotifier {
       .where((c) => !_hiddenSeriesCategoryIds.contains(c.category.categoryId))
       .toList();
 
-  // Getters
   PageController get pageController => _pageController;
 
   int get currentIndex => _currentIndex;
 
-  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
+
+  String? get errorKey => _errorKey;
+
+  ViewState get viewState => _viewState;
+
+  bool get isLoading => _viewState == ViewState.loading;
 
   List<CategoryViewModel>? get liveCategories => _liveCategories;
 
@@ -71,9 +92,17 @@ class XtreamCodeHomeController extends ChangeNotifier {
 
   List<CategoryViewModel> get seriesCategories => _seriesCategories;
 
-  XtreamCodeHomeController(bool all) {
+  XtreamCodeHomeController(
+    bool all, {
+    int initialIndex = 4,
+    bool autoLoad = true,
+  }) {
     _pageController = PageController();
-    _loadCategories(all);
+    _currentIndex = initialIndex.clamp(0, 5);
+    if (autoLoad) {
+      _loadCategories(all);
+      reloadHiddenCategoriesFromPrefs();
+    }
   }
 
   @override
@@ -111,9 +140,11 @@ class XtreamCodeHomeController extends ChangeNotifier {
       case 3:
         return context.loc.series_plural;
       case 4:
+        return context.loc.tmdb_global_search;
+      case 5:
         return context.loc.settings;
       default:
-        return 'Another IPTV Player';
+        return 'Rensi IPTV';
     }
   }
 
@@ -121,6 +152,7 @@ class XtreamCodeHomeController extends ChangeNotifier {
     _viewState = state;
     if (state != ViewState.error) {
       _errorMessage = null;
+      _errorKey = null;
     }
     notifyListeners();
   }
@@ -142,13 +174,13 @@ class XtreamCodeHomeController extends ChangeNotifier {
             contentItems: liveStreams
                 .map(
                   (x) => ContentItem(
-                x.streamId,
-                x.name,
-                x.streamIcon,
-                ContentType.liveStream,
-                liveStream: x,
-              ),
-            )
+                    x.streamId,
+                    x.name,
+                    x.streamIcon,
+                    ContentType.liveStream,
+                    liveStream: x,
+                  ),
+                )
                 .toList(),
           );
           if (!all) {
@@ -180,14 +212,14 @@ class XtreamCodeHomeController extends ChangeNotifier {
             contentItems: movies
                 .map(
                   (x) => ContentItem(
-                x.streamId,
-                x.name,
-                x.streamIcon,
-                ContentType.vod,
-                containerExtension: x.containerExtension,
-                vodStream: x,
-              ),
-            )
+                    x.streamId,
+                    x.name,
+                    x.streamIcon,
+                    ContentType.vod,
+                    containerExtension: x.containerExtension,
+                    vodStream: x,
+                  ),
+                )
                 .toList(),
           );
           if (!all) {
@@ -219,13 +251,13 @@ class XtreamCodeHomeController extends ChangeNotifier {
             contentItems: series
                 .map(
                   (x) => ContentItem(
-                x.seriesId,
-                x.name,
-                x.cover ?? '',
-                ContentType.series,
-                seriesStream: x,
-              ),
-            )
+                    x.seriesId,
+                    x.name,
+                    x.cover ?? '',
+                    ContentType.series,
+                    seriesStream: x,
+                  ),
+                )
                 .toList(),
           );
           if (!all) {
@@ -243,7 +275,8 @@ class XtreamCodeHomeController extends ChangeNotifier {
       notifyListeners();
     } catch (e, st) {
       debugPrint(st.toString());
-      _errorMessage = 'Kategoriler yüklenemedi: $e';
+      _errorMessage = e.toString();
+      _errorKey = 'preparing_categories_exception';
       _setViewState(ViewState.error);
     }
   }

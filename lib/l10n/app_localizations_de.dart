@@ -850,4 +850,258 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get duration_label => 'Dauer';
+
+  @override
+  String get tmdb_global_search => 'TMDb Globale Suche';
+
+  @override
+  String get tmdb_credential_configured =>
+      'TMDb-Zugangsdaten sicher gespeichert';
+
+  @override
+  String get tmdb_credential_missing =>
+      'Füge deinen TMDb API-Schlüssel oder Read Access Token hinzu, um die globale Suche zu aktivieren';
+
+  @override
+  String get tmdb_credential_label => 'TMDb API-Token';
+
+  @override
+  String get tmdb_credential_field_label =>
+      'API-Schlüssel oder Read Access Token';
+
+  @override
+  String get tmdb_credential_save => 'Zugangsdaten speichern';
+
+  @override
+  String get tmdb_credential_saved => 'TMDb-Zugangsdaten gespeichert';
+
+  @override
+  String get tmdb_search_hint => 'Filme und Serien auf TMDb suchen';
+
+  @override
+  String get tmdb_search_button => 'Suchen';
+
+  @override
+  String get tmdb_search_description =>
+      'Gib mindestens 3 Zeichen ein und drücke Suchen. Ergebnisse werden 24 Stunden zwischengespeichert, um die API-Nutzung zu reduzieren.';
+
+  @override
+  String get tmdb_exact_match => 'Exakte Übereinstimmung';
+
+  @override
+  String get tmdb_not_found_in_playlists =>
+      'Nicht in deinen Wiedergabelisten gefunden';
+
+  @override
+  String tmdb_available_in(Object count) {
+    return 'In $count Wiedergabelisten-Eintrag/-Einträgen verfügbar';
+  }
+
+  @override
+  String get tmdb_wishlist => 'Wunschliste';
+
+  @override
+  String get save => 'Speichern';
+
+  @override
+  String get export_playlists_and_settings =>
+      'Wiedergabelisten und Einstellungen exportieren';
+
+  @override
+  String get export_subtitle =>
+      'Alle Wiedergabelisten, Zugangsdaten und App-Einstellungen sichern';
+
+  @override
+  String get import_playlists_and_settings =>
+      'Wiedergabelisten und Einstellungen importieren';
+
+  @override
+  String get import_subtitle =>
+      'Wiedergabelisten wiederherstellen und passende Einstellungen überschreiben';
+
+  @override
+  String get backup_section => 'Sicherung';
+
+  @override
+  String get tmdb_credential_section => 'TMDb API-Token';
+
+  @override
+  String get export_success => 'Sicherung erfolgreich exportiert';
+
+  @override
+  String get export_cancelled => 'Sicherungsexport abgebrochen';
+
+  @override
+  String get export_failed => 'Sicherungsexport fehlgeschlagen';
+
+  @override
+  String import_success(Object count) {
+    return 'Sicherung importiert: $count Wiedergabelisten wiederhergestellt';
+  }
+
+  @override
+  String get import_cancelled => 'Sicherungsimport abgebrochen';
+
+  @override
+  String get import_failed => 'Sicherungsimport fehlgeschlagen';
+
+  @override
+  String import_summary(int created, int updated, int skipped) {
+    return 'Importiert: $created neu, $updated aktualisiert, $skipped übersprungen';
+  }
+
+  @override
+  String get backup_passphrase_title => 'Diese Sicherung schützen';
+
+  @override
+  String get backup_passphrase_subtitle =>
+      'Wähle eine Passphrase zur Verschlüsselung der Sicherung. Lass das Feld leer für einen unverschlüsselten JSON-Export (Zugangsdaten sind dann lesbar).';
+
+  @override
+  String get backup_passphrase_field => 'Passphrase';
+
+  @override
+  String get backup_passphrase_confirm => 'Passphrase bestätigen';
+
+  @override
+  String get backup_passphrase_mismatch => 'Passphrasen stimmen nicht überein';
+
+  @override
+  String get backup_passphrase_required =>
+      'Diese Sicherung ist verschlüsselt. Gib die zur Erstellung verwendete Passphrase ein.';
+
+  @override
+  String get backup_passphrase_invalid =>
+      'Falsche Passphrase oder beschädigte Sicherung';
+
+  @override
+  String get backup_invalid_format => 'Ungültige Sicherungsdatei';
+
+  @override
+  String backup_schema_unsupported(String version) {
+    return 'Nicht unterstützte Sicherungsversion: $version';
+  }
+
+  @override
+  String get backup_plain_warning =>
+      'Ein unverschlüsselter Export lässt URLs, Benutzernamen und Passwörter in der Datei lesbar.';
+
+  @override
+  String get backup_strategy_title =>
+      'Ein Import ersetzt Wiedergabelisten mit derselben ID.';
+
+  @override
+  String get backup_strategy_overwrite => 'Vorhandene überschreiben';
+
+  @override
+  String get backup_strategy_keep_local => 'Lokale Versionen behalten';
+
+  @override
+  String get backup_encrypt => 'Verschlüsseln';
+
+  @override
+  String get backup_skip_encryption => 'Verschlüsselung überspringen';
+
+  @override
+  String get search_no_results => 'Keine Ergebnisse gefunden';
+
+  @override
+  String get search_in_your_lists => 'In deinen Listen';
+
+  @override
+  String get search_from_your_iptv => 'Aus deinem IPTV';
+
+  @override
+  String get search_tmdb_section => 'TMDb';
+
+  @override
+  String get search_watch_action => 'Ansehen';
+
+  @override
+  String playlist_load_failed(String error) {
+    return 'Fehler beim Laden der Wiedergabelisten: $error';
+  }
+
+  @override
+  String playlist_save_failed(String error) {
+    return 'Fehler beim Speichern der Wiedergabeliste: $error';
+  }
+
+  @override
+  String playlist_update_failed(String error) {
+    return 'Fehler beim Aktualisieren der Wiedergabeliste: $error';
+  }
+
+  @override
+  String playlist_delete_failed(String error) {
+    return 'Fehler beim Löschen der Wiedergabeliste: $error';
+  }
+
+  @override
+  String m3u_file_read_failed(String error) {
+    return 'M3U-Datei konnte nicht gelesen werden: $error';
+  }
+
+  @override
+  String get m3u_url_invalid_scheme =>
+      'URL muss mit http:// oder https:// beginnen';
+
+  @override
+  String m3u_url_http_status(String status) {
+    return 'M3U-URL gab HTTP $status zurück';
+  }
+
+  @override
+  String get m3u_url_response_too_large =>
+      'M3U-Wiedergabeliste ist größer als 50 MB';
+
+  @override
+  String m3u_url_fetch_failed(String error) {
+    return 'M3U-URL konnte nicht heruntergeladen werden: $error';
+  }
+
+  @override
+  String get search_filter_all => 'Alle';
+
+  @override
+  String get search_filter_movies => 'Filme';
+
+  @override
+  String get search_filter_tv => 'TV';
+
+  @override
+  String get search_filter_wishlist => 'Wunschliste';
+
+  @override
+  String get search_clear_history => 'Verlauf löschen';
+
+  @override
+  String get search_clear_history_confirm => 'Alle letzten Suchen entfernen?';
+
+  @override
+  String get search_remove_from_wishlist => 'Von der Wunschliste entfernen';
+
+  @override
+  String get search_wishlist_empty =>
+      'Deine Wunschliste ist leer. Tippe auf das Lesezeichen bei einem TMDb-Ergebnis, um es hier zu speichern.';
+
+  @override
+  String get search_detail_overview => 'Übersicht';
+
+  @override
+  String get search_detail_genres => 'Genres';
+
+  @override
+  String search_detail_runtime(int minutes) {
+    return '$minutes Min.';
+  }
+
+  @override
+  String search_detail_open_in_playlist(String playlist) {
+    return 'In $playlist öffnen';
+  }
+
+  @override
+  String get search_detail_not_in_playlists =>
+      'In keiner deiner Wiedergabelisten';
 }

@@ -1,9 +1,9 @@
-import 'package:another_iptv_player/l10n/localization_extension.dart';
-import 'package:another_iptv_player/models/watch_history.dart';
-import 'package:another_iptv_player/widgets/watch_history/watch_history_app_bar_widget.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/models/watch_history.dart';
+import 'package:rensi_iptv/widgets/watch_history/watch_history_app_bar_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:another_iptv_player/utils/responsive_helper.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 import '../../controllers/watch_history_controller.dart';
 import '../../controllers/favorites_controller.dart';
 import '../../models/favorite.dart';

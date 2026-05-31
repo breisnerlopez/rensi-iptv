@@ -1,17 +1,16 @@
 import 'dart:async';
-import 'package:another_iptv_player/models/playlist_content_model.dart';
-import 'package:another_iptv_player/models/watch_history.dart';
-import 'package:another_iptv_player/repositories/user_preferences.dart';
-import 'package:another_iptv_player/services/app_state.dart';
-import 'package:another_iptv_player/services/event_bus.dart';
-import 'package:another_iptv_player/services/watch_history_service.dart';
-import 'package:another_iptv_player/utils/get_playlist_type.dart';
-import 'package:another_iptv_player/utils/subtitle_configuration.dart';
-import 'package:another_iptv_player/widgets/video_widget.dart';
+import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/models/watch_history.dart';
+import 'package:rensi_iptv/repositories/user_preferences.dart';
+import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/services/event_bus.dart';
+import 'package:rensi_iptv/services/watch_history_service.dart';
+import 'package:rensi_iptv/utils/get_playlist_type.dart';
+import 'package:rensi_iptv/utils/subtitle_configuration.dart';
+import 'package:rensi_iptv/widgets/video_widget.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart' hide PlayerState;
 import 'package:media_kit_video/media_kit_video.dart';
 import '../../models/content_type.dart';
@@ -192,7 +191,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
             title: item.name,
             artist: _getContentTypeDisplayName(),
             album: AppState.currentPlaylist?.name ?? '',
-            artUri: item.imagePath != null ? Uri.parse(item.imagePath!) : null,
+            artUri: item.imagePath.isNotEmpty
+                ? Uri.tryParse(item.imagePath)
+                : null,
             playable: true,
             extras: {
               'url': item.url,
@@ -217,8 +218,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
                 title: item.name,
                 artist: _getContentTypeDisplayName(),
                 album: AppState.currentPlaylist?.name ?? '',
-                artUri: item.imagePath != null
-                    ? Uri.parse(item.imagePath!)
+                artUri: item.imagePath.isNotEmpty
+                    ? Uri.tryParse(item.imagePath)
                     : null,
                 playable: true,
                 extras: {'url': item.url, 'startPosition': 0},
@@ -252,8 +253,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
         id: contentItem.id.toString(),
         title: contentItem.name,
         artist: _getContentTypeDisplayName(),
-        artUri: contentItem.imagePath != null
-            ? Uri.parse(contentItem.imagePath!)
+        artUri: contentItem.imagePath.isNotEmpty
+            ? Uri.tryParse(contentItem.imagePath)
             : null,
         extras: {
           'url': contentItem.url,
@@ -304,6 +305,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             contentItem.contentType == ContentType.liveStream &&
             contentItem.url.isNotEmpty) {
           try {
+            if (!mounted) return;
             ScaffoldMessenger.of(context).clearSnackBars();
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -321,6 +323,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _wasDisconnected = false;
       } else {
         _wasDisconnected = true;
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -408,6 +411,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             }
           },
           (errorMessage) {
+            if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(errorMessage),

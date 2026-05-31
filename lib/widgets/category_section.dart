@@ -1,7 +1,7 @@
-import 'package:another_iptv_player/l10n/localization_extension.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:flutter/material.dart';
-import 'package:another_iptv_player/models/category_view_model.dart';
-import 'package:another_iptv_player/models/playlist_content_model.dart';
+import 'package:rensi_iptv/models/category_view_model.dart';
+import 'package:rensi_iptv/models/playlist_content_model.dart';
 
 import 'content_item_card_widget.dart';
 

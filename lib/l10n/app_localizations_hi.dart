@@ -842,4 +842,253 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get duration_label => 'अवधि';
+
+  @override
+  String get tmdb_global_search => 'TMDb वैश्विक खोज';
+
+  @override
+  String get tmdb_credential_configured =>
+      'TMDb क्रेडेंशियल सुरक्षित रूप से संग्रहीत';
+
+  @override
+  String get tmdb_credential_missing =>
+      'वैश्विक खोज सक्षम करने के लिए अपनी TMDb API कुंजी या रीड एक्सेस टोकन जोड़ें';
+
+  @override
+  String get tmdb_credential_label => 'TMDb API टोकन';
+
+  @override
+  String get tmdb_credential_field_label => 'API कुंजी या रीड एक्सेस टोकन';
+
+  @override
+  String get tmdb_credential_save => 'क्रेडेंशियल सहेजें';
+
+  @override
+  String get tmdb_credential_saved => 'TMDb क्रेडेंशियल सहेजा गया';
+
+  @override
+  String get tmdb_search_hint => 'TMDb पर फ़िल्में और सीरीज़ खोजें';
+
+  @override
+  String get tmdb_search_button => 'खोजें';
+
+  @override
+  String get tmdb_search_description =>
+      'कम से कम 3 अक्षर टाइप करें और खोजें दबाएं। API उपयोग कम करने के लिए परिणाम 24 घंटे तक कैश किए जाते हैं।';
+
+  @override
+  String get tmdb_exact_match => 'सटीक मिलान';
+
+  @override
+  String get tmdb_not_found_in_playlists => 'आपकी प्लेलिस्ट में नहीं मिला';
+
+  @override
+  String tmdb_available_in(Object count) {
+    return '$count प्लेलिस्ट आइटम में उपलब्ध';
+  }
+
+  @override
+  String get tmdb_wishlist => 'विशलिस्ट';
+
+  @override
+  String get save => 'सहेजें';
+
+  @override
+  String get export_playlists_and_settings =>
+      'प्लेलिस्ट और सेटिंग्स निर्यात करें';
+
+  @override
+  String get export_subtitle =>
+      'सभी प्लेलिस्ट, क्रेडेंशियल और ऐप सेटिंग्स सहेजें';
+
+  @override
+  String get import_playlists_and_settings => 'प्लेलिस्ट और सेटिंग्स आयात करें';
+
+  @override
+  String get import_subtitle =>
+      'प्लेलिस्ट पुनर्स्थापित करें और मेल खाती सेटिंग्स को अधिलेखित करें';
+
+  @override
+  String get backup_section => 'बैकअप';
+
+  @override
+  String get tmdb_credential_section => 'TMDb API टोकन';
+
+  @override
+  String get export_success => 'बैकअप सफलतापूर्वक निर्यात किया गया';
+
+  @override
+  String get export_cancelled => 'बैकअप निर्यात रद्द किया गया';
+
+  @override
+  String get export_failed => 'बैकअप निर्यात विफल';
+
+  @override
+  String import_success(Object count) {
+    return 'बैकअप आयात किया गया: $count प्लेलिस्ट पुनर्स्थापित';
+  }
+
+  @override
+  String get import_cancelled => 'बैकअप आयात रद्द किया गया';
+
+  @override
+  String get import_failed => 'बैकअप आयात विफल';
+
+  @override
+  String import_summary(int created, int updated, int skipped) {
+    return 'आयात किया गया: $created नए, $updated अपडेट किए गए, $skipped छोड़े गए';
+  }
+
+  @override
+  String get backup_passphrase_title => 'इस बैकअप की सुरक्षा करें';
+
+  @override
+  String get backup_passphrase_subtitle =>
+      'बैकअप को एन्क्रिप्ट करने के लिए एक पासफ़्रेज़ चुनें। प्लेन JSON निर्यात के लिए खाली छोड़ें (क्रेडेंशियल पढ़ने योग्य होंगे)।';
+
+  @override
+  String get backup_passphrase_field => 'पासफ़्रेज़';
+
+  @override
+  String get backup_passphrase_confirm => 'पासफ़्रेज़ की पुष्टि करें';
+
+  @override
+  String get backup_passphrase_mismatch => 'पासफ़्रेज़ मेल नहीं खाते';
+
+  @override
+  String get backup_passphrase_required =>
+      'यह बैकअप एन्क्रिप्टेड है। इसे बनाते समय उपयोग किया गया पासफ़्रेज़ दर्ज करें।';
+
+  @override
+  String get backup_passphrase_invalid => 'गलत पासफ़्रेज़ या दूषित बैकअप';
+
+  @override
+  String get backup_invalid_format => 'अमान्य बैकअप फ़ाइल';
+
+  @override
+  String backup_schema_unsupported(String version) {
+    return 'असमर्थित बैकअप संस्करण: $version';
+  }
+
+  @override
+  String get backup_plain_warning =>
+      'बिना एन्क्रिप्शन वाला निर्यात URL, उपयोगकर्ता नाम और पासवर्ड को फ़ाइल में पढ़ने योग्य रखता है।';
+
+  @override
+  String get backup_strategy_title =>
+      'आयात समान आईडी वाली प्लेलिस्ट को बदल देगा।';
+
+  @override
+  String get backup_strategy_overwrite => 'मौजूदा को अधिलेखित करें';
+
+  @override
+  String get backup_strategy_keep_local => 'स्थानीय संस्करण रखें';
+
+  @override
+  String get backup_encrypt => 'एन्क्रिप्ट करें';
+
+  @override
+  String get backup_skip_encryption => 'एन्क्रिप्शन छोड़ें';
+
+  @override
+  String get search_no_results => 'कोई परिणाम नहीं मिला';
+
+  @override
+  String get search_in_your_lists => 'आपकी सूचियों में';
+
+  @override
+  String get search_from_your_iptv => 'आपके IPTV से';
+
+  @override
+  String get search_tmdb_section => 'TMDb';
+
+  @override
+  String get search_watch_action => 'देखें';
+
+  @override
+  String playlist_load_failed(String error) {
+    return 'प्लेलिस्ट लोड करने में विफल: $error';
+  }
+
+  @override
+  String playlist_save_failed(String error) {
+    return 'प्लेलिस्ट सहेजने में विफल: $error';
+  }
+
+  @override
+  String playlist_update_failed(String error) {
+    return 'प्लेलिस्ट अपडेट करने में विफल: $error';
+  }
+
+  @override
+  String playlist_delete_failed(String error) {
+    return 'प्लेलिस्ट हटाने में विफल: $error';
+  }
+
+  @override
+  String m3u_file_read_failed(String error) {
+    return 'M3U फ़ाइल पढ़ी नहीं जा सकी: $error';
+  }
+
+  @override
+  String get m3u_url_invalid_scheme =>
+      'URL http:// या https:// से शुरू होना चाहिए';
+
+  @override
+  String m3u_url_http_status(String status) {
+    return 'M3U URL ने HTTP $status लौटाया';
+  }
+
+  @override
+  String get m3u_url_response_too_large => 'M3U प्लेलिस्ट 50 MB से बड़ी है';
+
+  @override
+  String m3u_url_fetch_failed(String error) {
+    return 'M3U URL डाउनलोड नहीं किया जा सका: $error';
+  }
+
+  @override
+  String get search_filter_all => 'सभी';
+
+  @override
+  String get search_filter_movies => 'फ़िल्में';
+
+  @override
+  String get search_filter_tv => 'TV';
+
+  @override
+  String get search_filter_wishlist => 'इच्छा सूची';
+
+  @override
+  String get search_clear_history => 'इतिहास साफ़ करें';
+
+  @override
+  String get search_clear_history_confirm => 'सभी हाल की खोजें हटाएँ?';
+
+  @override
+  String get search_remove_from_wishlist => 'इच्छा सूची से हटाएँ';
+
+  @override
+  String get search_wishlist_empty =>
+      'आपकी इच्छा सूची खाली है. किसी भी TMDb परिणाम पर बुकमार्क दबाकर उसे यहाँ सहेजें.';
+
+  @override
+  String get search_detail_overview => 'सारांश';
+
+  @override
+  String get search_detail_genres => 'शैलियाँ';
+
+  @override
+  String search_detail_runtime(int minutes) {
+    return '$minutes मिनट';
+  }
+
+  @override
+  String search_detail_open_in_playlist(String playlist) {
+    return '$playlist में खोलें';
+  }
+
+  @override
+  String get search_detail_not_in_playlists =>
+      'आपकी किसी भी प्लेलिस्ट में नहीं है';
 }

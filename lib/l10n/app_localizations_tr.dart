@@ -841,4 +841,255 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get duration_label => 'Süre';
+
+  @override
+  String get tmdb_global_search => 'TMDb Genel Arama';
+
+  @override
+  String get tmdb_credential_configured =>
+      'TMDb kimlik bilgileri güvenli şekilde saklandı';
+
+  @override
+  String get tmdb_credential_missing =>
+      'Genel aramayı etkinleştirmek için TMDb API anahtarınızı veya okuma erişim tokenınızı ekleyin';
+
+  @override
+  String get tmdb_credential_label => 'TMDb API tokenı';
+
+  @override
+  String get tmdb_credential_field_label =>
+      'API anahtarı veya okuma erişim tokenı';
+
+  @override
+  String get tmdb_credential_save => 'Kimlik bilgisini kaydet';
+
+  @override
+  String get tmdb_credential_saved => 'TMDb kimlik bilgisi kaydedildi';
+
+  @override
+  String get tmdb_search_hint => 'TMDb\'de film ve dizi ara';
+
+  @override
+  String get tmdb_search_button => 'Ara';
+
+  @override
+  String get tmdb_search_description =>
+      'En az 3 karakter yazıp Ara\'ya basın. Sonuçlar API kullanımını azaltmak için 24 saat önbelleğe alınır.';
+
+  @override
+  String get tmdb_exact_match => 'Tam eşleşme';
+
+  @override
+  String get tmdb_not_found_in_playlists => 'Oynatma listelerinizde bulunamadı';
+
+  @override
+  String tmdb_available_in(Object count) {
+    return '$count oynatma listesi öğesinde mevcut';
+  }
+
+  @override
+  String get tmdb_wishlist => 'İstek listesi';
+
+  @override
+  String get save => 'Kaydet';
+
+  @override
+  String get export_playlists_and_settings =>
+      'Oynatma listelerini ve ayarları dışa aktar';
+
+  @override
+  String get export_subtitle =>
+      'Tüm oynatma listelerini, kimlik bilgilerini ve uygulama ayarlarını kaydet';
+
+  @override
+  String get import_playlists_and_settings =>
+      'Oynatma listelerini ve ayarları içe aktar';
+
+  @override
+  String get import_subtitle =>
+      'Oynatma listelerini geri yükle ve eşleşen ayarların üzerine yaz';
+
+  @override
+  String get backup_section => 'Yedekleme';
+
+  @override
+  String get tmdb_credential_section => 'TMDb API tokenı';
+
+  @override
+  String get export_success => 'Yedek başarıyla dışa aktarıldı';
+
+  @override
+  String get export_cancelled => 'Yedek dışa aktarımı iptal edildi';
+
+  @override
+  String get export_failed => 'Yedek dışa aktarımı başarısız oldu';
+
+  @override
+  String import_success(Object count) {
+    return 'Yedek içe aktarıldı: $count oynatma listesi geri yüklendi';
+  }
+
+  @override
+  String get import_cancelled => 'Yedek içe aktarımı iptal edildi';
+
+  @override
+  String get import_failed => 'Yedek içe aktarımı başarısız oldu';
+
+  @override
+  String import_summary(int created, int updated, int skipped) {
+    return 'İçe aktarıldı: $created yeni, $updated güncellendi, $skipped atlandı';
+  }
+
+  @override
+  String get backup_passphrase_title => 'Bu yedeği koru';
+
+  @override
+  String get backup_passphrase_subtitle =>
+      'Yedeği şifrelemek için bir parola seçin. Şifrelenmemiş bir JSON dışa aktarımı için boş bırakın (kimlik bilgileri okunabilir olacaktır).';
+
+  @override
+  String get backup_passphrase_field => 'Parola';
+
+  @override
+  String get backup_passphrase_confirm => 'Parolayı onayla';
+
+  @override
+  String get backup_passphrase_mismatch => 'Parolalar eşleşmiyor';
+
+  @override
+  String get backup_passphrase_required =>
+      'Bu yedek şifrelenmiş. Oluştururken kullanılan parolayı girin.';
+
+  @override
+  String get backup_passphrase_invalid => 'Yanlış parola veya bozuk yedek';
+
+  @override
+  String get backup_invalid_format => 'Geçersiz yedek dosyası';
+
+  @override
+  String backup_schema_unsupported(String version) {
+    return 'Desteklenmeyen yedek sürümü: $version';
+  }
+
+  @override
+  String get backup_plain_warning =>
+      'Şifrelenmemiş bir dışa aktarım URL\'leri, kullanıcı adlarını ve şifreleri dosyada okunabilir bırakır.';
+
+  @override
+  String get backup_strategy_title =>
+      'İçe aktarma, aynı kimliğe sahip oynatma listelerini değiştirecek.';
+
+  @override
+  String get backup_strategy_overwrite => 'Mevcut olanların üzerine yaz';
+
+  @override
+  String get backup_strategy_keep_local => 'Yerel sürümleri koru';
+
+  @override
+  String get backup_encrypt => 'Şifrele';
+
+  @override
+  String get backup_skip_encryption => 'Şifrelemeyi atla';
+
+  @override
+  String get search_no_results => 'Sonuç bulunamadı';
+
+  @override
+  String get search_in_your_lists => 'Listelerinizde';
+
+  @override
+  String get search_from_your_iptv => 'IPTV\'nizden';
+
+  @override
+  String get search_tmdb_section => 'TMDb';
+
+  @override
+  String get search_watch_action => 'İzle';
+
+  @override
+  String playlist_load_failed(String error) {
+    return 'Oynatma listeleri yüklenemedi: $error';
+  }
+
+  @override
+  String playlist_save_failed(String error) {
+    return 'Oynatma listesi kaydedilemedi: $error';
+  }
+
+  @override
+  String playlist_update_failed(String error) {
+    return 'Oynatma listesi güncellenemedi: $error';
+  }
+
+  @override
+  String playlist_delete_failed(String error) {
+    return 'Oynatma listesi silinemedi: $error';
+  }
+
+  @override
+  String m3u_file_read_failed(String error) {
+    return 'M3U dosyası okunamadı: $error';
+  }
+
+  @override
+  String get m3u_url_invalid_scheme =>
+      'URL http:// veya https:// ile başlamalıdır';
+
+  @override
+  String m3u_url_http_status(String status) {
+    return 'M3U URL\'si HTTP $status döndürdü';
+  }
+
+  @override
+  String get m3u_url_response_too_large =>
+      'M3U oynatma listesi 50 MB\'tan büyük';
+
+  @override
+  String m3u_url_fetch_failed(String error) {
+    return 'M3U URL\'si indirilemedi: $error';
+  }
+
+  @override
+  String get search_filter_all => 'Tümü';
+
+  @override
+  String get search_filter_movies => 'Filmler';
+
+  @override
+  String get search_filter_tv => 'TV';
+
+  @override
+  String get search_filter_wishlist => 'İstek listesi';
+
+  @override
+  String get search_clear_history => 'Geçmişi temizle';
+
+  @override
+  String get search_clear_history_confirm => 'Tüm son aramalar kaldırılsın mı?';
+
+  @override
+  String get search_remove_from_wishlist => 'İstek listesinden kaldır';
+
+  @override
+  String get search_wishlist_empty =>
+      'İstek listeniz boş. Buraya kaydetmek için herhangi bir TMDb sonucundaki yer iminize dokunun.';
+
+  @override
+  String get search_detail_overview => 'Özet';
+
+  @override
+  String get search_detail_genres => 'Türler';
+
+  @override
+  String search_detail_runtime(int minutes) {
+    return '$minutes dk';
+  }
+
+  @override
+  String search_detail_open_in_playlist(String playlist) {
+    return '$playlist içinde aç';
+  }
+
+  @override
+  String get search_detail_not_in_playlists => 'Hiçbir oynatma listenizde yok';
 }

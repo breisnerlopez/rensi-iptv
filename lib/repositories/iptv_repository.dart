@@ -1,18 +1,19 @@
 import 'dart:convert';
 import 'package:drift/drift.dart' as drift;
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:http/http.dart' as http;
-import 'package:another_iptv_player/database/database.dart';
-import 'package:another_iptv_player/models/api_configuration_model.dart';
-import 'package:another_iptv_player/models/api_response.dart';
-import 'package:another_iptv_player/models/category.dart';
-import 'package:another_iptv_player/models/live_stream.dart';
-import 'package:another_iptv_player/models/series_response.dart';
-import 'package:another_iptv_player/models/vod_streams.dart';
-import 'package:another_iptv_player/models/series.dart';
-import 'package:another_iptv_player/utils/type_convertions.dart';
+import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/models/api_configuration_model.dart';
+import 'package:rensi_iptv/models/api_response.dart';
+import 'package:rensi_iptv/models/category.dart';
+import 'package:rensi_iptv/models/live_stream.dart';
+import 'package:rensi_iptv/models/series_response.dart';
+import 'package:rensi_iptv/models/vod_streams.dart';
+import 'package:rensi_iptv/models/series.dart';
+import 'package:rensi_iptv/utils/type_convertions.dart';
 import '../models/category_type.dart';
 import '../services/service_locator.dart';
-import 'package:another_iptv_player/services/event_bus.dart';
+import '../services/http_service.dart';
 
 class IptvRepository {
   final ApiConfig _config;
@@ -20,6 +21,23 @@ class IptvRepository {
   final _database = getIt<AppDatabase>();
 
   IptvRepository(this._config, this._playlistId);
+
+  String _scrub(Object error) {
+    var text = error.toString();
+    final username = _config.username;
+    final password = _config.password;
+    if (username.isNotEmpty) {
+      text = text.replaceAll(username, '***');
+    }
+    if (password.isNotEmpty) {
+      text = text.replaceAll(password, '***');
+    }
+    return text;
+  }
+
+  void _logError(String tag, Object error) {
+    debugPrint('[IPTV] $tag: ${_scrub(error)}');
+  }
 
   Future<http.Response> _makeRequest(
     String endpoint, {
@@ -39,7 +57,10 @@ class IptvRepository {
       '${_config.baseUrl}/$endpoint',
     ).replace(queryParameters: params);
 
-    return await http.get(uri, headers: {'Content-Type': 'application/json'});
+    return await HttpService.get(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+    );
   }
 
   Future<ApiResponse?> getPlayerInfo({bool forceRefresh = false}) async {
@@ -60,7 +81,7 @@ class IptvRepository {
       final response = await _makeRequest('player_api.php', cacheBuster: false);
 
       if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
+        final jsonData = json.decode(utf8.decode(response.bodyBytes));
         var apiResponse = ApiResponse.fromJson(jsonData, _playlistId);
 
         await _database.insertOrUpdateUserInfo(apiResponse.userInfo);
@@ -73,7 +94,7 @@ class IptvRepository {
         );
       }
     } catch (e) {
-      print('Player Info Error: $e');
+      _logError('Player Info', e);
       return null;
     }
   }
@@ -96,7 +117,9 @@ class IptvRepository {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> jsonData = json.decode(response.body);
+        final List<dynamic> jsonData = json.decode(
+          utf8.decode(response.bodyBytes),
+        );
         var liveStreams = jsonData
             .map((json) => LiveStream.fromJson(json, _playlistId))
             .toList();
@@ -110,7 +133,7 @@ class IptvRepository {
         );
       }
     } catch (e) {
-      print('Live Channels Error: $e');
+      _logError('Live Channels API', e);
       return null;
     }
   }
@@ -126,9 +149,10 @@ class IptvRepository {
         return liveStreams;
       }
     } catch (e) {
-      print('Live Channels Error: $e');
+      _logError('Live Channels', e);
       return null;
     }
+    return null;
   }
 
   Future<List<LiveStream>?> getLiveChannelsByCategoryId({
@@ -147,9 +171,10 @@ class IptvRepository {
         return liveStreams;
       }
     } catch (e) {
-      print('Live Channels Error: $e');
+      _logError('Live Channels Category', e);
       return null;
     }
+    return null;
   }
 
   Future<LiveStream?> findLiveStreamById(String streamId) async {
@@ -160,7 +185,7 @@ class IptvRepository {
       );
       return liveStream;
     } catch (e) {
-      print('Live Channels Error: $e');
+      _logError('Find Live Stream', e);
       return null;
     }
   }
@@ -184,7 +209,9 @@ class IptvRepository {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> jsonData = json.decode(response.body);
+        final List<dynamic> jsonData = json.decode(
+          utf8.decode(response.bodyBytes),
+        );
         var vodStreams = jsonData
             .map((json) => VodStream.fromJson(json, _playlistId))
             .toList();
@@ -199,7 +226,7 @@ class IptvRepository {
         );
       }
     } catch (e) {
-      print('Movies Error: $e');
+      _logError('Movies API', e);
       return null;
     }
   }
@@ -228,9 +255,10 @@ class IptvRepository {
         }
       }
     } catch (e) {
-      print('Movies Error: $e');
+      _logError('Movies', e);
       return null;
     }
+    return null;
   }
 
   Future<List<SeriesStream>?> getSeriesFromApi({
@@ -252,7 +280,9 @@ class IptvRepository {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> jsonData = json.decode(response.body);
+        final List<dynamic> jsonData = json.decode(
+          utf8.decode(response.bodyBytes),
+        );
         var series = jsonData
             .map((json) => SeriesStream.fromJson(json, _playlistId))
             .toList();
@@ -267,67 +297,68 @@ class IptvRepository {
         );
       }
     } catch (e) {
-      print('Series Error: $e');
+      _logError('Series API', e);
       return null;
     }
   }
 
-   Future<List<SeriesStream>?> getSeries({
-     String? categoryId,
-     bool forceRefresh = false,
-     int? top,
-   }) async {
-     try {
-       if (categoryId != null) {
-         var series = await _database.getSeriesStreamsByCategoryAndPlaylistId(
-           categoryId: categoryId,
-           playlistId: _playlistId,
-           top: top,
-         );
+  Future<List<SeriesStream>?> getSeries({
+    String? categoryId,
+    bool forceRefresh = false,
+    int? top,
+  }) async {
+    try {
+      if (categoryId != null) {
+        var series = await _database.getSeriesStreamsByCategoryAndPlaylistId(
+          categoryId: categoryId,
+          playlistId: _playlistId,
+          top: top,
+        );
 
-         if (series.isNotEmpty) {
-           return series;
-         }
-       } else {
-         var series = await _database.getSeriesStreamsByPlaylistId(_playlistId);
+        if (series.isNotEmpty) {
+          return series;
+        }
+      } else {
+        var series = await _database.getSeriesStreamsByPlaylistId(_playlistId);
 
-         if (series.isNotEmpty) {
-           return series;
-         }
-       }
-     } catch (e) {
-       print('Series Error: $e');
-       return null;
-     }
-   }
+        if (series.isNotEmpty) {
+          return series;
+        }
+      }
+    } catch (e) {
+      _logError('Series', e);
+      return null;
+    }
+    return null;
+  }
 
-   /// Fetch VOD movie info from API
-   Future<Map<String, dynamic>?> getVodInfo(String vodId) async {
-     try {
-       final response = await _makeRequest(
-         'player_api.php',
-         additionalParams: {'action': 'get_vod_info', 'vod_id': vodId},
-         cacheBuster: true,
-       );
+  /// Fetch VOD movie info from API
+  Future<Map<String, dynamic>?> getVodInfo(String vodId) async {
+    try {
+      final response = await _makeRequest(
+        'player_api.php',
+        additionalParams: {'action': 'get_vod_info', 'vod_id': vodId},
+        cacheBuster: true,
+      );
 
-       if (response.statusCode == 200) {
-         final jsonData = json.decode(response.body);
-         if (jsonData is Map<String, dynamic>) {
-           return jsonData;
-         } else if (jsonData is Map) {
-           return Map<String, dynamic>.from(jsonData);
-         }
-         return null;
-       } else {
-         throw Exception(
-           'HTTP ${response.statusCode}: ${response.reasonPhrase}',
-         );
-       }
-     } catch (e) {
-       print('VOD Info Error: $e');
-       return null;
-     }
-   }
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(utf8.decode(response.bodyBytes));
+        if (jsonData is Map<String, dynamic>) {
+          return jsonData;
+        } else if (jsonData is Map) {
+          return Map<String, dynamic>.from(jsonData);
+        }
+        return null;
+      } else {
+        throw Exception(
+          'HTTP ${response.statusCode}: ${response.reasonPhrase}',
+        );
+      }
+    } catch (e) {
+      _logError('VOD Info', e);
+      return null;
+    }
+  }
 
   Future<List<Category>?> getLiveCategories({bool forceRefresh = false}) async {
     return _getCategories(
@@ -376,7 +407,9 @@ class IptvRepository {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> jsonData = json.decode(response.body);
+        final List<dynamic> jsonData = json.decode(
+          utf8.decode(response.bodyBytes),
+        );
         final categories = jsonData
             .map((json) => Category.fromJson(json, _playlistId, type))
             .toList();
@@ -391,8 +424,7 @@ class IptvRepository {
         );
       }
     } catch (e) {
-      print('${type.value} Categories Error: $e');
-      // Hata durumunda cache'den dön
+      _logError('${type.value} Categories', e);
       final cachedCategories = await _database.getCategoriesByTypeAndPlaylist(
         _playlistId,
         type,
@@ -417,7 +449,7 @@ class IptvRepository {
         CategoryType.series: results[2] ?? [],
       };
     } catch (e) {
-      print('Get All Categories Error: $e');
+      _logError('Get All Categories', e);
       return await _database.getAllCategoriesByPlaylist(_playlistId);
     }
   }
@@ -454,50 +486,55 @@ class IptvRepository {
     bool forceRefresh = false,
   }) async {
     try {
-      // --- SMART CACHE: check cached series + lastModified + episodes presence ---
       if (!forceRefresh) {
         final seriesInfo = await _database.getSeriesInfo(seriesId, _playlistId);
 
         if (seriesInfo != null) {
-          // fetch main list to compare lastModified
-          final allSeries = await _database.getSeriesStreamsByPlaylistId(_playlistId);
+          final allSeries = await _database.getSeriesStreamsByPlaylistId(
+            _playlistId,
+          );
 
           bool isStale = false;
           try {
-            final seriesItem = allSeries.firstWhere((s) => s.seriesId == seriesId);
+            final seriesItem = allSeries.firstWhere(
+              (s) => s.seriesId == seriesId,
+            );
 
-            final cachedLast = (seriesItem.lastModified ?? '').toString().trim();
+            final cachedLast = (seriesItem.lastModified ?? '')
+                .toString()
+                .trim();
             final infoLast = (seriesInfo.lastModified ?? '').toString().trim();
 
-            if (cachedLast.isEmpty || infoLast.isEmpty || cachedLast != infoLast) {
+            if (cachedLast.isEmpty ||
+                infoLast.isEmpty ||
+                cachedLast != infoLast) {
               isStale = true;
             }
-          } catch (e) {
-            // series not found in list -> conservative: treat as stale
+          } catch (_) {
             isStale = true;
           }
 
           if (!isStale) {
-        final seasons = await _database.getSeasonsBySeriesId(
-          seriesId,
-          _playlistId,
-        );
-        final episodes = await _database.getEpisodesBySeriesId(
-          seriesId,
-          _playlistId,
-        );
+            final seasons = await _database.getSeasonsBySeriesId(
+              seriesId,
+              _playlistId,
+            );
+            final episodes = await _database.getEpisodesBySeriesId(
+              seriesId,
+              _playlistId,
+            );
 
-        if (seasons.isNotEmpty && episodes.isNotEmpty) {
-          return SeriesDetailResponse(
-            seriesInfo: seriesInfo,
-            seasons: seasons,
-            episodes: episodes,
-            playlistId: _playlistId,
-          );
+            if (seasons.isNotEmpty && episodes.isNotEmpty) {
+              return SeriesDetailResponse(
+                seriesInfo: seriesInfo,
+                seasons: seasons,
+                episodes: episodes,
+                playlistId: _playlistId,
+              );
+            }
+          }
         }
       }
-    }
-  }
 
       final response = await _makeRequest(
         'player_api.php',
@@ -506,7 +543,7 @@ class IptvRepository {
       );
 
       if (response.statusCode == 200) {
-        final jsonData = json.decode(response.body);
+        final jsonData = json.decode(utf8.decode(response.bodyBytes));
 
         await _saveSeriesDataToDatabase(seriesId, jsonData);
 
@@ -532,7 +569,7 @@ class IptvRepository {
         );
       }
     } catch (e) {
-      print('Series Info Error: $e');
+      _logError('Series Info', e);
       return null;
     }
   }
@@ -554,7 +591,6 @@ class IptvRepository {
         }
       }
 
-      // Eğer episodlar yok ise series info'yu çek
       await getSeriesInfo(seriesId, forceRefresh: true);
 
       return await _database.getEpisodesBySeason(
@@ -563,7 +599,7 @@ class IptvRepository {
         _playlistId,
       );
     } catch (e) {
-      print('Get Episodes By Season Error: $e');
+      _logError('Get Episodes By Season', e);
       return [];
     }
   }
@@ -633,7 +669,6 @@ class IptvRepository {
             for (final episode in seasonEpisodes) {
               dynamic info = episode['info'];
 
-              // Get season number from episodes, fallback to seasonKey if needed
               int seasonNumber = safeInt(episode['season']) ?? 0;
               if (seasonNumber == 0) {
                 seasonNumber = safeInt(seasonKey) ?? 1;
@@ -683,17 +718,14 @@ class IptvRepository {
               try {
                 await _database.insertEpisode(episodeCompanion);
               } catch (e) {
-                print('Error inserting episode ${episode['id']} for series $seriesId: $e');
+                _logError('Insert Episode ${episode['id']}', e);
               }
             }
           }
         }
       }
 
-      // Compare season numbers from episodes with existing seasons
-      // Create missing seasons
       if (seasonNumbersFromEpisodes.isNotEmpty) {
-        // Get existing seasons
         final existingSeasons = await _database.getSeasonsBySeriesId(
           seriesId,
           _playlistId,
@@ -702,17 +734,16 @@ class IptvRepository {
             .map((s) => s.seasonNumber)
             .toSet();
 
-        // Compare season numbers from episodes with existing seasons
         for (final seasonNumber in seasonNumbersFromEpisodes) {
           if (!existingSeasonNumbers.contains(seasonNumber)) {
-            // Calculate episode count for this season
             int episodeCount = 0;
             if (episodes is Map<String, dynamic>) {
               for (final seasonKey in episodes.keys) {
                 final seasonEpisodes = episodes[seasonKey];
                 if (seasonEpisodes is List) {
                   for (final episode in seasonEpisodes) {
-                    final epSeason = safeInt(episode['season']) ?? safeInt(seasonKey) ?? 1;
+                    final epSeason =
+                        safeInt(episode['season']) ?? safeInt(seasonKey) ?? 1;
                     if (epSeason == seasonNumber) {
                       episodeCount++;
                     }
@@ -736,16 +767,11 @@ class IptvRepository {
             );
 
             await _database.insertSeason(seasonCompanion);
-            print(
-              'Created missing season: $seasonNumber with $episodeCount episodes',
-            );
           }
         }
       }
-
-      print('Series data saved to database successfully');
     } catch (e) {
-      print('Save series data to database error: $e');
+      _logError('Save series data', e);
       rethrow;
     }
   }

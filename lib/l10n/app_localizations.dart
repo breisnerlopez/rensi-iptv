@@ -1661,6 +1661,426 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Duration'**
   String get duration_label;
+
+  /// No description provided for @tmdb_global_search.
+  ///
+  /// In en, this message translates to:
+  /// **'TMDb Global Search'**
+  String get tmdb_global_search;
+
+  /// No description provided for @tmdb_credential_configured.
+  ///
+  /// In en, this message translates to:
+  /// **'TMDb credential stored securely'**
+  String get tmdb_credential_configured;
+
+  /// No description provided for @tmdb_credential_missing.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your TMDb API key or read access token to enable global search'**
+  String get tmdb_credential_missing;
+
+  /// No description provided for @tmdb_credential_label.
+  ///
+  /// In en, this message translates to:
+  /// **'TMDb API token'**
+  String get tmdb_credential_label;
+
+  /// No description provided for @tmdb_credential_field_label.
+  ///
+  /// In en, this message translates to:
+  /// **'API key or read access token'**
+  String get tmdb_credential_field_label;
+
+  /// No description provided for @tmdb_credential_save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save credential'**
+  String get tmdb_credential_save;
+
+  /// No description provided for @tmdb_credential_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'TMDb credential saved'**
+  String get tmdb_credential_saved;
+
+  /// No description provided for @tmdb_search_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search movies and series on TMDb'**
+  String get tmdb_search_hint;
+
+  /// No description provided for @tmdb_search_button.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get tmdb_search_button;
+
+  /// No description provided for @tmdb_search_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Type at least 3 characters and press Search. Results are cached for 24 hours to reduce API usage.'**
+  String get tmdb_search_description;
+
+  /// No description provided for @tmdb_exact_match.
+  ///
+  /// In en, this message translates to:
+  /// **'Exact match'**
+  String get tmdb_exact_match;
+
+  /// No description provided for @tmdb_not_found_in_playlists.
+  ///
+  /// In en, this message translates to:
+  /// **'Not found in your playlists'**
+  String get tmdb_not_found_in_playlists;
+
+  /// No description provided for @tmdb_available_in.
+  ///
+  /// In en, this message translates to:
+  /// **'Available in {count} playlist item(s)'**
+  String tmdb_available_in(Object count);
+
+  /// No description provided for @tmdb_wishlist.
+  ///
+  /// In en, this message translates to:
+  /// **'Wishlist'**
+  String get tmdb_wishlist;
+
+  /// No description provided for @save.
+  ///
+  /// In en, this message translates to:
+  /// **'Save'**
+  String get save;
+
+  /// No description provided for @export_playlists_and_settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Export playlists and settings'**
+  String get export_playlists_and_settings;
+
+  /// No description provided for @export_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Save all playlists, credentials, and app settings'**
+  String get export_subtitle;
+
+  /// No description provided for @import_playlists_and_settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Import playlists and settings'**
+  String get import_playlists_and_settings;
+
+  /// No description provided for @import_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore playlists and overwrite matching settings'**
+  String get import_subtitle;
+
+  /// No description provided for @backup_section.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup'**
+  String get backup_section;
+
+  /// No description provided for @tmdb_credential_section.
+  ///
+  /// In en, this message translates to:
+  /// **'TMDb API token'**
+  String get tmdb_credential_section;
+
+  /// No description provided for @export_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup exported successfully'**
+  String get export_success;
+
+  /// No description provided for @export_cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup export cancelled'**
+  String get export_cancelled;
+
+  /// No description provided for @export_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup export failed'**
+  String get export_failed;
+
+  /// No description provided for @import_success.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup imported: {count} playlists restored'**
+  String import_success(Object count);
+
+  /// No description provided for @import_cancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup import cancelled'**
+  String get import_cancelled;
+
+  /// No description provided for @import_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup import failed'**
+  String get import_failed;
+
+  /// No description provided for @import_summary.
+  ///
+  /// In en, this message translates to:
+  /// **'Imported: {created} new, {updated} updated, {skipped} skipped'**
+  String import_summary(int created, int updated, int skipped);
+
+  /// No description provided for @backup_passphrase_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Protect this backup'**
+  String get backup_passphrase_title;
+
+  /// No description provided for @backup_passphrase_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a passphrase to encrypt the backup. Leave blank for a plain JSON export (credentials will be readable).'**
+  String get backup_passphrase_subtitle;
+
+  /// No description provided for @backup_passphrase_field.
+  ///
+  /// In en, this message translates to:
+  /// **'Passphrase'**
+  String get backup_passphrase_field;
+
+  /// No description provided for @backup_passphrase_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm passphrase'**
+  String get backup_passphrase_confirm;
+
+  /// No description provided for @backup_passphrase_mismatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Passphrases do not match'**
+  String get backup_passphrase_mismatch;
+
+  /// No description provided for @backup_passphrase_required.
+  ///
+  /// In en, this message translates to:
+  /// **'This backup is encrypted. Enter the passphrase used to create it.'**
+  String get backup_passphrase_required;
+
+  /// No description provided for @backup_passphrase_invalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong passphrase or corrupted backup'**
+  String get backup_passphrase_invalid;
+
+  /// No description provided for @backup_invalid_format.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid backup file'**
+  String get backup_invalid_format;
+
+  /// No description provided for @backup_schema_unsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Unsupported backup version: {version}'**
+  String backup_schema_unsupported(String version);
+
+  /// No description provided for @backup_plain_warning.
+  ///
+  /// In en, this message translates to:
+  /// **'Plain export keeps URLs, usernames and passwords readable in the file.'**
+  String get backup_plain_warning;
+
+  /// No description provided for @backup_strategy_title.
+  ///
+  /// In en, this message translates to:
+  /// **'An import will replace playlists with the same id.'**
+  String get backup_strategy_title;
+
+  /// No description provided for @backup_strategy_overwrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Overwrite existing'**
+  String get backup_strategy_overwrite;
+
+  /// No description provided for @backup_strategy_keep_local.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep local versions'**
+  String get backup_strategy_keep_local;
+
+  /// No description provided for @backup_encrypt.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypt'**
+  String get backup_encrypt;
+
+  /// No description provided for @backup_skip_encryption.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip encryption'**
+  String get backup_skip_encryption;
+
+  /// No description provided for @search_no_results.
+  ///
+  /// In en, this message translates to:
+  /// **'No results found'**
+  String get search_no_results;
+
+  /// No description provided for @search_in_your_lists.
+  ///
+  /// In en, this message translates to:
+  /// **'In your lists'**
+  String get search_in_your_lists;
+
+  /// No description provided for @search_from_your_iptv.
+  ///
+  /// In en, this message translates to:
+  /// **'From your IPTV'**
+  String get search_from_your_iptv;
+
+  /// No description provided for @search_tmdb_section.
+  ///
+  /// In en, this message translates to:
+  /// **'TMDb'**
+  String get search_tmdb_section;
+
+  /// No description provided for @search_watch_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch'**
+  String get search_watch_action;
+
+  /// No description provided for @playlist_load_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load playlists: {error}'**
+  String playlist_load_failed(String error);
+
+  /// No description provided for @playlist_save_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to save playlist: {error}'**
+  String playlist_save_failed(String error);
+
+  /// No description provided for @playlist_update_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to update playlist: {error}'**
+  String playlist_update_failed(String error);
+
+  /// No description provided for @playlist_delete_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to delete playlist: {error}'**
+  String playlist_delete_failed(String error);
+
+  /// No description provided for @m3u_file_read_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not read M3U file: {error}'**
+  String m3u_file_read_failed(String error);
+
+  /// No description provided for @m3u_url_invalid_scheme.
+  ///
+  /// In en, this message translates to:
+  /// **'URL must start with http:// or https://'**
+  String get m3u_url_invalid_scheme;
+
+  /// No description provided for @m3u_url_http_status.
+  ///
+  /// In en, this message translates to:
+  /// **'M3U URL returned HTTP {status}'**
+  String m3u_url_http_status(String status);
+
+  /// No description provided for @m3u_url_response_too_large.
+  ///
+  /// In en, this message translates to:
+  /// **'M3U playlist is larger than 50 MB'**
+  String get m3u_url_response_too_large;
+
+  /// No description provided for @m3u_url_fetch_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not download M3U URL: {error}'**
+  String m3u_url_fetch_failed(String error);
+
+  /// No description provided for @search_filter_all.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get search_filter_all;
+
+  /// No description provided for @search_filter_movies.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies'**
+  String get search_filter_movies;
+
+  /// No description provided for @search_filter_tv.
+  ///
+  /// In en, this message translates to:
+  /// **'TV'**
+  String get search_filter_tv;
+
+  /// No description provided for @search_filter_wishlist.
+  ///
+  /// In en, this message translates to:
+  /// **'Wishlist'**
+  String get search_filter_wishlist;
+
+  /// No description provided for @search_clear_history.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear history'**
+  String get search_clear_history;
+
+  /// No description provided for @search_clear_history_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove all recent searches?'**
+  String get search_clear_history_confirm;
+
+  /// No description provided for @search_remove_from_wishlist.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from wishlist'**
+  String get search_remove_from_wishlist;
+
+  /// No description provided for @search_wishlist_empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Your wishlist is empty. Tap the bookmark on any TMDb result to save it here.'**
+  String get search_wishlist_empty;
+
+  /// No description provided for @search_detail_overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get search_detail_overview;
+
+  /// No description provided for @search_detail_genres.
+  ///
+  /// In en, this message translates to:
+  /// **'Genres'**
+  String get search_detail_genres;
+
+  /// No description provided for @search_detail_runtime.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String search_detail_runtime(int minutes);
+
+  /// No description provided for @search_detail_open_in_playlist.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in {playlist}'**
+  String search_detail_open_in_playlist(String playlist);
+
+  /// No description provided for @search_detail_not_in_playlists.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in any of your playlists'**
+  String get search_detail_not_in_playlists;
 }
 
 class _AppLocalizationsDelegate

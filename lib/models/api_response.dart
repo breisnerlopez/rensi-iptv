@@ -1,5 +1,5 @@
-import 'package:another_iptv_player/models/server_info.dart';
-import 'package:another_iptv_player/models/user_info.dart';
+import 'package:rensi_iptv/models/server_info.dart';
+import 'package:rensi_iptv/models/user_info.dart';
 
 class ApiResponse {
   final UserInfo userInfo;

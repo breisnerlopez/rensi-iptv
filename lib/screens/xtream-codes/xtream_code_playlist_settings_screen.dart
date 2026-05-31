@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:another_iptv_player/models/api_response.dart';
-import 'package:another_iptv_player/models/playlist_model.dart';
-import 'package:another_iptv_player/services/app_state.dart';
-import 'package:another_iptv_player/l10n/localization_extension.dart';
+import 'package:rensi_iptv/models/api_response.dart';
+import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import '../../widgets/playlist_info_widget.dart';
 import '../../widgets/server_info_widget.dart';
 import '../../widgets/status_card_widget.dart';

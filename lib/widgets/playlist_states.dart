@@ -1,4 +1,4 @@
-import 'package:another_iptv_player/l10n/localization_extension.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:flutter/material.dart';
 
 class PlaylistLoadingState extends StatelessWidget {
@@ -68,11 +68,17 @@ class PlaylistErrorState extends StatelessWidget {
 
 class PlaylistEmptyState extends StatelessWidget {
   final VoidCallback onCreatePlaylist;
+  final VoidCallback? onImportBackup;
 
-  const PlaylistEmptyState({super.key, required this.onCreatePlaylist});
+  const PlaylistEmptyState({
+    super.key,
+    required this.onCreatePlaylist,
+    this.onImportBackup,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -92,7 +98,6 @@ class PlaylistEmptyState extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               context.loc.empty_playlist_message,
-              // 'İlk playlist\'inizi oluşturarak başlayın.\nXtream Code veya M3U formatında\nplaylist ekleyebilirsiniz.',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[500],
@@ -101,13 +106,11 @@ class PlaylistEmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            ElevatedButton.icon(
+            FilledButton.icon(
               onPressed: onCreatePlaylist,
               icon: const Icon(Icons.add),
               label: Text(context.loc.empty_playlist_button),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
+              style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 12,
@@ -115,6 +118,21 @@ class PlaylistEmptyState extends StatelessWidget {
                 textStyle: const TextStyle(fontSize: 16),
               ),
             ),
+            if (onImportBackup != null) ...[
+              const SizedBox(height: 12),
+              TextButton.icon(
+                onPressed: onImportBackup,
+                icon: const Icon(Icons.download_outlined),
+                label: Text(context.loc.import_playlists_and_settings),
+                style: TextButton.styleFrom(
+                  foregroundColor: colorScheme.primary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

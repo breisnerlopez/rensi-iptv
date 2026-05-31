@@ -851,4 +851,257 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get duration_label => 'Durée';
+
+  @override
+  String get tmdb_global_search => 'Recherche globale TMDb';
+
+  @override
+  String get tmdb_credential_configured =>
+      'Identifiants TMDb stockés en toute sécurité';
+
+  @override
+  String get tmdb_credential_missing =>
+      'Ajoutez votre clé API TMDb ou jeton d\'accès en lecture pour activer la recherche globale';
+
+  @override
+  String get tmdb_credential_label => 'Jeton API TMDb';
+
+  @override
+  String get tmdb_credential_field_label =>
+      'Clé API ou jeton d\'accès en lecture';
+
+  @override
+  String get tmdb_credential_save => 'Enregistrer les identifiants';
+
+  @override
+  String get tmdb_credential_saved => 'Identifiants TMDb enregistrés';
+
+  @override
+  String get tmdb_search_hint => 'Rechercher des films et séries sur TMDb';
+
+  @override
+  String get tmdb_search_button => 'Rechercher';
+
+  @override
+  String get tmdb_search_description =>
+      'Saisissez au moins 3 caractères et appuyez sur Rechercher. Les résultats sont mis en cache pendant 24 heures pour réduire l\'utilisation de l\'API.';
+
+  @override
+  String get tmdb_exact_match => 'Correspondance exacte';
+
+  @override
+  String get tmdb_not_found_in_playlists => 'Introuvable dans vos listes';
+
+  @override
+  String tmdb_available_in(Object count) {
+    return 'Disponible dans $count élément(s) de liste';
+  }
+
+  @override
+  String get tmdb_wishlist => 'Liste de souhaits';
+
+  @override
+  String get save => 'Enregistrer';
+
+  @override
+  String get export_playlists_and_settings =>
+      'Exporter les listes et paramètres';
+
+  @override
+  String get export_subtitle =>
+      'Sauvegarder toutes les listes, identifiants et paramètres de l\'application';
+
+  @override
+  String get import_playlists_and_settings =>
+      'Importer les listes et paramètres';
+
+  @override
+  String get import_subtitle =>
+      'Restaurer les listes et écraser les paramètres correspondants';
+
+  @override
+  String get backup_section => 'Sauvegarde';
+
+  @override
+  String get tmdb_credential_section => 'Jeton API TMDb';
+
+  @override
+  String get export_success => 'Sauvegarde exportée avec succès';
+
+  @override
+  String get export_cancelled => 'Exportation de la sauvegarde annulée';
+
+  @override
+  String get export_failed => 'Échec de l\'exportation de la sauvegarde';
+
+  @override
+  String import_success(Object count) {
+    return 'Sauvegarde importée : $count listes restaurées';
+  }
+
+  @override
+  String get import_cancelled => 'Importation de la sauvegarde annulée';
+
+  @override
+  String get import_failed => 'Échec de l\'importation de la sauvegarde';
+
+  @override
+  String import_summary(int created, int updated, int skipped) {
+    return 'Importé : $created nouveaux, $updated mis à jour, $skipped ignorés';
+  }
+
+  @override
+  String get backup_passphrase_title => 'Protéger cette sauvegarde';
+
+  @override
+  String get backup_passphrase_subtitle =>
+      'Choisissez une phrase secrète pour chiffrer la sauvegarde. Laissez vide pour un export JSON en clair (les identifiants seront lisibles).';
+
+  @override
+  String get backup_passphrase_field => 'Phrase secrète';
+
+  @override
+  String get backup_passphrase_confirm => 'Confirmer la phrase secrète';
+
+  @override
+  String get backup_passphrase_mismatch =>
+      'Les phrases secrètes ne correspondent pas';
+
+  @override
+  String get backup_passphrase_required =>
+      'Cette sauvegarde est chiffrée. Saisissez la phrase secrète utilisée lors de sa création.';
+
+  @override
+  String get backup_passphrase_invalid =>
+      'Phrase secrète incorrecte ou sauvegarde corrompue';
+
+  @override
+  String get backup_invalid_format => 'Fichier de sauvegarde invalide';
+
+  @override
+  String backup_schema_unsupported(String version) {
+    return 'Version de sauvegarde non prise en charge : $version';
+  }
+
+  @override
+  String get backup_plain_warning =>
+      'Un export en clair laisse les URL, noms d\'utilisateur et mots de passe lisibles dans le fichier.';
+
+  @override
+  String get backup_strategy_title =>
+      'Une importation remplacera les listes ayant le même identifiant.';
+
+  @override
+  String get backup_strategy_overwrite => 'Écraser les existantes';
+
+  @override
+  String get backup_strategy_keep_local => 'Conserver les versions locales';
+
+  @override
+  String get backup_encrypt => 'Chiffrer';
+
+  @override
+  String get backup_skip_encryption => 'Sans chiffrement';
+
+  @override
+  String get search_no_results => 'Aucun résultat trouvé';
+
+  @override
+  String get search_in_your_lists => 'Dans vos listes';
+
+  @override
+  String get search_from_your_iptv => 'Depuis votre IPTV';
+
+  @override
+  String get search_tmdb_section => 'TMDb';
+
+  @override
+  String get search_watch_action => 'Regarder';
+
+  @override
+  String playlist_load_failed(String error) {
+    return 'Échec du chargement des listes : $error';
+  }
+
+  @override
+  String playlist_save_failed(String error) {
+    return 'Échec de l\'enregistrement de la liste : $error';
+  }
+
+  @override
+  String playlist_update_failed(String error) {
+    return 'Échec de la mise à jour de la liste : $error';
+  }
+
+  @override
+  String playlist_delete_failed(String error) {
+    return 'Échec de la suppression de la liste : $error';
+  }
+
+  @override
+  String m3u_file_read_failed(String error) {
+    return 'Impossible de lire le fichier M3U : $error';
+  }
+
+  @override
+  String get m3u_url_invalid_scheme =>
+      'L\'URL doit commencer par http:// ou https://';
+
+  @override
+  String m3u_url_http_status(String status) {
+    return 'L\'URL M3U a renvoyé HTTP $status';
+  }
+
+  @override
+  String get m3u_url_response_too_large => 'La liste M3U dépasse 50 Mo';
+
+  @override
+  String m3u_url_fetch_failed(String error) {
+    return 'Impossible de télécharger l\'URL M3U : $error';
+  }
+
+  @override
+  String get search_filter_all => 'Tout';
+
+  @override
+  String get search_filter_movies => 'Films';
+
+  @override
+  String get search_filter_tv => 'TV';
+
+  @override
+  String get search_filter_wishlist => 'Liste de souhaits';
+
+  @override
+  String get search_clear_history => 'Effacer l\'historique';
+
+  @override
+  String get search_clear_history_confirm =>
+      'Supprimer toutes les recherches récentes ?';
+
+  @override
+  String get search_remove_from_wishlist => 'Retirer de la liste de souhaits';
+
+  @override
+  String get search_wishlist_empty =>
+      'Votre liste de souhaits est vide. Touchez le marque-page d\'un résultat TMDb pour l\'enregistrer ici.';
+
+  @override
+  String get search_detail_overview => 'Synopsis';
+
+  @override
+  String get search_detail_genres => 'Genres';
+
+  @override
+  String search_detail_runtime(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String search_detail_open_in_playlist(String playlist) {
+    return 'Ouvrir dans $playlist';
+  }
+
+  @override
+  String get search_detail_not_in_playlists => 'Absent de toutes vos listes';
 }

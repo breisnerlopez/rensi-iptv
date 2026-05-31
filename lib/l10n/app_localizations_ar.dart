@@ -841,4 +841,254 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get duration_label => 'المدة';
+
+  @override
+  String get tmdb_global_search => 'البحث الشامل في TMDb';
+
+  @override
+  String get tmdb_credential_configured => 'تم تخزين بيانات اعتماد TMDb بأمان';
+
+  @override
+  String get tmdb_credential_missing =>
+      'أضف مفتاح TMDb API أو رمز الوصول للقراءة لتفعيل البحث الشامل';
+
+  @override
+  String get tmdb_credential_label => 'رمز TMDb API';
+
+  @override
+  String get tmdb_credential_field_label => 'مفتاح API أو رمز الوصول للقراءة';
+
+  @override
+  String get tmdb_credential_save => 'حفظ بيانات الاعتماد';
+
+  @override
+  String get tmdb_credential_saved => 'تم حفظ بيانات اعتماد TMDb';
+
+  @override
+  String get tmdb_search_hint => 'ابحث عن الأفلام والمسلسلات على TMDb';
+
+  @override
+  String get tmdb_search_button => 'بحث';
+
+  @override
+  String get tmdb_search_description =>
+      'اكتب 3 أحرف على الأقل واضغط على بحث. يتم تخزين النتائج مؤقتًا لمدة 24 ساعة لتقليل استخدام API.';
+
+  @override
+  String get tmdb_exact_match => 'تطابق تام';
+
+  @override
+  String get tmdb_not_found_in_playlists =>
+      'غير موجود في قوائم التشغيل الخاصة بك';
+
+  @override
+  String tmdb_available_in(Object count) {
+    return 'متاح في $count عنصر من قائمة التشغيل';
+  }
+
+  @override
+  String get tmdb_wishlist => 'قائمة الرغبات';
+
+  @override
+  String get save => 'حفظ';
+
+  @override
+  String get export_playlists_and_settings => 'تصدير قوائم التشغيل والإعدادات';
+
+  @override
+  String get export_subtitle =>
+      'حفظ جميع قوائم التشغيل وبيانات الاعتماد وإعدادات التطبيق';
+
+  @override
+  String get import_playlists_and_settings =>
+      'استيراد قوائم التشغيل والإعدادات';
+
+  @override
+  String get import_subtitle =>
+      'استعادة قوائم التشغيل واستبدال الإعدادات المتطابقة';
+
+  @override
+  String get backup_section => 'النسخ الاحتياطي';
+
+  @override
+  String get tmdb_credential_section => 'رمز TMDb API';
+
+  @override
+  String get export_success => 'تم تصدير النسخة الاحتياطية بنجاح';
+
+  @override
+  String get export_cancelled => 'تم إلغاء تصدير النسخة الاحتياطية';
+
+  @override
+  String get export_failed => 'فشل تصدير النسخة الاحتياطية';
+
+  @override
+  String import_success(Object count) {
+    return 'تم استيراد النسخة الاحتياطية: تمت استعادة $count قائمة تشغيل';
+  }
+
+  @override
+  String get import_cancelled => 'تم إلغاء استيراد النسخة الاحتياطية';
+
+  @override
+  String get import_failed => 'فشل استيراد النسخة الاحتياطية';
+
+  @override
+  String import_summary(int created, int updated, int skipped) {
+    return 'تم الاستيراد: $created جديدة، $updated محدثة، $skipped متخطاة';
+  }
+
+  @override
+  String get backup_passphrase_title => 'حماية هذه النسخة الاحتياطية';
+
+  @override
+  String get backup_passphrase_subtitle =>
+      'اختر عبارة مرور لتشفير النسخة الاحتياطية. اتركها فارغة لتصدير JSON غير مشفر (ستكون بيانات الاعتماد قابلة للقراءة).';
+
+  @override
+  String get backup_passphrase_field => 'عبارة المرور';
+
+  @override
+  String get backup_passphrase_confirm => 'تأكيد عبارة المرور';
+
+  @override
+  String get backup_passphrase_mismatch => 'عبارات المرور غير متطابقة';
+
+  @override
+  String get backup_passphrase_required =>
+      'هذه النسخة الاحتياطية مشفرة. أدخل عبارة المرور المستخدمة عند إنشائها.';
+
+  @override
+  String get backup_passphrase_invalid =>
+      'عبارة مرور خاطئة أو نسخة احتياطية تالفة';
+
+  @override
+  String get backup_invalid_format => 'ملف النسخة الاحتياطية غير صالح';
+
+  @override
+  String backup_schema_unsupported(String version) {
+    return 'إصدار النسخة الاحتياطية غير مدعوم: $version';
+  }
+
+  @override
+  String get backup_plain_warning =>
+      'التصدير بدون تشفير يترك عناوين URL وأسماء المستخدمين وكلمات المرور قابلة للقراءة في الملف.';
+
+  @override
+  String get backup_strategy_title =>
+      'سيؤدي الاستيراد إلى استبدال قوائم التشغيل التي تحمل نفس المعرف.';
+
+  @override
+  String get backup_strategy_overwrite => 'استبدال الموجود';
+
+  @override
+  String get backup_strategy_keep_local => 'الاحتفاظ بالنسخ المحلية';
+
+  @override
+  String get backup_encrypt => 'تشفير';
+
+  @override
+  String get backup_skip_encryption => 'بدون تشفير';
+
+  @override
+  String get search_no_results => 'لم يتم العثور على نتائج';
+
+  @override
+  String get search_in_your_lists => 'في قوائمك';
+
+  @override
+  String get search_from_your_iptv => 'من IPTV الخاص بك';
+
+  @override
+  String get search_tmdb_section => 'TMDb';
+
+  @override
+  String get search_watch_action => 'مشاهدة';
+
+  @override
+  String playlist_load_failed(String error) {
+    return 'فشل تحميل قوائم التشغيل: $error';
+  }
+
+  @override
+  String playlist_save_failed(String error) {
+    return 'فشل حفظ قائمة التشغيل: $error';
+  }
+
+  @override
+  String playlist_update_failed(String error) {
+    return 'فشل تحديث قائمة التشغيل: $error';
+  }
+
+  @override
+  String playlist_delete_failed(String error) {
+    return 'فشل حذف قائمة التشغيل: $error';
+  }
+
+  @override
+  String m3u_file_read_failed(String error) {
+    return 'تعذر قراءة ملف M3U: $error';
+  }
+
+  @override
+  String get m3u_url_invalid_scheme =>
+      'يجب أن يبدأ عنوان URL بـ http:// أو https://';
+
+  @override
+  String m3u_url_http_status(String status) {
+    return 'أعاد عنوان M3U URL استجابة HTTP $status';
+  }
+
+  @override
+  String get m3u_url_response_too_large => 'قائمة M3U أكبر من 50 ميغابايت';
+
+  @override
+  String m3u_url_fetch_failed(String error) {
+    return 'تعذر تنزيل عنوان M3U URL: $error';
+  }
+
+  @override
+  String get search_filter_all => 'الكل';
+
+  @override
+  String get search_filter_movies => 'الأفلام';
+
+  @override
+  String get search_filter_tv => 'TV';
+
+  @override
+  String get search_filter_wishlist => 'قائمة الرغبات';
+
+  @override
+  String get search_clear_history => 'مسح السجل';
+
+  @override
+  String get search_clear_history_confirm =>
+      'هل تريد إزالة جميع عمليات البحث الأخيرة؟';
+
+  @override
+  String get search_remove_from_wishlist => 'إزالة من قائمة الرغبات';
+
+  @override
+  String get search_wishlist_empty =>
+      'قائمة رغباتك فارغة. اضغط على إشارة الحفظ في أي نتيجة من TMDb لحفظها هنا.';
+
+  @override
+  String get search_detail_overview => 'نظرة عامة';
+
+  @override
+  String get search_detail_genres => 'الأنواع';
+
+  @override
+  String search_detail_runtime(int minutes) {
+    return '$minutes دقيقة';
+  }
+
+  @override
+  String search_detail_open_in_playlist(String playlist) {
+    return 'فتح في $playlist';
+  }
+
+  @override
+  String get search_detail_not_in_playlists => 'غير موجود في أي من قوائمك';
 }

@@ -844,4 +844,254 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get duration_label => 'Продолжительность';
+
+  @override
+  String get tmdb_global_search => 'Глобальный поиск TMDb';
+
+  @override
+  String get tmdb_credential_configured =>
+      'Учётные данные TMDb сохранены безопасно';
+
+  @override
+  String get tmdb_credential_missing =>
+      'Добавьте свой API-ключ TMDb или токен доступа на чтение, чтобы включить глобальный поиск';
+
+  @override
+  String get tmdb_credential_label => 'API-токен TMDb';
+
+  @override
+  String get tmdb_credential_field_label =>
+      'API-ключ или токен доступа на чтение';
+
+  @override
+  String get tmdb_credential_save => 'Сохранить учётные данные';
+
+  @override
+  String get tmdb_credential_saved => 'Учётные данные TMDb сохранены';
+
+  @override
+  String get tmdb_search_hint => 'Поиск фильмов и сериалов на TMDb';
+
+  @override
+  String get tmdb_search_button => 'Поиск';
+
+  @override
+  String get tmdb_search_description =>
+      'Введите не менее 3 символов и нажмите Поиск. Результаты кэшируются на 24 часа для уменьшения использования API.';
+
+  @override
+  String get tmdb_exact_match => 'Точное совпадение';
+
+  @override
+  String get tmdb_not_found_in_playlists => 'Не найдено в ваших плейлистах';
+
+  @override
+  String tmdb_available_in(Object count) {
+    return 'Доступно в $count элемент(ах) плейлиста';
+  }
+
+  @override
+  String get tmdb_wishlist => 'Список желаний';
+
+  @override
+  String get save => 'Сохранить';
+
+  @override
+  String get export_playlists_and_settings => 'Экспорт плейлистов и настроек';
+
+  @override
+  String get export_subtitle =>
+      'Сохранить все плейлисты, учётные данные и настройки приложения';
+
+  @override
+  String get import_playlists_and_settings => 'Импорт плейлистов и настроек';
+
+  @override
+  String get import_subtitle =>
+      'Восстановить плейлисты и перезаписать совпадающие настройки';
+
+  @override
+  String get backup_section => 'Резервная копия';
+
+  @override
+  String get tmdb_credential_section => 'API-токен TMDb';
+
+  @override
+  String get export_success => 'Резервная копия успешно экспортирована';
+
+  @override
+  String get export_cancelled => 'Экспорт резервной копии отменён';
+
+  @override
+  String get export_failed => 'Не удалось экспортировать резервную копию';
+
+  @override
+  String import_success(Object count) {
+    return 'Резервная копия импортирована: восстановлено плейлистов — $count';
+  }
+
+  @override
+  String get import_cancelled => 'Импорт резервной копии отменён';
+
+  @override
+  String get import_failed => 'Не удалось импортировать резервную копию';
+
+  @override
+  String import_summary(int created, int updated, int skipped) {
+    return 'Импортировано: $created новых, $updated обновлено, $skipped пропущено';
+  }
+
+  @override
+  String get backup_passphrase_title => 'Защитить эту резервную копию';
+
+  @override
+  String get backup_passphrase_subtitle =>
+      'Выберите парольную фразу для шифрования резервной копии. Оставьте пустым для экспорта в простом JSON (учётные данные будут читаемыми).';
+
+  @override
+  String get backup_passphrase_field => 'Парольная фраза';
+
+  @override
+  String get backup_passphrase_confirm => 'Подтвердите парольную фразу';
+
+  @override
+  String get backup_passphrase_mismatch => 'Парольные фразы не совпадают';
+
+  @override
+  String get backup_passphrase_required =>
+      'Эта резервная копия зашифрована. Введите парольную фразу, использованную при её создании.';
+
+  @override
+  String get backup_passphrase_invalid =>
+      'Неверная парольная фраза или повреждённая резервная копия';
+
+  @override
+  String get backup_invalid_format => 'Недопустимый файл резервной копии';
+
+  @override
+  String backup_schema_unsupported(String version) {
+    return 'Неподдерживаемая версия резервной копии: $version';
+  }
+
+  @override
+  String get backup_plain_warning =>
+      'Экспорт без шифрования оставляет URL, имена пользователей и пароли читаемыми в файле.';
+
+  @override
+  String get backup_strategy_title =>
+      'Импорт заменит плейлисты с тем же идентификатором.';
+
+  @override
+  String get backup_strategy_overwrite => 'Перезаписать существующие';
+
+  @override
+  String get backup_strategy_keep_local => 'Сохранить локальные версии';
+
+  @override
+  String get backup_encrypt => 'Шифровать';
+
+  @override
+  String get backup_skip_encryption => 'Без шифрования';
+
+  @override
+  String get search_no_results => 'Результаты не найдены';
+
+  @override
+  String get search_in_your_lists => 'В ваших списках';
+
+  @override
+  String get search_from_your_iptv => 'Из вашего IPTV';
+
+  @override
+  String get search_tmdb_section => 'TMDb';
+
+  @override
+  String get search_watch_action => 'Смотреть';
+
+  @override
+  String playlist_load_failed(String error) {
+    return 'Не удалось загрузить плейлисты: $error';
+  }
+
+  @override
+  String playlist_save_failed(String error) {
+    return 'Не удалось сохранить плейлист: $error';
+  }
+
+  @override
+  String playlist_update_failed(String error) {
+    return 'Не удалось обновить плейлист: $error';
+  }
+
+  @override
+  String playlist_delete_failed(String error) {
+    return 'Не удалось удалить плейлист: $error';
+  }
+
+  @override
+  String m3u_file_read_failed(String error) {
+    return 'Не удалось прочитать файл M3U: $error';
+  }
+
+  @override
+  String get m3u_url_invalid_scheme =>
+      'URL должен начинаться с http:// или https://';
+
+  @override
+  String m3u_url_http_status(String status) {
+    return 'URL M3U вернул HTTP $status';
+  }
+
+  @override
+  String get m3u_url_response_too_large => 'Плейлист M3U превышает 50 МБ';
+
+  @override
+  String m3u_url_fetch_failed(String error) {
+    return 'Не удалось загрузить URL M3U: $error';
+  }
+
+  @override
+  String get search_filter_all => 'Все';
+
+  @override
+  String get search_filter_movies => 'Фильмы';
+
+  @override
+  String get search_filter_tv => 'TV';
+
+  @override
+  String get search_filter_wishlist => 'Список желаний';
+
+  @override
+  String get search_clear_history => 'Очистить историю';
+
+  @override
+  String get search_clear_history_confirm => 'Удалить все недавние запросы?';
+
+  @override
+  String get search_remove_from_wishlist => 'Убрать из списка желаний';
+
+  @override
+  String get search_wishlist_empty =>
+      'Ваш список желаний пуст. Коснитесь закладки у любого результата TMDb, чтобы сохранить его здесь.';
+
+  @override
+  String get search_detail_overview => 'Описание';
+
+  @override
+  String get search_detail_genres => 'Жанры';
+
+  @override
+  String search_detail_runtime(int minutes) {
+    return '$minutes мин';
+  }
+
+  @override
+  String search_detail_open_in_playlist(String playlist) {
+    return 'Открыть в $playlist';
+  }
+
+  @override
+  String get search_detail_not_in_playlists =>
+      'Нет ни в одном из ваших плейлистов';
 }

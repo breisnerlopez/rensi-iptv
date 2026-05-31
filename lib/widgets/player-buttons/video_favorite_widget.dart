@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'package:another_iptv_player/controllers/favorites_controller.dart';
-import 'package:another_iptv_player/models/playlist_content_model.dart';
-import 'package:another_iptv_player/services/event_bus.dart';
-import 'package:another_iptv_player/services/player_state.dart';
+import 'package:rensi_iptv/controllers/favorites_controller.dart';
+import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/services/event_bus.dart';
+import 'package:rensi_iptv/services/player_state.dart';
 import 'package:flutter/material.dart';
 import '../../models/content_type.dart';
 

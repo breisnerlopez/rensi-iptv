@@ -1,4 +1,4 @@
-import 'package:another_iptv_player/utils/type_convertions.dart';
+import 'package:rensi_iptv/utils/type_convertions.dart';
 
 class UserInfo {
   final int? id;

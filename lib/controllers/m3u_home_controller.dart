@@ -1,12 +1,12 @@
-import 'package:another_iptv_player/l10n/localization_extension.dart';
-import 'package:another_iptv_player/models/category_type.dart';
-import 'package:another_iptv_player/models/category_view_model.dart';
-import 'package:another_iptv_player/models/content_type.dart';
-import 'package:another_iptv_player/models/m3u_item.dart';
-import 'package:another_iptv_player/models/playlist_content_model.dart';
-import 'package:another_iptv_player/models/view_state.dart';
-import 'package:another_iptv_player/repositories/m3u_repository.dart';
-import 'package:another_iptv_player/services/app_state.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/models/category_type.dart';
+import 'package:rensi_iptv/models/category_view_model.dart';
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/m3u_item.dart';
+import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/models/view_state.dart';
+import 'package:rensi_iptv/repositories/m3u_repository.dart';
+import 'package:rensi_iptv/services/app_state.dart';
 import 'package:flutter/material.dart';
 
 class M3UHomeController extends ChangeNotifier {
@@ -47,8 +47,9 @@ class M3UHomeController extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
 
-  M3UHomeController() {
+  M3UHomeController({int initialIndex = 2}) {
     _pageController = PageController();
+    _currentIndex = initialIndex.clamp(0, 3);
     _loadM3uItems();
     _loadCategories();
   }
@@ -84,15 +85,11 @@ class M3UHomeController extends ChangeNotifier {
       case 1:
         return context.loc.all;
       case 2:
-        return context.loc.live_streams;
+        return context.loc.tmdb_global_search;
       case 3:
-        return context.loc.movies;
-      case 4:
-        return context.loc.series_plural;
-      case 5:
         return context.loc.settings;
       default:
-        return 'Another IPTV Player';
+        return 'Rensi IPTV';
     }
   }
 

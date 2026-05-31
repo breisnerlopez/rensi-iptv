@@ -1,10 +1,6 @@
-import 'package:another_iptv_player/repositories/user_preferences.dart';
+import 'package:rensi_iptv/repositories/user_preferences.dart';
 import 'package:flutter/material.dart';
-import 'package:another_iptv_player/l10n/localization_extension.dart';
-import '../../widgets/color_picker_tile_widget.dart';
-import '../../widgets/dropdown_tile_widget.dart';
-import '../../widgets/slider_tile_widget.dart';
-import 'package:flutter/material.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/xtream_code_home_controller.dart';
 
@@ -44,10 +40,13 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
       }
     });
     await UserPreferences.setHiddenCategories(_hiddenCategories.toList());
-    widget.controller.notifyListeners();
+    await widget.controller.refreshCategoryVisibility();
   }
 
-  Future<void> _setAllCategoriesVisible(Iterable<String> ids, bool visible) async {
+  Future<void> _setAllCategoriesVisible(
+    Iterable<String> ids,
+    bool visible,
+  ) async {
     setState(() {
       _hasChanges = true;
       if (visible) {
@@ -57,24 +56,18 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
       }
     });
     await UserPreferences.setHiddenCategories(_hiddenCategories.toList());
-    widget.controller.notifyListeners();
-  }
-
-  void _closeScreen(BuildContext context) {
-    if (_hasChanges) {
-      widget.controller.notifyListeners();
-    }
-    Navigator.pop(context, _hasChanges);
+    await widget.controller.refreshCategoryVisibility();
   }
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
       value: widget.controller,
-      child: WillPopScope(
-        onWillPop: () async {
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
           Navigator.pop(context, _hasChanges);
-          return false;
         },
         child: Scaffold(
           appBar: AppBar(
@@ -99,14 +92,18 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                     children: [
                       TextButton(
                         onPressed: () => _setAllCategoriesVisible(
-                          widget.controller.liveCategories!.map((c) => c.category.categoryId),
+                          widget.controller.liveCategories!.map(
+                            (c) => c.category.categoryId,
+                          ),
                           true,
                         ),
                         child: Text(context.loc.select_all),
                       ),
                       TextButton(
                         onPressed: () => _setAllCategoriesVisible(
-                          widget.controller.liveCategories!.map((c) => c.category.categoryId),
+                          widget.controller.liveCategories!.map(
+                            (c) => c.category.categoryId,
+                          ),
                           false,
                         ),
                         child: Text(context.loc.deselect_all),
@@ -114,11 +111,14 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                     ],
                   ),
                   ...?controller.liveCategories?.map((cat) {
-                    final isHidden = _hiddenCategories.contains(cat.category.categoryId);
+                    final isHidden = _hiddenCategories.contains(
+                      cat.category.categoryId,
+                    );
                     return SwitchListTile(
                       title: Text(cat.category.categoryName),
                       value: !isHidden,
-                      onChanged: (val) => _toggleHidden(val, cat.category.categoryId),
+                      onChanged: (val) =>
+                          _toggleHidden(val, cat.category.categoryId),
                     );
                   }),
 
@@ -132,14 +132,18 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                     children: [
                       TextButton(
                         onPressed: () => _setAllCategoriesVisible(
-                          widget.controller.movieCategories.map((c) => c.category.categoryId),
+                          widget.controller.movieCategories.map(
+                            (c) => c.category.categoryId,
+                          ),
                           true,
                         ),
                         child: Text(context.loc.select_all),
                       ),
                       TextButton(
                         onPressed: () => _setAllCategoriesVisible(
-                          widget.controller.movieCategories.map((c) => c.category.categoryId),
+                          widget.controller.movieCategories.map(
+                            (c) => c.category.categoryId,
+                          ),
                           false,
                         ),
                         child: Text(context.loc.deselect_all),
@@ -147,11 +151,14 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                     ],
                   ),
                   ...controller.movieCategories.map((cat) {
-                    final isHidden = _hiddenCategories.contains(cat.category.categoryId);
+                    final isHidden = _hiddenCategories.contains(
+                      cat.category.categoryId,
+                    );
                     return SwitchListTile(
                       title: Text(cat.category.categoryName),
                       value: !isHidden,
-                      onChanged: (val) => _toggleHidden(val, cat.category.categoryId),
+                      onChanged: (val) =>
+                          _toggleHidden(val, cat.category.categoryId),
                     );
                   }),
 
@@ -165,14 +172,18 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                     children: [
                       TextButton(
                         onPressed: () => _setAllCategoriesVisible(
-                          widget.controller.seriesCategories.map((c) => c.category.categoryId),
+                          widget.controller.seriesCategories.map(
+                            (c) => c.category.categoryId,
+                          ),
                           true,
                         ),
                         child: Text(context.loc.select_all),
                       ),
                       TextButton(
                         onPressed: () => _setAllCategoriesVisible(
-                          widget.controller.seriesCategories.map((c) => c.category.categoryId),
+                          widget.controller.seriesCategories.map(
+                            (c) => c.category.categoryId,
+                          ),
                           false,
                         ),
                         child: Text(context.loc.deselect_all),
@@ -180,11 +191,14 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                     ],
                   ),
                   ...controller.seriesCategories.map((cat) {
-                    final isHidden = _hiddenCategories.contains(cat.category.categoryId);
+                    final isHidden = _hiddenCategories.contains(
+                      cat.category.categoryId,
+                    );
                     return SwitchListTile(
                       title: Text(cat.category.categoryName),
                       value: !isHidden,
-                      onChanged: (val) => _toggleHidden(val, cat.category.categoryId),
+                      onChanged: (val) =>
+                          _toggleHidden(val, cat.category.categoryId),
                     );
                   }),
                 ],

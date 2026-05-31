@@ -1,14 +1,14 @@
 import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart' hide Category;
-import 'package:another_iptv_player/database/drift_flutter.dart';
-import 'package:another_iptv_player/models/category.dart';
-import 'package:another_iptv_player/models/content_type.dart';
-import 'package:another_iptv_player/models/live_stream.dart';
-import 'package:another_iptv_player/models/series.dart';
-import 'package:another_iptv_player/models/vod_streams.dart';
-import 'package:another_iptv_player/models/server_info.dart';
-import 'package:another_iptv_player/models/user_info.dart';
+import 'package:rensi_iptv/database/drift_flutter.dart';
+import 'package:rensi_iptv/models/category.dart';
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/live_stream.dart';
+import 'package:rensi_iptv/models/series.dart';
+import 'package:rensi_iptv/models/vod_streams.dart';
+import 'package:rensi_iptv/models/server_info.dart';
+import 'package:rensi_iptv/models/user_info.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../models/category_type.dart';
@@ -56,6 +56,11 @@ class Categories extends Table {
 
   @override
   Set<Column> get primaryKey => {categoryId, playlistId, type};
+
+  @override
+  List<Index> get indexes => [
+    Index('idx_categories_playlist_type', 'playlist_id, type'),
+  ];
 }
 
 @DataClassName('UserInfosData')
@@ -127,6 +132,11 @@ class LiveStreams extends Table {
 
   @override
   Set<Column> get primaryKey => {streamId, playlistId};
+
+  @override
+  List<Index> get indexes => [
+    Index('idx_live_streams_playlist_category', 'playlist_id, category_id'),
+  ];
 }
 
 @DataClassName('VodStreamsData')
@@ -155,6 +165,12 @@ class VodStreams extends Table {
 
   @override
   Set<Column> get primaryKey => {streamId, playlistId};
+
+  @override
+  List<Index> get indexes => [
+    Index('idx_vod_streams_playlist_category', 'playlist_id, category_id'),
+    Index('idx_vod_streams_playlist_name', 'playlist_id, name'),
+  ];
 }
 
 @DataClassName('SeriesStreamsData')
@@ -195,6 +211,12 @@ class SeriesStreams extends Table {
 
   @override
   Set<Column> get primaryKey => {seriesId, playlistId};
+
+  @override
+  List<Index> get indexes => [
+    Index('idx_series_streams_playlist_category', 'playlist_id, category_id'),
+    Index('idx_series_streams_playlist_name', 'playlist_id, name'),
+  ];
 }
 
 @DataClassName('SeriesInfosData')
@@ -325,6 +347,11 @@ class WatchHistories extends Table {
 
   @override
   Set<Column> get primaryKey => {playlistId, streamId};
+
+  @override
+  List<Index> get indexes => [
+    Index('idx_watch_histories_playlist_last', 'playlist_id, last_watched'),
+  ];
 }
 
 @DataClassName('M3uItemData')
@@ -367,6 +394,13 @@ class M3uItems extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  @override
+  List<Index> get indexes => [
+    Index('idx_m3u_items_playlist_category', 'playlist_id, category_id'),
+    Index('idx_m3u_items_playlist_content', 'playlist_id, content_type'),
+    Index('idx_m3u_items_playlist_url', 'playlist_id, url'),
+  ];
 
   @override
   List<String> get customConstraints => [
@@ -443,6 +477,12 @@ class Favorites extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  @override
+  List<Index> get indexes => [
+    Index('idx_favorites_playlist_content', 'playlist_id, content_type'),
+    Index('idx_favorites_lookup', 'playlist_id, stream_id, content_type'),
+  ];
 }
 
 @DriftDatabase(
@@ -489,7 +529,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   // === PLAYLIST İŞLEMLERİ ===
 
@@ -523,10 +563,16 @@ class AppDatabase extends _$AppDatabase {
 
   // Playlist sil
   Future<void> deletePlaylistById(String id) async {
-    // Önce playlist'e ait kategorileri sil
-    await deleteAllCategoriesByPlaylist(id);
-    // Sonra playlist'i sil
-    await (delete(playlists)..where((p) => p.id.equals(id))).go();
+    await transaction(() async {
+      await deleteAllCategoriesByPlaylist(id);
+      await deleteAllM3uItems(id);
+      await deleteLiveStreamsByPlaylistId(id);
+      await deleteVodStreamsByPlaylistId(id);
+      await deleteSeriesStreamsByPlaylistId(id);
+      await deleteUserInfoByPlaylistId(id);
+      await deleteServerInfoByPlaylistId(id);
+      await (delete(playlists)..where((p) => p.id.equals(id))).go();
+    });
   }
 
   // Playlist güncelle
@@ -1347,6 +1393,48 @@ class AppDatabase extends _$AppDatabase {
     return movieList.map((x) => VodStream.fromDriftVodStream(x)).toList();
   }
 
+  Future<List<VodStream>> searchMovieBroad(
+    String playlistId,
+    String query,
+  ) async {
+    final movieList =
+        await (select(vodStreams)
+              ..where(
+                (tbl) =>
+                    tbl.playlistId.equals(playlistId) &
+                    (tbl.name.contains(query) |
+                        tbl.genre.contains(query)),
+              )
+              ..orderBy([(tbl) => OrderingTerm.asc(tbl.name)])
+              ..limit(30))
+            .get();
+
+    return movieList.map((x) => VodStream.fromDriftVodStream(x)).toList();
+  }
+
+  Future<List<SeriesStream>> searchSeriesBroad(
+    String playlistId,
+    String query,
+  ) async {
+    final seriesList =
+        await (select(seriesStreams)
+              ..where(
+                (tbl) =>
+                    tbl.playlistId.equals(playlistId) &
+                    (tbl.name.contains(query) |
+                        tbl.genre.contains(query) |
+                        tbl.cast.contains(query) |
+                        tbl.director.contains(query)),
+              )
+              ..orderBy([(tbl) => OrderingTerm.asc(tbl.name)])
+              ..limit(30))
+            .get();
+
+    return seriesList
+        .map((x) => SeriesStream.fromDriftSeriesStream(x))
+        .toList();
+  }
+
   Future<int> insertM3uItem(M3uItem item) {
     return into(m3uItems).insert(item.toCompanion());
   }
@@ -1403,6 +1491,26 @@ class AppDatabase extends _$AppDatabase {
     final data = await (select(
       m3uItems,
     )..where((tbl) => tbl.playlistId.equals(playlistId))).get();
+    return data.map((item) => M3uItem.fromData(item)).toList();
+  }
+
+  Future<List<M3uItem>> searchM3uItems(
+    String playlistId,
+    String query, {
+    int limit = 15,
+  }) async {
+    if (query.trim().isEmpty || limit <= 0) return const [];
+    final data =
+        await (select(m3uItems)
+              ..where(
+                (tbl) =>
+                    tbl.playlistId.equals(playlistId) &
+                    (tbl.name.contains(query) |
+                        tbl.groupTitle.contains(query)),
+              )
+              ..orderBy([(tbl) => OrderingTerm.asc(tbl.name)])
+              ..limit(limit))
+            .get();
     return data.map((item) => M3uItem.fromData(item)).toList();
   }
 
@@ -1650,8 +1758,66 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(vodStreams, vodStreams.genre);
         await m.addColumn(vodStreams, vodStreams.youtubeTrailer);
       }
+
+      if (from <= 8) {
+        await _createPerformanceIndexes();
+      }
+    },
+    beforeOpen: (_) async {
+      await _createPerformanceIndexes();
     },
   );
+
+  Future<void> _createPerformanceIndexes() async {
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_categories_playlist_type '
+      'ON categories (playlist_id, type)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_live_streams_playlist_category '
+      'ON live_streams (playlist_id, category_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_vod_streams_playlist_category '
+      'ON vod_streams (playlist_id, category_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_vod_streams_playlist_name '
+      'ON vod_streams (playlist_id, name)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_series_streams_playlist_category '
+      'ON series_streams (playlist_id, category_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_series_streams_playlist_name '
+      'ON series_streams (playlist_id, name)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_watch_histories_playlist_last '
+      'ON watch_histories (playlist_id, last_watched)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_m3u_items_playlist_category '
+      'ON m3u_items (playlist_id, category_id)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_m3u_items_playlist_content '
+      'ON m3u_items (playlist_id, content_type)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_m3u_items_playlist_url '
+      'ON m3u_items (playlist_id, url)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_favorites_playlist_content '
+      'ON favorites (playlist_id, content_type)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS idx_favorites_lookup '
+      'ON favorites (playlist_id, stream_id, content_type)',
+    );
+  }
 
   Future<void> deleteDatabase() async {
     await close();

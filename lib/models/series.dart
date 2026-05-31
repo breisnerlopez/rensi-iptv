@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
-import 'package:another_iptv_player/database/database.dart';
-import 'package:another_iptv_player/utils/type_convertions.dart';
+import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/utils/type_convertions.dart';
 
 class SeriesStream {
   final String playlistId;

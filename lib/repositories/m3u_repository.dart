@@ -1,9 +1,9 @@
-import 'package:another_iptv_player/database/database.dart';
-import 'package:another_iptv_player/models/category.dart';
-import 'package:another_iptv_player/models/content_type.dart';
-import 'package:another_iptv_player/models/live_stream.dart';
-import 'package:another_iptv_player/models/m3u_series.dart';
-import 'package:another_iptv_player/services/app_state.dart';
+import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/models/category.dart';
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/live_stream.dart';
+import 'package:rensi_iptv/models/m3u_series.dart';
+import 'package:rensi_iptv/services/app_state.dart';
 
 import '../models/m3u_item.dart';
 import '../models/series.dart';

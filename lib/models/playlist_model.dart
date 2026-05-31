@@ -1,4 +1,6 @@
-import 'package:another_iptv_player/utils/type_convertions.dart';
+import 'package:rensi_iptv/utils/type_convertions.dart';
+
+const Object _sentinel = Object();
 
 class Playlist {
   final String id;
@@ -19,19 +21,51 @@ class Playlist {
     required this.createdAt,
   });
 
-  Map<String, dynamic> toJson() {
+  Playlist copyWith({
+    String? id,
+    String? name,
+    PlaylistType? type,
+    Object? url = _sentinel,
+    Object? username = _sentinel,
+    Object? password = _sentinel,
+    DateTime? createdAt,
+  }) {
+    return Playlist(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      type: type ?? this.type,
+      url: identical(url, _sentinel) ? this.url : url as String?,
+      username:
+          identical(username, _sentinel) ? this.username : username as String?,
+      password:
+          identical(password, _sentinel) ? this.password : password as String?,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
+
+  Playlist withoutSecrets() {
+    return Playlist(id: id, name: name, type: type, createdAt: createdAt);
+  }
+
+  Map<String, dynamic> toJson({bool includeSecrets = true}) {
     return {
       'id': id,
       'name': name,
       'type': type.toString(),
-      'url': url,
-      'username': username,
-      'password': password,
+      if (includeSecrets) 'url': url,
+      if (includeSecrets) 'username': username,
+      if (includeSecrets) 'password': password,
       'createdAt': createdAt.toIso8601String(),
     };
   }
 
   factory Playlist.fromJson(Map<String, dynamic> json) {
+    String? optional(dynamic value) {
+      if (value == null) return null;
+      final str = safeString(value);
+      return str.isEmpty ? null : str;
+    }
+
     return Playlist(
       id: safeString(json['id']),
       name: safeString(json['name']),
@@ -39,9 +73,9 @@ class Playlist {
         (e) => e.toString() == json['type'],
         orElse: () => PlaylistType.m3u,
       ),
-      url: safeString(json['url']),
-      username: safeString(json['username']),
-      password: safeString(json['password']),
+      url: optional(json['url']),
+      username: optional(json['username']),
+      password: optional(json['password']),
       createdAt:
           DateTime.tryParse(safeString(json['createdAt'])) ?? DateTime.now(),
     );

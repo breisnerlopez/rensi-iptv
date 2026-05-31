@@ -224,8 +224,12 @@
   "continue_watching_label": "Fortsetzen: S {season} Folge {episode}",
   "@continue_watching_label": {
     "placeholders": {
-      "season": { "type": "String" },
-      "episode": { "type": "String" }
+      "season": {
+        "type": "String"
+      },
+      "episode": {
+        "type": "String"
+      }
     }
   },
   "player_settings": "Player-Einstellungen",
@@ -289,5 +293,112 @@
   "series_content_type": "Serie",
   "last_update": "Letzte Aktualisierung",
   "minutes": "Min",
-  "duration_label": "Dauer"
+  "duration_label": "Dauer",
+  "tmdb_global_search": "TMDb Globale Suche",
+  "tmdb_credential_configured": "TMDb-Zugangsdaten sicher gespeichert",
+  "tmdb_credential_missing": "Füge deinen TMDb API-Schlüssel oder Read Access Token hinzu, um die globale Suche zu aktivieren",
+  "tmdb_credential_label": "TMDb API-Token",
+  "tmdb_credential_field_label": "API-Schlüssel oder Read Access Token",
+  "tmdb_credential_save": "Zugangsdaten speichern",
+  "tmdb_credential_saved": "TMDb-Zugangsdaten gespeichert",
+  "tmdb_search_hint": "Filme und Serien auf TMDb suchen",
+  "tmdb_search_button": "Suchen",
+  "tmdb_search_description": "Gib mindestens 3 Zeichen ein und drücke Suchen. Ergebnisse werden 24 Stunden zwischengespeichert, um die API-Nutzung zu reduzieren.",
+  "tmdb_exact_match": "Exakte Übereinstimmung",
+  "tmdb_not_found_in_playlists": "Nicht in deinen Wiedergabelisten gefunden",
+  "tmdb_available_in": "In {count} Wiedergabelisten-Eintrag/-Einträgen verfügbar",
+  "tmdb_wishlist": "Wunschliste",
+  "save": "Speichern",
+  "export_playlists_and_settings": "Wiedergabelisten und Einstellungen exportieren",
+  "export_subtitle": "Alle Wiedergabelisten, Zugangsdaten und App-Einstellungen sichern",
+  "import_playlists_and_settings": "Wiedergabelisten und Einstellungen importieren",
+  "import_subtitle": "Wiedergabelisten wiederherstellen und passende Einstellungen überschreiben",
+  "backup_section": "Sicherung",
+  "tmdb_credential_section": "TMDb API-Token",
+  "export_success": "Sicherung erfolgreich exportiert",
+  "export_cancelled": "Sicherungsexport abgebrochen",
+  "export_failed": "Sicherungsexport fehlgeschlagen",
+  "import_success": "Sicherung importiert: {count} Wiedergabelisten wiederhergestellt",
+  "import_cancelled": "Sicherungsimport abgebrochen",
+  "import_failed": "Sicherungsimport fehlgeschlagen",
+  "import_summary": "Importiert: {created} neu, {updated} aktualisiert, {skipped} übersprungen",
+  "@import_summary": {
+    "placeholders": {
+      "created": {"type": "int"},
+      "updated": {"type": "int"},
+      "skipped": {"type": "int"}
+    }
+  },
+  "backup_passphrase_title": "Diese Sicherung schützen",
+  "backup_passphrase_subtitle": "Wähle eine Passphrase zur Verschlüsselung der Sicherung. Lass das Feld leer für einen unverschlüsselten JSON-Export (Zugangsdaten sind dann lesbar).",
+  "backup_passphrase_field": "Passphrase",
+  "backup_passphrase_confirm": "Passphrase bestätigen",
+  "backup_passphrase_mismatch": "Passphrasen stimmen nicht überein",
+  "backup_passphrase_required": "Diese Sicherung ist verschlüsselt. Gib die zur Erstellung verwendete Passphrase ein.",
+  "backup_passphrase_invalid": "Falsche Passphrase oder beschädigte Sicherung",
+  "backup_invalid_format": "Ungültige Sicherungsdatei",
+  "backup_schema_unsupported": "Nicht unterstützte Sicherungsversion: {version}",
+  "@backup_schema_unsupported": {
+    "placeholders": {"version": {"type": "String"}}
+  },
+  "backup_plain_warning": "Ein unverschlüsselter Export lässt URLs, Benutzernamen und Passwörter in der Datei lesbar.",
+  "backup_strategy_title": "Ein Import ersetzt Wiedergabelisten mit derselben ID.",
+  "backup_strategy_overwrite": "Vorhandene überschreiben",
+  "backup_strategy_keep_local": "Lokale Versionen behalten",
+  "backup_encrypt": "Verschlüsseln",
+  "backup_skip_encryption": "Verschlüsselung überspringen",
+  "search_no_results": "Keine Ergebnisse gefunden",
+  "search_in_your_lists": "In deinen Listen",
+  "search_from_your_iptv": "Aus deinem IPTV",
+  "search_tmdb_section": "TMDb",
+  "search_watch_action": "Ansehen",
+  "playlist_load_failed": "Fehler beim Laden der Wiedergabelisten: {error}",
+  "@playlist_load_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_save_failed": "Fehler beim Speichern der Wiedergabeliste: {error}",
+  "@playlist_save_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_update_failed": "Fehler beim Aktualisieren der Wiedergabeliste: {error}",
+  "@playlist_update_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "playlist_delete_failed": "Fehler beim Löschen der Wiedergabeliste: {error}",
+  "@playlist_delete_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "m3u_file_read_failed": "M3U-Datei konnte nicht gelesen werden: {error}",
+  "@m3u_file_read_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "m3u_url_invalid_scheme": "URL muss mit http:// oder https:// beginnen",
+  "m3u_url_http_status": "M3U-URL gab HTTP {status} zurück",
+  "@m3u_url_http_status": {
+    "placeholders": {"status": {"type": "String"}}
+  },
+  "m3u_url_response_too_large": "M3U-Wiedergabeliste ist größer als 50 MB",
+  "m3u_url_fetch_failed": "M3U-URL konnte nicht heruntergeladen werden: {error}",
+  "@m3u_url_fetch_failed": {
+    "placeholders": {"error": {"type": "String"}}
+  },
+  "search_filter_all": "Alle",
+  "search_filter_movies": "Filme",
+  "search_filter_tv": "TV",
+  "search_filter_wishlist": "Wunschliste",
+  "search_clear_history": "Verlauf löschen",
+  "search_clear_history_confirm": "Alle letzten Suchen entfernen?",
+  "search_remove_from_wishlist": "Von der Wunschliste entfernen",
+  "search_wishlist_empty": "Deine Wunschliste ist leer. Tippe auf das Lesezeichen bei einem TMDb-Ergebnis, um es hier zu speichern.",
+  "search_detail_overview": "Übersicht",
+  "search_detail_genres": "Genres",
+  "search_detail_runtime": "{minutes} Min.",
+  "@search_detail_runtime": {
+    "placeholders": {"minutes": {"type": "int"}}
+  },
+  "search_detail_open_in_playlist": "In {playlist} öffnen",
+  "@search_detail_open_in_playlist": {
+    "placeholders": {"playlist": {"type": "String"}}
+  },
+  "search_detail_not_in_playlists": "In keiner deiner Wiedergabelisten"
 }
