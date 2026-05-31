@@ -1,6 +1,7 @@
 import 'package:rensi_iptv/database/database.dart';
 import 'package:rensi_iptv/screens/settings/subtitle_settings_section.dart';
 import 'package:rensi_iptv/services/backup_service.dart';
+import 'package:rensi_iptv/services/pip_service.dart';
 import 'package:rensi_iptv/services/service_locator.dart';
 import 'package:rensi_iptv/services/tmdb_credentials_service.dart';
 import 'package:rensi_iptv/utils/backup_import_flow.dart';
@@ -49,6 +50,8 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
   bool _seekGesture = false;
   bool _speedUpOnLongPress = true;
   bool _seekOnDoubleTap = true;
+  bool _autoPipOnHome = true;
+  bool _pipSupported = false;
   String _appVersion = '';
   String _tmdbToken = '';
   bool _hasTmdbCredential = false;
@@ -68,6 +71,8 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
       final seekGesture = await UserPreferences.getSeekGesture();
       final speedUpOnLongPress = await UserPreferences.getSpeedUpOnLongPress();
       final seekOnDoubleTap = await UserPreferences.getSeekOnDoubleTap();
+      final autoPipOnHome = await UserPreferences.getAutoPipOnHome();
+      final pipSupported = await PipService.instance.isAvailable();
       final packageInfo = await PackageInfo.fromPlatform();
       final tmdb = await TmdbCredentialsService.getCredential();
       setState(() {
@@ -78,6 +83,8 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
         _seekGesture = seekGesture;
         _speedUpOnLongPress = speedUpOnLongPress;
         _seekOnDoubleTap = seekOnDoubleTap;
+        _autoPipOnHome = autoPipOnHome;
+        _pipSupported = pipSupported;
         _appVersion = packageInfo.version;
         _hasTmdbCredential = tmdb != null;
         _isLoading = false;
@@ -108,6 +115,20 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
         return ThemeMode.dark;
       default:
         return ThemeMode.system;
+    }
+  }
+
+  Future<void> _saveAutoPipSetting(bool value) async {
+    try {
+      await UserPreferences.setAutoPipOnHome(value);
+      await PipService.instance.setAutoEnter(value);
+      setState(() {
+        _autoPipOnHome = value;
+      });
+    } catch (e) {
+      setState(() {
+        _autoPipOnHome = !value;
+      });
     }
   }
 
@@ -540,6 +561,16 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
                       value: _backgroundPlayEnabled,
                       onChanged: _saveBackgroundPlaySetting,
                     ),
+                    if (_pipSupported) ...[
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.picture_in_picture_alt),
+                        title: Text(context.loc.auto_pip_on_home),
+                        subtitle: Text(context.loc.auto_pip_on_home_description),
+                        value: _autoPipOnHome,
+                        onChanged: _saveAutoPipSetting,
+                      ),
+                    ],
                     const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.subtitles_outlined),

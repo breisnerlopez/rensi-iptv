@@ -188,6 +188,13 @@ class AppLocalizationsPt extends AppLocalizations {
       'Continuar reproduzindo mesmo quando o app estiver em segundo plano';
 
   @override
+  String get auto_pip_on_home => 'Picture-in-Picture ao sair';
+
+  @override
+  String get auto_pip_on_home_description =>
+      'Reduz o player a uma janela flutuante ao sair do app';
+
+  @override
   String get refresh_contents => 'Atualizar Conteúdo';
 
   @override

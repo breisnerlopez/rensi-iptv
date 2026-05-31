@@ -186,6 +186,13 @@ class AppLocalizationsAr extends AppLocalizations {
       'متابعة التشغيل حتى عندما يكون التطبيق في الخلفية';
 
   @override
+  String get auto_pip_on_home => 'نافذة عائمة عند الخروج';
+
+  @override
+  String get auto_pip_on_home_description =>
+      'يقلص المشغل إلى نافذة عائمة عند مغادرة التطبيق';
+
+  @override
   String get refresh_contents => 'تحديث المحتوى';
 
   @override

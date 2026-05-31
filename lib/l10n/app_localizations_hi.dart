@@ -186,6 +186,13 @@ class AppLocalizationsHi extends AppLocalizations {
       'ऐप बैकग्राउंड में होने पर भी प्लेबैक जारी रखें';
 
   @override
+  String get auto_pip_on_home => 'होम पर पिक्चर-इन-पिक्चर';
+
+  @override
+  String get auto_pip_on_home_description =>
+      'ऐप छोड़ने पर प्लेयर को फ्लोटिंग विंडो में बदलें';
+
+  @override
   String get refresh_contents => 'सामग्री रीफ्रेश करें';
 
   @override

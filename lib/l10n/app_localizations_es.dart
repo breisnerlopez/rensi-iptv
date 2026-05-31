@@ -188,6 +188,13 @@ class AppLocalizationsEs extends AppLocalizations {
       'Seguir reproduciendo aunque la app esté en segundo plano';
 
   @override
+  String get auto_pip_on_home => 'Picture-in-Picture al salir';
+
+  @override
+  String get auto_pip_on_home_description =>
+      'Reduce el reproductor a una ventana flotante al salir de la app';
+
+  @override
   String get refresh_contents => 'Actualizar Contenido';
 
   @override

@@ -4,6 +4,7 @@ import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/repositories/user_preferences.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
+import 'package:rensi_iptv/services/pip_service.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:rensi_iptv/utils/subtitle_configuration.dart';
@@ -69,6 +70,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Duration? _pendingWatchDuration;
   Duration? _pendingTotalDuration;
   final FocusNode _remoteFocusNode = FocusNode(debugLabel: 'PlayerRemote');
+  StreamSubscription<int?>? _pipWidthSubscription;
+  StreamSubscription<int?>? _pipHeightSubscription;
+  int? _lastVideoWidth;
+  int? _lastVideoHeight;
 
   @override
   void initState() {
@@ -132,7 +137,27 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _connectivitySubscription.cancel();
     _errorHandler.reset();
     _remoteFocusNode.dispose();
+    _pipWidthSubscription?.cancel();
+    _pipHeightSubscription?.cancel();
+    PipService.instance.isInPip.removeListener(_onPipModeChanged);
+    // Best-effort: disarm auto-PiP when leaving the player so other screens
+    // don't trigger it accidentally.
+    unawaited(PipService.instance.setAutoEnter(false));
     super.dispose();
+  }
+
+  void _onPipModeChanged() {
+    if (!mounted) return;
+    // When entering PiP, force-hide overlays. Triggers a rebuild that
+    // re-evaluates the conditional widgets in _buildPlayerContent.
+    setState(() {
+      if (PipService.instance.isInPip.value) {
+        _showChannelList = false;
+        PlayerState.showChannelList = false;
+        PlayerState.showVideoInfo = false;
+        PlayerState.showVideoSettings = false;
+      }
+    });
   }
 
   Future<void> _saveWatchHistory() async {
@@ -171,6 +196,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
     PlayerState.backgroundPlay = await UserPreferences.getBackgroundPlay();
     _audioHandler.setPlayer(_player);
     _videoController = VideoController(_player);
+
+    // Picture-in-Picture: arm auto-enter on user-leave-hint and keep the
+    // native side in sync with the video aspect ratio.
+    unawaited(_setupPip());
+    PipService.instance.isInPip.addListener(_onPipModeChanged);
 
     var watchHistory = await watchHistoryService.getWatchHistory(
       AppState.currentPlaylist!.id,
@@ -537,6 +567,32 @@ class _PlayerWidgetState extends State<PlayerWidget>
       default:
         break;
     }
+  }
+
+  Future<void> _setupPip() async {
+    final pip = PipService.instance;
+    if (!await pip.isAvailable()) return;
+    if (!mounted) return;
+
+    final autoPip = await UserPreferences.getAutoPipOnHome();
+    await pip.setAutoEnter(autoPip);
+
+    _pipWidthSubscription = _player.stream.width.listen((w) {
+      if (w == null || w <= 0) return;
+      _lastVideoWidth = w;
+      _pushAspect();
+    });
+    _pipHeightSubscription = _player.stream.height.listen((h) {
+      if (h == null || h <= 0) return;
+      _lastVideoHeight = h;
+      _pushAspect();
+    });
+  }
+
+  void _pushAspect() {
+    final w = _lastVideoWidth, h = _lastVideoHeight;
+    if (w == null || h == null) return;
+    PipService.instance.updateAspectRatio(width: w, height: h);
   }
 
   void _changeChannel(int direction) {

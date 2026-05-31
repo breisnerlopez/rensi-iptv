@@ -56,6 +56,8 @@
   "app_language": "لغة التطبيق",
   "continue_on_background": "متابعة التشغيل في الخلفية",
   "continue_on_background_description": "متابعة التشغيل حتى عندما يكون التطبيق في الخلفية",
+  "auto_pip_on_home": "نافذة عائمة عند الخروج",
+  "auto_pip_on_home_description": "يقلص المشغل إلى نافذة عائمة عند مغادرة التطبيق",
   "refresh_contents": "تحديث المحتوى",
   "subtitle_settings": "إعدادات الترجمة",
   "subtitle_settings_description": "تخصيص مظهر الترجمة",
@@ -324,9 +326,15 @@
   "import_summary": "تم الاستيراد: {created} جديدة، {updated} محدثة، {skipped} متخطاة",
   "@import_summary": {
     "placeholders": {
-      "created": {"type": "int"},
-      "updated": {"type": "int"},
-      "skipped": {"type": "int"}
+      "created": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
     }
   },
   "backup_passphrase_title": "حماية هذه النسخة الاحتياطية",
@@ -339,7 +347,11 @@
   "backup_invalid_format": "ملف النسخة الاحتياطية غير صالح",
   "backup_schema_unsupported": "إصدار النسخة الاحتياطية غير مدعوم: {version}",
   "@backup_schema_unsupported": {
-    "placeholders": {"version": {"type": "String"}}
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
   },
   "backup_plain_warning": "التصدير بدون تشفير يترك عناوين URL وأسماء المستخدمين وكلمات المرور قابلة للقراءة في الملف.",
   "backup_strategy_title": "سيؤدي الاستيراد إلى استبدال قوائم التشغيل التي تحمل نفس المعرف.",
@@ -354,33 +366,61 @@
   "search_watch_action": "مشاهدة",
   "playlist_load_failed": "فشل تحميل قوائم التشغيل: {error}",
   "@playlist_load_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "playlist_save_failed": "فشل حفظ قائمة التشغيل: {error}",
   "@playlist_save_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "playlist_update_failed": "فشل تحديث قائمة التشغيل: {error}",
   "@playlist_update_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "playlist_delete_failed": "فشل حذف قائمة التشغيل: {error}",
   "@playlist_delete_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "m3u_file_read_failed": "تعذر قراءة ملف M3U: {error}",
   "@m3u_file_read_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "m3u_url_invalid_scheme": "يجب أن يبدأ عنوان URL بـ http:// أو https://",
   "m3u_url_http_status": "أعاد عنوان M3U URL استجابة HTTP {status}",
   "@m3u_url_http_status": {
-    "placeholders": {"status": {"type": "String"}}
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
   },
   "m3u_url_response_too_large": "قائمة M3U أكبر من 50 ميغابايت",
   "m3u_url_fetch_failed": "تعذر تنزيل عنوان M3U URL: {error}",
   "@m3u_url_fetch_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "search_filter_all": "الكل",
   "search_filter_movies": "الأفلام",
@@ -394,11 +434,19 @@
   "search_detail_genres": "الأنواع",
   "search_detail_runtime": "{minutes} دقيقة",
   "@search_detail_runtime": {
-    "placeholders": {"minutes": {"type": "int"}}
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
   },
   "search_detail_open_in_playlist": "فتح في {playlist}",
   "@search_detail_open_in_playlist": {
-    "placeholders": {"playlist": {"type": "String"}}
+    "placeholders": {
+      "playlist": {
+        "type": "String"
+      }
+    }
   },
   "search_detail_not_in_playlists": "غير موجود في أي من قوائمك"
 }

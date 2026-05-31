@@ -56,6 +56,8 @@
   "app_language": "Idioma de la App",
   "continue_on_background": "Continuar Reproduciendo en Segundo Plano",
   "continue_on_background_description": "Seguir reproduciendo aunque la app esté en segundo plano",
+  "auto_pip_on_home": "Picture-in-Picture al salir",
+  "auto_pip_on_home_description": "Reduce el reproductor a una ventana flotante al salir de la app",
   "refresh_contents": "Actualizar Contenido",
   "subtitle_settings": "Configuración de Subtítulos",
   "subtitle_settings_description": "Personalizar la apariencia de los subtítulos",
@@ -324,9 +326,15 @@
   "import_summary": "Importado: {created} nuevos, {updated} actualizados, {skipped} omitidos",
   "@import_summary": {
     "placeholders": {
-      "created": {"type": "int"},
-      "updated": {"type": "int"},
-      "skipped": {"type": "int"}
+      "created": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
     }
   },
   "backup_passphrase_title": "Proteger este respaldo",
@@ -339,7 +347,11 @@
   "backup_invalid_format": "Archivo de respaldo no válido",
   "backup_schema_unsupported": "Versión de respaldo no soportada: {version}",
   "@backup_schema_unsupported": {
-    "placeholders": {"version": {"type": "String"}}
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
   },
   "backup_plain_warning": "Una exportación sin cifrar deja URLs, usuarios y contraseñas legibles en el archivo.",
   "backup_strategy_title": "Importar reemplazará las listas con el mismo id.",
@@ -354,33 +366,61 @@
   "search_watch_action": "Ver",
   "playlist_load_failed": "Error al cargar las listas: {error}",
   "@playlist_load_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "playlist_save_failed": "Error al guardar la lista: {error}",
   "@playlist_save_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "playlist_update_failed": "Error al actualizar la lista: {error}",
   "@playlist_update_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "playlist_delete_failed": "Error al eliminar la lista: {error}",
   "@playlist_delete_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "m3u_file_read_failed": "No se pudo leer el archivo M3U: {error}",
   "@m3u_file_read_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "m3u_url_invalid_scheme": "La URL debe comenzar con http:// o https://",
   "m3u_url_http_status": "La URL M3U devolvió HTTP {status}",
   "@m3u_url_http_status": {
-    "placeholders": {"status": {"type": "String"}}
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
   },
   "m3u_url_response_too_large": "La lista M3U supera los 50 MB",
   "m3u_url_fetch_failed": "No se pudo descargar la URL M3U: {error}",
   "@m3u_url_fetch_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "search_filter_all": "Todo",
   "search_filter_movies": "Películas",
@@ -394,11 +434,19 @@
   "search_detail_genres": "Géneros",
   "search_detail_runtime": "{minutes} min",
   "@search_detail_runtime": {
-    "placeholders": {"minutes": {"type": "int"}}
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
   },
   "search_detail_open_in_playlist": "Abrir en {playlist}",
   "@search_detail_open_in_playlist": {
-    "placeholders": {"playlist": {"type": "String"}}
+    "placeholders": {
+      "playlist": {
+        "type": "String"
+      }
+    }
   },
   "search_detail_not_in_playlists": "No está en ninguna de tus listas"
 }

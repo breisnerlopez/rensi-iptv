@@ -188,6 +188,13 @@ class AppLocalizationsDe extends AppLocalizations {
       'Wiedergabe fortsetzen, auch wenn die App im Hintergrund ist';
 
   @override
+  String get auto_pip_on_home => 'Bild-in-Bild beim Verlassen';
+
+  @override
+  String get auto_pip_on_home_description =>
+      'Verkleinert den Player zu einem schwebenden Fenster, wenn du die App verlässt';
+
+  @override
   String get refresh_contents => 'Inhalte Aktualisieren';
 
   @override

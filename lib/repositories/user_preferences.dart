@@ -26,6 +26,7 @@ class UserPreferences {
   static const String _keySeekGesture = 'seek_gesture';
   static const String _keySpeedUpOnLongPress = 'speed_up_on_long_press';
   static const String _keySeekOnDoubleTap = 'seek_on_double_tap';
+  static const String _keyAutoPipOnHome = 'auto_pip_on_home';
 
   static const List<String> _backupKeys = [
     _keyLastPlaylist,
@@ -51,6 +52,7 @@ class UserPreferences {
     _keySeekGesture,
     _keySpeedUpOnLongPress,
     _keySeekOnDoubleTap,
+    _keyAutoPipOnHome,
   ];
 
   static Future<Map<String, Object>> exportSettings() async {
@@ -209,6 +211,16 @@ class UserPreferences {
   static Future<bool> getBackgroundPlay() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyBackgroundPlay) ?? true;
+  }
+
+  static Future<void> setAutoPipOnHome(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyAutoPipOnHome, enabled);
+  }
+
+  static Future<bool> getAutoPipOnHome() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyAutoPipOnHome) ?? true;
   }
 
   static Future<double> getSubtitleFontSize() async {

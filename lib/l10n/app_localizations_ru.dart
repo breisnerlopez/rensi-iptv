@@ -187,6 +187,13 @@ class AppLocalizationsRu extends AppLocalizations {
       'Продолжать воспроизведение, когда приложение свёрнуто';
 
   @override
+  String get auto_pip_on_home => 'Картинка в картинке при выходе';
+
+  @override
+  String get auto_pip_on_home_description =>
+      'Сжимает плеер в плавающее окно при выходе из приложения';
+
+  @override
   String get refresh_contents => 'Обновить контент';
 
   @override

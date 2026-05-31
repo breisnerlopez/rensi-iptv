@@ -186,6 +186,13 @@ class AppLocalizationsEn extends AppLocalizations {
       'Keep playing even when app is in the background';
 
   @override
+  String get auto_pip_on_home => 'Picture-in-Picture on home';
+
+  @override
+  String get auto_pip_on_home_description =>
+      'Shrink the player to a floating window when you leave the app';
+
+  @override
   String get refresh_contents => 'Refresh Content';
 
   @override

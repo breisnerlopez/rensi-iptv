@@ -187,6 +187,13 @@ class AppLocalizationsTr extends AppLocalizations {
       'Uygulama arka planda olsa da oynatmaya devam et';
 
   @override
+  String get auto_pip_on_home => 'Çıkışta Resim İçinde Resim';
+
+  @override
+  String get auto_pip_on_home_description =>
+      'Uygulamadan çıkarken oynatıcıyı kayan pencereye küçültür';
+
+  @override
   String get refresh_contents => 'İçerikleri Yenile';
 
   @override

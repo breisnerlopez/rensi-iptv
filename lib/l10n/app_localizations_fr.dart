@@ -187,6 +187,13 @@ class AppLocalizationsFr extends AppLocalizations {
       'Continuer la lecture même quand l\'app est en arrière-plan';
 
   @override
+  String get auto_pip_on_home => 'Picture-in-Picture en quittant';
+
+  @override
+  String get auto_pip_on_home_description =>
+      'Réduit le lecteur en fenêtre flottante quand vous quittez l\'app';
+
+  @override
   String get refresh_contents => 'Actualiser le contenu';
 
   @override

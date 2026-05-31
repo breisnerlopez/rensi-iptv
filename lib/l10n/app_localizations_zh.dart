@@ -184,6 +184,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get continue_on_background_description => '应用在后台时继续播放';
 
   @override
+  String get auto_pip_on_home => '退出时画中画';
+
+  @override
+  String get auto_pip_on_home_description => '离开应用时将播放器缩小为浮动窗口';
+
+  @override
   String get refresh_contents => '刷新内容';
 
   @override

@@ -456,6 +456,18 @@ abstract class AppLocalizations {
   /// **'Keep playing even when app is in the background'**
   String get continue_on_background_description;
 
+  /// No description provided for @auto_pip_on_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Picture-in-Picture on home'**
+  String get auto_pip_on_home;
+
+  /// No description provided for @auto_pip_on_home_description.
+  ///
+  /// In en, this message translates to:
+  /// **'Shrink the player to a floating window when you leave the app'**
+  String get auto_pip_on_home_description;
+
   /// No description provided for @refresh_contents.
   ///
   /// In en, this message translates to:

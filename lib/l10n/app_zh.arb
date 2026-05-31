@@ -56,6 +56,8 @@
   "app_language": "应用语言",
   "continue_on_background": "后台继续播放",
   "continue_on_background_description": "应用在后台时继续播放",
+  "auto_pip_on_home": "退出时画中画",
+  "auto_pip_on_home_description": "离开应用时将播放器缩小为浮动窗口",
   "refresh_contents": "刷新内容",
   "subtitle_settings": "字幕设置",
   "subtitle_settings_description": "自定义字幕外观",
@@ -324,9 +326,15 @@
   "import_summary": "已导入：{created} 个新增，{updated} 个更新，{skipped} 个跳过",
   "@import_summary": {
     "placeholders": {
-      "created": {"type": "int"},
-      "updated": {"type": "int"},
-      "skipped": {"type": "int"}
+      "created": {
+        "type": "int"
+      },
+      "updated": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      }
     }
   },
   "backup_passphrase_title": "保护此备份",
@@ -339,7 +347,11 @@
   "backup_invalid_format": "无效的备份文件",
   "backup_schema_unsupported": "不支持的备份版本：{version}",
   "@backup_schema_unsupported": {
-    "placeholders": {"version": {"type": "String"}}
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
   },
   "backup_plain_warning": "未加密的导出会使 URL、用户名和密码在文件中保持可读状态。",
   "backup_strategy_title": "导入将替换具有相同 ID 的播放列表。",
@@ -354,33 +366,61 @@
   "search_watch_action": "观看",
   "playlist_load_failed": "加载播放列表失败：{error}",
   "@playlist_load_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "playlist_save_failed": "保存播放列表失败：{error}",
   "@playlist_save_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "playlist_update_failed": "更新播放列表失败：{error}",
   "@playlist_update_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "playlist_delete_failed": "删除播放列表失败：{error}",
   "@playlist_delete_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "m3u_file_read_failed": "无法读取 M3U 文件：{error}",
   "@m3u_file_read_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "m3u_url_invalid_scheme": "URL 必须以 http:// 或 https:// 开头",
   "m3u_url_http_status": "M3U URL 返回了 HTTP {status}",
   "@m3u_url_http_status": {
-    "placeholders": {"status": {"type": "String"}}
+    "placeholders": {
+      "status": {
+        "type": "String"
+      }
+    }
   },
   "m3u_url_response_too_large": "M3U 播放列表大于 50 MB",
   "m3u_url_fetch_failed": "无法下载 M3U URL：{error}",
   "@m3u_url_fetch_failed": {
-    "placeholders": {"error": {"type": "String"}}
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
   },
   "search_filter_all": "全部",
   "search_filter_movies": "电影",
@@ -394,11 +434,19 @@
   "search_detail_genres": "类型",
   "search_detail_runtime": "{minutes} 分钟",
   "@search_detail_runtime": {
-    "placeholders": {"minutes": {"type": "int"}}
+    "placeholders": {
+      "minutes": {
+        "type": "int"
+      }
+    }
   },
   "search_detail_open_in_playlist": "在 {playlist} 中打开",
   "@search_detail_open_in_playlist": {
-    "placeholders": {"playlist": {"type": "String"}}
+    "placeholders": {
+      "playlist": {
+        "type": "String"
+      }
+    }
   },
   "search_detail_not_in_playlists": "不在你的任何播放列表中"
 }
