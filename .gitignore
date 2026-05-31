@@ -119,6 +119,10 @@ firebase_options.dart
 **/*secrets.dart
 **/*keys.dart
 
+# Android signing
+android/keystore.jks
+android/key.properties
+
 # Platform-specific build outputs
 **/android/app/outputs/
 **/android/app/build/
