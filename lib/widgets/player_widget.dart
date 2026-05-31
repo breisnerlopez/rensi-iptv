@@ -11,6 +11,7 @@ import 'package:rensi_iptv/widgets/video_widget.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart' hide PlayerState;
 import 'package:media_kit_video/media_kit_video.dart';
 import '../../models/content_type.dart';
@@ -67,6 +68,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Timer? _watchHistoryTimer;
   Duration? _pendingWatchDuration;
   Duration? _pendingTotalDuration;
+  final FocusNode _remoteFocusNode = FocusNode(debugLabel: 'PlayerRemote');
 
   @override
   void initState() {
@@ -129,6 +131,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     contentItemIndexChangedSubscription.cancel();
     _connectivitySubscription.cancel();
     _errorHandler.reset();
+    _remoteFocusNode.dispose();
     super.dispose();
   }
 
@@ -545,6 +548,88 @@ class _PlayerWidgetState extends State<PlayerWidget>
     EventBus().emit('player_content_item_index_changed', newIndex);
   }
 
+  // Android TV / D-pad / keyboard handler. Returns handled when the key is
+  // consumed so it does not propagate to media_kit's own bindings.
+  KeyEventResult _handleRemoteKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    final hasQueue = _queue != null && _queue!.length > 1;
+
+    // Toggle channel list (Menu / Info / "M")
+    if (key == LogicalKeyboardKey.contextMenu ||
+        key == LogicalKeyboardKey.info ||
+        key == LogicalKeyboardKey.keyM) {
+      if (hasQueue) {
+        EventBus().emit('toggle_channel_list', !_showChannelList);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    // Channel list is open: let arrow keys traverse the list itself.
+    if (_showChannelList) {
+      if (key == LogicalKeyboardKey.escape ||
+          key == LogicalKeyboardKey.goBack ||
+          key == LogicalKeyboardKey.browserBack) {
+        EventBus().emit('toggle_channel_list', false);
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+
+    // Play / pause
+    if (key == LogicalKeyboardKey.select ||
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter ||
+        key == LogicalKeyboardKey.space ||
+        key == LogicalKeyboardKey.mediaPlayPause ||
+        key == LogicalKeyboardKey.mediaPlay ||
+        key == LogicalKeyboardKey.mediaPause) {
+      _player.playOrPause();
+      return KeyEventResult.handled;
+    }
+
+    // Channel up/down via D-pad up/down or dedicated channel keys
+    if (hasQueue &&
+        (key == LogicalKeyboardKey.arrowUp ||
+            key == LogicalKeyboardKey.channelUp ||
+            key == LogicalKeyboardKey.pageUp)) {
+      _changeChannel(1);
+      return KeyEventResult.handled;
+    }
+    if (hasQueue &&
+        (key == LogicalKeyboardKey.arrowDown ||
+            key == LogicalKeyboardKey.channelDown ||
+            key == LogicalKeyboardKey.pageDown)) {
+      _changeChannel(-1);
+      return KeyEventResult.handled;
+    }
+
+    // Seek (for VOD / non-live content). Live streams ignore seek calls.
+    if (key == LogicalKeyboardKey.arrowRight ||
+        key == LogicalKeyboardKey.mediaFastForward ||
+        key == LogicalKeyboardKey.mediaStepForward) {
+      final pos = _player.state.position;
+      final dur = _player.state.duration;
+      final target = pos + const Duration(seconds: 10);
+      _player.seek(target > dur ? dur : target);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.mediaRewind ||
+        key == LogicalKeyboardKey.mediaStepBackward) {
+      final pos = _player.state.position;
+      final target = pos - const Duration(seconds: 10);
+      _player.seek(target < Duration.zero ? Duration.zero : target);
+      return KeyEventResult.handled;
+    }
+
+    // Mute / volume keys are handled by the system; let them through.
+    return KeyEventResult.ignored;
+  }
+
   Widget _buildChannelListOverlay(BuildContext context) {
     final items = _queue!;
     final currentContent = PlayerState.currentContent;
@@ -939,7 +1024,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
       );
     }
 
-    return GestureDetector(
+    return Focus(
+      focusNode: _remoteFocusNode,
+      autofocus: true,
+      onKeyEvent: _handleRemoteKey,
+      child: GestureDetector(
       onVerticalDragEnd: (details) {
         if (_queue == null || _queue!.length <= 1) return;
 
@@ -984,6 +1073,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
           if (_showChannelList && _queue != null && _queue!.length > 1)
             _buildChannelListOverlay(context),
         ],
+      ),
       ),
     );
   }
