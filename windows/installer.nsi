@@ -1,10 +1,13 @@
-; NSIS Installer Script for Another IPTV Player
+; NSIS Installer Script for Rensi IPTV
 ; This script creates a Windows installer that installs the application
 ; to Program Files and creates shortcuts.
 
 ;--------------------------------
 ; Includes
 
+; Internal Flutter binary name (set in windows/CMakeLists.txt). Keeping it
+; stable avoids touching the C++/CMake bits — only the user-facing strings
+; change with the rebrand.
 !define APP_EXE "iptv_player.exe"
 
 !include "MUI2.nsh"
@@ -13,29 +16,25 @@
 ;--------------------------------
 ; General
 
-; Name and file
-Name "Another IPTV Player"
-OutFile "another-iptv-player-windows-setup.exe"
+Name "Rensi IPTV"
+OutFile "rensi-iptv-windows-setup.exe"
 Unicode True
 
-; Default installation folder
-InstallDir "$PROGRAMFILES64\Another IPTV Player"
+InstallDir "$PROGRAMFILES64\Rensi IPTV"
 
-; Get installation folder from registry if available
-InstallDirRegKey HKCU "Software\Another IPTV Player" ""
+InstallDirRegKey HKCU "Software\Rensi IPTV" ""
 
-; Request application privileges for Windows Vista/7/8/10/11
 RequestExecutionLevel admin
 
 ; Version information
-VIProductVersion "1.3.0.0"
-VIAddVersionKey "ProductName" "Another IPTV Player"
+VIProductVersion "1.0.0.0"
+VIAddVersionKey "ProductName" "Rensi IPTV"
 VIAddVersionKey "Comments" "A modern IPTV player application"
-VIAddVersionKey "CompanyName" "Another IPTV Player"
-VIAddVersionKey "LegalCopyright" "Copyright © 2025"
-VIAddVersionKey "FileDescription" "Another IPTV Player Installer"
-VIAddVersionKey "FileVersion" "1.3.0.0"
-VIAddVersionKey "ProductVersion" "1.3.0.0"
+VIAddVersionKey "CompanyName" "Rensi IPTV"
+VIAddVersionKey "LegalCopyright" "Copyright © 2026 Breisner López"
+VIAddVersionKey "FileDescription" "Rensi IPTV Installer"
+VIAddVersionKey "FileVersion" "1.0.0.0"
+VIAddVersionKey "ProductVersion" "1.0.0.0"
 
 ;--------------------------------
 ; Interface Settings
@@ -67,69 +66,61 @@ VIAddVersionKey "ProductVersion" "1.3.0.0"
 ;--------------------------------
 ; Installer Sections
 
-Section "Another IPTV Player" SecMain
+Section "Rensi IPTV" SecMain
 
   SectionIn RO
-  
-  ; Set output path to the installation directory
 
   SetOutPath "$INSTDIR"
-  
-  ; Copy all files from the build directory
-  ; Note: In GitHub Actions, we're in windows/ directory, so we go up one level
-  File /r /x "*.pdb" /x "another-iptv-player-windows-*" "..\build\windows\x64\runner\Release\*"
-  
-  ; Store installation folder
-  WriteRegStr HKCU "Software\Another IPTV Player" "" $INSTDIR
-  
-  ; Create uninstaller
+
+  ; Copy all files from the build directory. In CI we are in windows/ so the
+  ; build folder lives one level up. The .pdb and any previously generated
+  ; installer artifacts are excluded.
+  File /r /x "*.pdb" /x "rensi-iptv-windows-*" "..\build\windows\x64\runner\Release\*"
+
+  WriteRegStr HKCU "Software\Rensi IPTV" "" $INSTDIR
+
   WriteUninstaller "$INSTDIR\Uninstall.exe"
-  
-  ; Add to Add/Remove Programs
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Another IPTV Player" \
-                   "DisplayName" "Another IPTV Player"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Another IPTV Player" \
-  "UninstallString" '"$INSTDIR\Uninstall.exe"'
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Another IPTV Player" \
+
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Rensi IPTV" \
+                   "DisplayName" "Rensi IPTV"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Rensi IPTV" \
+                   "UninstallString" '"$INSTDIR\Uninstall.exe"'
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Rensi IPTV" \
                    "InstallLocation" "$INSTDIR"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Another IPTV Player" \
-                 "DisplayIcon" "$INSTDIR\${APP_EXE}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Another IPTV Player" \
-                   "Publisher" "Another IPTV Player"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Another IPTV Player" \
-                   "DisplayVersion" "1.3.0"
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Another IPTV Player" \
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Rensi IPTV" \
+                   "DisplayIcon" "$INSTDIR\${APP_EXE}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Rensi IPTV" \
+                   "Publisher" "Rensi IPTV"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Rensi IPTV" \
+                   "DisplayVersion" "1.0.0"
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Rensi IPTV" \
                      "NoModify" 1
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Another IPTV Player" \
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Rensi IPTV" \
                      "NoRepair" 1
 
 SectionEnd
 
 Section "Start Menu Shortcuts" SecStartMenu
 
-  ; Create shortcuts
-  CreateDirectory "$SMPROGRAMS\Another IPTV Player"
-  CreateShortcut "$SMPROGRAMS\Another IPTV Player\Another IPTV Player.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\${APP_EXE}" 0
-  CreateShortcut "$SMPROGRAMS\Another IPTV Player\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
+  CreateDirectory "$SMPROGRAMS\Rensi IPTV"
+  CreateShortcut "$SMPROGRAMS\Rensi IPTV\Rensi IPTV.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\${APP_EXE}" 0
+  CreateShortcut "$SMPROGRAMS\Rensi IPTV\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
 
 SectionEnd
 
 Section "Desktop Shortcut" SecDesktop
 
-  CreateShortcut "$DESKTOP\Another IPTV Player.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\${APP_EXE}" 0
-
+  CreateShortcut "$DESKTOP\Rensi IPTV.lnk" "$INSTDIR\${APP_EXE}" "" "$INSTDIR\${APP_EXE}" 0
 
 SectionEnd
 
 ;--------------------------------
 ; Descriptions
 
-; Language strings
-LangString DESC_SecMain ${LANG_ENGLISH} "Install Another IPTV Player application files."
+LangString DESC_SecMain ${LANG_ENGLISH} "Install Rensi IPTV application files."
 LangString DESC_SecStartMenu ${LANG_ENGLISH} "Create Start Menu shortcuts."
 LangString DESC_SecDesktop ${LANG_ENGLISH} "Create a desktop shortcut."
 
-; Assign language strings to sections
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SecMain} $(DESC_SecMain)
   !insertmacro MUI_DESCRIPTION_TEXT ${SecStartMenu} $(DESC_SecStartMenu)
@@ -141,19 +132,15 @@ LangString DESC_SecDesktop ${LANG_ENGLISH} "Create a desktop shortcut."
 
 Section "Uninstall"
 
-  ; Remove files and uninstaller
   Delete "$INSTDIR\Uninstall.exe"
   RMDir /r "$INSTDIR"
-  
-  ; Remove shortcuts, if any
-  Delete "$SMPROGRAMS\Another IPTV Player\Another IPTV Player.lnk"
-  Delete "$SMPROGRAMS\Another IPTV Player\Uninstall.lnk"
-  RMDir "$SMPROGRAMS\Another IPTV Player"
-  Delete "$DESKTOP\Another IPTV Player.lnk"
-  
-  ; Remove registry keys
-  DeleteRegKey /ifempty HKCU "Software\Another IPTV Player"
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Another IPTV Player"
+
+  Delete "$SMPROGRAMS\Rensi IPTV\Rensi IPTV.lnk"
+  Delete "$SMPROGRAMS\Rensi IPTV\Uninstall.lnk"
+  RMDir "$SMPROGRAMS\Rensi IPTV"
+  Delete "$DESKTOP\Rensi IPTV.lnk"
+
+  DeleteRegKey /ifempty HKCU "Software\Rensi IPTV"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Rensi IPTV"
 
 SectionEnd
-
