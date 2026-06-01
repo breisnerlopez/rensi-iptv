@@ -1111,4 +1111,25 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get search_detail_not_in_playlists => 'Hiçbir oynatma listenizde yok';
+
+  @override
+  String get stream_info => 'Yayın bilgisi';
+
+  @override
+  String get resolution => 'Çözünürlük';
+
+  @override
+  String get frames_per_second => 'Saniye başına kare';
+
+  @override
+  String get video_codec => 'Video codec';
+
+  @override
+  String get audio_codec => 'Ses codec';
+
+  @override
+  String get audio_channels => 'Ses kanalları';
+
+  @override
+  String get bitrate => 'Bit hızı';
 }

@@ -1110,4 +1110,25 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get search_detail_not_in_playlists =>
       'आपकी किसी भी प्लेलिस्ट में नहीं है';
+
+  @override
+  String get stream_info => 'स्ट्रीम जानकारी';
+
+  @override
+  String get resolution => 'रिज़ॉल्यूशन';
+
+  @override
+  String get frames_per_second => 'फ्रेम प्रति सेकंड';
+
+  @override
+  String get video_codec => 'वीडियो कोडेक';
+
+  @override
+  String get audio_codec => 'ऑडियो कोडेक';
+
+  @override
+  String get audio_channels => 'ऑडियो चैनल';
+
+  @override
+  String get bitrate => 'बिटरेट';
 }

@@ -2117,6 +2117,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not in any of your playlists'**
   String get search_detail_not_in_playlists;
+
+  /// No description provided for @stream_info.
+  ///
+  /// In en, this message translates to:
+  /// **'Stream info'**
+  String get stream_info;
+
+  /// No description provided for @resolution.
+  ///
+  /// In en, this message translates to:
+  /// **'Resolution'**
+  String get resolution;
+
+  /// No description provided for @frames_per_second.
+  ///
+  /// In en, this message translates to:
+  /// **'Frames per second'**
+  String get frames_per_second;
+
+  /// No description provided for @video_codec.
+  ///
+  /// In en, this message translates to:
+  /// **'Video codec'**
+  String get video_codec;
+
+  /// No description provided for @audio_codec.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio codec'**
+  String get audio_codec;
+
+  /// No description provided for @audio_channels.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio channels'**
+  String get audio_channels;
+
+  /// No description provided for @bitrate.
+  ///
+  /// In en, this message translates to:
+  /// **'Bitrate'**
+  String get bitrate;
 }
 
 class _AppLocalizationsDelegate

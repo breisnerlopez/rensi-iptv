@@ -452,5 +452,12 @@
       }
     }
   },
-  "search_detail_not_in_playlists": "आपकी किसी भी प्लेलिस्ट में नहीं है"
+  "search_detail_not_in_playlists": "आपकी किसी भी प्लेलिस्ट में नहीं है",
+  "stream_info": "स्ट्रीम जानकारी",
+  "resolution": "रिज़ॉल्यूशन",
+  "frames_per_second": "फ्रेम प्रति सेकंड",
+  "video_codec": "वीडियो कोडेक",
+  "audio_codec": "ऑडियो कोडेक",
+  "audio_channels": "ऑडियो चैनल",
+  "bitrate": "बिटरेट"
 }

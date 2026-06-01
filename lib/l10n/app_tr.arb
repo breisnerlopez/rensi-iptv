@@ -452,5 +452,12 @@
       }
     }
   },
-  "search_detail_not_in_playlists": "Hiçbir oynatma listenizde yok"
+  "search_detail_not_in_playlists": "Hiçbir oynatma listenizde yok",
+  "stream_info": "Yayın bilgisi",
+  "resolution": "Çözünürlük",
+  "frames_per_second": "Saniye başına kare",
+  "video_codec": "Video codec",
+  "audio_codec": "Ses codec",
+  "audio_channels": "Ses kanalları",
+  "bitrate": "Bit hızı"
 }

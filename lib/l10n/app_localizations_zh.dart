@@ -1074,4 +1074,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get search_detail_not_in_playlists => '不在你的任何播放列表中';
+
+  @override
+  String get stream_info => '流信息';
+
+  @override
+  String get resolution => '分辨率';
+
+  @override
+  String get frames_per_second => '每秒帧数';
+
+  @override
+  String get video_codec => '视频编码';
+
+  @override
+  String get audio_codec => '音频编码';
+
+  @override
+  String get audio_channels => '音频声道';
+
+  @override
+  String get bitrate => '比特率';
 }

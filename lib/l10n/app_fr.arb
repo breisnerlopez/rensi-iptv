@@ -452,5 +452,12 @@
       }
     }
   },
-  "search_detail_not_in_playlists": "Absent de toutes vos listes"
+  "search_detail_not_in_playlists": "Absent de toutes vos listes",
+  "stream_info": "Infos du flux",
+  "resolution": "Résolution",
+  "frames_per_second": "Images par seconde",
+  "video_codec": "Codec vidéo",
+  "audio_codec": "Codec audio",
+  "audio_channels": "Canaux audio",
+  "bitrate": "Débit binaire"
 }

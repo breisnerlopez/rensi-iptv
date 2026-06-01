@@ -452,5 +452,12 @@
       }
     }
   },
-  "search_detail_not_in_playlists": "Not in any of your playlists"
+  "search_detail_not_in_playlists": "Not in any of your playlists",
+  "stream_info": "Stream info",
+  "resolution": "Resolution",
+  "frames_per_second": "Frames per second",
+  "video_codec": "Video codec",
+  "audio_codec": "Audio codec",
+  "audio_channels": "Audio channels",
+  "bitrate": "Bitrate"
 }

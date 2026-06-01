@@ -1110,4 +1110,25 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get search_detail_not_in_playlists => 'غير موجود في أي من قوائمك';
+
+  @override
+  String get stream_info => 'معلومات البث';
+
+  @override
+  String get resolution => 'الدقة';
+
+  @override
+  String get frames_per_second => 'إطار في الثانية';
+
+  @override
+  String get video_codec => 'ترميز الفيديو';
+
+  @override
+  String get audio_codec => 'ترميز الصوت';
+
+  @override
+  String get audio_channels => 'قنوات الصوت';
+
+  @override
+  String get bitrate => 'معدل البت';
 }

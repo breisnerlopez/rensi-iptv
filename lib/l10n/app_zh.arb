@@ -452,5 +452,12 @@
       }
     }
   },
-  "search_detail_not_in_playlists": "不在你的任何播放列表中"
+  "search_detail_not_in_playlists": "不在你的任何播放列表中",
+  "stream_info": "流信息",
+  "resolution": "分辨率",
+  "frames_per_second": "每秒帧数",
+  "video_codec": "视频编码",
+  "audio_codec": "音频编码",
+  "audio_channels": "音频声道",
+  "bitrate": "比特率"
 }

@@ -1113,4 +1113,25 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get search_detail_not_in_playlists =>
       'Нет ни в одном из ваших плейлистов';
+
+  @override
+  String get stream_info => 'О потоке';
+
+  @override
+  String get resolution => 'Разрешение';
+
+  @override
+  String get frames_per_second => 'Кадров в секунду';
+
+  @override
+  String get video_codec => 'Видеокодек';
+
+  @override
+  String get audio_codec => 'Аудиокодек';
+
+  @override
+  String get audio_channels => 'Аудиоканалы';
+
+  @override
+  String get bitrate => 'Битрейт';
 }

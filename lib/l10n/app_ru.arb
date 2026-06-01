@@ -452,5 +452,12 @@
       }
     }
   },
-  "search_detail_not_in_playlists": "Нет ни в одном из ваших плейлистов"
+  "search_detail_not_in_playlists": "Нет ни в одном из ваших плейлистов",
+  "stream_info": "О потоке",
+  "resolution": "Разрешение",
+  "frames_per_second": "Кадров в секунду",
+  "video_codec": "Видеокодек",
+  "audio_codec": "Аудиокодек",
+  "audio_channels": "Аудиоканалы",
+  "bitrate": "Битрейт"
 }

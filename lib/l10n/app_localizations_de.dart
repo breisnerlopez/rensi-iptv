@@ -1123,4 +1123,25 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get search_detail_not_in_playlists =>
       'In keiner deiner Wiedergabelisten';
+
+  @override
+  String get stream_info => 'Stream-Infos';
+
+  @override
+  String get resolution => 'Auflösung';
+
+  @override
+  String get frames_per_second => 'Bilder pro Sekunde';
+
+  @override
+  String get video_codec => 'Video-Codec';
+
+  @override
+  String get audio_codec => 'Audio-Codec';
+
+  @override
+  String get audio_channels => 'Audio-Kanäle';
+
+  @override
+  String get bitrate => 'Bitrate';
 }

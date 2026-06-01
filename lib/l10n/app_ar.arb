@@ -452,5 +452,12 @@
       }
     }
   },
-  "search_detail_not_in_playlists": "غير موجود في أي من قوائمك"
+  "search_detail_not_in_playlists": "غير موجود في أي من قوائمك",
+  "stream_info": "معلومات البث",
+  "resolution": "الدقة",
+  "frames_per_second": "إطار في الثانية",
+  "video_codec": "ترميز الفيديو",
+  "audio_codec": "ترميز الصوت",
+  "audio_channels": "قنوات الصوت",
+  "bitrate": "معدل البت"
 }

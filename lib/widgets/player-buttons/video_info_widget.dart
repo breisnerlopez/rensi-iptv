@@ -442,6 +442,7 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
                             Icons.link,
                             isCopyable: true,
                           ),
+                          ..._buildStreamInfoRows(context),
                         ],
                       ),
                     ),
@@ -453,6 +454,76 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
         ),
       ),
     );
+  }
+
+  /// Rows describing the currently-decoded stream — resolution, fps, video
+  /// codec, audio codec/channels, audio bitrate. All rows are gated on the
+  /// data being available so unknown values don't render as "null".
+  List<Widget> _buildStreamInfoRows(BuildContext context) {
+    final video = PlayerState.selectedVideo;
+    final audio = PlayerState.selectedAudio;
+
+    final rows = <Widget>[];
+
+    String? resolution;
+    if (video.w != null && video.h != null && video.w! > 0 && video.h! > 0) {
+      resolution = '${video.w}x${video.h}';
+    }
+    String? fps;
+    if (video.fps != null && video.fps! > 0) {
+      fps = '${video.fps!.toStringAsFixed(2)} fps';
+    }
+    final videoCodec =
+        (video.codec != null && video.codec!.isNotEmpty) ? video.codec : null;
+    final audioCodec =
+        (audio.codec != null && audio.codec!.isNotEmpty) ? audio.codec : null;
+    String? channels;
+    if (audio.channelscount != null && audio.channelscount! > 0) {
+      channels = '${audio.channelscount}ch';
+    }
+    String? bitrate;
+    if (audio.bitrate != null && audio.bitrate! > 0) {
+      bitrate = '${(audio.bitrate! / 1000).round()} kbps';
+    }
+
+    final hasAnything = resolution != null ||
+        fps != null ||
+        videoCodec != null ||
+        audioCodec != null ||
+        channels != null ||
+        bitrate != null;
+    if (!hasAnything) return const <Widget>[];
+
+    rows.add(const SizedBox(height: 20));
+    rows.add(
+      Padding(
+        padding: const EdgeInsets.only(left: 4, bottom: 8),
+        child: Text(
+          context.loc.stream_info,
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+
+    void add(String label, String? value, IconData icon) {
+      if (value == null) return;
+      if (rows.length > 2) rows.add(const SizedBox(height: 12));
+      rows.add(_buildInfoRow(context, label, value, icon));
+    }
+
+    add(context.loc.resolution, resolution, Icons.aspect_ratio);
+    add(context.loc.frames_per_second, fps, Icons.speed);
+    add(context.loc.video_codec, videoCodec, Icons.movie_filter);
+    add(context.loc.audio_codec, audioCodec, Icons.audiotrack);
+    add(context.loc.audio_channels, channels, Icons.surround_sound);
+    add(context.loc.bitrate, bitrate, Icons.equalizer);
+
+    return rows;
   }
 
   String _getContentTypeDisplayName(BuildContext context, ContentType contentType) {
