@@ -509,7 +509,7 @@ class AppDatabase extends _$AppDatabase {
     : super(
         e ??
             driftDatabase(
-              name: 'another-iptv-player',
+              name: 'rensi-iptv',
               native: const DriftNativeOptions(
                 databaseDirectory: getApplicationSupportDirectory,
               ),
