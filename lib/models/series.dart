@@ -53,6 +53,18 @@ class SeriesStream {
       }
     }
 
+    // Canonical "date added to the provider's catalogue" — same logic as
+    // VodStream. Prefer `added` (the field VOD uses, and the field a few
+    // newer providers ship for series too), fall back to `last_modified`
+    // (the historic Xtream series field). The result is stored under the
+    // existing `lastModified` model field so the Drift column name stays
+    // stable — the rename would be a schema migration for no functional
+    // benefit. dateAddedFor in the controller is what the UI actually
+    // reads.
+    final addedRaw = safeString(json['added']);
+    final lastModifiedRaw =
+        addedRaw.isNotEmpty ? addedRaw : safeString(json['last_modified']);
+
     return SeriesStream(
       seriesId: safeString(json['series_id']),
       name: safeString(json['name']),
@@ -62,7 +74,7 @@ class SeriesStream {
       director: safeString(json['director']),
       genre: safeString(json['genre']),
       releaseDate: safeString(json['releaseDate']),
-      lastModified: safeString(json['last_modified']),
+      lastModified: lastModifiedRaw,
       rating: safeString(json['rating']),
       rating5based: safeDouble(json['rating_5based']) ?? 0.0,
       backdropPath: backdropPaths,
