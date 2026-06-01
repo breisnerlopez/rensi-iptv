@@ -315,6 +315,12 @@ class XtreamCodeHomeController extends ChangeNotifier {
     }
   }
 
+  /// Predicate used to weed out garbage rows that some Xtream providers
+  /// ship with empty or whitespace-only titles. Exposed at module scope
+  /// so [ContentService] can apply the same filter on the detail view
+  /// for the "View all" pseudo-category.
+  static bool _hasUsableName(ContentItem item) => item.name.trim().isNotEmpty;
+
   refreshAllData(BuildContext context) {
     Navigator.pushReplacement(
       context,
@@ -344,17 +350,18 @@ class XtreamCodeHomeController extends ChangeNotifier {
     final preview = await previewLoader();
     if (preview == null || preview.isEmpty) return;
 
-    // Build the full mapped list, sort it newest-first by date-added, and
-    // keep only the first 10 for the preview strip.
+    // Build the full mapped list, drop junk entries, sort newest-first by
+    // date-added, and keep only the first 10 for the preview strip.
     //
     // The repository ignores `top:` when called without a categoryId
-    // (the SQL path returns every row for the playlist), so a movie
-    // catalogue with thousands of items would flood the horizontal
-    // strip — at best causing scroll/memory pressure, at worst leaving
-    // off-screen cards visually empty before they paint. Limiting the
-    // slice client-side keeps the home screen snappy regardless of
-    // playlist size.
-    final mapped = preview.map(toItem).toList();
+    // (the SQL path returns every row for the playlist), so a catalogue
+    // with thousands of items would flood the horizontal strip.
+    //
+    // Some providers also pollute the table with rows whose name is empty
+    // (or whitespace) and no streamIcon — they'd render as blank cards.
+    // Filter those out before slicing so the preview row always shows
+    // real content.
+    final mapped = preview.map(toItem).where(_hasUsableName).toList();
     mapped.sort((a, b) {
       final tsA = CategoryDetailController.dateAddedFor(a);
       final tsB = CategoryDetailController.dateAddedFor(b);

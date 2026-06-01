@@ -3,6 +3,7 @@ import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/repositories/m3u_repository.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import '../models/category_type.dart';
@@ -31,8 +32,26 @@ class ContentService {
     final repository = AppState.xtreamCodeRepository!;
     // The "View all" pseudo-category aggregates every item of its type, so
     // we omit category_id from the repository call.
-    final String? scopedCategoryId =
-        isAllCategorySentinel(categoryId) ? null : categoryId;
+    final bool isAll = isAllCategorySentinel(categoryId);
+    final String? scopedCategoryId = isAll ? null : categoryId;
+    final List<ContentItem> items = await _fetchXtreamContentInner(
+      type,
+      repository,
+      scopedCategoryId,
+    );
+    // Drop junk rows from the aggregated view: some providers ship
+    // VOD/Series entries with an empty title that render as blank cards.
+    // For a real category we still show them — the user explicitly picked
+    // that category and may want to know it has malformed data.
+    if (!isAll) return items;
+    return items.where((it) => it.name.trim().isNotEmpty).toList();
+  }
+
+  Future<List<ContentItem>> _fetchXtreamContentInner(
+    CategoryType type,
+    IptvRepository repository,
+    String? scopedCategoryId,
+  ) async {
     switch (type) {
       case CategoryType.live:
         return await _fetchGenericContent(
