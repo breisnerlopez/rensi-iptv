@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = Another IPTV Player
+PRODUCT_NAME = Rensi IPTV
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.iptvPlayer
+PRODUCT_BUNDLE_IDENTIFIER = info.breisner.rensi.iptv
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2025 dev.ogos. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Breisner Lopez. All rights reserved.

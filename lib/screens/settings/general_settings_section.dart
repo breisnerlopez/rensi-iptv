@@ -703,7 +703,7 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
                       dense: true,
                       onTap: () async {
                         final url = Uri.parse(
-                          'https://github.com/bsogulcan/another-iptv-player',
+                          'https://github.com/breisnerlopez/rensi-iptv',
                         );
                         if (await canLaunchUrl(url)) {
                           await launchUrl(

@@ -111,8 +111,8 @@ class BackupService {
     final date = DateTime.now().toIso8601String().split('T').first;
     final isEncrypted = passphrase != null && passphrase.isNotEmpty;
     final fileName = isEncrypted
-        ? 'another-iptv-backup-$date.aipbak'
-        : 'another-iptv-backup-$date.json';
+        ? 'rensi-iptv-backup-$date.aipbak'
+        : 'rensi-iptv-backup-$date.json';
     // Same FileType.any rationale as pickBackupFile — the SAF picker on
     // some Android TV firmwares (Mi Box, certain Realtek boxes) rejects
     // the MIME-constrained intent and would otherwise throw here.

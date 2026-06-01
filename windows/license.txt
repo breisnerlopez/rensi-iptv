@@ -1,5 +1,6 @@
-Another IPTV Player
-Copyright © 2025
+Rensi IPTV
+Copyright © 2026 Breisner Lopez
+Fork of Another IPTV Player (© 2025 dev.ogos)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
