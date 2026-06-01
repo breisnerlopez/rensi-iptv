@@ -73,9 +73,13 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
       // back inline so we never need READ_EXTERNAL_STORAGE — important
       // on Android 11+ where that permission is no longer granted to
       // non-system apps anyway.
+      //
+      // FileType.any is used instead of FileType.custom because Android
+      // TV boxes (e.g. Mi Box) refuse the MIME-filtered intent with
+      // ActivityNotFoundException — see the analogous note in
+      // BackupService.pickBackupFile.
       FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['m3u', 'm3u8'],
+        type: FileType.any,
         allowMultiple: false,
         withData: true,
         withReadStream: false,

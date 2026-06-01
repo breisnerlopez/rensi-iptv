@@ -750,9 +750,11 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
     try {
       // withData: true so we get the bytes via SAF without needing
       // READ_EXTERNAL_STORAGE; works the same on Android 9 through 14+.
+      // FileType.any matches BackupService.pickBackupFile — see that
+      // comment for why FileType.custom + allowedExtensions is rejected
+      // by Mi Box and similar TV-class SAF providers.
       FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['m3u', 'm3u8'],
+        type: FileType.any,
         allowMultiple: false,
         withData: true,
       );

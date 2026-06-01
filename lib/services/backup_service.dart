@@ -113,11 +113,13 @@ class BackupService {
     final fileName = isEncrypted
         ? 'another-iptv-backup-$date.aipbak'
         : 'another-iptv-backup-$date.json';
+    // Same FileType.any rationale as pickBackupFile — the SAF picker on
+    // some Android TV firmwares (Mi Box, certain Realtek boxes) rejects
+    // the MIME-constrained intent and would otherwise throw here.
     final path = await FilePicker.platform.saveFile(
       dialogTitle: 'Export playlists and settings',
       fileName: fileName,
-      type: FileType.custom,
-      allowedExtensions: [isEncrypted ? 'aipbak' : 'json'],
+      type: FileType.any,
       bytes: bytes,
     );
     return path != null;
@@ -125,10 +127,17 @@ class BackupService {
 
   /// Returns the raw bytes of the picked backup file, so the UI can prompt for
   /// a passphrase before attempting decryption.
+  ///
+  /// FileType.any is intentional: FileType.custom + allowedExtensions builds
+  /// an ACTION_OPEN_DOCUMENT intent with MIME constraints that Android TV
+  /// boxes (e.g. Mi Box) reject with ActivityNotFoundException because their
+  /// SAF document provider doesn't advertise those types. FileType.any maps
+  /// to a broader picker that's available on virtually every Android build,
+  /// and the content is validated by [looksEncrypted] / JSON parsing
+  /// downstream so extension filtering is purely a UX nicety.
   static Future<Uint8List?> pickBackupFile() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['json', 'aipbak'],
+      type: FileType.any,
       allowMultiple: false,
       withData: true,
     );
