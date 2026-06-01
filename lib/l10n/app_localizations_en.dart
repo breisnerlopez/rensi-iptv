@@ -1130,4 +1130,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get bitrate => 'Bitrate';
+
+  @override
+  String get sort_recently_added => 'Recently added';
 }

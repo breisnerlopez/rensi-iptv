@@ -459,5 +459,6 @@
   "video_codec": "Видеокодек",
   "audio_codec": "Аудиокодек",
   "audio_channels": "Аудиоканалы",
-  "bitrate": "Битрейт"
+  "bitrate": "Битрейт",
+  "sort_recently_added": "Недавно добавленные"
 }

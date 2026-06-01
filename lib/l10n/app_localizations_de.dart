@@ -1144,4 +1144,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get bitrate => 'Bitrate';
+
+  @override
+  String get sort_recently_added => 'Zuletzt hinzugefügt';
 }

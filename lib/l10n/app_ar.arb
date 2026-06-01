@@ -459,5 +459,6 @@
   "video_codec": "ترميز الفيديو",
   "audio_codec": "ترميز الصوت",
   "audio_channels": "قنوات الصوت",
-  "bitrate": "معدل البت"
+  "bitrate": "معدل البت",
+  "sort_recently_added": "المضاف حديثاً"
 }

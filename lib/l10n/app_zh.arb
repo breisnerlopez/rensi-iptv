@@ -459,5 +459,6 @@
   "video_codec": "视频编码",
   "audio_codec": "音频编码",
   "audio_channels": "音频声道",
-  "bitrate": "比特率"
+  "bitrate": "比特率",
+  "sort_recently_added": "最近添加"
 }

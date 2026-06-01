@@ -147,6 +147,14 @@ class _CategoryDetailViewState extends State<_CategoryDetailView> {
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.new_releases_outlined),
+                title: Text(context.loc.sort_recently_added),
+                onTap: () {
+                  controller.sortItems("date_added");
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.star_rate),
                 title: Text(context.loc.rating),
                 onTap: () {

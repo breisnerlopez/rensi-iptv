@@ -1132,4 +1132,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get bitrate => 'Bit hızı';
+
+  @override
+  String get sort_recently_added => 'Son eklenenler';
 }

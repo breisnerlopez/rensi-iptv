@@ -1131,4 +1131,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get bitrate => 'معدل البت';
+
+  @override
+  String get sort_recently_added => 'المضاف حديثاً';
 }

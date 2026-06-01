@@ -1095,4 +1095,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get bitrate => '比特率';
+
+  @override
+  String get sort_recently_added => '最近添加';
 }

@@ -2159,6 +2159,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bitrate'**
   String get bitrate;
+
+  /// No description provided for @sort_recently_added.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently added'**
+  String get sort_recently_added;
 }
 
 class _AppLocalizationsDelegate

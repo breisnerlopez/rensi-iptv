@@ -459,5 +459,6 @@
   "video_codec": "वीडियो कोडेक",
   "audio_codec": "ऑडियो कोडेक",
   "audio_channels": "ऑडियो चैनल",
-  "bitrate": "बिटरेट"
+  "bitrate": "बिटरेट",
+  "sort_recently_added": "हाल ही में जोड़ा गया"
 }

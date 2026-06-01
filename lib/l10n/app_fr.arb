@@ -459,5 +459,6 @@
   "video_codec": "Codec vidéo",
   "audio_codec": "Codec audio",
   "audio_channels": "Canaux audio",
-  "bitrate": "Débit binaire"
+  "bitrate": "Débit binaire",
+  "sort_recently_added": "Récemment ajoutés"
 }

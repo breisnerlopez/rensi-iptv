@@ -459,5 +459,6 @@
   "video_codec": "Video codec",
   "audio_codec": "Ses codec",
   "audio_channels": "Ses kanalları",
-  "bitrate": "Bit hızı"
+  "bitrate": "Bit hızı",
+  "sort_recently_added": "Son eklenenler"
 }

@@ -1134,4 +1134,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get bitrate => 'Битрейт';
+
+  @override
+  String get sort_recently_added => 'Недавно добавленные';
 }

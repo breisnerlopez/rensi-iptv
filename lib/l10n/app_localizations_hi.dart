@@ -1131,4 +1131,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get bitrate => 'बिटरेट';
+
+  @override
+  String get sort_recently_added => 'हाल ही में जोड़ा गया';
 }

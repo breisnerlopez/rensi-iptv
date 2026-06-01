@@ -160,9 +160,63 @@ class CategoryDetailController extends ChangeNotifier {
           return ratingB.compareTo(ratingA);
         });
         break;
+      case "date_added":
+        // "Recently added" — newest first. For VOD we use the Xtream
+        // server's createdAt (DateTime). For Series, lastModified is the
+        // best proxy: Xtream sends it as a "YYYY-MM-DD HH:mm:ss" string
+        // (sometimes a Unix epoch in seconds). Items without a usable
+        // timestamp fall back to the epoch and end up at the bottom.
+        list.sort((a, b) {
+          final tsA = _dateAddedFor(a);
+          final tsB = _dateAddedFor(b);
+          return tsB.compareTo(tsA);
+        });
+        break;
     }
 
     notifyListeners();
+  }
+
+  /// Best-effort "date added" extraction shared by the `date_added` sort.
+  ///
+  /// Returns the epoch (`DateTime(1970)`) when no usable timestamp exists,
+  /// so items without metadata sink to the bottom of a descending sort.
+  @visibleForTesting
+  static DateTime dateAddedFor(ContentItem item) => _dateAddedFor(item);
+
+  static DateTime _dateAddedFor(ContentItem item) {
+    if (item.contentType.name == "series") {
+      final raw = item.seriesStream?.lastModified;
+      return _parseFlexibleDate(raw);
+    }
+    // VOD (and anything else that ships a vodStream).
+    final dt = item.vodStream?.createdAt;
+    return dt ?? DateTime(1970);
+  }
+
+  @visibleForTesting
+  static DateTime parseFlexibleDate(String? raw) => _parseFlexibleDate(raw);
+
+  /// Parses Xtream-style date strings: a Unix epoch in seconds, ISO 8601,
+  /// or "YYYY-MM-DD HH:mm:ss". Returns `DateTime(1970)` on anything we
+  /// cannot interpret.
+  ///
+  /// Note on ordering: we check for an all-digit string first, because
+  /// `DateTime.tryParse` happily reads a 10-digit number as the *year*
+  /// (so "1700000000" would become year-1700000000 instead of
+  /// 2023-11-14). Treat pure-digit strings as Unix seconds before
+  /// falling back to DateTime parsing.
+  static DateTime _parseFlexibleDate(String? raw) {
+    if (raw == null || raw.isEmpty) return DateTime(1970);
+    if (RegExp(r'^\d+$').hasMatch(raw)) {
+      final unixSeconds = int.tryParse(raw);
+      if (unixSeconds != null) {
+        return DateTime.fromMillisecondsSinceEpoch(unixSeconds * 1000);
+      }
+    }
+    final iso = DateTime.tryParse(raw);
+    if (iso != null) return iso;
+    return DateTime(1970);
   }
 
   // --- State helpers ---

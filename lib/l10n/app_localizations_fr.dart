@@ -1144,4 +1144,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get bitrate => 'Débit binaire';
+
+  @override
+  String get sort_recently_added => 'Récemment ajoutés';
 }
