@@ -114,6 +114,23 @@ void main() {
         DateTime(1970),
       );
     });
+
+    test('parses a bare 4-digit year (release-date shorthand)', () {
+      expect(
+        CategoryDetailController.parseFlexibleDate('2019'),
+        DateTime(2019),
+      );
+      expect(
+        CategoryDetailController.parseFlexibleDate('1995'),
+        DateTime(1995),
+      );
+    });
+
+    test('year strings shorter than 4 digits stay in the epoch branch', () {
+      // "120" — too short to be a year, parsed as Unix seconds.
+      final parsed = CategoryDetailController.parseFlexibleDate('120');
+      expect(parsed.toUtc().year, 1970);
+    });
   });
 
   group('CategoryDetailController.dateAddedFor', () {
@@ -141,11 +158,52 @@ void main() {
       );
     });
 
-    test('Series: returns epoch when lastModified is null', () {
+    test('Series: returns epoch when lastModified is null AND no releaseDate',
+        () {
       final item = _seriesItem('1');
       expect(
         CategoryDetailController.dateAddedFor(item),
         DateTime(1970),
+      );
+    });
+
+    test('Series: falls back to releaseDate when lastModified is absent', () {
+      final item = ContentItem(
+        '1',
+        'Show',
+        '',
+        ContentType.series,
+        seriesStream: SeriesStream(
+          playlistId: 'p1',
+          seriesId: '1',
+          name: 'Show',
+          lastModified: null,
+          releaseDate: '2019',
+        ),
+      );
+      expect(
+        CategoryDetailController.dateAddedFor(item),
+        DateTime(2019),
+      );
+    });
+
+    test('Series: lastModified wins over releaseDate when both present', () {
+      final item = ContentItem(
+        '1',
+        'Show',
+        '',
+        ContentType.series,
+        seriesStream: SeriesStream(
+          playlistId: 'p1',
+          seriesId: '1',
+          name: 'Show',
+          lastModified: '2024-06-01T00:00:00Z',
+          releaseDate: '2019',
+        ),
+      );
+      expect(
+        CategoryDetailController.dateAddedFor(item),
+        DateTime.utc(2024, 6, 1),
       );
     });
   });

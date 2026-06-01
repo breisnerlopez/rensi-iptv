@@ -39,7 +39,14 @@ class VodStream {
       rating5based: safeDouble(json['rating_5based']) ?? 0.0,
       containerExtension: safeString(json['container_extension']),
       playlistId: safeString(playlistId),
-      createdAt:(json['createdAt']),
+      // Xtream Codes ships this as `created_at`, a Unix epoch encoded as
+      // a numeric string. The previous reader looked up the camelCase key
+      // and skipped any parsing, so every row landed in the DB with the
+      // column default (currentDateAndTime) instead of the provider's
+      // real timestamp — making "Recently added" sort effectively
+      // useless. safeDateTime understands the epoch-string format.
+      createdAt: safeDateTime(json['created_at']) ??
+          safeDateTime(json['createdAt']),
       youtubeTrailer: safeString(json['youtube_trailer']),
       genre: safeString(json['genre']),
     );
@@ -72,6 +79,11 @@ class VodStream {
       rating5based: Value(rating5based),
       containerExtension: Value(containerExtension),
       playlistId: Value(playlistId ?? ''),
+      // Persist the provider's created_at when we have it, otherwise let
+      // Drift apply the currentDateAndTime default. Without this assignment
+      // the column always defaulted to import-time, which collapsed the
+      // Recently-added sort.
+      createdAt: createdAt != null ? Value(createdAt!) : const Value.absent(),
       youtubeTrailer: Value(youtubeTrailer ?? ''),
       genre: Value(genre ?? ''),
     );

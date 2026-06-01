@@ -187,12 +187,22 @@ class CategoryDetailController extends ChangeNotifier {
   /// Best-effort "date added" extraction shared by the `date_added` sort
   /// and by the "View all" pseudo-category builder.
   ///
+  /// Strategy:
+  ///   - VOD: vodStream.createdAt (set during import from `created_at`).
+  ///   - Series: prefer lastModified; if absent, fall back to releaseDate
+  ///     (which is often a bare year like "2019" — parseFlexibleDate maps
+  ///     it to Jan 1 of that year).
+  ///
   /// Returns the epoch (`DateTime(1970)`) when no usable timestamp exists,
   /// so items without metadata sink to the bottom of a descending sort.
   static DateTime dateAddedFor(ContentItem item) {
     if (item.contentType.name == "series") {
-      final raw = item.seriesStream?.lastModified;
-      return _parseFlexibleDate(raw);
+      final lastModified = _parseFlexibleDate(item.seriesStream?.lastModified);
+      if (lastModified.year > 1970) return lastModified;
+      // lastModified was missing or unparseable — try the original release
+      // year as a softer proxy. Better an approximate year than every
+      // series tied at epoch 0.
+      return _parseFlexibleDate(item.seriesStream?.releaseDate);
     }
     // VOD (and anything else that ships a vodStream).
     final dt = item.vodStream?.createdAt;
@@ -202,22 +212,25 @@ class CategoryDetailController extends ChangeNotifier {
   @visibleForTesting
   static DateTime parseFlexibleDate(String? raw) => _parseFlexibleDate(raw);
 
-  /// Parses Xtream-style date strings: a Unix epoch in seconds, ISO 8601,
-  /// or "YYYY-MM-DD HH:mm:ss". Returns `DateTime(1970)` on anything we
-  /// cannot interpret.
+  /// Parses Xtream-style date strings: a Unix epoch in seconds, a bare
+  /// 4-digit year ("2019"), ISO 8601, or "YYYY-MM-DD HH:mm:ss". Returns
+  /// `DateTime(1970)` on anything we cannot interpret.
   ///
   /// Note on ordering: we check for an all-digit string first, because
   /// `DateTime.tryParse` happily reads a 10-digit number as the *year*
   /// (so "1700000000" would become year-1700000000 instead of
-  /// 2023-11-14). Treat pure-digit strings as Unix seconds before
-  /// falling back to DateTime parsing.
+  /// 2023-11-14). Inside the digits branch, a 4-digit string in the
+  /// 1000-9999 range is treated as a calendar year (releaseDate often
+  /// arrives this way); longer strings are Unix epoch seconds.
   static DateTime _parseFlexibleDate(String? raw) {
     if (raw == null || raw.isEmpty) return DateTime(1970);
     if (RegExp(r'^\d+$').hasMatch(raw)) {
-      final unixSeconds = int.tryParse(raw);
-      if (unixSeconds != null) {
-        return DateTime.fromMillisecondsSinceEpoch(unixSeconds * 1000);
+      final n = int.tryParse(raw);
+      if (n == null) return DateTime(1970);
+      if (raw.length == 4 && n >= 1000 && n <= 9999) {
+        return DateTime(n);
       }
+      return DateTime.fromMillisecondsSinceEpoch(n * 1000);
     }
     final iso = DateTime.tryParse(raw);
     if (iso != null) return iso;

@@ -64,6 +64,43 @@ String safeString(dynamic value) {
   return value.toString().trim();
 }
 
+/// Tolerantly parses an Xtream-Codes-style timestamp value into a
+/// [DateTime]. Accepts:
+///   - a [DateTime] passed through unchanged,
+///   - a Unix epoch in seconds as `int` or numeric `String`,
+///   - an ISO 8601 / "YYYY-MM-DD HH:mm:ss" string,
+///   - a bare `"YYYY"` year string (mapped to Jan 1 of that year).
+///
+/// Returns null for missing/empty/unparseable values so callers can apply
+/// their own fallback (e.g. epoch for sort).
+DateTime? safeDateTime(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  if (value is int) {
+    return DateTime.fromMillisecondsSinceEpoch(value * 1000);
+  }
+  if (value is double) {
+    return DateTime.fromMillisecondsSinceEpoch((value * 1000).toInt());
+  }
+  if (value is String) {
+    final raw = value.trim();
+    if (raw.isEmpty) return null;
+    // Pure-digit strings: distinguish a 4-digit year ("2019") from a Unix
+    // epoch ("1700000000"). DateTime.tryParse would happily read either
+    // as a year, so we route through the integer path here.
+    if (RegExp(r'^\d+$').hasMatch(raw)) {
+      final n = int.tryParse(raw);
+      if (n == null) return null;
+      if (raw.length == 4 && n >= 1000 && n <= 9999) {
+        return DateTime(n);
+      }
+      return DateTime.fromMillisecondsSinceEpoch(n * 1000);
+    }
+    return DateTime.tryParse(raw);
+  }
+  return null;
+}
+
 String? getFirstBackdropPath(dynamic backdropPath) {
   if (backdropPath == null) return null;
 
