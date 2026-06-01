@@ -158,8 +158,7 @@ void main() {
       );
     });
 
-    test('Series: returns epoch when lastModified is null AND no releaseDate',
-        () {
+    test('Series: returns epoch when lastModified is null', () {
       final item = _seriesItem('1');
       expect(
         CategoryDetailController.dateAddedFor(item),
@@ -167,7 +166,10 @@ void main() {
       );
     });
 
-    test('Series: falls back to releaseDate when lastModified is absent', () {
+    test('Series: ignores releaseDate even when present', () {
+      // releaseDate is intentionally NOT used as a fallback — sort relies
+      // solely on lastModified for series. A series with no lastModified
+      // and a real releaseDate still sinks to the epoch.
       final item = ContentItem(
         '1',
         'Show',
@@ -183,27 +185,7 @@ void main() {
       );
       expect(
         CategoryDetailController.dateAddedFor(item),
-        DateTime(2019),
-      );
-    });
-
-    test('Series: lastModified wins over releaseDate when both present', () {
-      final item = ContentItem(
-        '1',
-        'Show',
-        '',
-        ContentType.series,
-        seriesStream: SeriesStream(
-          playlistId: 'p1',
-          seriesId: '1',
-          name: 'Show',
-          lastModified: '2024-06-01T00:00:00Z',
-          releaseDate: '2019',
-        ),
-      );
-      expect(
-        CategoryDetailController.dateAddedFor(item),
-        DateTime.utc(2024, 6, 1),
+        DateTime(1970),
       );
     });
   });

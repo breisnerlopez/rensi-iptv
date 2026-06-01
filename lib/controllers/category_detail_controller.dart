@@ -184,25 +184,22 @@ class CategoryDetailController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Best-effort "date added" extraction shared by the `date_added` sort
-  /// and by the "View all" pseudo-category builder.
+  /// "Date added" extraction for the `date_added` sort and the "View all"
+  /// pseudo-category preview.
   ///
-  /// Strategy:
-  ///   - VOD: vodStream.createdAt (set during import from `created_at`).
-  ///   - Series: prefer lastModified; if absent, fall back to releaseDate
-  ///     (which is often a bare year like "2019" — parseFlexibleDate maps
-  ///     it to Jan 1 of that year).
+  /// Strategy is deliberately *unmixed* — only the canonical "when this
+  /// item entered the catalogue" field is consulted:
+  ///   - VOD:    vodStream.createdAt    (Xtream `created_at`)
+  ///   - Series: seriesStream.lastModified (Xtream `last_modified`)
   ///
-  /// Returns the epoch (`DateTime(1970)`) when no usable timestamp exists,
-  /// so items without metadata sink to the bottom of a descending sort.
+  /// Items where the canonical field is null/empty fall to the epoch
+  /// (`DateTime(1970)`) and sit at the bottom of a descending sort. Using
+  /// releaseDate / other proxies as a fallback was tried briefly but it
+  /// muddied the ordering: a freshly added 1995 movie ended up next to a
+  /// 1995 release that had been in the catalogue for years.
   static DateTime dateAddedFor(ContentItem item) {
     if (item.contentType.name == "series") {
-      final lastModified = _parseFlexibleDate(item.seriesStream?.lastModified);
-      if (lastModified.year > 1970) return lastModified;
-      // lastModified was missing or unparseable — try the original release
-      // year as a softer proxy. Better an approximate year than every
-      // series tied at epoch 0.
-      return _parseFlexibleDate(item.seriesStream?.releaseDate);
+      return _parseFlexibleDate(item.seriesStream?.lastModified);
     }
     // VOD (and anything else that ships a vodStream).
     final dt = item.vodStream?.createdAt;
