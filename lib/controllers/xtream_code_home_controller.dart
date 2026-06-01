@@ -1,3 +1,4 @@
+import 'package:rensi_iptv/controllers/category_detail_controller.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/models/all_category_sentinel.dart';
@@ -342,6 +343,25 @@ class XtreamCodeHomeController extends ChangeNotifier {
   }) async {
     final preview = await previewLoader();
     if (preview == null || preview.isEmpty) return;
+
+    // Build the full mapped list, sort it newest-first by date-added, and
+    // keep only the first 10 for the preview strip.
+    //
+    // The repository ignores `top:` when called without a categoryId
+    // (the SQL path returns every row for the playlist), so a movie
+    // catalogue with thousands of items would flood the horizontal
+    // strip — at best causing scroll/memory pressure, at worst leaving
+    // off-screen cards visually empty before they paint. Limiting the
+    // slice client-side keeps the home screen snappy regardless of
+    // playlist size.
+    final mapped = preview.map(toItem).toList();
+    mapped.sort((a, b) {
+      final tsA = CategoryDetailController.dateAddedFor(a);
+      final tsB = CategoryDetailController.dateAddedFor(b);
+      return tsB.compareTo(tsA);
+    });
+    final previewItems = mapped.take(10).toList();
+
     final playlistId = AppState.currentPlaylist?.id ?? '';
     final sentinel = Category(
       categoryId: kAllCategoryId,
@@ -356,7 +376,7 @@ class XtreamCodeHomeController extends ChangeNotifier {
       0,
       CategoryViewModel(
         category: sentinel,
-        contentItems: preview.map(toItem).toList(),
+        contentItems: previewItems,
       ),
     );
   }

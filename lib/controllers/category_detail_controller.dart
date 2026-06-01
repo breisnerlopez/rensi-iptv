@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/models/all_category_sentinel.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import '../services/content_service.dart';
@@ -42,6 +43,12 @@ class CategoryDetailController extends ChangeNotifier {
       _genres = _extractGenres(_contentItems);
       _selectedGenre = null;
       _setLoading(false);
+      // For the synthetic "All movies" / "All series" pseudo-category, land
+      // the user on a recency-first view by default — that's the whole
+      // point of the screen.
+      if (isAllCategorySentinel(category.category.categoryId)) {
+        sortItems('date_added');
+      }
     } catch (error) {
       _setError(error.toString());
     }
@@ -167,8 +174,8 @@ class CategoryDetailController extends ChangeNotifier {
         // (sometimes a Unix epoch in seconds). Items without a usable
         // timestamp fall back to the epoch and end up at the bottom.
         list.sort((a, b) {
-          final tsA = _dateAddedFor(a);
-          final tsB = _dateAddedFor(b);
+          final tsA = dateAddedFor(a);
+          final tsB = dateAddedFor(b);
           return tsB.compareTo(tsA);
         });
         break;
@@ -177,14 +184,12 @@ class CategoryDetailController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Best-effort "date added" extraction shared by the `date_added` sort.
+  /// Best-effort "date added" extraction shared by the `date_added` sort
+  /// and by the "View all" pseudo-category builder.
   ///
   /// Returns the epoch (`DateTime(1970)`) when no usable timestamp exists,
   /// so items without metadata sink to the bottom of a descending sort.
-  @visibleForTesting
-  static DateTime dateAddedFor(ContentItem item) => _dateAddedFor(item);
-
-  static DateTime _dateAddedFor(ContentItem item) {
+  static DateTime dateAddedFor(ContentItem item) {
     if (item.contentType.name == "series") {
       final raw = item.seriesStream?.lastModified;
       return _parseFlexibleDate(raw);
