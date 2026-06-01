@@ -118,11 +118,14 @@ class _M3uItemsScreenState extends State<M3uItemsScreen> {
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
+                textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   hintText: context.loc.search,
                   border: InputBorder.none,
                 ),
                 onChanged: _onSearchChanged,
+                onSubmitted: (_) {/* keep field focused; debounce drives the
+                  actual search. */},
               )
             : SelectableText(
                 context.loc.iptv_channels_count(filteredItems.length),

@@ -22,6 +22,14 @@ class NewXtreamCodePlaylistScreenState
   final _urlController = TextEditingController();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  // FocusNodes drive D-pad / IME-next traversal between the four fields
+  // and the submit button. Without explicit nodes a TV remote cannot
+  // chain through the form without going back to a pointer gesture.
+  final _nameNode = FocusNode(debugLabel: 'xc-name');
+  final _urlNode = FocusNode(debugLabel: 'xc-url');
+  final _usernameNode = FocusNode(debugLabel: 'xc-username');
+  final _passwordNode = FocusNode(debugLabel: 'xc-password');
+  final _submitNode = FocusNode(debugLabel: 'xc-submit');
 
   bool _obscurePassword = true;
   bool _isFormValid = false;
@@ -41,6 +49,11 @@ class NewXtreamCodePlaylistScreenState
     _urlController.dispose();
     _usernameController.dispose();
     _passwordController.dispose();
+    _nameNode.dispose();
+    _urlNode.dispose();
+    _usernameNode.dispose();
+    _passwordNode.dispose();
+    _submitNode.dispose();
     super.dispose();
   }
 
@@ -145,6 +158,10 @@ class NewXtreamCodePlaylistScreenState
         SizedBox(height: 8),
         TextFormField(
           controller: _nameController,
+          focusNode: _nameNode,
+          autofocus: true,
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) => _urlNode.requestFocus(),
           decoration: InputDecoration(
             hintText: context.loc.playlist_name_placeholder,
             prefixIcon: Icon(Icons.playlist_add, color: colorScheme.primary),
@@ -188,7 +205,10 @@ class NewXtreamCodePlaylistScreenState
         SizedBox(height: 8),
         TextFormField(
           controller: _urlController,
+          focusNode: _urlNode,
           keyboardType: TextInputType.url,
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) => _usernameNode.requestFocus(),
           decoration: InputDecoration(
             hintText: 'http://example.com:8080',
             prefixIcon: Icon(Icons.link, color: colorScheme.primary),
@@ -239,6 +259,9 @@ class NewXtreamCodePlaylistScreenState
         SizedBox(height: 8),
         TextFormField(
           controller: _usernameController,
+          focusNode: _usernameNode,
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) => _passwordNode.requestFocus(),
           decoration: InputDecoration(
             hintText: context.loc.username_placeholder,
             prefixIcon: Icon(Icons.person, color: colorScheme.primary),
@@ -282,7 +305,13 @@ class NewXtreamCodePlaylistScreenState
         SizedBox(height: 8),
         TextFormField(
           controller: _passwordController,
+          focusNode: _passwordNode,
           obscureText: _obscurePassword,
+          textInputAction: TextInputAction.done,
+          onFieldSubmitted: (_) {
+            _passwordNode.unfocus();
+            _submitNode.requestFocus();
+          },
           decoration: InputDecoration(
             hintText: context.loc.password_placeholder,
             prefixIcon: Icon(Icons.lock, color: colorScheme.primary),
@@ -329,6 +358,7 @@ class NewXtreamCodePlaylistScreenState
     return SizedBox(
       height: 56,
       child: ElevatedButton(
+        focusNode: _submitNode,
         onPressed: controller.isLoading
             ? null
             : (_isFormValid ? _savePlaylist : null),

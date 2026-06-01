@@ -211,8 +211,20 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
       return await showDialog<String?>(
         context: context,
         builder: (dialogContext) {
+          final confirmNode = FocusNode();
           return StatefulBuilder(
             builder: (statefulContext, setLocal) {
+              void confirmSubmit() {
+                final value = controller.text;
+                if (requireConfirm && value != confirmController.text) {
+                  setLocal(() {
+                    errorText = context.loc.backup_passphrase_mismatch;
+                  });
+                  return;
+                }
+                Navigator.pop(dialogContext, value);
+              }
+
               return AlertDialog(
                 title: Text(title),
                 content: Column(
@@ -225,6 +237,16 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
                       controller: controller,
                       autofocus: true,
                       obscureText: true,
+                      textInputAction: requireConfirm
+                          ? TextInputAction.next
+                          : TextInputAction.done,
+                      onSubmitted: (_) {
+                        if (requireConfirm) {
+                          confirmNode.requestFocus();
+                        } else {
+                          confirmSubmit();
+                        }
+                      },
                       decoration: InputDecoration(
                         labelText: context.loc.backup_passphrase_field,
                         errorText: errorText,
@@ -234,7 +256,10 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
                       const SizedBox(height: 8),
                       TextField(
                         controller: confirmController,
+                        focusNode: confirmNode,
                         obscureText: true,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => confirmSubmit(),
                         decoration: InputDecoration(
                           labelText: context.loc.backup_passphrase_confirm,
                         ),
@@ -266,17 +291,7 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
                       child: Text(context.loc.backup_skip_encryption),
                     ),
                   FilledButton(
-                    onPressed: () {
-                      final value = controller.text;
-                      if (requireConfirm && value != confirmController.text) {
-                        setLocal(() {
-                          errorText =
-                              context.loc.backup_passphrase_mismatch;
-                        });
-                        return;
-                      }
-                      Navigator.pop(dialogContext, value);
-                    },
+                    onPressed: confirmSubmit,
                     child: Text(
                       forImport
                           ? context.loc.tmdb_search_button
@@ -499,7 +514,9 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
                                 const SizedBox(height: 8),
                                 TextField(
                                   obscureText: true,
+                                  textInputAction: TextInputAction.done,
                                   onChanged: (v) => _tmdbToken = v,
+                                  onSubmitted: (_) => _saveTmdbCredential(),
                                   decoration: InputDecoration(
                                     isDense: true,
                                     border: const OutlineInputBorder(),

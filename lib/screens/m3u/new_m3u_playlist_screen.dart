@@ -23,6 +23,12 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController(text: 'M3U Playlist-1');
   final _urlController = TextEditingController();
+  // Focus nodes drive D-pad / IME-next navigation between fields and the
+  // submit button. Without them a TV remote cannot move from one field to
+  // the next without going back to a touch gesture.
+  final _nameNode = FocusNode(debugLabel: 'm3u-name');
+  final _urlNode = FocusNode(debugLabel: 'm3u-url');
+  final _submitNode = FocusNode(debugLabel: 'm3u-submit');
   bool _isUrlSource = true;
   bool _isFormValid = false;
   String? _selectedFileName;
@@ -40,6 +46,9 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
   void dispose() {
     _nameController.dispose();
     _urlController.dispose();
+    _nameNode.dispose();
+    _urlNode.dispose();
+    _submitNode.dispose();
     super.dispose();
   }
 
@@ -199,6 +208,16 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         SizedBox(height: 8),
         TextFormField(
           controller: _nameController,
+          focusNode: _nameNode,
+          autofocus: true,
+          textInputAction: TextInputAction.next,
+          onFieldSubmitted: (_) {
+            if (_isUrlSource) {
+              _urlNode.requestFocus();
+            } else {
+              _submitNode.requestFocus();
+            }
+          },
           decoration: InputDecoration(
             hintText: context.loc.playlist_name_hint,
             prefixIcon: Icon(Icons.playlist_add, color: colorScheme.primary),
@@ -346,7 +365,13 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         SizedBox(height: 8),
         TextFormField(
           controller: _urlController,
+          focusNode: _urlNode,
           keyboardType: TextInputType.url,
+          textInputAction: TextInputAction.done,
+          onFieldSubmitted: (_) {
+            _urlNode.unfocus();
+            _submitNode.requestFocus();
+          },
           decoration: InputDecoration(
             hintText: context.loc.m3u_url_hint,
             prefixIcon: Icon(Icons.link, color: colorScheme.primary),
@@ -454,6 +479,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
     return SizedBox(
       height: 56,
       child: ElevatedButton(
+        focusNode: _submitNode,
         onPressed: controller.isLoading
             ? null
             : (_isFormValid ? _savePlaylist : null),

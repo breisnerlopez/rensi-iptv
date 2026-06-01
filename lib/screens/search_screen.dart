@@ -173,7 +173,15 @@ class SearchScreenState extends State<SearchScreen> {
                   border: InputBorder.none,
                 ),
                 autofocus: true,
+                textInputAction: TextInputAction.search,
                 onChanged: _performSearch,
+                onSubmitted: (q) {
+                  _performSearch(q);
+                  // Keep focus on the field after IME "search" so the
+                  // user can revise the query without re-navigating to
+                  // it via D-pad.
+                  searchFocusNode.requestFocus();
+                },
               )
             : SelectableText(
                 _getScreenTitle(context),

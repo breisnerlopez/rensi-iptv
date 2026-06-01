@@ -288,7 +288,10 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
             const SizedBox(height: 8),
             TextField(
               controller: _credentialController,
+              autofocus: true,
               obscureText: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _saveCredential(),
               decoration: InputDecoration(
                 labelText: context.loc.tmdb_credential_field_label,
               ),
@@ -313,6 +316,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
         Expanded(
           child: TextField(
             controller: _searchController,
+            autofocus: true,
             textInputAction: TextInputAction.search,
             onSubmitted: (_) => _onSearchSubmit(),
             decoration: InputDecoration(
