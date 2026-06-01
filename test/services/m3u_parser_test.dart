@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:io' as io;
+import 'dart:typed_data';
 
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/services/m3u_parser.dart';
@@ -164,6 +166,73 @@ https://stream.example.com/series/user/pass/2.mp4
         }
         await server.close(force: true);
       }
+    });
+
+    group('parseBytes', () {
+      const sample = '#EXTM3U\n'
+          '#EXTINF:-1 tvg-id="ch.1" tvg-name="Channel One",Channel One\n'
+          'https://stream.example.com/live/1.m3u8\n';
+
+      test('decodes plain UTF-8 bytes into items', () {
+        final bytes = Uint8List.fromList(utf8.encode(sample));
+        final items = M3uParser.parseBytes('plist-bytes', bytes);
+        expect(items, hasLength(1));
+        expect(items[0].name, 'Channel One');
+        expect(items[0].playlistId, 'plist-bytes');
+      });
+
+      test('strips a UTF-8 BOM from Windows-exported files', () {
+        final bytes = Uint8List.fromList(
+          [0xEF, 0xBB, 0xBF, ...utf8.encode(sample)],
+        );
+        final items = M3uParser.parseBytes('plist-bom', bytes);
+        expect(items, hasLength(1));
+        // The BOM is gone — the first directive parses as #EXTM3U, not
+        // ﻿#EXTM3U, so the first EXTINF below produces an item.
+        expect(items[0].name, 'Channel One');
+      });
+
+      test('CRLF line endings (Windows) parse the same as LF', () {
+        const crlf = '#EXTM3U\r\n'
+            '#EXTINF:-1 tvg-id="ch.1" tvg-name="Channel One",Channel One\r\n'
+            'https://stream.example.com/live/1.m3u8\r\n';
+        final items = M3uParser.parseBytes(
+          'plist-crlf',
+          Uint8List.fromList(utf8.encode(crlf)),
+        );
+        expect(items, hasLength(1));
+        expect(items[0].url, 'https://stream.example.com/live/1.m3u8');
+      });
+
+      test('empty buffer yields zero items, no throw', () {
+        final items = M3uParser.parseBytes('plist-empty', Uint8List(0));
+        expect(items, isEmpty);
+      });
+
+      test('parseM3uBytes (compute entry point) round-trips Map params',
+          () async {
+        final bytes = Uint8List.fromList(utf8.encode(sample));
+        final items = await M3uParser.parseM3uBytes(<String, Object>{
+          'id': 'plist-compute',
+          'bytes': bytes,
+        });
+        expect(items, hasLength(1));
+        expect(items[0].playlistId, 'plist-compute');
+      });
+
+      test('malformed UTF-8 is tolerated (no exception)', () {
+        // 0xFF is invalid in UTF-8; allowMalformed must keep us going.
+        final bytes = Uint8List.fromList([
+          ...utf8.encode('#EXTM3U\n#EXTINF:-1,Bad'),
+          0xFF,
+          0xFE,
+          ...utf8.encode('\nhttps://x.example/1.ts\n'),
+        ]);
+        expect(
+          () => M3uParser.parseBytes('plist-bad', bytes),
+          returnsNormally,
+        );
+      });
     });
   });
 

@@ -43,7 +43,7 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
 
   bool _backgroundPlayEnabled = false;
   bool _isLoading = true;
-  String? _selectedFilePath;
+  Uint8List? _selectedFileBytes;
   String _selectedTheme = 'system';
   bool _brightnessGesture = false;
   bool _volumeGesture = false;
@@ -716,14 +716,14 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
       newM3uItems = await compute(M3uParser.parseM3uUrl, params);
     } else {
       await _pickFile();
-      if (_selectedFilePath == null) return;
+      if (_selectedFileBytes == null) return;
 
       showLoadingDialog(context, context.loc.loading_m3u);
-      final params = {
+      final params = <String, Object>{
         'id': AppState.currentPlaylist!.id,
-        'filePath': _selectedFilePath!,
+        'bytes': _selectedFileBytes!,
       };
-      newM3uItems = await compute(M3uParser.parseM3uFile, params);
+      newM3uItems = await compute(M3uParser.parseM3uBytes, params);
     }
 
     newM3uItems = updateM3UItemIdsByPosition(
@@ -745,18 +745,21 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
   }
 
   Future<void> _pickFile() async {
-    _selectedFilePath = null;
+    _selectedFileBytes = null;
 
     try {
+      // withData: true so we get the bytes via SAF without needing
+      // READ_EXTERNAL_STORAGE; works the same on Android 9 through 14+.
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['m3u', 'm3u8'],
         allowMultiple: false,
+        withData: true,
       );
 
       if (result != null) {
         setState(() {
-          _selectedFilePath = result.files.single.path;
+          _selectedFileBytes = result.files.single.bytes;
         });
       }
     } catch (e) {

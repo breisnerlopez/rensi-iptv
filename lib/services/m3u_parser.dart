@@ -50,6 +50,40 @@ class M3uParser {
     }
   }
 
+  /// `compute()` entry point for parsing an in-memory M3U buffer.
+  ///
+  /// Expects [params] with:
+  ///   - `id`: the target playlist id (String)
+  ///   - `bytes`: the raw file bytes (Uint8List)
+  static Future<List<M3uItem>> parseM3uBytes(Map<String, Object> params) async {
+    return M3uParser.parseBytes(
+      params['id']! as String,
+      params['bytes']! as Uint8List,
+    );
+  }
+
+  /// Decode UTF-8 bytes (tolerating a BOM and malformed sequences) and
+  /// parse them as M3U. Use this on Android/iOS when the picker returns
+  /// the file content directly so we never have to open() a SAF path.
+  static List<M3uItem> parseBytes(String playlistId, Uint8List bytes) {
+    try {
+      // Strip a leading UTF-8 BOM (EF BB BF) — common on M3Us exported
+      // from Windows. utf8.decoder doesn't drop it on its own.
+      Uint8List input = bytes;
+      if (bytes.length >= 3 &&
+          bytes[0] == 0xEF &&
+          bytes[1] == 0xBB &&
+          bytes[2] == 0xBF) {
+        input = Uint8List.sublistView(bytes, 3);
+      }
+      final content = utf8.decode(input, allowMalformed: true);
+      return parseM3u(playlistId, content);
+    } catch (e) {
+      debugPrint('M3U bytes parse error: $e');
+      throw M3uParseException('m3u_file_read_failed', e.toString());
+    }
+  }
+
   static Future<List<M3uItem>> parseM3uUrl(Map<String, String> params) async {
     return await M3uParser.parseUrl(params['id']!, params['url']!);
   }

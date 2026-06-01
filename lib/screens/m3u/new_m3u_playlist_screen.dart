@@ -25,8 +25,8 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
   final _urlController = TextEditingController();
   bool _isUrlSource = true;
   bool _isFormValid = false;
-  String? _selectedFilePath;
   String? _selectedFileName;
+  Uint8List? _selectedFileBytes;
   bool isLoading = false;
 
   @override
@@ -49,7 +49,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
           _nameController.text.trim().isNotEmpty &&
           (_isUrlSource
               ? _urlController.text.trim().isNotEmpty
-              : _selectedFilePath != null);
+              : _selectedFileBytes != null);
     });
   }
 
@@ -57,8 +57,8 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
     setState(() {
       _isUrlSource = isUrl;
       if (isUrl) {
-        _selectedFilePath = null;
         _selectedFileName = null;
+        _selectedFileBytes = null;
       } else {
         _urlController.clear();
       }
@@ -68,18 +68,23 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
 
   Future<void> _pickFile() async {
     try {
+      // withData: true makes file_picker route the read through the
+      // platform's Storage Access Framework on Android. The bytes come
+      // back inline so we never need READ_EXTERNAL_STORAGE — important
+      // on Android 11+ where that permission is no longer granted to
+      // non-system apps anyway.
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['m3u', 'm3u8'],
         allowMultiple: false,
-        withData: false,
+        withData: true,
         withReadStream: false,
       );
 
       if (result != null) {
         setState(() {
-          _selectedFilePath = result.files.single.path;
           _selectedFileName = result.files.single.name;
+          _selectedFileBytes = result.files.single.bytes;
         });
         _validateForm();
       }
@@ -399,19 +404,19 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
             child: Row(
               children: [
                 Icon(
-                  _selectedFilePath != null ? Icons.check_circle : Icons.folder,
-                  color: _selectedFilePath != null
+                  _selectedFileBytes != null ? Icons.check_circle : Icons.folder,
+                  color: _selectedFileBytes != null
                       ? colorScheme.primary
                       : colorScheme.primary.withOpacity(0.6),
                 ),
                 SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    _selectedFilePath != null
+                    _selectedFileBytes != null
                         ? _selectedFileName ?? context.loc.file_selected
                         : context.loc.select_m3u_file,
                     style: TextStyle(
-                      color: _selectedFilePath != null
+                      color: _selectedFileBytes != null
                           ? colorScheme.onSurface
                           : colorScheme.onSurface.withOpacity(0.6),
                     ),
@@ -426,7 +431,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
             ),
           ),
         ),
-        if (_selectedFilePath == null && !_isUrlSource)
+        if (_selectedFileBytes == null && !_isUrlSource)
           Padding(
             padding: EdgeInsets.only(top: 8),
             child: Text(
@@ -595,11 +600,14 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
 
           m3uItems = await compute(M3uParser.parseM3uUrl, params);
         } else {
-          print('File Path: $_selectedFilePath');
-          print('File Name: $_selectedFileName');
-          final params = {'id': playlist!.id, 'filePath': _selectedFilePath!};
+          // Read straight from the bytes the picker handed us — no second
+          // file-system hop, no permission prompt.
+          final params = <String, Object>{
+            'id': playlist!.id,
+            'bytes': _selectedFileBytes!,
+          };
 
-          m3uItems = await compute(M3uParser.parseM3uFile, params);
+          m3uItems = await compute(M3uParser.parseM3uBytes, params);
         }
       } catch (ex) {}
 
