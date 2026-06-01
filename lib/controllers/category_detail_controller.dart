@@ -130,33 +130,44 @@ class CategoryDetailController extends ChangeNotifier {
   }
 
   void sortItems(String order) {
-    final list = displayItems;
+    // Sort the master list (and the search-result list when searching) so
+    // the new order persists across re-renders. Sorting `displayItems`
+    // directly was a no-op when a genre filter was active because
+    // `_applyGenreFilter` returns a fresh `.where().toList()` copy whose
+    // sort never made it back to `_contentItems`.
+    final lists = <List<ContentItem>>[
+      _contentItems,
+      if (_isSearching) _filteredItems,
+    ];
 
+    int Function(ContentItem a, ContentItem b)? cmp;
     switch (order) {
       case "ascending":
-        list.sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
+        cmp = (a, b) => (a.name ?? '').compareTo(b.name ?? '');
         break;
       case "descending":
-        list.sort((a, b) => (b.name ?? '').compareTo(a.name ?? ''));
+        cmp = (a, b) => (b.name ?? '').compareTo(a.name ?? '');
         break;
       case "release_date":
-        list.sort((a, b) {
-          final dateA;
-          final dateB;
+        cmp = (a, b) {
+          final DateTime dateA;
+          final DateTime dateB;
           if (a.contentType.name == "series") {
-            dateA = DateTime.tryParse(a.seriesStream?.releaseDate ?? '') ?? DateTime(1970);
-            dateB = DateTime.tryParse(b.seriesStream?.releaseDate ?? '') ?? DateTime(1970);
+            dateA = DateTime.tryParse(a.seriesStream?.releaseDate ?? '') ??
+                DateTime(1970);
+            dateB = DateTime.tryParse(b.seriesStream?.releaseDate ?? '') ??
+                DateTime(1970);
           } else {
-            dateA = a.vodStream?.createdAt?.millisecondsSinceEpoch.toDouble() ?? 0.0;
-            dateB = b.vodStream?.createdAt?.millisecondsSinceEpoch.toDouble() ?? 0.0;
+            dateA = a.vodStream?.createdAt ?? DateTime(1970);
+            dateB = b.vodStream?.createdAt ?? DateTime(1970);
           }
           return dateB.compareTo(dateA);
-        });
+        };
         break;
       case "rating":
-        list.sort((a, b) {
-          final ratingA;
-          final ratingB;
+        cmp = (a, b) {
+          final double ratingA;
+          final double ratingB;
           if (a.contentType.name == "series") {
             ratingA = double.tryParse(a.seriesStream?.rating ?? '0') ?? 0.0;
             ratingB = double.tryParse(b.seriesStream?.rating ?? '0') ?? 0.0;
@@ -165,7 +176,7 @@ class CategoryDetailController extends ChangeNotifier {
             ratingB = double.tryParse(b.vodStream?.rating ?? '0') ?? 0.0;
           }
           return ratingB.compareTo(ratingA);
-        });
+        };
         break;
       case "date_added":
         // "Recently added" — newest first. For VOD we use the Xtream
@@ -173,14 +184,19 @@ class CategoryDetailController extends ChangeNotifier {
         // best proxy: Xtream sends it as a "YYYY-MM-DD HH:mm:ss" string
         // (sometimes a Unix epoch in seconds). Items without a usable
         // timestamp fall back to the epoch and end up at the bottom.
-        list.sort((a, b) {
+        cmp = (a, b) {
           final tsA = dateAddedFor(a);
           final tsB = dateAddedFor(b);
           return tsB.compareTo(tsA);
-        });
+        };
         break;
     }
 
+    if (cmp != null) {
+      for (final l in lists) {
+        l.sort(cmp);
+      }
+    }
     notifyListeners();
   }
 

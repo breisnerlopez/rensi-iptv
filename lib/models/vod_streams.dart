@@ -39,14 +39,17 @@ class VodStream {
       rating5based: safeDouble(json['rating_5based']) ?? 0.0,
       containerExtension: safeString(json['container_extension']),
       playlistId: safeString(playlistId),
-      // Xtream Codes ships this as `created_at`, a Unix epoch encoded as
-      // a numeric string. The previous reader looked up the camelCase key
-      // and skipped any parsing, so every row landed in the DB with the
-      // column default (currentDateAndTime) instead of the provider's
-      // real timestamp — making "Recently added" sort effectively
-      // useless. safeDateTime understands the epoch-string format.
-      createdAt: safeDateTime(json['created_at']) ??
-          safeDateTime(json['createdAt']),
+      // The canonical Xtream Codes field for "when this entry hit the
+      // provider's catalogue" is `added` — a Unix epoch in seconds
+      // encoded as a numeric string. A few providers also ship
+      // `created_at`, so we try both. The original code looked up
+      // `createdAt` (camelCase) which is never sent by any provider,
+      // so every row used to land in the DB with the column default
+      // (currentDateAndTime) and "Recently added" sort collapsed to
+      // import order. Verified empirically against newlatam.mx, which
+      // ships `added` but leaves `created_at` null on every row.
+      createdAt: safeDateTime(json['added']) ??
+          safeDateTime(json['created_at']),
       youtubeTrailer: safeString(json['youtube_trailer']),
       genre: safeString(json['genre']),
     );
