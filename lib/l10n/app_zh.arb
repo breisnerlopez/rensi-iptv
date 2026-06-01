@@ -460,5 +460,8 @@
   "audio_codec": "音频编码",
   "audio_channels": "音频声道",
   "bitrate": "比特率",
-  "sort_recently_added": "最近添加"
+  "sort_recently_added": "最近添加",
+  "view_all_movies": "全部电影",
+  "view_all_series": "全部剧集",
+  "view_all_live": "全部频道"
 }

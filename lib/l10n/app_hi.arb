@@ -460,5 +460,8 @@
   "audio_codec": "ऑडियो कोडेक",
   "audio_channels": "ऑडियो चैनल",
   "bitrate": "बिटरेट",
-  "sort_recently_added": "हाल ही में जोड़ा गया"
+  "sort_recently_added": "हाल ही में जोड़ा गया",
+  "view_all_movies": "सभी फ़िल्में",
+  "view_all_series": "सभी सीरीज़",
+  "view_all_live": "सभी चैनल"
 }

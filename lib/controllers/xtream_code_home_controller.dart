@@ -1,5 +1,8 @@
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/models/all_category_sentinel.dart';
+import 'package:rensi_iptv/models/category.dart';
+import 'package:rensi_iptv/models/category_type.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
@@ -195,6 +198,22 @@ class XtreamCodeHomeController extends ChangeNotifier {
         }
       }
 
+      // "View all movies" pseudo-category — sits above the real list and
+      // aggregates every movie of the playlist when the user opens it.
+      await _prependAllCategory(
+        list: _movieCategories,
+        type: CategoryType.vod,
+        previewLoader: () => _repository.getMovies(top: 10),
+        toItem: (m) => ContentItem(
+          m.streamId,
+          m.name,
+          m.streamIcon,
+          ContentType.vod,
+          containerExtension: m.containerExtension,
+          vodStream: m,
+        ),
+      );
+
       var movieCategories = await _repository.getVodCategories();
       if (movieCategories != null && movieCategories.isNotEmpty) {
         for (var movieCategory in movieCategories) {
@@ -233,6 +252,20 @@ class XtreamCodeHomeController extends ChangeNotifier {
           }
         }
       }
+
+      // "View all series" pseudo-category.
+      await _prependAllCategory(
+        list: _seriesCategories,
+        type: CategoryType.series,
+        previewLoader: () => _repository.getSeries(top: 10),
+        toItem: (s) => ContentItem(
+          s.seriesId,
+          s.name,
+          s.cover ?? '',
+          ContentType.series,
+          seriesStream: s,
+        ),
+      );
 
       var seriesCategories = await _repository.getSeriesCategories();
       if (seriesCategories != null && seriesCategories.isNotEmpty) {
@@ -289,6 +322,41 @@ class XtreamCodeHomeController extends ChangeNotifier {
           playlist: AppState.currentPlaylist!,
           refreshAll: true,
         ),
+      ),
+    );
+  }
+
+  /// Builds a synthetic "View all" CategoryViewModel and inserts it at the
+  /// top of [list]. The preview row shows the most recent items returned by
+  /// [previewLoader]; the destination, when the user taps See all, is the
+  /// existing CategoryDetailScreen — ContentService recognises the sentinel
+  /// id and fetches every item of that type instead of querying a category.
+  ///
+  /// No-op when [previewLoader] returns null/empty so we don't render an
+  /// empty "View all" row for playlists that lack the content type.
+  Future<void> _prependAllCategory<T>({
+    required List<CategoryViewModel> list,
+    required CategoryType type,
+    required Future<List<T>?> Function() previewLoader,
+    required ContentItem Function(T) toItem,
+  }) async {
+    final preview = await previewLoader();
+    if (preview == null || preview.isEmpty) return;
+    final playlistId = AppState.currentPlaylist?.id ?? '';
+    final sentinel = Category(
+      categoryId: kAllCategoryId,
+      // The categoryName here is a placeholder — the UI replaces it with
+      // the localised string when it detects the sentinel id.
+      categoryName: '__ALL__',
+      parentId: 0,
+      playlistId: playlistId,
+      type: type,
+    );
+    list.insert(
+      0,
+      CategoryViewModel(
+        category: sentinel,
+        contentItems: preview.map(toItem).toList(),
       ),
     );
   }

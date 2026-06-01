@@ -1,3 +1,4 @@
+import 'package:rensi_iptv/models/all_category_sentinel.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
@@ -28,10 +29,18 @@ class ContentService {
     String categoryId,
   ) async {
     final repository = AppState.xtreamCodeRepository!;
+    // The "View all" pseudo-category aggregates every item of its type, so
+    // we omit category_id from the repository call.
+    final String? scopedCategoryId =
+        isAllCategorySentinel(categoryId) ? null : categoryId;
     switch (type) {
       case CategoryType.live:
         return await _fetchGenericContent(
-          () => repository.getLiveChannelsByCategoryId(categoryId: categoryId),
+          () => scopedCategoryId == null
+              ? repository.getLiveChannels()
+              : repository.getLiveChannelsByCategoryId(
+                  categoryId: scopedCategoryId,
+                ),
           ContentType.liveStream,
           (item) => ContentItem(
             item.streamId,
@@ -44,7 +53,7 @@ class ContentService {
         );
       case CategoryType.vod:
         return await _fetchGenericContent(
-          () => repository.getMovies(categoryId: categoryId),
+          () => repository.getMovies(categoryId: scopedCategoryId),
           ContentType.vod,
           (item) => ContentItem(
             item.streamId,
@@ -58,7 +67,7 @@ class ContentService {
         );
       case CategoryType.series:
         return await _fetchGenericContent(
-          () => repository.getSeries(categoryId: categoryId),
+          () => repository.getSeries(categoryId: scopedCategoryId),
           ContentType.series,
           (item) => ContentItem(
             item.seriesId,

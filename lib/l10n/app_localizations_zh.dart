@@ -1098,4 +1098,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get sort_recently_added => '最近添加';
+
+  @override
+  String get view_all_movies => '全部电影';
+
+  @override
+  String get view_all_series => '全部剧集';
+
+  @override
+  String get view_all_live => '全部频道';
 }

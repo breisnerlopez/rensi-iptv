@@ -1134,4 +1134,13 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get sort_recently_added => 'المضاف حديثاً';
+
+  @override
+  String get view_all_movies => 'كل الأفلام';
+
+  @override
+  String get view_all_series => 'كل المسلسلات';
+
+  @override
+  String get view_all_live => 'كل القنوات';
 }

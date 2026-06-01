@@ -460,5 +460,8 @@
   "audio_codec": "Аудиокодек",
   "audio_channels": "Аудиоканалы",
   "bitrate": "Битрейт",
-  "sort_recently_added": "Недавно добавленные"
+  "sort_recently_added": "Недавно добавленные",
+  "view_all_movies": "Все фильмы",
+  "view_all_series": "Все сериалы",
+  "view_all_live": "Все каналы"
 }

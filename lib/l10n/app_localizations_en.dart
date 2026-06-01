@@ -1133,4 +1133,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sort_recently_added => 'Recently added';
+
+  @override
+  String get view_all_movies => 'All Movies';
+
+  @override
+  String get view_all_series => 'All Series';
+
+  @override
+  String get view_all_live => 'All Channels';
 }

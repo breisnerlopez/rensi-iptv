@@ -1,6 +1,8 @@
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:rensi_iptv/models/all_category_sentinel.dart';
+import 'package:rensi_iptv/models/category_type.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import '../controllers/category_detail_controller.dart';
@@ -46,7 +48,7 @@ class _CategoryDetailViewState extends State<_CategoryDetailView> {
           body: NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
               CategoryAppBar(
-                title: controller.category.category.categoryName,
+                title: _resolveTitle(context, controller),
                 isSearching: controller.isSearching,
                 searchController: _searchController,
                 onSearchStart: controller.startSearch,
@@ -167,6 +169,24 @@ class _CategoryDetailViewState extends State<_CategoryDetailView> {
         );
       },
     );
+  }
+
+  /// Substitutes the raw category name with the localised "View all …"
+  /// label when the screen is displaying the synthetic pseudo-category.
+  String _resolveTitle(
+    BuildContext context,
+    CategoryDetailController controller,
+  ) {
+    final cat = controller.category.category;
+    if (!isAllCategorySentinel(cat.categoryId)) return cat.categoryName;
+    switch (cat.type) {
+      case CategoryType.vod:
+        return context.loc.view_all_movies;
+      case CategoryType.series:
+        return context.loc.view_all_series;
+      case CategoryType.live:
+        return context.loc.view_all_live;
+    }
   }
 
   String _capitalizeGenre(String genre) {

@@ -460,5 +460,8 @@
   "audio_codec": "Ses codec",
   "audio_channels": "Ses kanalları",
   "bitrate": "Bit hızı",
-  "sort_recently_added": "Son eklenenler"
+  "sort_recently_added": "Son eklenenler",
+  "view_all_movies": "Tüm filmler",
+  "view_all_series": "Tüm diziler",
+  "view_all_live": "Tüm kanallar"
 }

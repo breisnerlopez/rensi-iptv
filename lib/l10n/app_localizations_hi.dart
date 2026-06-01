@@ -1134,4 +1134,13 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get sort_recently_added => 'हाल ही में जोड़ा गया';
+
+  @override
+  String get view_all_movies => 'सभी फ़िल्में';
+
+  @override
+  String get view_all_series => 'सभी सीरीज़';
+
+  @override
+  String get view_all_live => 'सभी चैनल';
 }

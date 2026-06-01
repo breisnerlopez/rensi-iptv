@@ -460,5 +460,8 @@
   "audio_codec": "ترميز الصوت",
   "audio_channels": "قنوات الصوت",
   "bitrate": "معدل البت",
-  "sort_recently_added": "المضاف حديثاً"
+  "sort_recently_added": "المضاف حديثاً",
+  "view_all_movies": "كل الأفلام",
+  "view_all_series": "كل المسلسلات",
+  "view_all_live": "كل القنوات"
 }

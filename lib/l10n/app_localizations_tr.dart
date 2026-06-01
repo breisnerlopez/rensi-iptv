@@ -1135,4 +1135,13 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get sort_recently_added => 'Son eklenenler';
+
+  @override
+  String get view_all_movies => 'Tüm filmler';
+
+  @override
+  String get view_all_series => 'Tüm diziler';
+
+  @override
+  String get view_all_live => 'Tüm kanallar';
 }

@@ -2165,6 +2165,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recently added'**
   String get sort_recently_added;
+
+  /// No description provided for @view_all_movies.
+  ///
+  /// In en, this message translates to:
+  /// **'All Movies'**
+  String get view_all_movies;
+
+  /// No description provided for @view_all_series.
+  ///
+  /// In en, this message translates to:
+  /// **'All Series'**
+  String get view_all_series;
+
+  /// No description provided for @view_all_live.
+  ///
+  /// In en, this message translates to:
+  /// **'All Channels'**
+  String get view_all_live;
 }
 
 class _AppLocalizationsDelegate

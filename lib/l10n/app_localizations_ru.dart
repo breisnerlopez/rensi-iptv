@@ -1137,4 +1137,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get sort_recently_added => 'Недавно добавленные';
+
+  @override
+  String get view_all_movies => 'Все фильмы';
+
+  @override
+  String get view_all_series => 'Все сериалы';
+
+  @override
+  String get view_all_live => 'Все каналы';
 }

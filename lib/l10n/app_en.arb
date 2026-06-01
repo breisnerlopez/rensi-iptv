@@ -460,5 +460,8 @@
   "audio_codec": "Audio codec",
   "audio_channels": "Audio channels",
   "bitrate": "Bitrate",
-  "sort_recently_added": "Recently added"
+  "sort_recently_added": "Recently added",
+  "view_all_movies": "All Movies",
+  "view_all_series": "All Series",
+  "view_all_live": "All Channels"
 }
