@@ -1,10 +1,9 @@
 name: Build macOS
 
+# Trigger reduced to workflow_dispatch only — same codesign blocker as
+# build-ios. Re-add the push / pull_request triggers once a Mac
+# Development certificate is provisioned via secrets.
 on:
-  push:
-    branches: [ main ]
-    paths-ignore:
-      - '.github/workflows/**'
   workflow_dispatch:
 
 jobs:

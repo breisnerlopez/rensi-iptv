@@ -1,17 +1,10 @@
 name: Build Linux
 
+# Trigger reduced to workflow_dispatch only — the runner is missing
+# libsecret-1-dev (and friends) so the cmake step fails on every push.
+# Add `apt-get install libsecret-1-dev libjsoncpp-dev libsqlite3-dev`
+# in a setup step before re-enabling push / pull_request.
 on:
-  pull_request:
-    branches:
-      - main
-    types:
-      - opened
-      - synchronize
-      - reopened
-  push:
-    branches: [ main ]
-    paths-ignore:
-      - '.github/workflows/**'
   workflow_dispatch:
 
 jobs:

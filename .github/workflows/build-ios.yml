@@ -1,10 +1,10 @@
 name: Build iOS
 
+# Trigger reduced to workflow_dispatch only — every push was failing in
+# the codesign step because this fork doesn't carry the signing
+# certificate. Re-add the push / pull_request triggers once codesign is
+# wired up through repo secrets.
 on:
-  push:
-    branches: [ main ]
-    paths-ignore:
-      - '.github/workflows/**'
   workflow_dispatch:
 
 jobs:
