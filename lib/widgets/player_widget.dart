@@ -5,6 +5,7 @@ import 'package:rensi_iptv/repositories/user_preferences.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/services/pip_service.dart';
+import 'package:rensi_iptv/services/sleep_timer_service.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:rensi_iptv/utils/subtitle_configuration.dart';
@@ -74,6 +75,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   StreamSubscription<int?>? _pipHeightSubscription;
   int? _lastVideoWidth;
   int? _lastVideoHeight;
+  StreamSubscription<void>? _sleepTimerSubscription;
 
   @override
   void initState() {
@@ -143,6 +145,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // Best-effort: disarm auto-PiP when leaving the player so other screens
     // don't trigger it accidentally.
     unawaited(PipService.instance.setAutoEnter(false));
+    _sleepTimerSubscription?.cancel();
+    // Cancel any pending sleep timer so it doesn't fire while a different
+    // screen is active.
+    SleepTimerService.instance.cancel();
     super.dispose();
   }
 
@@ -201,6 +207,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // native side in sync with the video aspect ratio.
     unawaited(_setupPip());
     PipService.instance.isInPip.addListener(_onPipModeChanged);
+
+    // Sleep timer: pause playback when the countdown reaches zero.
+    _sleepTimerSubscription =
+        SleepTimerService.instance.onFire.listen((_) {
+      if (_player.state.playing) _player.pause();
+    });
 
     var watchHistory = await watchHistoryService.getWatchHistory(
       AppState.currentPlaylist!.id,

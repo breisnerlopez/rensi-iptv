@@ -193,6 +193,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Shrink the player to a floating window when you leave the app';
 
   @override
+  String get sleep_timer => 'Sleep timer';
+
+  @override
+  String get sleep_timer_off => 'Off';
+
+  @override
+  String get sleep_timer_minutes_suffix => 'min';
+
+  @override
+  String get sleep_timer_hours_suffix => 'h';
+
+  @override
   String get refresh_contents => 'Refresh Content';
 
   @override

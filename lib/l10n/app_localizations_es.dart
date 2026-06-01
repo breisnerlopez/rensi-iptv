@@ -195,6 +195,18 @@ class AppLocalizationsEs extends AppLocalizations {
       'Reduce el reproductor a una ventana flotante al salir de la app';
 
   @override
+  String get sleep_timer => 'Temporizador de apagado';
+
+  @override
+  String get sleep_timer_off => 'Apagado';
+
+  @override
+  String get sleep_timer_minutes_suffix => 'min';
+
+  @override
+  String get sleep_timer_hours_suffix => 'h';
+
+  @override
   String get refresh_contents => 'Actualizar Contenido';
 
   @override

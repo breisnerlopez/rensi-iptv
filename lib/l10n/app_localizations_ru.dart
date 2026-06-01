@@ -194,6 +194,18 @@ class AppLocalizationsRu extends AppLocalizations {
       'Сжимает плеер в плавающее окно при выходе из приложения';
 
   @override
+  String get sleep_timer => 'Таймер сна';
+
+  @override
+  String get sleep_timer_off => 'Выкл';
+
+  @override
+  String get sleep_timer_minutes_suffix => 'мин';
+
+  @override
+  String get sleep_timer_hours_suffix => 'ч';
+
+  @override
   String get refresh_contents => 'Обновить контент';
 
   @override

@@ -194,6 +194,18 @@ class AppLocalizationsTr extends AppLocalizations {
       'Uygulamadan çıkarken oynatıcıyı kayan pencereye küçültür';
 
   @override
+  String get sleep_timer => 'Uyku zamanlayıcısı';
+
+  @override
+  String get sleep_timer_off => 'Kapalı';
+
+  @override
+  String get sleep_timer_minutes_suffix => 'dk';
+
+  @override
+  String get sleep_timer_hours_suffix => 'sa';
+
+  @override
   String get refresh_contents => 'İçerikleri Yenile';
 
   @override

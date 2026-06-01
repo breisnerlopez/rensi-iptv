@@ -195,6 +195,18 @@ class AppLocalizationsDe extends AppLocalizations {
       'Verkleinert den Player zu einem schwebenden Fenster, wenn du die App verlässt';
 
   @override
+  String get sleep_timer => 'Sleep-Timer';
+
+  @override
+  String get sleep_timer_off => 'Aus';
+
+  @override
+  String get sleep_timer_minutes_suffix => 'Min';
+
+  @override
+  String get sleep_timer_hours_suffix => 'Std';
+
+  @override
   String get refresh_contents => 'Inhalte Aktualisieren';
 
   @override

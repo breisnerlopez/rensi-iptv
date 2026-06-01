@@ -468,6 +468,30 @@ abstract class AppLocalizations {
   /// **'Shrink the player to a floating window when you leave the app'**
   String get auto_pip_on_home_description;
 
+  /// No description provided for @sleep_timer.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep timer'**
+  String get sleep_timer;
+
+  /// No description provided for @sleep_timer_off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get sleep_timer_off;
+
+  /// No description provided for @sleep_timer_minutes_suffix.
+  ///
+  /// In en, this message translates to:
+  /// **'min'**
+  String get sleep_timer_minutes_suffix;
+
+  /// No description provided for @sleep_timer_hours_suffix.
+  ///
+  /// In en, this message translates to:
+  /// **'h'**
+  String get sleep_timer_hours_suffix;
+
   /// No description provided for @refresh_contents.
   ///
   /// In en, this message translates to:

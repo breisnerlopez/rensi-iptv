@@ -190,6 +190,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get auto_pip_on_home_description => '离开应用时将播放器缩小为浮动窗口';
 
   @override
+  String get sleep_timer => '睡眠定时器';
+
+  @override
+  String get sleep_timer_off => '关闭';
+
+  @override
+  String get sleep_timer_minutes_suffix => '分钟';
+
+  @override
+  String get sleep_timer_hours_suffix => '小时';
+
+  @override
   String get refresh_contents => '刷新内容';
 
   @override

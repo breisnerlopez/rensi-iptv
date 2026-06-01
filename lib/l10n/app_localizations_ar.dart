@@ -193,6 +193,18 @@ class AppLocalizationsAr extends AppLocalizations {
       'يقلص المشغل إلى نافذة عائمة عند مغادرة التطبيق';
 
   @override
+  String get sleep_timer => 'مؤقت النوم';
+
+  @override
+  String get sleep_timer_off => 'متوقف';
+
+  @override
+  String get sleep_timer_minutes_suffix => 'د';
+
+  @override
+  String get sleep_timer_hours_suffix => 'س';
+
+  @override
   String get refresh_contents => 'تحديث المحتوى';
 
   @override

@@ -193,6 +193,18 @@ class AppLocalizationsHi extends AppLocalizations {
       'ऐप छोड़ने पर प्लेयर को फ्लोटिंग विंडो में बदलें';
 
   @override
+  String get sleep_timer => 'स्लीप टाइमर';
+
+  @override
+  String get sleep_timer_off => 'बंद';
+
+  @override
+  String get sleep_timer_minutes_suffix => 'मिनट';
+
+  @override
+  String get sleep_timer_hours_suffix => 'घंटा';
+
+  @override
   String get refresh_contents => 'सामग्री रीफ्रेश करें';
 
   @override

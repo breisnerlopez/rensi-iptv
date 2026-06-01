@@ -194,6 +194,18 @@ class AppLocalizationsFr extends AppLocalizations {
       'Réduit le lecteur en fenêtre flottante quand vous quittez l\'app';
 
   @override
+  String get sleep_timer => 'Minuteur de veille';
+
+  @override
+  String get sleep_timer_off => 'Désactivé';
+
+  @override
+  String get sleep_timer_minutes_suffix => 'min';
+
+  @override
+  String get sleep_timer_hours_suffix => 'h';
+
+  @override
   String get refresh_contents => 'Actualiser le contenu';
 
   @override

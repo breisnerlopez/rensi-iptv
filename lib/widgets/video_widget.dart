@@ -4,6 +4,7 @@ import 'package:rensi_iptv/widgets/player-buttons/back_button_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_channel_selector_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_favorite_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_info_widget.dart';
+import 'package:rensi_iptv/widgets/player-buttons/sleep_timer_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_settings_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_title_widget.dart';
 import 'package:flutter/material.dart';
@@ -80,6 +81,7 @@ class _VideoWidgetState extends State<VideoWidget> {
               currentIndex: PlayerState.currentIndex,
             ),
             VideoFavoriteWidget(),
+            SleepTimerWidget(),
             VideoSettingsWidget(),
           ],
           bottomButtonBar: const [MaterialPositionIndicator()],
@@ -99,6 +101,7 @@ class _VideoWidgetState extends State<VideoWidget> {
               currentIndex: PlayerState.currentIndex,
             ),
             VideoFavoriteWidget(),
+            SleepTimerWidget(),
             VideoSettingsWidget(),
           ],
           seekBarMargin: EdgeInsets.fromLTRB(0, 0, 0, 10),
@@ -128,6 +131,7 @@ class _VideoWidgetState extends State<VideoWidget> {
                 currentIndex: PlayerState.currentIndex,
               ),
               VideoFavoriteWidget(),
+              SleepTimerWidget(),
               VideoSettingsWidget(),
             ],
           ),
@@ -143,6 +147,7 @@ class _VideoWidgetState extends State<VideoWidget> {
                 currentIndex: PlayerState.currentIndex,
               ),
               VideoFavoriteWidget(),
+              SleepTimerWidget(),
               VideoSettingsWidget(),
             ],
           ),

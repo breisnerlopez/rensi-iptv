@@ -195,6 +195,18 @@ class AppLocalizationsPt extends AppLocalizations {
       'Reduz o player a uma janela flutuante ao sair do app';
 
   @override
+  String get sleep_timer => 'Temporizador para dormir';
+
+  @override
+  String get sleep_timer_off => 'Desligado';
+
+  @override
+  String get sleep_timer_minutes_suffix => 'min';
+
+  @override
+  String get sleep_timer_hours_suffix => 'h';
+
+  @override
   String get refresh_contents => 'Atualizar Conteúdo';
 
   @override
