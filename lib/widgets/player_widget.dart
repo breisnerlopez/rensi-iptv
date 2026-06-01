@@ -3,10 +3,12 @@ import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/repositories/user_preferences.dart';
 import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/services/channel_number_buffer.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/services/pip_service.dart';
 import 'package:rensi_iptv/services/sleep_timer_service.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
+import 'package:rensi_iptv/widgets/channel_number_overlay.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:rensi_iptv/utils/subtitle_configuration.dart';
 import 'package:rensi_iptv/widgets/video_widget.dart';
@@ -76,6 +78,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
   int? _lastVideoWidth;
   int? _lastVideoHeight;
   StreamSubscription<void>? _sleepTimerSubscription;
+  final ChannelNumberBuffer _channelBuffer = ChannelNumberBuffer();
+  StreamSubscription<int>? _channelBufferSubscription;
 
   @override
   void initState() {
@@ -149,7 +153,35 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // Cancel any pending sleep timer so it doesn't fire while a different
     // screen is active.
     SleepTimerService.instance.cancel();
+    _channelBufferSubscription?.cancel();
+    _channelBuffer.dispose();
     super.dispose();
+  }
+
+  void _jumpToChannel(int oneBasedIndex) {
+    if (_queue == null || _queue!.isEmpty) return;
+    // Channels are 1-indexed in the UI but 0-indexed in the queue.
+    final clamped = oneBasedIndex.clamp(1, _queue!.length);
+    final newIndex = clamped - 1;
+    if (newIndex == _currentItemIndex) return;
+    EventBus().emit('player_content_item_index_changed', newIndex);
+  }
+
+  /// Maps a [LogicalKeyboardKey] to its 0-9 digit value, including the
+  /// number row (`digit0`-`digit9`) and numeric keypad (`numpad0`-`numpad9`).
+  /// Returns null for any other key.
+  int? _digitForKey(LogicalKeyboardKey key) {
+    if (key == LogicalKeyboardKey.digit0 || key == LogicalKeyboardKey.numpad0) return 0;
+    if (key == LogicalKeyboardKey.digit1 || key == LogicalKeyboardKey.numpad1) return 1;
+    if (key == LogicalKeyboardKey.digit2 || key == LogicalKeyboardKey.numpad2) return 2;
+    if (key == LogicalKeyboardKey.digit3 || key == LogicalKeyboardKey.numpad3) return 3;
+    if (key == LogicalKeyboardKey.digit4 || key == LogicalKeyboardKey.numpad4) return 4;
+    if (key == LogicalKeyboardKey.digit5 || key == LogicalKeyboardKey.numpad5) return 5;
+    if (key == LogicalKeyboardKey.digit6 || key == LogicalKeyboardKey.numpad6) return 6;
+    if (key == LogicalKeyboardKey.digit7 || key == LogicalKeyboardKey.numpad7) return 7;
+    if (key == LogicalKeyboardKey.digit8 || key == LogicalKeyboardKey.numpad8) return 8;
+    if (key == LogicalKeyboardKey.digit9 || key == LogicalKeyboardKey.numpad9) return 9;
+    return null;
   }
 
   void _onPipModeChanged() {
@@ -213,6 +245,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
         SleepTimerService.instance.onFire.listen((_) {
       if (_player.state.playing) _player.pause();
     });
+
+    // Channel-number entry (TV remote): jump to channel queue[N-1] on commit.
+    _channelBufferSubscription = _channelBuffer.onCommit.listen(_jumpToChannel);
 
     var watchHistory = await watchHistoryService.getWatchHistory(
       AppState.currentPlaylist!.id,
@@ -624,6 +659,34 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
     final key = event.logicalKey;
     final hasQueue = _queue != null && _queue!.length > 1;
+
+    // Channel-number entry: digit keys accumulate, Enter commits, Backspace
+    // deletes. Only meaningful when there's a queue to jump within.
+    if (hasQueue) {
+      final digit = _digitForKey(key);
+      if (digit != null) {
+        _channelBuffer.appendDigit(digit);
+        return KeyEventResult.handled;
+      }
+      if (_channelBuffer.isActive) {
+        if (key == LogicalKeyboardKey.backspace) {
+          _channelBuffer.backspace();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.enter ||
+            key == LogicalKeyboardKey.numpadEnter ||
+            key == LogicalKeyboardKey.select) {
+          _channelBuffer.commit();
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.escape ||
+            key == LogicalKeyboardKey.goBack ||
+            key == LogicalKeyboardKey.browserBack) {
+          _channelBuffer.clear();
+          return KeyEventResult.handled;
+        }
+      }
+    }
 
     // Toggle channel list (Menu / Info / "M")
     if (key == LogicalKeyboardKey.contextMenu ||
@@ -1140,6 +1203,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
           // Kanal listesi overlay - normal mod için
           if (_showChannelList && _queue != null && _queue!.length > 1)
             _buildChannelListOverlay(context),
+
+          // Channel-number entry overlay (TV remote).
+          ChannelNumberOverlay(buffer: _channelBuffer.buffer),
         ],
       ),
       ),
