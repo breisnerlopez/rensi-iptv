@@ -3,7 +3,7 @@ import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/screens/m3u/m3u_data_loader_screen.dart';
 import 'package:rensi_iptv/services/m3u_parser.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:rensi_iptv/utils/picker_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit_video/media_kit_video_controls/src/controls/methods/video_state.dart';
@@ -77,27 +77,19 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
 
   Future<void> _pickFile() async {
     try {
-      // withData: true makes file_picker route the read through the
-      // platform's Storage Access Framework on Android. The bytes come
-      // back inline so we never need READ_EXTERNAL_STORAGE — important
-      // on Android 11+ where that permission is no longer granted to
-      // non-system apps anyway.
-      //
-      // FileType.any is used instead of FileType.custom because Android
-      // TV boxes (e.g. Mi Box) refuse the MIME-filtered intent with
-      // ActivityNotFoundException — see the analogous note in
-      // BackupService.pickBackupFile.
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-        withData: true,
-        withReadStream: false,
+      // pickFileBytes dispatches to the in-app FileBrowserScreen on
+      // TV / large screens (Mi Box, where the SAF picker is missing)
+      // and to file_picker everywhere else. Either channel returns
+      // the bytes ready to feed M3uParser.parseM3uBytes.
+      final picked = await pickFileBytes(
+        context: context,
+        title: context.loc.select_m3u_file,
+        extensions: const ['m3u', 'm3u8'],
       );
-
-      if (result != null) {
+      if (picked != null) {
         setState(() {
-          _selectedFileName = result.files.single.name;
-          _selectedFileBytes = result.files.single.bytes;
+          _selectedFileName = picked.name;
+          _selectedFileBytes = picked.bytes;
         });
         _validateForm();
       }

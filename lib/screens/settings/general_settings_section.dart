@@ -6,8 +6,8 @@ import 'package:rensi_iptv/services/service_locator.dart';
 import 'package:rensi_iptv/services/tmdb_credentials_service.dart';
 import 'package:rensi_iptv/utils/backup_import_flow.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
+import 'package:rensi_iptv/utils/picker_helper.dart';
 import 'package:rensi_iptv/utils/show_loading_dialog.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -206,14 +206,6 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
     }
   }
 
-  Future<void> _importBackupFromDevice() async {
-    final result = await runBackupImportFromDeviceFlow(context);
-    if (!mounted) return;
-    if (result != null && result.total > 0) {
-      await _loadSettings();
-    }
-  }
-
   Future<String?> _askPassphrase({
     required String title,
     required String subtitle,
@@ -324,40 +316,6 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
       controller.dispose();
       confirmController.dispose();
     }
-  }
-
-  Future<BackupMergeStrategy?> _askMergeStrategy() async {
-    return showDialog<BackupMergeStrategy?>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(context.loc.backup_strategy_title),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.merge_type),
-                title: Text(context.loc.backup_strategy_overwrite),
-                onTap: () =>
-                    Navigator.pop(dialogContext, BackupMergeStrategy.overwrite),
-              ),
-              ListTile(
-                leading: const Icon(Icons.shield_outlined),
-                title: Text(context.loc.backup_strategy_keep_local),
-                onTap: () =>
-                    Navigator.pop(dialogContext, BackupMergeStrategy.keepLocal),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, null),
-              child: Text(context.loc.cancel),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -579,15 +537,6 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      leading: const Icon(Icons.folder_open),
-                      title: Text(context.loc.import_from_device),
-                      subtitle:
-                          Text(context.loc.import_from_device_subtitle),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: _importBackupFromDevice,
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
                       leading: const Icon(Icons.link),
                       title: Text(context.loc.import_from_url),
                       subtitle: Text(context.loc.import_url_subtitle),
@@ -796,22 +745,15 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
 
   Future<void> _pickFile() async {
     _selectedFileBytes = null;
-
     try {
-      // withData: true so we get the bytes via SAF without needing
-      // READ_EXTERNAL_STORAGE; works the same on Android 9 through 14+.
-      // FileType.any matches BackupService.pickBackupFile — see that
-      // comment for why FileType.custom + allowedExtensions is rejected
-      // by Mi Box and similar TV-class SAF providers.
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
-        allowMultiple: false,
-        withData: true,
+      final picked = await pickFileBytes(
+        context: context,
+        title: context.loc.refresh_contents,
+        extensions: const ['m3u', 'm3u8'],
       );
-
-      if (result != null) {
+      if (picked != null) {
         setState(() {
-          _selectedFileBytes = result.files.single.bytes;
+          _selectedFileBytes = picked.bytes;
         });
       }
     } catch (e) {

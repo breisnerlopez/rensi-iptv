@@ -126,25 +126,6 @@ class BackupService {
     return path != null;
   }
 
-  /// Returns the raw bytes of the picked backup file, so the UI can prompt for
-  /// a passphrase before attempting decryption.
-  ///
-  /// FileType.any is intentional: FileType.custom + allowedExtensions builds
-  /// an ACTION_OPEN_DOCUMENT intent with MIME constraints that Android TV
-  /// boxes (e.g. Mi Box) reject with ActivityNotFoundException because their
-  /// SAF document provider doesn't advertise those types. FileType.any maps
-  /// to a broader picker that's available on virtually every Android build,
-  /// and the content is validated by [looksEncrypted] / JSON parsing
-  /// downstream so extension filtering is purely a UX nicety.
-  static Future<Uint8List?> pickBackupFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-      allowMultiple: false,
-      withData: true,
-    );
-    return result?.files.single.bytes;
-  }
-
   /// Maximum size we will accept for a remote backup file. Matches the
   /// M3U URL fetcher's cap so a buggy or malicious URL can't OOM the app.
   static const int _maxRemoteBackupBytes = 50 * 1024 * 1024;
@@ -302,15 +283,6 @@ class BackupService {
       updated: updated,
       skipped: skipped,
     );
-  }
-
-  static Future<BackupImportResult> importFromFile({
-    String? passphrase,
-    BackupMergeStrategy strategy = BackupMergeStrategy.overwrite,
-  }) async {
-    final bytes = await pickBackupFile();
-    if (bytes == null) return const BackupImportResult();
-    return importBytes(bytes, passphrase: passphrase, strategy: strategy);
   }
 
   // --- Encryption helpers ---
