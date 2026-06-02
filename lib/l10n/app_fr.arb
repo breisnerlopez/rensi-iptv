@@ -468,5 +468,13 @@
   "import_url_subtitle": "Télécharge une sauvegarde via HTTP — utile sur les TV box sans sélecteur de fichiers",
   "import_url_hint": "https://exemple.com/backup.aipbak",
   "import_url_invalid": "URL invalide",
-  "import_url_failed": "Impossible de télécharger la sauvegarde"
+  "import_url_failed": "Impossible de télécharger la sauvegarde",
+  "import_from_device": "Parcourir l'appareil",
+  "import_from_device_subtitle": "Explorateur de fichiers intégré — fonctionne sur les TV box sans sélecteur système",
+  "file_browser_root_picker": "Changer de dossier de départ",
+  "file_browser_parent_directory": "Dossier parent",
+  "file_browser_permission_denied": "Permission de stockage refusée. Accordez-la dans les paramètres pour parcourir les fichiers.",
+  "file_browser_unreadable": "Ce dossier n'est pas lisible.",
+  "file_browser_no_roots": "Aucun stockage accessible trouvé sur cet appareil.",
+  "file_browser_empty": "Aucun fichier compatible dans ce dossier."
 }

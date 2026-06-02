@@ -1158,4 +1158,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get import_url_failed => 'Could not download the backup file';
+
+  @override
+  String get import_from_device => 'Browse device storage';
+
+  @override
+  String get import_from_device_subtitle =>
+      'In-app file browser — works on TV boxes without a system file picker';
+
+  @override
+  String get file_browser_root_picker => 'Change starting folder';
+
+  @override
+  String get file_browser_parent_directory => 'Parent folder';
+
+  @override
+  String get file_browser_permission_denied =>
+      'Storage permission was denied. Grant it from system settings to browse files.';
+
+  @override
+  String get file_browser_unreadable => 'This folder is not readable.';
+
+  @override
+  String get file_browser_no_roots =>
+      'No accessible storage was found on this device.';
+
+  @override
+  String get file_browser_empty => 'No matching files in this folder.';
 }

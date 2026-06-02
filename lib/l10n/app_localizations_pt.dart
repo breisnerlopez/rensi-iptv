@@ -1168,4 +1168,31 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get import_url_failed => 'Não foi possível baixar o backup';
+
+  @override
+  String get import_from_device => 'Explorar o dispositivo';
+
+  @override
+  String get import_from_device_subtitle =>
+      'Explorador de arquivos integrado — funciona em TV boxes sem seletor do sistema';
+
+  @override
+  String get file_browser_root_picker => 'Mudar pasta inicial';
+
+  @override
+  String get file_browser_parent_directory => 'Pasta superior';
+
+  @override
+  String get file_browser_permission_denied =>
+      'Permissão de armazenamento negada. Conceda nas configurações para explorar arquivos.';
+
+  @override
+  String get file_browser_unreadable => 'Esta pasta não pode ser lida.';
+
+  @override
+  String get file_browser_no_roots =>
+      'Nenhum armazenamento acessível encontrado neste dispositivo.';
+
+  @override
+  String get file_browser_empty => 'Nenhum arquivo compatível nesta pasta.';
 }

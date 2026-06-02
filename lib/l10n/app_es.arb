@@ -468,5 +468,13 @@
   "import_url_subtitle": "Descarga un respaldo por HTTP — útil en TV boxes sin selector de archivos",
   "import_url_hint": "https://ejemplo.com/respaldo.aipbak",
   "import_url_invalid": "URL inválida",
-  "import_url_failed": "No se pudo descargar el respaldo"
+  "import_url_failed": "No se pudo descargar el respaldo",
+  "import_from_device": "Explorar el dispositivo",
+  "import_from_device_subtitle": "Explorador de archivos integrado — funciona en TV boxes sin selector del sistema",
+  "file_browser_root_picker": "Cambiar carpeta inicial",
+  "file_browser_parent_directory": "Carpeta superior",
+  "file_browser_permission_denied": "El permiso de almacenamiento fue denegado. Otórgalo desde ajustes del sistema para explorar archivos.",
+  "file_browser_unreadable": "No se puede leer esta carpeta.",
+  "file_browser_no_roots": "No se encontró almacenamiento accesible en este dispositivo.",
+  "file_browser_empty": "No hay archivos compatibles en esta carpeta."
 }

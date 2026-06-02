@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/screens/file_browser_screen.dart';
 import 'package:rensi_iptv/services/backup_service.dart';
 
 /// Runs the full backup-import UX: file picker → passphrase prompt (if the
@@ -30,9 +32,48 @@ Future<BackupImportResult?> runBackupImportFlow(BuildContext context) async {
   return _continueBackupImport(context, bytes);
 }
 
-/// SAF-less import path: ask for an HTTP URL, download the backup, and
-/// hand off to the shared continuation. Intended for Android TV firmwares
-/// (Mi Box, etc.) whose system picker doesn't resolve.
+/// SAF-less import path #1: walk the device filesystem with the in-app
+/// FileBrowserScreen, read the bytes off disk, and hand off to the
+/// shared continuation. Works on Android-TV firmwares whose system
+/// DocumentsUI is missing — as long as we have READ_EXTERNAL_STORAGE
+/// the legacy /sdcard tree is browsable.
+Future<BackupImportResult?> runBackupImportFromDeviceFlow(
+  BuildContext context,
+) async {
+  final loc = context.loc;
+  final messenger = ScaffoldMessenger.of(context);
+
+  final picked = await Navigator.of(context).push<File?>(
+    MaterialPageRoute(
+      builder: (_) => FileBrowserScreen(
+        title: loc.import_from_device,
+        extensions: const ['json', 'aipbak'],
+      ),
+    ),
+  );
+  if (!context.mounted) return null;
+  if (picked == null) {
+    messenger.showSnackBar(SnackBar(content: Text(loc.import_cancelled)));
+    return null;
+  }
+
+  Uint8List bytes;
+  try {
+    bytes = await picked.readAsBytes();
+  } catch (_) {
+    if (!context.mounted) return null;
+    messenger.showSnackBar(SnackBar(content: Text(loc.import_failed)));
+    return null;
+  }
+
+  if (!context.mounted) return null;
+  return _continueBackupImport(context, bytes);
+}
+
+/// SAF-less import path #2: ask for an HTTP URL, download the backup,
+/// and hand off to the shared continuation. Useful when the backup
+/// lives on a phone/server but you don't have a way to push it onto
+/// the TV's local storage.
 Future<BackupImportResult?> runBackupImportFromUrlFlow(
   BuildContext context,
 ) async {

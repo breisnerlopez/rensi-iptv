@@ -1159,4 +1159,32 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get import_url_failed => 'बैकअप डाउनलोड नहीं हो सका';
+
+  @override
+  String get import_from_device => 'डिवाइस ब्राउज़ करें';
+
+  @override
+  String get import_from_device_subtitle =>
+      'इन-ऐप फ़ाइल ब्राउज़र — सिस्टम पिकर के बिना टीवी बॉक्स के लिए';
+
+  @override
+  String get file_browser_root_picker => 'प्रारंभिक फ़ोल्डर बदलें';
+
+  @override
+  String get file_browser_parent_directory => 'मूल फ़ोल्डर';
+
+  @override
+  String get file_browser_permission_denied =>
+      'स्टोरेज अनुमति अस्वीकार। फ़ाइलें ब्राउज़ करने के लिए सिस्टम सेटिंग्स से अनुमति दें।';
+
+  @override
+  String get file_browser_unreadable => 'यह फ़ोल्डर पठनीय नहीं है।';
+
+  @override
+  String get file_browser_no_roots =>
+      'इस डिवाइस पर कोई एक्सेस योग्य स्टोरेज नहीं मिला।';
+
+  @override
+  String get file_browser_empty =>
+      'इस फ़ोल्डर में कोई मेल खाने वाली फ़ाइल नहीं।';
 }

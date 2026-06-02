@@ -206,6 +206,14 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
     }
   }
 
+  Future<void> _importBackupFromDevice() async {
+    final result = await runBackupImportFromDeviceFlow(context);
+    if (!mounted) return;
+    if (result != null && result.total > 0) {
+      await _loadSettings();
+    }
+  }
+
   Future<String?> _askPassphrase({
     required String title,
     required String subtitle,
@@ -568,6 +576,15 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
                       subtitle: Text(context.loc.import_subtitle),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _importBackup,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.folder_open),
+                      title: Text(context.loc.import_from_device),
+                      subtitle:
+                          Text(context.loc.import_from_device_subtitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _importBackupFromDevice,
                     ),
                     const Divider(height: 1),
                     ListTile(

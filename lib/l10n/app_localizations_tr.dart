@@ -1160,4 +1160,31 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get import_url_failed => 'Yedek dosyası indirilemedi';
+
+  @override
+  String get import_from_device => 'Cihazda ara';
+
+  @override
+  String get import_from_device_subtitle =>
+      'Uygulama içi dosya gezgini — sistem seçicisi olmayan TV kutularında çalışır';
+
+  @override
+  String get file_browser_root_picker => 'Başlangıç klasörünü değiştir';
+
+  @override
+  String get file_browser_parent_directory => 'Üst klasör';
+
+  @override
+  String get file_browser_permission_denied =>
+      'Depolama izni reddedildi. Dosyalara göz atmak için sistem ayarlarından izin verin.';
+
+  @override
+  String get file_browser_unreadable => 'Bu klasör okunamıyor.';
+
+  @override
+  String get file_browser_no_roots =>
+      'Bu cihazda erişilebilir depolama bulunamadı.';
+
+  @override
+  String get file_browser_empty => 'Bu klasörde uyumlu dosya yok.';
 }

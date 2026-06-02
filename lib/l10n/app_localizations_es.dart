@@ -1169,4 +1169,32 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get import_url_failed => 'No se pudo descargar el respaldo';
+
+  @override
+  String get import_from_device => 'Explorar el dispositivo';
+
+  @override
+  String get import_from_device_subtitle =>
+      'Explorador de archivos integrado — funciona en TV boxes sin selector del sistema';
+
+  @override
+  String get file_browser_root_picker => 'Cambiar carpeta inicial';
+
+  @override
+  String get file_browser_parent_directory => 'Carpeta superior';
+
+  @override
+  String get file_browser_permission_denied =>
+      'El permiso de almacenamiento fue denegado. Otórgalo desde ajustes del sistema para explorar archivos.';
+
+  @override
+  String get file_browser_unreadable => 'No se puede leer esta carpeta.';
+
+  @override
+  String get file_browser_no_roots =>
+      'No se encontró almacenamiento accesible en este dispositivo.';
+
+  @override
+  String get file_browser_empty =>
+      'No hay archivos compatibles en esta carpeta.';
 }

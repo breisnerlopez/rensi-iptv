@@ -6,9 +6,15 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
-<!--    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />-->
-<!--    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />-->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!-- In-app file browser (mainly for Android-TV boxes whose stripped
+         DocumentsUI can't satisfy the system picker). Scoped to legacy
+         storage; on API 33+ the system grants a no-op stub and the
+         browser is limited to app-private dirs, which is by design. -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
 
     <!-- Android TV / Leanback support: app appears in the TV launcher and
          declares that touchscreen/telephony are not required so it installs

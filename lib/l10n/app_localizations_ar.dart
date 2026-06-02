@@ -1159,4 +1159,31 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get import_url_failed => 'تعذر تنزيل النسخة الاحتياطية';
+
+  @override
+  String get import_from_device => 'تصفح الجهاز';
+
+  @override
+  String get import_from_device_subtitle =>
+      'متصفح ملفات داخل التطبيق — يعمل على أجهزة التلفاز بدون منتقي ملفات النظام';
+
+  @override
+  String get file_browser_root_picker => 'تغيير المجلد الافتتاحي';
+
+  @override
+  String get file_browser_parent_directory => 'المجلد الأعلى';
+
+  @override
+  String get file_browser_permission_denied =>
+      'تم رفض إذن التخزين. امنحه من إعدادات النظام لتصفح الملفات.';
+
+  @override
+  String get file_browser_unreadable => 'لا يمكن قراءة هذا المجلد.';
+
+  @override
+  String get file_browser_no_roots =>
+      'لم يتم العثور على تخزين قابل للوصول على هذا الجهاز.';
+
+  @override
+  String get file_browser_empty => 'لا توجد ملفات متوافقة في هذا المجلد.';
 }

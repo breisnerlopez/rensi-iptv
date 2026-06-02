@@ -468,5 +468,13 @@
   "import_url_subtitle": "Download a backup file over HTTP — useful on TV boxes without a file picker",
   "import_url_hint": "https://example.com/backup.aipbak",
   "import_url_invalid": "Invalid URL",
-  "import_url_failed": "Could not download the backup file"
+  "import_url_failed": "Could not download the backup file",
+  "import_from_device": "Browse device storage",
+  "import_from_device_subtitle": "In-app file browser — works on TV boxes without a system file picker",
+  "file_browser_root_picker": "Change starting folder",
+  "file_browser_parent_directory": "Parent folder",
+  "file_browser_permission_denied": "Storage permission was denied. Grant it from system settings to browse files.",
+  "file_browser_unreadable": "This folder is not readable.",
+  "file_browser_no_roots": "No accessible storage was found on this device.",
+  "file_browser_empty": "No matching files in this folder."
 }

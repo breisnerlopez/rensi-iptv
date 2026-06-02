@@ -468,5 +468,13 @@
   "import_url_subtitle": "Sicherung per HTTP herunterladen — nützlich auf TV-Boxen ohne Dateiauswahl",
   "import_url_hint": "https://beispiel.de/backup.aipbak",
   "import_url_invalid": "Ungültige URL",
-  "import_url_failed": "Sicherung konnte nicht heruntergeladen werden"
+  "import_url_failed": "Sicherung konnte nicht heruntergeladen werden",
+  "import_from_device": "Gerätespeicher durchsuchen",
+  "import_from_device_subtitle": "Integrierter Dateibrowser — funktioniert auf TV-Boxen ohne Systempicker",
+  "file_browser_root_picker": "Startordner ändern",
+  "file_browser_parent_directory": "Übergeordneter Ordner",
+  "file_browser_permission_denied": "Speicherberechtigung verweigert. Erteile sie in den Systemeinstellungen, um Dateien zu durchsuchen.",
+  "file_browser_unreadable": "Dieser Ordner ist nicht lesbar.",
+  "file_browser_no_roots": "Kein zugänglicher Speicher auf diesem Gerät gefunden.",
+  "file_browser_empty": "Keine passenden Dateien in diesem Ordner."
 }

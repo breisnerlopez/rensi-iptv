@@ -2213,6 +2213,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not download the backup file'**
   String get import_url_failed;
+
+  /// No description provided for @import_from_device.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse device storage'**
+  String get import_from_device;
+
+  /// No description provided for @import_from_device_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'In-app file browser — works on TV boxes without a system file picker'**
+  String get import_from_device_subtitle;
+
+  /// No description provided for @file_browser_root_picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Change starting folder'**
+  String get file_browser_root_picker;
+
+  /// No description provided for @file_browser_parent_directory.
+  ///
+  /// In en, this message translates to:
+  /// **'Parent folder'**
+  String get file_browser_parent_directory;
+
+  /// No description provided for @file_browser_permission_denied.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage permission was denied. Grant it from system settings to browse files.'**
+  String get file_browser_permission_denied;
+
+  /// No description provided for @file_browser_unreadable.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder is not readable.'**
+  String get file_browser_unreadable;
+
+  /// No description provided for @file_browser_no_roots.
+  ///
+  /// In en, this message translates to:
+  /// **'No accessible storage was found on this device.'**
+  String get file_browser_no_roots;
+
+  /// No description provided for @file_browser_empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching files in this folder.'**
+  String get file_browser_empty;
 }
 
 class _AppLocalizationsDelegate

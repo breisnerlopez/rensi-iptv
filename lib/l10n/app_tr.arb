@@ -468,5 +468,13 @@
   "import_url_subtitle": "Yedek dosyasını HTTP üzerinden indir — dosya seçici olmayan TV kutuları için faydalı",
   "import_url_hint": "https://ornek.com/yedek.aipbak",
   "import_url_invalid": "Geçersiz URL",
-  "import_url_failed": "Yedek dosyası indirilemedi"
+  "import_url_failed": "Yedek dosyası indirilemedi",
+  "import_from_device": "Cihazda ara",
+  "import_from_device_subtitle": "Uygulama içi dosya gezgini — sistem seçicisi olmayan TV kutularında çalışır",
+  "file_browser_root_picker": "Başlangıç klasörünü değiştir",
+  "file_browser_parent_directory": "Üst klasör",
+  "file_browser_permission_denied": "Depolama izni reddedildi. Dosyalara göz atmak için sistem ayarlarından izin verin.",
+  "file_browser_unreadable": "Bu klasör okunamıyor.",
+  "file_browser_no_roots": "Bu cihazda erişilebilir depolama bulunamadı.",
+  "file_browser_empty": "Bu klasörde uyumlu dosya yok."
 }

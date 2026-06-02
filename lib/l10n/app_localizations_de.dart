@@ -1173,4 +1173,31 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get import_url_failed =>
       'Sicherung konnte nicht heruntergeladen werden';
+
+  @override
+  String get import_from_device => 'Gerätespeicher durchsuchen';
+
+  @override
+  String get import_from_device_subtitle =>
+      'Integrierter Dateibrowser — funktioniert auf TV-Boxen ohne Systempicker';
+
+  @override
+  String get file_browser_root_picker => 'Startordner ändern';
+
+  @override
+  String get file_browser_parent_directory => 'Übergeordneter Ordner';
+
+  @override
+  String get file_browser_permission_denied =>
+      'Speicherberechtigung verweigert. Erteile sie in den Systemeinstellungen, um Dateien zu durchsuchen.';
+
+  @override
+  String get file_browser_unreadable => 'Dieser Ordner ist nicht lesbar.';
+
+  @override
+  String get file_browser_no_roots =>
+      'Kein zugänglicher Speicher auf diesem Gerät gefunden.';
+
+  @override
+  String get file_browser_empty => 'Keine passenden Dateien in diesem Ordner.';
 }

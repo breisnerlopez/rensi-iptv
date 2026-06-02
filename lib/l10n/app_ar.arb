@@ -468,5 +468,13 @@
   "import_url_subtitle": "تنزيل ملف النسخة الاحتياطية عبر HTTP — مفيد على أجهزة التلفاز بدون منتقي ملفات",
   "import_url_hint": "https://example.com/backup.aipbak",
   "import_url_invalid": "رابط غير صالح",
-  "import_url_failed": "تعذر تنزيل النسخة الاحتياطية"
+  "import_url_failed": "تعذر تنزيل النسخة الاحتياطية",
+  "import_from_device": "تصفح الجهاز",
+  "import_from_device_subtitle": "متصفح ملفات داخل التطبيق — يعمل على أجهزة التلفاز بدون منتقي ملفات النظام",
+  "file_browser_root_picker": "تغيير المجلد الافتتاحي",
+  "file_browser_parent_directory": "المجلد الأعلى",
+  "file_browser_permission_denied": "تم رفض إذن التخزين. امنحه من إعدادات النظام لتصفح الملفات.",
+  "file_browser_unreadable": "لا يمكن قراءة هذا المجلد.",
+  "file_browser_no_roots": "لم يتم العثور على تخزين قابل للوصول على هذا الجهاز.",
+  "file_browser_empty": "لا توجد ملفات متوافقة في هذا المجلد."
 }

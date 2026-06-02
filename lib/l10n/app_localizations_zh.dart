@@ -1122,4 +1122,28 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get import_url_failed => '无法下载备份';
+
+  @override
+  String get import_from_device => '浏览设备';
+
+  @override
+  String get import_from_device_subtitle => '应用内文件浏览器 — 适用于没有系统文件选择器的电视盒子';
+
+  @override
+  String get file_browser_root_picker => '更改起始文件夹';
+
+  @override
+  String get file_browser_parent_directory => '上级文件夹';
+
+  @override
+  String get file_browser_permission_denied => '存储权限被拒绝。请在系统设置中授予以浏览文件。';
+
+  @override
+  String get file_browser_unreadable => '此文件夹不可读。';
+
+  @override
+  String get file_browser_no_roots => '在此设备上未找到可访问的存储。';
+
+  @override
+  String get file_browser_empty => '此文件夹中无匹配文件。';
 }

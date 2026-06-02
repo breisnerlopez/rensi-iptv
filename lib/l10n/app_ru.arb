@@ -468,5 +468,13 @@
   "import_url_subtitle": "Загрузить резервную копию по HTTP — полезно на ТВ-боксах без файлового менеджера",
   "import_url_hint": "https://example.com/backup.aipbak",
   "import_url_invalid": "Неверный URL",
-  "import_url_failed": "Не удалось загрузить резервную копию"
+  "import_url_failed": "Не удалось загрузить резервную копию",
+  "import_from_device": "Обзор устройства",
+  "import_from_device_subtitle": "Встроенный файловый менеджер — работает на ТВ-боксах без системного селектора",
+  "file_browser_root_picker": "Изменить начальную папку",
+  "file_browser_parent_directory": "Родительская папка",
+  "file_browser_permission_denied": "Разрешение на доступ к хранилищу отклонено. Включите его в настройках системы для просмотра файлов.",
+  "file_browser_unreadable": "Эту папку невозможно прочитать.",
+  "file_browser_no_roots": "Доступное хранилище не найдено на этом устройстве.",
+  "file_browser_empty": "В этой папке нет совместимых файлов."
 }

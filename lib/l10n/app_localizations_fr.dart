@@ -1172,4 +1172,31 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get import_url_failed => 'Impossible de télécharger la sauvegarde';
+
+  @override
+  String get import_from_device => 'Parcourir l\'appareil';
+
+  @override
+  String get import_from_device_subtitle =>
+      'Explorateur de fichiers intégré — fonctionne sur les TV box sans sélecteur système';
+
+  @override
+  String get file_browser_root_picker => 'Changer de dossier de départ';
+
+  @override
+  String get file_browser_parent_directory => 'Dossier parent';
+
+  @override
+  String get file_browser_permission_denied =>
+      'Permission de stockage refusée. Accordez-la dans les paramètres pour parcourir les fichiers.';
+
+  @override
+  String get file_browser_unreadable => 'Ce dossier n\'est pas lisible.';
+
+  @override
+  String get file_browser_no_roots =>
+      'Aucun stockage accessible trouvé sur cet appareil.';
+
+  @override
+  String get file_browser_empty => 'Aucun fichier compatible dans ce dossier.';
 }

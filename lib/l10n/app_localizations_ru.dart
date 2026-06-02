@@ -1162,4 +1162,31 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get import_url_failed => 'Не удалось загрузить резервную копию';
+
+  @override
+  String get import_from_device => 'Обзор устройства';
+
+  @override
+  String get import_from_device_subtitle =>
+      'Встроенный файловый менеджер — работает на ТВ-боксах без системного селектора';
+
+  @override
+  String get file_browser_root_picker => 'Изменить начальную папку';
+
+  @override
+  String get file_browser_parent_directory => 'Родительская папка';
+
+  @override
+  String get file_browser_permission_denied =>
+      'Разрешение на доступ к хранилищу отклонено. Включите его в настройках системы для просмотра файлов.';
+
+  @override
+  String get file_browser_unreadable => 'Эту папку невозможно прочитать.';
+
+  @override
+  String get file_browser_no_roots =>
+      'Доступное хранилище не найдено на этом устройстве.';
+
+  @override
+  String get file_browser_empty => 'В этой папке нет совместимых файлов.';
 }
