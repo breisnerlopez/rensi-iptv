@@ -26,6 +26,58 @@ Future<BackupImportResult?> runBackupImportFlow(BuildContext context) async {
     return null;
   }
 
+  if (!context.mounted) return null;
+  return _continueBackupImport(context, bytes);
+}
+
+/// SAF-less import path: ask for an HTTP URL, download the backup, and
+/// hand off to the shared continuation. Intended for Android TV firmwares
+/// (Mi Box, etc.) whose system picker doesn't resolve.
+Future<BackupImportResult?> runBackupImportFromUrlFlow(
+  BuildContext context,
+) async {
+  final loc = context.loc;
+  final messenger = ScaffoldMessenger.of(context);
+
+  final url = await _askForUrl(context);
+  if (url == null || url.isEmpty) {
+    messenger.showSnackBar(SnackBar(content: Text(loc.import_cancelled)));
+    return null;
+  }
+
+  Uint8List bytes;
+  try {
+    bytes = await BackupService.fetchBackupFromUrl(url);
+  } on BackupFormatException catch (e) {
+    if (!context.mounted) return null;
+    final message = switch (e.code) {
+      'backup_url_invalid' => loc.import_url_invalid,
+      'backup_url_too_large' => loc.import_url_failed,
+      'backup_url_http_error' => loc.import_url_failed,
+      _ => loc.import_url_failed,
+    };
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+    return null;
+  } catch (_) {
+    if (!context.mounted) return null;
+    messenger.showSnackBar(SnackBar(content: Text(loc.import_url_failed)));
+    return null;
+  }
+
+  if (!context.mounted) return null;
+  return _continueBackupImport(context, bytes);
+}
+
+/// Shared tail end of both import flows: passphrase prompt (when the
+/// payload is encrypted) → merge strategy dialog → call into
+/// [BackupService.importBytes] → SnackBar summary / error.
+Future<BackupImportResult?> _continueBackupImport(
+  BuildContext context,
+  Uint8List bytes,
+) async {
+  final loc = context.loc;
+  final messenger = ScaffoldMessenger.of(context);
+
   String? passphrase;
   if (BackupService.looksEncrypted(bytes)) {
     if (!context.mounted) return null;
@@ -71,6 +123,46 @@ Future<BackupImportResult?> runBackupImportFlow(BuildContext context) async {
     if (!context.mounted) return null;
     messenger.showSnackBar(SnackBar(content: Text(loc.import_failed)));
     return null;
+  }
+}
+
+Future<String?> _askForUrl(BuildContext context) async {
+  final controller = TextEditingController();
+  try {
+    return await showDialog<String?>(
+      context: context,
+      builder: (dialogContext) {
+        void submit() {
+          Navigator.pop(dialogContext, controller.text.trim());
+        }
+
+        return AlertDialog(
+          title: Text(dialogContext.loc.import_from_url),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.url,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => submit(),
+            decoration: InputDecoration(
+              labelText: dialogContext.loc.import_url_hint,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, null),
+              child: Text(dialogContext.loc.cancel),
+            ),
+            FilledButton(
+              onPressed: submit,
+              child: Text(dialogContext.loc.tmdb_search_button),
+            ),
+          ],
+        );
+      },
+    );
+  } finally {
+    controller.dispose();
   }
 }
 

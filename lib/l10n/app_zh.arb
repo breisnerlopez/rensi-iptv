@@ -463,5 +463,10 @@
   "sort_recently_added": "最近添加",
   "view_all_movies": "全部电影",
   "view_all_series": "全部剧集",
-  "view_all_live": "全部频道"
+  "view_all_live": "全部频道",
+  "import_from_url": "从URL导入",
+  "import_url_subtitle": "通过HTTP下载备份文件 — 适用于没有文件选择器的电视盒子",
+  "import_url_hint": "https://example.com/backup.aipbak",
+  "import_url_invalid": "URL无效",
+  "import_url_failed": "无法下载备份"
 }

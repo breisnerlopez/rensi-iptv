@@ -463,5 +463,10 @@
   "sort_recently_added": "Recently added",
   "view_all_movies": "All Movies",
   "view_all_series": "All Series",
-  "view_all_live": "All Channels"
+  "view_all_live": "All Channels",
+  "import_from_url": "Import from URL",
+  "import_url_subtitle": "Download a backup file over HTTP — useful on TV boxes without a file picker",
+  "import_url_hint": "https://example.com/backup.aipbak",
+  "import_url_invalid": "Invalid URL",
+  "import_url_failed": "Could not download the backup file"
 }

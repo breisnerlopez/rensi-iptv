@@ -198,6 +198,14 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
     }
   }
 
+  Future<void> _importBackupFromUrl() async {
+    final result = await runBackupImportFromUrlFlow(context);
+    if (!mounted) return;
+    if (result != null && result.total > 0) {
+      await _loadSettings();
+    }
+  }
+
   Future<String?> _askPassphrase({
     required String title,
     required String subtitle,
@@ -560,6 +568,14 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
                       subtitle: Text(context.loc.import_subtitle),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _importBackup,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.link),
+                      title: Text(context.loc.import_from_url),
+                      subtitle: Text(context.loc.import_url_subtitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _importBackupFromUrl,
                     ),
                   ],
                 ),

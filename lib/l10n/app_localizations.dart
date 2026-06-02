@@ -2183,6 +2183,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All Channels'**
   String get view_all_live;
+
+  /// No description provided for @import_from_url.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from URL'**
+  String get import_from_url;
+
+  /// No description provided for @import_url_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download a backup file over HTTP — useful on TV boxes without a file picker'**
+  String get import_url_subtitle;
+
+  /// No description provided for @import_url_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'https://example.com/backup.aipbak'**
+  String get import_url_hint;
+
+  /// No description provided for @import_url_invalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid URL'**
+  String get import_url_invalid;
+
+  /// No description provided for @import_url_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not download the backup file'**
+  String get import_url_failed;
 }
 
 class _AppLocalizationsDelegate

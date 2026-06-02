@@ -463,5 +463,10 @@
   "sort_recently_added": "المضاف حديثاً",
   "view_all_movies": "كل الأفلام",
   "view_all_series": "كل المسلسلات",
-  "view_all_live": "كل القنوات"
+  "view_all_live": "كل القنوات",
+  "import_from_url": "الاستيراد من رابط",
+  "import_url_subtitle": "تنزيل ملف النسخة الاحتياطية عبر HTTP — مفيد على أجهزة التلفاز بدون منتقي ملفات",
+  "import_url_hint": "https://example.com/backup.aipbak",
+  "import_url_invalid": "رابط غير صالح",
+  "import_url_failed": "تعذر تنزيل النسخة الاحتياطية"
 }

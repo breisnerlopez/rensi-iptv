@@ -1153,4 +1153,20 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get view_all_live => 'Todos los canales';
+
+  @override
+  String get import_from_url => 'Importar desde URL';
+
+  @override
+  String get import_url_subtitle =>
+      'Descarga un respaldo por HTTP — útil en TV boxes sin selector de archivos';
+
+  @override
+  String get import_url_hint => 'https://ejemplo.com/respaldo.aipbak';
+
+  @override
+  String get import_url_invalid => 'URL inválida';
+
+  @override
+  String get import_url_failed => 'No se pudo descargar el respaldo';
 }

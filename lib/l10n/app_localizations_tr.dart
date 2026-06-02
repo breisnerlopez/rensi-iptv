@@ -1144,4 +1144,20 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get view_all_live => 'Tüm kanallar';
+
+  @override
+  String get import_from_url => 'URL\'den içe aktar';
+
+  @override
+  String get import_url_subtitle =>
+      'Yedek dosyasını HTTP üzerinden indir — dosya seçici olmayan TV kutuları için faydalı';
+
+  @override
+  String get import_url_hint => 'https://ornek.com/yedek.aipbak';
+
+  @override
+  String get import_url_invalid => 'Geçersiz URL';
+
+  @override
+  String get import_url_failed => 'Yedek dosyası indirilemedi';
 }

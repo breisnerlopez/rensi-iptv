@@ -463,5 +463,10 @@
   "sort_recently_added": "Недавно добавленные",
   "view_all_movies": "Все фильмы",
   "view_all_series": "Все сериалы",
-  "view_all_live": "Все каналы"
+  "view_all_live": "Все каналы",
+  "import_from_url": "Импорт по URL",
+  "import_url_subtitle": "Загрузить резервную копию по HTTP — полезно на ТВ-боксах без файлового менеджера",
+  "import_url_hint": "https://example.com/backup.aipbak",
+  "import_url_invalid": "Неверный URL",
+  "import_url_failed": "Не удалось загрузить резервную копию"
 }

@@ -1146,4 +1146,20 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get view_all_live => 'Все каналы';
+
+  @override
+  String get import_from_url => 'Импорт по URL';
+
+  @override
+  String get import_url_subtitle =>
+      'Загрузить резервную копию по HTTP — полезно на ТВ-боксах без файлового менеджера';
+
+  @override
+  String get import_url_hint => 'https://example.com/backup.aipbak';
+
+  @override
+  String get import_url_invalid => 'Неверный URL';
+
+  @override
+  String get import_url_failed => 'Не удалось загрузить резервную копию';
 }

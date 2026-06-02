@@ -1107,4 +1107,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get view_all_live => '全部频道';
+
+  @override
+  String get import_from_url => '从URL导入';
+
+  @override
+  String get import_url_subtitle => '通过HTTP下载备份文件 — 适用于没有文件选择器的电视盒子';
+
+  @override
+  String get import_url_hint => 'https://example.com/backup.aipbak';
+
+  @override
+  String get import_url_invalid => 'URL无效';
+
+  @override
+  String get import_url_failed => '无法下载备份';
 }

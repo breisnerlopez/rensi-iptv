@@ -463,5 +463,10 @@
   "sort_recently_added": "हाल ही में जोड़ा गया",
   "view_all_movies": "सभी फ़िल्में",
   "view_all_series": "सभी सीरीज़",
-  "view_all_live": "सभी चैनल"
+  "view_all_live": "सभी चैनल",
+  "import_from_url": "URL से आयात करें",
+  "import_url_subtitle": "HTTP पर बैकअप फ़ाइल डाउनलोड करें — फ़ाइल पिकर के बिना टीवी बॉक्स के लिए उपयोगी",
+  "import_url_hint": "https://example.com/backup.aipbak",
+  "import_url_invalid": "अमान्य URL",
+  "import_url_failed": "बैकअप डाउनलोड नहीं हो सका"
 }

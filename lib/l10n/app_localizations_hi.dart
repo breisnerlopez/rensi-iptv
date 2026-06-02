@@ -1143,4 +1143,20 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get view_all_live => 'सभी चैनल';
+
+  @override
+  String get import_from_url => 'URL से आयात करें';
+
+  @override
+  String get import_url_subtitle =>
+      'HTTP पर बैकअप फ़ाइल डाउनलोड करें — फ़ाइल पिकर के बिना टीवी बॉक्स के लिए उपयोगी';
+
+  @override
+  String get import_url_hint => 'https://example.com/backup.aipbak';
+
+  @override
+  String get import_url_invalid => 'अमान्य URL';
+
+  @override
+  String get import_url_failed => 'बैकअप डाउनलोड नहीं हो सका';
 }

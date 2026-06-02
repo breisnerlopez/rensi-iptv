@@ -1143,4 +1143,20 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get view_all_live => 'كل القنوات';
+
+  @override
+  String get import_from_url => 'الاستيراد من رابط';
+
+  @override
+  String get import_url_subtitle =>
+      'تنزيل ملف النسخة الاحتياطية عبر HTTP — مفيد على أجهزة التلفاز بدون منتقي ملفات';
+
+  @override
+  String get import_url_hint => 'https://example.com/backup.aipbak';
+
+  @override
+  String get import_url_invalid => 'رابط غير صالح';
+
+  @override
+  String get import_url_failed => 'تعذر تنزيل النسخة الاحتياطية';
 }

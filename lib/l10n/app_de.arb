@@ -463,5 +463,10 @@
   "sort_recently_added": "Zuletzt hinzugefügt",
   "view_all_movies": "Alle Filme",
   "view_all_series": "Alle Serien",
-  "view_all_live": "Alle Sender"
+  "view_all_live": "Alle Sender",
+  "import_from_url": "Aus URL importieren",
+  "import_url_subtitle": "Sicherung per HTTP herunterladen — nützlich auf TV-Boxen ohne Dateiauswahl",
+  "import_url_hint": "https://beispiel.de/backup.aipbak",
+  "import_url_invalid": "Ungültige URL",
+  "import_url_failed": "Sicherung konnte nicht heruntergeladen werden"
 }

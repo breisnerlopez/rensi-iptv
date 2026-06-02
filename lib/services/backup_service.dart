@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show HttpClient;
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -142,6 +143,64 @@ class BackupService {
       withData: true,
     );
     return result?.files.single.bytes;
+  }
+
+  /// Maximum size we will accept for a remote backup file. Matches the
+  /// M3U URL fetcher's cap so a buggy or malicious URL can't OOM the app.
+  static const int _maxRemoteBackupBytes = 50 * 1024 * 1024;
+
+  /// Downloads a backup file from an http(s) URL and returns the raw bytes.
+  ///
+  /// Intended as an SAF-less alternative for Android TV boxes (Mi Box,
+  /// etc.) whose stripped DocumentsUI rejects the file picker. The caller
+  /// keeps using [importBytes] on the result, so the encryption /
+  /// schema / merge logic stays in one place.
+  ///
+  /// Throws [BackupFormatException] with codes:
+  ///   - `backup_url_invalid`    — scheme / parse error
+  ///   - `backup_url_too_large`  — content-length exceeds [_maxRemoteBackupBytes]
+  ///   - `backup_url_http_error` — non-2xx response
+  ///   - `backup_url_fetch_failed` — network / IO failure
+  static Future<Uint8List> fetchBackupFromUrl(String url) async {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
+      throw BackupFormatException('backup_url_invalid', url);
+    }
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 20);
+    try {
+      final request = await client
+          .getUrl(uri)
+          .timeout(const Duration(seconds: 60));
+      final response =
+          await request.close().timeout(const Duration(seconds: 60));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw BackupFormatException(
+          'backup_url_http_error',
+          'HTTP ${response.statusCode}',
+        );
+      }
+      if (response.contentLength > _maxRemoteBackupBytes) {
+        throw BackupFormatException(
+          'backup_url_too_large',
+          '${response.contentLength}',
+        );
+      }
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in response) {
+        builder.add(chunk);
+        if (builder.length > _maxRemoteBackupBytes) {
+          throw BackupFormatException('backup_url_too_large', '${builder.length}');
+        }
+      }
+      return builder.takeBytes();
+    } on BackupFormatException {
+      rethrow;
+    } catch (e) {
+      throw BackupFormatException('backup_url_fetch_failed', e.toString());
+    } finally {
+      client.close(force: true);
+    }
   }
 
   static bool looksEncrypted(Uint8List bytes) {

@@ -1156,4 +1156,21 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get view_all_live => 'Alle Sender';
+
+  @override
+  String get import_from_url => 'Aus URL importieren';
+
+  @override
+  String get import_url_subtitle =>
+      'Sicherung per HTTP herunterladen — nützlich auf TV-Boxen ohne Dateiauswahl';
+
+  @override
+  String get import_url_hint => 'https://beispiel.de/backup.aipbak';
+
+  @override
+  String get import_url_invalid => 'Ungültige URL';
+
+  @override
+  String get import_url_failed =>
+      'Sicherung konnte nicht heruntergeladen werden';
 }

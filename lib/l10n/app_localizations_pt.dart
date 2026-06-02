@@ -1152,4 +1152,20 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get view_all_live => 'Todos os canais';
+
+  @override
+  String get import_from_url => 'Importar de URL';
+
+  @override
+  String get import_url_subtitle =>
+      'Baixa um arquivo de backup via HTTP — útil em TV boxes sem seletor de arquivos';
+
+  @override
+  String get import_url_hint => 'https://exemplo.com/backup.aipbak';
+
+  @override
+  String get import_url_invalid => 'URL inválida';
+
+  @override
+  String get import_url_failed => 'Não foi possível baixar o backup';
 }

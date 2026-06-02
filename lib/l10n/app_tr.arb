@@ -463,5 +463,10 @@
   "sort_recently_added": "Son eklenenler",
   "view_all_movies": "Tüm filmler",
   "view_all_series": "Tüm diziler",
-  "view_all_live": "Tüm kanallar"
+  "view_all_live": "Tüm kanallar",
+  "import_from_url": "URL'den içe aktar",
+  "import_url_subtitle": "Yedek dosyasını HTTP üzerinden indir — dosya seçici olmayan TV kutuları için faydalı",
+  "import_url_hint": "https://ornek.com/yedek.aipbak",
+  "import_url_invalid": "Geçersiz URL",
+  "import_url_failed": "Yedek dosyası indirilemedi"
 }

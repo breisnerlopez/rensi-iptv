@@ -463,5 +463,10 @@
   "sort_recently_added": "Recentes",
   "view_all_movies": "Todos os filmes",
   "view_all_series": "Todas as séries",
-  "view_all_live": "Todos os canais"
+  "view_all_live": "Todos os canais",
+  "import_from_url": "Importar de URL",
+  "import_url_subtitle": "Baixa um arquivo de backup via HTTP — útil em TV boxes sem seletor de arquivos",
+  "import_url_hint": "https://exemplo.com/backup.aipbak",
+  "import_url_invalid": "URL inválida",
+  "import_url_failed": "Não foi possível baixar o backup"
 }

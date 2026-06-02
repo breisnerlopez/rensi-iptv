@@ -463,5 +463,10 @@
   "sort_recently_added": "Récemment ajoutés",
   "view_all_movies": "Tous les films",
   "view_all_series": "Toutes les séries",
-  "view_all_live": "Toutes les chaînes"
+  "view_all_live": "Toutes les chaînes",
+  "import_from_url": "Importer depuis une URL",
+  "import_url_subtitle": "Télécharge une sauvegarde via HTTP — utile sur les TV box sans sélecteur de fichiers",
+  "import_url_hint": "https://exemple.com/backup.aipbak",
+  "import_url_invalid": "URL invalide",
+  "import_url_failed": "Impossible de télécharger la sauvegarde"
 }
