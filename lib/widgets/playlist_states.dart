@@ -78,7 +78,6 @@ class PlaylistEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -106,33 +105,39 @@ class PlaylistEmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: onCreatePlaylist,
-              icon: const Icon(Icons.add),
-              label: Text(context.loc.empty_playlist_button),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                textStyle: const TextStyle(fontSize: 16),
+            // The two CTAs match in size and stack vertically so a user
+            // arriving fresh on the empty state sees both paths to
+            // populate the library — create from scratch *or* restore
+            // a backup — without one of them looking decorative.
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  FilledButton.icon(
+                    onPressed: onCreatePlaylist,
+                    icon: const Icon(Icons.add),
+                    label: Text(context.loc.empty_playlist_button),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      textStyle: const TextStyle(fontSize: 16),
+                    ),
+                  ),
+                  if (onImportBackup != null) ...[
+                    const SizedBox(height: 12),
+                    FilledButton.tonalIcon(
+                      onPressed: onImportBackup,
+                      icon: const Icon(Icons.download_outlined),
+                      label: Text(context.loc.import_playlists_and_settings),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        textStyle: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-            if (onImportBackup != null) ...[
-              const SizedBox(height: 12),
-              TextButton.icon(
-                onPressed: onImportBackup,
-                icon: const Icon(Icons.download_outlined),
-                label: Text(context.loc.import_playlists_and_settings),
-                style: TextButton.styleFrom(
-                  foregroundColor: colorScheme.primary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 10,
-                  ),
-                ),
-              ),
-            ],
           ],
         ),
       ),
