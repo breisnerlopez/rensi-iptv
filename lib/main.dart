@@ -10,6 +10,7 @@ import 'controllers/active_playlist_controller.dart';
 import 'l10n/app_localizations.dart';
 import 'l10n/supported_languages.dart';
 import 'utils/app_themes.dart';
+import 'utils/responsive_helper.dart';
 
 Future<void> main() async {
   await setupServiceLocator();
@@ -49,6 +50,19 @@ class MyApp extends StatelessWidget {
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
       themeMode: themeProvider.themeMode,
+      // TV-grade focus visuals (fat coloured borders + tinted overlays)
+      // only land on large screens / Android TV. Phones keep the stock
+      // Material 3 look so the heavier strokes never bleed into a touch
+      // UI that doesn't need them.
+      builder: (context, child) {
+        if (child == null) return const SizedBox.shrink();
+        if (!ResponsiveHelper.isDesktopOrTV(context)) return child;
+        final base = Theme.of(context);
+        return Theme(
+          data: AppThemes.applyTvOverrides(base),
+          child: child,
+        );
+      },
       home: AppInitializerScreen(),
       debugShowCheckedModeBanner: false,
     );

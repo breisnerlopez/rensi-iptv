@@ -5,33 +5,40 @@ class AppThemes {
   // (primary, secondary, tertiary, surface, error...) through ColorScheme.fromSeed.
   static const Color _seedColor = Color(0xFFD32F2F);
 
-  static final ThemeData lightTheme = _buildTheme(Brightness.light);
-  static final ThemeData darkTheme = _buildTheme(Brightness.dark);
+  /// Stock Material 3 theme for phones — kept intentionally minimal so
+  /// touch users see the framework defaults they're used to.
+  static final ThemeData lightTheme = _baseTheme(Brightness.light);
+  static final ThemeData darkTheme = _baseTheme(Brightness.dark);
 
-  static ThemeData _buildTheme(Brightness brightness) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: _seedColor,
-      brightness: brightness,
-    );
-    // On TV the user is 3 metres away with a D-pad; the stock Material 3
-    // focus indicator is a ~12% overlay that disappears at that distance.
-    // We pick a high-contrast accent for the focus ring and let every
-    // interactive widget render it as a fat border / overlay.
-    final focusRing = brightness == Brightness.dark
-        ? const Color(0xFFFFD54F) // amber 300 — pops on dark grey backgrounds
-        : scheme.primary;          // brand red — pops on cream backgrounds
-    final focusOverlay = focusRing.withValues(alpha: 0.32);
-
-    final base = ThemeData(
+  static ThemeData _baseTheme(Brightness brightness) {
+    return ThemeData(
       useMaterial3: true,
-      colorScheme: scheme,
-      brightness: brightness,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: _seedColor,
+        brightness: brightness,
+      ),
     );
+  }
+
+  /// Returns [base] augmented with TV-grade focus visuals: fat coloured
+  /// borders + tinted overlays on every interactive Material widget.
+  ///
+  /// Called from `MaterialApp.builder` for the screens that actually
+  /// need it (Android TV, large tablets in landscape, desktop), so a
+  /// phone user never sees the heavier strokes.
+  static ThemeData applyTvOverrides(ThemeData base) {
+    final scheme = base.colorScheme;
+    // On dark backgrounds amber 300 pops the most at 3 m viewing
+    // distance; on light backgrounds the brand red carries the same
+    // contrast against the cream-ish surface.
+    final focusRing = scheme.brightness == Brightness.dark
+        ? const Color(0xFFFFD54F)
+        : scheme.primary;
+    final focusOverlay = focusRing.withValues(alpha: 0.32);
 
     return base.copyWith(
       focusColor: focusOverlay,
 
-      // Buttons: thick coloured border + visible overlay when focused.
       filledButtonTheme: FilledButtonThemeData(
         style: _tvButtonStyle(focusRing, focusOverlay),
       ),
@@ -45,7 +52,6 @@ class AppThemes {
         style: _tvButtonStyle(focusRing, focusOverlay),
       ),
 
-      // IconButton: thick ring (border on the round shape) on focus.
       iconButtonTheme: IconButtonThemeData(
         style: ButtonStyle(
           overlayColor: WidgetStateProperty.resolveWith((states) {
@@ -61,25 +67,14 @@ class AppThemes {
         ),
       ),
 
-      // ListTile (settings, browser, sort sheet…): the focus overlay is
-      // supplied by ThemeData.focusColor above. selectedTileColor here
-      // adds a tinted background for the "is currently selected" state.
+      // ThemeData.focusColor already handles ListTile's focus overlay;
+      // selectedTileColor anchors the persistent "selected" state for
+      // settings groups and the sort sheet.
       listTileTheme: ListTileThemeData(
         selectedTileColor: focusRing.withValues(alpha: 0.18),
       ),
 
-      // Cards / InkWell wrappers (content cards, playlist tiles, etc.)
-      // share the theme-level focusColor we set above. cardTheme also
-      // wins us a focused border for the few places that use `Card`
-      // directly with no InkWell inside.
-      cardTheme: CardThemeData(
-        shape: RoundedRectangleBorder(
-          side: BorderSide(color: focusOverlay, width: 1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-
-      // Filter / sort chips show a visible ring around the active one.
+      // Filter / sort chips show a visible ring around the focused one.
       chipTheme: base.chipTheme.copyWith(
         side: WidgetStateBorderSide.resolveWith((states) {
           if (states.contains(WidgetState.focused)) {
@@ -89,8 +84,8 @@ class AppThemes {
         }),
       ),
 
-      // Plain text fields the user can land on with the remote get a
-      // thick focused border (was the stock 2px primary line).
+      // Thicker focused border so the keyboard target is unmistakable
+      // when the user lands on a text input via D-pad.
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
         focusedBorder: OutlineInputBorder(
           borderSide: BorderSide(color: focusRing, width: 3),
@@ -100,8 +95,6 @@ class AppThemes {
     );
   }
 
-  /// Shared button style: same look across Filled / Elevated / Outlined /
-  /// Text buttons — a fat ring + tinted overlay whenever focus lands.
   static ButtonStyle _tvButtonStyle(Color ring, Color overlay) {
     return ButtonStyle(
       overlayColor: WidgetStateProperty.resolveWith((states) {
