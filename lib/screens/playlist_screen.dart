@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/playlist_controller.dart';
 import '../../models/playlist_model.dart';
+import '../../services/backup_service.dart';
 import '../../utils/backup_import_flow.dart';
 import '../../widgets/playlist_card.dart';
 import '../../widgets/playlist_states.dart';
@@ -129,7 +130,45 @@ class _PlaylistScreenBody extends StatelessWidget {
     BuildContext context,
     PlaylistController controller,
   ) async {
-    final result = await runBackupImportFlow(context);
+    // Onboarding-style sheet: the user just installed the app and we
+    // can't assume they want a local file vs a hosted URL. Both are
+    // first-class entry points; settings keeps the two as separate
+    // tiles since users there usually know what they want.
+    final source = await showModalBottomSheet<_ImportSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.folder_open),
+                title: Text(sheetContext.loc.import_playlists_and_settings),
+                subtitle: Text(sheetContext.loc.import_subtitle),
+                onTap: () =>
+                    Navigator.pop(sheetContext, _ImportSource.file),
+              ),
+              ListTile(
+                leading: const Icon(Icons.link),
+                title: Text(sheetContext.loc.import_from_url),
+                subtitle: Text(sheetContext.loc.import_url_subtitle),
+                onTap: () => Navigator.pop(sheetContext, _ImportSource.url),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (source == null || !context.mounted) return;
+
+    final BackupImportResult? result;
+    if (source == _ImportSource.file) {
+      result = await runBackupImportFlow(context);
+    } else {
+      // ignore: use_build_context_synchronously
+      result = await runBackupImportFromUrlFlow(context);
+    }
     if (result != null && result.total > 0 && context.mounted) {
       await controller.loadPlaylists(context);
     }
@@ -163,6 +202,8 @@ class _PlaylistScreenBody extends StatelessWidget {
     );
   }
 }
+
+enum _ImportSource { file, url }
 
 class _DeletePlaylistDialog extends StatelessWidget {
   final Playlist playlist;
