@@ -5,6 +5,12 @@ on:
     tags:
       - 'v*'
 
+# Default workflow token can't touch the Releases API without an
+# explicit contents:write grant — without this the create-release job
+# bails with a 403 and every other job ends up skipped.
+permissions:
+  contents: write
+
 jobs:
   create-release:
     runs-on: ubuntu-latest
