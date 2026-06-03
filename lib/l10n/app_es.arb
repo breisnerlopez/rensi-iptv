@@ -476,5 +476,8 @@
   "file_browser_permission_denied": "El permiso de almacenamiento fue denegado. Otórgalo desde ajustes del sistema para explorar archivos.",
   "file_browser_unreadable": "No se puede leer esta carpeta.",
   "file_browser_no_roots": "No se encontró almacenamiento accesible en este dispositivo.",
-  "file_browser_empty": "No hay archivos compatibles en esta carpeta."
+  "file_browser_empty": "No hay archivos compatibles en esta carpeta.",
+  "exit_confirm_title": "¿Salir de la app?",
+  "exit_confirm_message": "Estás a punto de salir de Rensi IPTV.",
+  "exit_confirm_action": "Salir"
 }

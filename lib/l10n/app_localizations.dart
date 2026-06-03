@@ -2261,6 +2261,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No matching files in this folder.'**
   String get file_browser_empty;
+
+  /// No description provided for @exit_confirm_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit the app?'**
+  String get exit_confirm_title;
+
+  /// No description provided for @exit_confirm_message.
+  ///
+  /// In en, this message translates to:
+  /// **'You are about to leave Rensi IPTV.'**
+  String get exit_confirm_message;
+
+  /// No description provided for @exit_confirm_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit'**
+  String get exit_confirm_action;
 }
 
 class _AppLocalizationsDelegate

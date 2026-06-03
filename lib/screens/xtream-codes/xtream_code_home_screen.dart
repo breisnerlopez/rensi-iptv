@@ -15,6 +15,7 @@ import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/category_section.dart';
+import 'package:rensi_iptv/widgets/confirm_exit_scope.dart';
 import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
 import '../../models/content_type.dart';
 
@@ -94,13 +95,15 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     if (controller.isLoading) {
       return _buildLoadingScreen(context);
     }
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth >= _desktopBreakpoint) {
-          return _buildDesktopLayout(context, controller, constraints);
-        }
-        return _buildMobileLayout(context, controller);
-      },
+    return ConfirmExitScope(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= _desktopBreakpoint) {
+            return _buildDesktopLayout(context, controller, constraints);
+          }
+          return _buildMobileLayout(context, controller);
+        },
+      ),
     );
   }
 
@@ -134,11 +137,20 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     XtreamCodeHomeController controller,
     BoxConstraints constraints,
   ) {
+    // Each column is its own FocusTraversalGroup so D-pad left/right
+    // resolves the next focusable item in the *other* column (the
+    // navigation rail or the page) without falling off the screen.
     return Scaffold(
       body: Row(
         children: [
-          _buildDesktopNavigationBar(context, controller, constraints),
-          Expanded(child: _buildPageView(controller)),
+          FocusTraversalGroup(
+            child: _buildDesktopNavigationBar(context, controller, constraints),
+          ),
+          Expanded(
+            child: FocusTraversalGroup(
+              child: _buildPageView(controller),
+            ),
+          ),
         ],
       ),
     );

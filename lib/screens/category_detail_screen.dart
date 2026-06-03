@@ -127,6 +127,7 @@ class _CategoryDetailViewState extends State<_CategoryDetailView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
+                autofocus: true,
                 title: const Text('A → Z'),
                 onTap: () {
                   controller.sortItems("ascending");

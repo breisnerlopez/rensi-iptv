@@ -476,5 +476,8 @@
   "file_browser_permission_denied": "تم رفض إذن التخزين. امنحه من إعدادات النظام لتصفح الملفات.",
   "file_browser_unreadable": "لا يمكن قراءة هذا المجلد.",
   "file_browser_no_roots": "لم يتم العثور على تخزين قابل للوصول على هذا الجهاز.",
-  "file_browser_empty": "لا توجد ملفات متوافقة في هذا المجلد."
+  "file_browser_empty": "لا توجد ملفات متوافقة في هذا المجلد.",
+  "exit_confirm_title": "هل تريد الخروج من التطبيق؟",
+  "exit_confirm_message": "أنت على وشك الخروج من Rensi IPTV.",
+  "exit_confirm_action": "خروج"
 }

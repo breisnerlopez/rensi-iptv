@@ -1146,4 +1146,13 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get file_browser_empty => '此文件夹中无匹配文件。';
+
+  @override
+  String get exit_confirm_title => '退出应用？';
+
+  @override
+  String get exit_confirm_message => '您即将退出 Rensi IPTV。';
+
+  @override
+  String get exit_confirm_action => '退出';
 }

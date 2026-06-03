@@ -1187,4 +1187,13 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get file_browser_empty =>
       'इस फ़ोल्डर में कोई मेल खाने वाली फ़ाइल नहीं।';
+
+  @override
+  String get exit_confirm_title => 'क्या आप ऐप से बाहर जाना चाहते हैं?';
+
+  @override
+  String get exit_confirm_message => 'आप Rensi IPTV से बाहर जाने वाले हैं।';
+
+  @override
+  String get exit_confirm_action => 'बाहर जाएँ';
 }

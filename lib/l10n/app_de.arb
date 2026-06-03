@@ -476,5 +476,8 @@
   "file_browser_permission_denied": "Speicherberechtigung verweigert. Erteile sie in den Systemeinstellungen, um Dateien zu durchsuchen.",
   "file_browser_unreadable": "Dieser Ordner ist nicht lesbar.",
   "file_browser_no_roots": "Kein zugänglicher Speicher auf diesem Gerät gefunden.",
-  "file_browser_empty": "Keine passenden Dateien in diesem Ordner."
+  "file_browser_empty": "Keine passenden Dateien in diesem Ordner.",
+  "exit_confirm_title": "App beenden?",
+  "exit_confirm_message": "Du verlässt Rensi IPTV.",
+  "exit_confirm_action": "Beenden"
 }

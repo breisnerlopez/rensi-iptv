@@ -476,5 +476,8 @@
   "file_browser_permission_denied": "Depolama izni reddedildi. Dosyalara göz atmak için sistem ayarlarından izin verin.",
   "file_browser_unreadable": "Bu klasör okunamıyor.",
   "file_browser_no_roots": "Bu cihazda erişilebilir depolama bulunamadı.",
-  "file_browser_empty": "Bu klasörde uyumlu dosya yok."
+  "file_browser_empty": "Bu klasörde uyumlu dosya yok.",
+  "exit_confirm_title": "Uygulamadan çıkılsın mı?",
+  "exit_confirm_message": "Rensi IPTV'den çıkmak üzeresiniz.",
+  "exit_confirm_action": "Çık"
 }

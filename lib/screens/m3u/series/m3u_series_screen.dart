@@ -448,7 +448,10 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
                         itemCount: filteredEpisodes.length,
                         itemBuilder: (context, index) {
                           final episode = filteredEpisodes[index];
-                          return _buildEpisodeCard(episode);
+                          return _buildEpisodeCard(
+                            episode,
+                            autofocus: index == 0,
+                          );
                         },
                       );
                     },
@@ -462,7 +465,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
     );
   }
 
-  Widget _buildEpisodeCard(M3uEpisode episode) {
+  Widget _buildEpisodeCard(M3uEpisode episode, {bool autofocus = false}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -471,6 +474,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
         border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
       ),
       child: InkWell(
+        autofocus: autofocus,
         borderRadius: BorderRadius.circular(12),
         onTap: () async {
           Navigator.pop(context);

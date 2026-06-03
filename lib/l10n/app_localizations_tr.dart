@@ -1187,4 +1187,13 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get file_browser_empty => 'Bu klasörde uyumlu dosya yok.';
+
+  @override
+  String get exit_confirm_title => 'Uygulamadan çıkılsın mı?';
+
+  @override
+  String get exit_confirm_message => 'Rensi IPTV\'den çıkmak üzeresiniz.';
+
+  @override
+  String get exit_confirm_action => 'Çık';
 }

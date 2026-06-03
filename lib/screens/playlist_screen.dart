@@ -5,6 +5,7 @@ import '../../controllers/playlist_controller.dart';
 import '../../models/playlist_model.dart';
 import '../../services/backup_service.dart';
 import '../../utils/backup_import_flow.dart';
+import '../../widgets/confirm_exit_scope.dart';
 import '../../widgets/playlist_card.dart';
 import '../../widgets/playlist_states.dart';
 import 'playlist_type_screen.dart';
@@ -33,13 +34,15 @@ class _PlaylistScreenBody extends StatelessWidget {
       _initializePlaylistsIfNeeded(context);
     });
 
-    return Scaffold(
-      appBar: _buildAppBar(context),
-      body: Consumer<PlaylistController>(
-        builder: (context, controller, child) =>
-            _buildBodyFromState(context, controller),
+    return ConfirmExitScope(
+      child: Scaffold(
+        appBar: _buildAppBar(context),
+        body: Consumer<PlaylistController>(
+          builder: (context, controller, child) =>
+              _buildBodyFromState(context, controller),
+        ),
+        floatingActionButton: _buildFloatingActionButton(context),
       ),
-      floatingActionButton: _buildFloatingActionButton(context),
     );
   }
 
@@ -143,6 +146,7 @@ class _PlaylistScreenBody extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
+                autofocus: true,
                 leading: const Icon(Icons.folder_open),
                 title: Text(sheetContext.loc.import_playlists_and_settings),
                 subtitle: Text(sheetContext.loc.import_subtitle),

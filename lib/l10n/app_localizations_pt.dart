@@ -1195,4 +1195,13 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get file_browser_empty => 'Nenhum arquivo compatível nesta pasta.';
+
+  @override
+  String get exit_confirm_title => 'Sair do aplicativo?';
+
+  @override
+  String get exit_confirm_message => 'Você está prestes a sair do Rensi IPTV.';
+
+  @override
+  String get exit_confirm_action => 'Sair';
 }

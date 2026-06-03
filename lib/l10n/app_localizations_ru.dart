@@ -1189,4 +1189,13 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get file_browser_empty => 'В этой папке нет совместимых файлов.';
+
+  @override
+  String get exit_confirm_title => 'Выйти из приложения?';
+
+  @override
+  String get exit_confirm_message => 'Вы собираетесь выйти из Rensi IPTV.';
+
+  @override
+  String get exit_confirm_action => 'Выйти';
 }

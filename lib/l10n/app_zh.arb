@@ -476,5 +476,8 @@
   "file_browser_permission_denied": "存储权限被拒绝。请在系统设置中授予以浏览文件。",
   "file_browser_unreadable": "此文件夹不可读。",
   "file_browser_no_roots": "在此设备上未找到可访问的存储。",
-  "file_browser_empty": "此文件夹中无匹配文件。"
+  "file_browser_empty": "此文件夹中无匹配文件。",
+  "exit_confirm_title": "退出应用？",
+  "exit_confirm_message": "您即将退出 Rensi IPTV。",
+  "exit_confirm_action": "退出"
 }
