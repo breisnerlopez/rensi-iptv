@@ -130,7 +130,8 @@ jobs:
             clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev \
             libasound2-dev libpulse-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
             libunwind-dev libmpv-dev mpv libavcodec-dev libavformat-dev libavutil-dev \
-            libswscale-dev libavfilter-dev libavdevice-dev libswresample-dev
+            libswscale-dev libavfilter-dev libavdevice-dev libswresample-dev \
+            libsecret-1-dev libjsoncpp-dev libsqlite3-dev
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.35.7'
@@ -156,6 +157,8 @@ jobs:
   build-android:
     needs: create-release
     runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Java
@@ -171,47 +174,78 @@ jobs:
         run: flutter pub get
       - name: Generate files
         run: flutter packages pub run build_runner build --delete-conflicting-outputs
-      - name: Build Android APK
-        run: flutter build apk --build-name=releaseUnsigned
-      - name: Rename APK to standard format
-        run: cp build/app/outputs/flutter-apk/app-release.apk rensi-iptv-android-${{ github.ref_name }}.apk
-      - name: Upload Android Asset
+      - name: Decode release keystore
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/keystore.jks
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=../keystore.jks
+          EOF
+      - name: Build Android APKs (split per ABI)
+        run: flutter build apk --release --split-per-abi
+      - name: Build Android App Bundle
+        run: flutter build appbundle --release
+      - name: Rename release assets
+        run: |
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            cp build/app/outputs/flutter-apk/app-${abi}-release.apk \
+               rensi-iptv-android-${abi}-${{ github.ref_name }}.apk
+          done
+          cp build/app/outputs/bundle/release/app-release.aab \
+             rensi-iptv-android-${{ github.ref_name }}.aab
+      - name: Remove signing material
+        if: always()
+        run: rm -f android/keystore.jks android/key.properties
+      - name: Upload Android Release Assets
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
-          artifacts: rensi-iptv-android-${{ github.ref_name }}.apk
+          artifacts: rensi-iptv-android-*-${{ github.ref_name }}.apk,rensi-iptv-android-${{ github.ref_name }}.aab
           allowUpdates: true
           omitBodyDuringUpdate: true
           omitNameDuringUpdate: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  build-ios:
-    needs: create-release
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.35.7'
-          channel: 'stable'
-      - name: Install dependencies
-        run: flutter pub get
-      - name: Generate files
-        run: flutter packages pub run build_runner build --delete-conflicting-outputs
-      - name: Install CocoaPods
-        run: sudo gem install cocoapods
-      - name: Install iOS dependencies
-        run: cd ios && pod install
-      - name: Build iOS
-        run: flutter build ios --no-codesign
-      - name: Create iOS Archive
-        run: |
-          cd build/ios/iphoneos
-          zip -r ../../../rensi-iptv-ios-${{ github.ref_name }}.zip .
-      - name: Upload iOS Release Asset
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ github.ref_name }}
-          artifacts: rensi-iptv-ios-${{ github.ref_name }}.zip
-          allowUpdates: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+# build-ios is parked until codesign secrets land. flutter build ios
+# --no-codesign succeeds but the .app shipped from a non-signed archive
+# can't be installed on a real device, so publishing it as a release
+# asset is misleading. Restore this job once the signing cert and
+# provisioning profile are stored as repo secrets and the pod install
+# step has them mounted.
+#  build-ios:
+#    needs: create-release
+#    runs-on: macos-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: subosito/flutter-action@v2
+#        with:
+#          flutter-version: '3.35.7'
+#          channel: 'stable'
+#      - name: Install dependencies
+#        run: flutter pub get
+#      - name: Generate files
+#        run: flutter packages pub run build_runner build --delete-conflicting-outputs
+#      - name: Install CocoaPods
+#        run: sudo gem install cocoapods
+#      - name: Install iOS dependencies
+#        run: cd ios && pod install
+#      - name: Build iOS
+#        run: flutter build ios --no-codesign
+#      - name: Create iOS Archive
+#        run: |
+#          cd build/ios/iphoneos
+#          zip -r ../../../rensi-iptv-ios-${{ github.ref_name }}.zip .
+#      - name: Upload iOS Release Asset
+#        uses: ncipollo/release-action@v1
+#        with:
+#          tag: ${{ github.ref_name }}
+#          artifacts: rensi-iptv-ios-${{ github.ref_name }}.zip
+#          allowUpdates: true
+#          token: ${{ secrets.GITHUB_TOKEN }}
