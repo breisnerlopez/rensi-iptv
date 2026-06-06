@@ -5,6 +5,7 @@ import 'package:rensi_iptv/models/category_type.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/repositories/favorites_repository.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 
@@ -236,6 +237,22 @@ class _Hero extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                  ),
+                  child: const Text('★ DESTACADO HOY',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                          color: Colors.white)),
+                ),
                 Text(
                   item.name,
                   maxLines: 2,
@@ -271,6 +288,8 @@ class _Hero extends StatelessWidget {
                     ),
                     const SizedBox(width: 10),
                     _GlassBtn(icon: Icons.info_outline, onTap: () => onOpen(item)),
+                    const SizedBox(width: 10),
+                    _FavBtn(item: item),
                   ],
                 ),
               ],
@@ -312,6 +331,41 @@ class _HeroMeta extends StatelessWidget {
       spacing: 12,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: parts,
+    );
+  }
+}
+
+class _FavBtn extends StatefulWidget {
+  const _FavBtn({required this.item});
+  final ContentItem item;
+  @override
+  State<_FavBtn> createState() => _FavBtnState();
+}
+
+class _FavBtnState extends State<_FavBtn> {
+  final _repo = FavoritesRepository();
+  bool _saved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _repo
+        .isFavorite(widget.item.id, widget.item.contentType)
+        .then((v) {
+      if (mounted) setState(() => _saved = v);
+    });
+  }
+
+  Future<void> _toggle() async {
+    final now = await _repo.toggleFavorite(widget.item);
+    if (mounted) setState(() => _saved = now);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassBtn(
+      icon: _saved ? Icons.check : Icons.add,
+      onTap: _toggle,
     );
   }
 }
