@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/models/all_category_sentinel.dart';
+import 'package:rensi_iptv/models/category_type.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
@@ -27,6 +29,20 @@ class RedesignHome extends StatelessWidget {
   final void Function(ContentItem) onPlay;
   final VoidCallback? onSearch;
   final VoidCallback? onSettings;
+
+  static String _railTitle(BuildContext context, CategoryViewModel c) {
+    if (!isAllCategorySentinel(c.category.categoryId)) {
+      return c.category.categoryName;
+    }
+    switch (c.category.type) {
+      case CategoryType.vod:
+        return context.loc.view_all_movies;
+      case CategoryType.series:
+        return context.loc.view_all_series;
+      case CategoryType.live:
+        return context.loc.view_all_live;
+    }
+  }
 
   ContentItem? get _hero {
     for (final c in movieCategories) {
@@ -57,7 +73,7 @@ class RedesignHome extends StatelessWidget {
       for (final c in cats) {
         if (c.contentItems.isEmpty) continue;
         rails
-          ..add(SectionHeader(title: c.category.categoryName))
+          ..add(SectionHeader(title: _railTitle(context, c)))
           ..add(RensiRail(
             children: [
               for (final it in c.contentItems.take(18))
@@ -232,6 +248,8 @@ class _Hero extends StatelessWidget {
                     color: Colors.white,
                   ),
                 ),
+                const SizedBox(height: 10),
+                _HeroMeta(item: item),
                 const SizedBox(height: 14),
                 Row(
                   children: [
@@ -260,6 +278,40 @@ class _Hero extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _HeroMeta extends StatelessWidget {
+  const _HeroMeta({required this.item});
+  final ContentItem item;
+  @override
+  Widget build(BuildContext context) {
+    final r = rensi(context);
+    final rating = item.vodStream?.rating ?? item.seriesStream?.rating;
+    final genre = item.vodStream?.genre ?? item.seriesStream?.genre;
+    final hasRating = rating != null && rating.isNotEmpty && rating != '0';
+    final parts = <Widget>[];
+    if (hasRating) {
+      parts.add(Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(Icons.star_rounded, size: 16, color: r.gold),
+        const SizedBox(width: 4),
+        Text(rating,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600)),
+      ]));
+    }
+    if (genre != null && genre.isNotEmpty) {
+      parts.add(Text(genre.split(',').first.trim(),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13)));
+    }
+    if (parts.isEmpty) return const SizedBox.shrink();
+    return Wrap(
+      spacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: parts,
     );
   }
 }
