@@ -1,20 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:rensi_iptv/models/category_view_model.dart';
+import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/services/service_locator.dart';
 
-/// Full-screen catalogue search (redesign). Searches titles across the
-/// movie + series categories locally — no TMDb key required.
+/// Full-screen global search (redesign). Queries the local catalogue in the
+/// database across live + movies + series — not just the loaded categories —
+/// so it returns the complete set of matches for the current playlist.
 class SearchRedesign extends StatefulWidget {
-  const SearchRedesign({
-    super.key,
-    required this.movieCategories,
-    required this.seriesCategories,
-    required this.onOpen,
-  });
-
-  final List<CategoryViewModel> movieCategories;
-  final List<CategoryViewModel> seriesCategories;
+  const SearchRedesign({super.key, required this.onOpen});
   final void Function(ContentItem) onOpen;
 
   @override
@@ -24,36 +21,118 @@ class SearchRedesign extends StatefulWidget {
 class _SearchRedesignState extends State<SearchRedesign> {
   final _controller = TextEditingController();
   final _focus = FocusNode();
+  final _db = getIt<AppDatabase>();
+  Timer? _debounce;
   String _query = '';
-  late final List<ContentItem> _all;
+  bool _loading = false;
+  List<ContentItem> _results = const [];
 
   @override
   void initState() {
     super.initState();
-    final seen = <String>{};
-    _all = [
-      for (final c in [...widget.movieCategories, ...widget.seriesCategories])
-        for (final it in c.contentItems)
-          if (seen.add(it.id)) it,
-    ];
     WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  void _onChanged(String v) {
+    setState(() => _query = v);
+    _debounce?.cancel();
+    final q = v.trim();
+    if (q.length < 2) {
+      setState(() {
+        _results = const [];
+        _loading = false;
+      });
+      return;
+    }
+    setState(() => _loading = true);
+    _debounce = Timer(const Duration(milliseconds: 300), () => _run(q));
+  }
+
+  Future<void> _run(String q) async {
+    final pid = AppState.currentPlaylist?.id;
+    if (pid == null) return;
+    try {
+      final results = await Future.wait([
+        _db.searchMovieBroad(pid, q),
+        _db.searchSeriesBroad(pid, q),
+        _db.searchLiveStreams(pid, q),
+      ]);
+      final movies = results[0] as List;
+      final series = results[1] as List;
+      final live = results[2] as List;
+      final out = <ContentItem>[
+        for (final v in movies)
+          ContentItem(v.streamId, v.name, v.streamIcon, ContentType.vod,
+              vodStream: v, containerExtension: v.containerExtension),
+        for (final s in series)
+          ContentItem(s.seriesId, s.name, s.cover ?? '', ContentType.series,
+              seriesStream: s),
+        for (final l in live)
+          ContentItem(l.streamId, l.name, l.streamIcon, ContentType.liveStream,
+              liveStream: l),
+      ];
+      if (mounted && _query.trim() == q) {
+        setState(() {
+          _results = out;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
     final cross = MediaQuery.of(context).size.width >= 900 ? 6 : 3;
-    final q = _query.trim().toLowerCase();
-    final results = q.isEmpty
-        ? const <ContentItem>[]
-        : _all.where((it) => it.name.toLowerCase().contains(q)).take(60).toList();
+    final q = _query.trim();
+
+    Widget body;
+    if (q.length < 2) {
+      body = Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search, size: 56, color: r.surface3),
+            const SizedBox(height: 12),
+            Text('Busca en todo tu catálogo',
+                style: TextStyle(color: r.text3, fontSize: 14)),
+          ],
+        ),
+      );
+    } else if (_loading && _results.isEmpty) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_results.isEmpty) {
+      body = Center(
+        child: Text('Sin resultados para "$q"',
+            style: TextStyle(color: r.text3)),
+      );
+    } else {
+      body = GridView.builder(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: cross,
+          childAspectRatio: 1 / 1.48,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        itemCount: _results.length,
+        itemBuilder: (_, i) => RensiPoster(
+          item: _results[i],
+          width: double.infinity,
+          onTap: () => widget.onOpen(_results[i]),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -86,19 +165,19 @@ class _SearchRedesignState extends State<SearchRedesign> {
                               focusNode: _focus,
                               autofocus: true,
                               textInputAction: TextInputAction.search,
-                              onChanged: (v) => setState(() => _query = v),
+                              onChanged: _onChanged,
                               decoration: const InputDecoration(
                                 border: InputBorder.none,
                                 isCollapsed: true,
-                                hintText: 'Buscar películas, series…',
+                                hintText: 'Buscar películas, series, canales…',
                               ),
                             ),
                           ),
-                          if (_query.isNotEmpty)
+                          if (q.isNotEmpty)
                             GestureDetector(
                               onTap: () {
                                 _controller.clear();
-                                setState(() => _query = '');
+                                _onChanged('');
                               },
                               child: Icon(Icons.close, size: 18, color: r.text3),
                             ),
@@ -109,39 +188,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
                 ],
               ),
             ),
-            Expanded(
-              child: q.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.search, size: 56, color: r.surface3),
-                          const SizedBox(height: 12),
-                          Text('Busca en tu catálogo',
-                              style: TextStyle(color: r.text3, fontSize: 14)),
-                        ],
-                      ),
-                    )
-                  : results.isEmpty
-                      ? Center(
-                          child: Text('Sin resultados para "${_query.trim()}"',
-                              style: TextStyle(color: r.text3)))
-                      : GridView.builder(
-                          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: cross,
-                            childAspectRatio: 1 / 1.48,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                          ),
-                          itemCount: results.length,
-                          itemBuilder: (_, i) => RensiPoster(
-                            item: results[i],
-                            width: double.infinity,
-                            onTap: () => widget.onOpen(results[i]),
-                          ),
-                        ),
-            ),
+            Expanded(child: body),
           ],
         ),
       ),
