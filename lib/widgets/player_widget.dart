@@ -102,7 +102,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // ----------------------------------------
 
     PlayerState.title = widget.contentItem.name;
-    _player = Player(configuration: PlayerConfiguration());
+    // Bigger packet buffer smooths out network jitter on TV boxes.
+    _player = Player(
+      configuration: const PlayerConfiguration(bufferSize: 64 * 1024 * 1024),
+    );
+    _tuneForPerformance();
     watchHistoryService = WatchHistoryService();
 
     super.initState();
@@ -678,6 +682,23 @@ class _PlayerWidgetState extends State<PlayerWidget>
     final hay = '${lang ?? ''} ${title ?? ''}'.toLowerCase();
     final syns = _langSynonyms[pref] ?? [pref.toLowerCase()];
     return syns.any((s) => hay.contains(s));
+  }
+
+  /// Enable hardware video decoding + a healthy network cache so playback
+  /// is smooth on low-power Android TV boxes (libmpv via media_kit).
+  Future<void> _tuneForPerformance() async {
+    final platform = _player.platform;
+    if (platform is NativePlayer) {
+      try {
+        await platform.setProperty('hwdec', 'auto-safe');
+        await platform.setProperty('cache', 'yes');
+        await platform.setProperty('demuxer-max-bytes', '64MiB');
+        await platform.setProperty('demuxer-max-back-bytes', '32MiB');
+        await platform.setProperty('demuxer-readahead-secs', '20');
+      } catch (_) {
+        // Best-effort; defaults are fine if a property is unsupported.
+      }
+    }
   }
 
   void _showSeekFeedback(Duration pos, Duration dur) {
