@@ -21,6 +21,7 @@ import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/redesign/home_redesign.dart';
 import 'package:rensi_iptv/redesign/browse_redesign.dart';
 import 'package:rensi_iptv/redesign/list_redesign.dart';
+import 'package:rensi_iptv/redesign/live_redesign.dart';
 import '../../models/content_type.dart';
 
 class XtreamCodeHomeScreen extends StatefulWidget {
@@ -200,10 +201,9 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         onOpen: (it) => navigateByContentType(context, it),
         onSearch: _openGlobalSearch,
       ),
-      _buildContentPage(
-        controller.liveCategories!,
-        ContentType.liveStream,
-        controller,
+      LiveRedesign(
+        liveCategories: controller.liveCategories!,
+        onPlay: (it) => navigateByContentType(context, it),
       ),
       ListRedesign(onOpen: (it) => navigateByContentType(context, it)),
       XtreamCodePlaylistSettingsScreen(playlist: widget.playlist),
