@@ -212,7 +212,10 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         liveCategories: controller.liveCategories!,
         onPlay: (it) => navigateByContentType(context, it),
       ),
-      ListRedesign(onOpen: (it) => navigateByContentType(context, it)),
+      ListRedesign(
+        key: ValueKey('milista_${controller.currentIndex == 3}'),
+        onOpen: (it) => navigateByContentType(context, it),
+      ),
       XtreamCodePlaylistSettingsScreen(playlist: widget.playlist),
     ];
   }

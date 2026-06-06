@@ -201,7 +201,10 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
         liveCategories: controller.liveCategories ?? const [],
         onPlay: (it) => navigateByContentType(context, it),
       ),
-      ListRedesign(onOpen: (it) => navigateByContentType(context, it)),
+      ListRedesign(
+        key: ValueKey('milista_${controller.currentIndex == 3}'),
+        onOpen: (it) => navigateByContentType(context, it),
+      ),
       M3uPlaylistSettingsScreen(playlist: widget.playlist),
     ];
   }
