@@ -28,6 +28,7 @@ class ContentGrid extends StatelessWidget {
       itemBuilder: (context, index) => ContentCard(
         content: items[index],
         width: 150,
+        autofocus: index == 0,
         onTap: () => onItemTap(items[index]),
       ),
     );

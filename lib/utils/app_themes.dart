@@ -39,11 +39,14 @@ class AppThemes {
     return base.copyWith(
       focusColor: focusOverlay,
 
+      // Filled / elevated buttons paint a *primary* fill, so a primary-coloured
+      // focus ring would be red-on-red (invisible) in the light theme. Use the
+      // on-primary colour instead so the ring always contrasts the fill.
       filledButtonTheme: FilledButtonThemeData(
-        style: _tvButtonStyle(focusRing, focusOverlay),
+        style: _tvButtonStyle(scheme.onPrimary, focusOverlay),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: _tvButtonStyle(focusRing, focusOverlay),
+        style: _tvButtonStyle(scheme.onPrimary, focusOverlay),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: _tvButtonStyle(focusRing, focusOverlay),

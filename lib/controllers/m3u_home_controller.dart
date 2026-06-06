@@ -47,7 +47,7 @@ class M3UHomeController extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
 
-  M3UHomeController({int initialIndex = 2}) {
+  M3UHomeController({int initialIndex = 1}) {
     _pageController = PageController();
     _currentIndex = initialIndex.clamp(0, 3);
     _loadM3uItems();

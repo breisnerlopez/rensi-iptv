@@ -130,7 +130,9 @@ class _ContentItemCardWidgetState extends State<ContentItemCardWidget> {
                         widget.onContentTap?.call(widget.contentItems[index]);
                       },
                       isSelected: selectedIndex == index,
-                      key: widget.key,
+                      key: ValueKey(
+                        'content_${widget.contentItems[index].id}_$index',
+                      ),
                     ),
                   );
                 },
@@ -153,8 +155,9 @@ class _ContentItemCardWidgetState extends State<ContentItemCardWidget> {
                       widget.onContentTap?.call(widget.contentItems[index]);
                     },
                     isSelected: selectedIndex == index,
-                    key: widget.key,
-
+                    key: ValueKey(
+                      'content_${widget.contentItems[index].id}_$index',
+                    ),
                   ),
                 );
               },

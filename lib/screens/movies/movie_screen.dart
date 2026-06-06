@@ -765,6 +765,7 @@ class _MovieScreenState extends State<MovieScreen> {
     children.add(
       ElevatedButton.icon(
         onPressed: _openPlayer,
+        autofocus: true,
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           backgroundColor: theme.colorScheme.primary,

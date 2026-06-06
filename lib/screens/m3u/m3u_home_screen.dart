@@ -14,6 +14,7 @@ import 'package:rensi_iptv/widgets/category_section.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
+import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 
 import '../../services/app_state.dart';
 import '../watch_history_screen.dart';
@@ -25,7 +26,7 @@ class M3UHomeScreen extends StatefulWidget {
   const M3UHomeScreen({
     super.key,
     required this.playlist,
-    this.initialIndex = 2,
+    this.initialIndex = 1,
   });
 
   @override
@@ -143,9 +144,20 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
   }
 
   Widget _buildPageView(M3UHomeController controller) {
+    final pages = _buildPages(controller);
+    // IndexedStack keeps every page mounted (so state survives tab switches),
+    // but the off-screen pages stay in the focus tree — on TV the D-pad can
+    // then jump focus into an invisible page and "disappear". ExcludeFocus
+    // pulls the hidden pages out of traversal so focus stays on screen.
     return IndexedStack(
       index: controller.currentIndex,
-      children: _buildPages(controller),
+      children: [
+        for (int i = 0; i < pages.length; i++)
+          ExcludeFocus(
+            excluding: i != controller.currentIndex,
+            child: pages[i],
+          ),
+      ],
     );
   }
 
@@ -325,7 +337,9 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     NavigationSizes sizes,
     VoidCallback onTap,
   ) {
-    return Container(
+    return FocusHighlight(
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
       width: double.infinity,
       height: sizes.itemHeight,
       margin: const EdgeInsets.symmetric(vertical: 2),
@@ -336,6 +350,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       ),
       child: InkWell(
         onTap: onTap,
+        autofocus: isSelected,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -356,6 +371,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -403,7 +419,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       NavigationItem(icon: Icons.all_inbox, label: context.loc.all, index: 1),
       NavigationItem(
         icon: Icons.search,
-        label: context.loc.tmdb_global_search,
+        label: context.loc.search,
         index: 2,
       ),
       NavigationItem(

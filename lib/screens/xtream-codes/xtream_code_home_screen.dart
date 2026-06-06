@@ -17,6 +17,7 @@ import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/category_section.dart';
 import 'package:rensi_iptv/widgets/confirm_exit_scope.dart';
 import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
+import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import '../../models/content_type.dart';
 
 class XtreamCodeHomeScreen extends StatefulWidget {
@@ -26,7 +27,7 @@ class XtreamCodeHomeScreen extends StatefulWidget {
   const XtreamCodeHomeScreen({
     super.key,
     required this.playlist,
-    this.initialIndex = 4,
+    this.initialIndex = 1,
   });
 
   @override
@@ -45,7 +46,6 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   static const double _largeIconSize = 28.0;
   static const double _defaultFontSize = 10.0;
   static const double _largeFontSize = 11.0;
-  int? _hoveredIndex;
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -157,9 +157,20 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   }
 
   Widget _buildPageView(XtreamCodeHomeController controller) {
+    final pages = _buildPages(controller);
+    // IndexedStack keeps every page mounted (so state survives tab switches),
+    // but the off-screen pages stay in the focus tree — on TV the D-pad can
+    // then jump focus into an invisible page and "disappear". ExcludeFocus
+    // pulls the hidden pages out of traversal so focus stays on screen.
     return IndexedStack(
       index: controller.currentIndex,
-      children: _buildPages(controller),
+      children: [
+        for (int i = 0; i < pages.length; i++)
+          ExcludeFocus(
+            excluding: i != controller.currentIndex,
+            child: pages[i],
+          ),
+      ],
     );
   }
 
@@ -385,23 +396,22 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     NavigationSizes sizes,
     VoidCallback onTap,
   ) {
-    return Focus(
-      onFocusChange: (hasFocus) {
-        setState(() => _hoveredIndex = hasFocus ? item.index : null);
-      },
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          height: sizes.itemHeight,
-          margin: const EdgeInsets.symmetric(vertical: 2),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? Theme.of(context).colorScheme.primaryContainer
-                : (_hoveredIndex == item.index
-                      ? Colors.grey.withOpacity(0.2)
-                      : Colors.transparent),
-          ),
+    // InkWell (not GestureDetector) so D-pad OK/Enter actually activates the
+    // rail item — a bare GestureDetector takes focus but ignores key events.
+    return FocusHighlight(
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: double.infinity,
+        height: sizes.itemHeight,
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Theme.of(context).colorScheme.primaryContainer
+              : Colors.transparent,
+        ),
+        child: InkWell(
+          onTap: onTap,
+          autofocus: isSelected,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -479,7 +489,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       ),
       NavigationItem(
         icon: Icons.search,
-        label: context.loc.tmdb_global_search,
+        label: context.loc.search,
         index: 4,
       ),
       NavigationItem(
