@@ -19,6 +19,7 @@ import 'package:rensi_iptv/redesign/home_redesign.dart';
 import 'package:rensi_iptv/redesign/browse_redesign.dart';
 import 'package:rensi_iptv/redesign/live_redesign.dart';
 import 'package:rensi_iptv/redesign/list_redesign.dart';
+import 'package:rensi_iptv/redesign/search_redesign.dart';
 
 import '../../services/app_state.dart';
 import '../watch_history_screen.dart';
@@ -165,9 +166,15 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     );
   }
 
-  void _openGlobalSearch() {
+  void _openSearch(M3UHomeController controller) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+      MaterialPageRoute(
+        builder: (_) => SearchRedesign(
+          movieCategories: controller.vodCategories ?? const [],
+          seriesCategories: controller.seriesCategories ?? const [],
+          onOpen: (it) => navigateByContentType(context, it),
+        ),
+      ),
     );
   }
 
@@ -181,14 +188,14 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
         seriesCategories: seriesCats,
         onOpen: (it) => navigateByContentType(context, it),
         onPlay: (it) => navigateByContentType(context, it),
-        onSearch: _openGlobalSearch,
+        onSearch: () => _openSearch(controller),
         onSettings: () => controller.onNavigationTap(4),
       ),
       BrowseRedesign(
         movieCategories: movieCats,
         seriesCategories: seriesCats,
         onOpen: (it) => navigateByContentType(context, it),
-        onSearch: _openGlobalSearch,
+        onSearch: () => _openSearch(controller),
       ),
       LiveRedesign(
         liveCategories: controller.liveCategories ?? const [],

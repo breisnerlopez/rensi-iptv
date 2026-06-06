@@ -22,6 +22,7 @@ import 'package:rensi_iptv/redesign/home_redesign.dart';
 import 'package:rensi_iptv/redesign/browse_redesign.dart';
 import 'package:rensi_iptv/redesign/list_redesign.dart';
 import 'package:rensi_iptv/redesign/live_redesign.dart';
+import 'package:rensi_iptv/redesign/search_redesign.dart';
 import '../../models/content_type.dart';
 
 class XtreamCodeHomeScreen extends StatefulWidget {
@@ -178,9 +179,15 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     );
   }
 
-  void _openGlobalSearch() {
+  void _openSearch(XtreamCodeHomeController controller) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+      MaterialPageRoute(
+        builder: (_) => SearchRedesign(
+          movieCategories: controller.movieCategories,
+          seriesCategories: controller.seriesCategories,
+          onOpen: (it) => navigateByContentType(context, it),
+        ),
+      ),
     );
   }
 
@@ -192,14 +199,14 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         seriesCategories: controller.seriesCategories,
         onOpen: (it) => navigateByContentType(context, it),
         onPlay: (it) => navigateByContentType(context, it),
-        onSearch: _openGlobalSearch,
+        onSearch: () => _openSearch(controller),
         onSettings: () => controller.onNavigationTap(4),
       ),
       BrowseRedesign(
         movieCategories: controller.movieCategories,
         seriesCategories: controller.seriesCategories,
         onOpen: (it) => navigateByContentType(context, it),
-        onSearch: _openGlobalSearch,
+        onSearch: () => _openSearch(controller),
       ),
       LiveRedesign(
         liveCategories: controller.liveCategories!,
