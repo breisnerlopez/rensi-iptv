@@ -265,23 +265,30 @@ class RensiChip extends StatelessWidget {
 
 /// Section header with optional "Ver todo" action.
 class SectionHeader extends StatelessWidget {
-  const SectionHeader({super.key, required this.title, this.actionLabel, this.onAction});
+  const SectionHeader(
+      {super.key,
+      required this.title,
+      this.actionLabel,
+      this.onAction,
+      this.sidePad = 20});
   final String title;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final double sidePad;
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
+    final big = sidePad >= 40;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 13),
+      padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 13),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Bricolage Grotesque',
-              fontSize: 19,
+              fontSize: big ? 24 : 19,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -308,18 +315,25 @@ class SectionHeader extends StatelessWidget {
 
 /// Horizontal rail of posters.
 class RensiRail extends StatelessWidget {
-  const RensiRail({super.key, required this.children, this.height});
+  const RensiRail(
+      {super.key,
+      required this.children,
+      this.height,
+      this.sidePadding = 20,
+      this.posterWidth = 138});
   final List<Widget> children;
   final double? height;
+  final double sidePadding;
+  final double posterWidth;
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: height ?? 138 * 1.48 + 4,
+      height: height ?? posterWidth * 1.48 + 4,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+        padding: EdgeInsets.fromLTRB(sidePadding, 0, sidePadding, 4),
         itemCount: children.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (_, __) => SizedBox(width: sidePadding >= 40 ? 16 : 12),
         itemBuilder: (_, i) => children[i],
       ),
     );
