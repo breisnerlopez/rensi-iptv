@@ -15,6 +15,10 @@ import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
+import 'package:rensi_iptv/redesign/home_redesign.dart';
+import 'package:rensi_iptv/redesign/browse_redesign.dart';
+import 'package:rensi_iptv/redesign/live_redesign.dart';
+import 'package:rensi_iptv/redesign/list_redesign.dart';
 
 import '../../services/app_state.dart';
 import '../watch_history_screen.dart';
@@ -26,7 +30,7 @@ class M3UHomeScreen extends StatefulWidget {
   const M3UHomeScreen({
     super.key,
     required this.playlist,
-    this.initialIndex = 1,
+    this.initialIndex = 0,
   });
 
   @override
@@ -161,18 +165,36 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     );
   }
 
+  void _openGlobalSearch() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+    );
+  }
+
   List<Widget> _buildPages(M3UHomeController controller) {
+    final movieCats = controller.vodCategories ?? const [];
+    final seriesCats = controller.seriesCategories ?? const [];
     return [
-      WatchHistoryScreen(
-        key: ValueKey('watch_history_${widget.playlist.id}'),
-        playlistId: widget.playlist.id,
+      RedesignHome(
+        key: ValueKey('inicio_${widget.playlist.id}'),
+        movieCategories: movieCats,
+        seriesCategories: seriesCats,
+        onOpen: (it) => navigateByContentType(context, it),
+        onPlay: (it) => navigateByContentType(context, it),
+        onSearch: _openGlobalSearch,
+        onSettings: () => controller.onNavigationTap(4),
       ),
-      M3uItemsScreen(
-        m3uItems: controller.m3uItems!,
-        playlist: widget.playlist,
-        currentIndex: controller.currentIndex,
+      BrowseRedesign(
+        movieCategories: movieCats,
+        seriesCategories: seriesCats,
+        onOpen: (it) => navigateByContentType(context, it),
+        onSearch: _openGlobalSearch,
       ),
-      const GlobalSearchScreen(),
+      LiveRedesign(
+        liveCategories: controller.liveCategories ?? const [],
+        onPlay: (it) => navigateByContentType(context, it),
+      ),
+      ListRedesign(onOpen: (it) => navigateByContentType(context, it)),
       M3uPlaylistSettingsScreen(playlist: widget.playlist),
     ];
   }
@@ -415,17 +437,14 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
 
   List<NavigationItem> _getNavigationItems(BuildContext context) {
     return [
-      NavigationItem(icon: Icons.history, label: context.loc.history, index: 0),
-      NavigationItem(icon: Icons.all_inbox, label: context.loc.all, index: 1),
-      NavigationItem(
-        icon: Icons.search,
-        label: context.loc.search,
-        index: 2,
-      ),
+      NavigationItem(icon: Icons.home_filled, label: 'Inicio', index: 0),
+      NavigationItem(icon: Icons.grid_view_rounded, label: 'Explorar', index: 1),
+      NavigationItem(icon: Icons.live_tv, label: 'En vivo', index: 2),
+      NavigationItem(icon: Icons.bookmark_border, label: 'Mi lista', index: 3),
       NavigationItem(
         icon: Icons.settings,
         label: context.loc.settings,
-        index: 3,
+        index: 4,
       ),
     ];
   }

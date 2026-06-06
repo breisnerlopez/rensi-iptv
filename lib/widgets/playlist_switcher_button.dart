@@ -82,7 +82,7 @@ class PlaylistSwitcherButton extends StatelessWidget {
       ),
       PlaylistType.m3u => M3UHomeScreen(
         playlist: playlist,
-        initialIndex: currentIndex.clamp(0, 3).toInt(),
+        initialIndex: currentIndex.clamp(0, 4).toInt(),
       ),
     };
 
