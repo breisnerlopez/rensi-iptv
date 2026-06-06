@@ -9,6 +9,7 @@ import 'package:rensi_iptv/services/pip_service.dart';
 import 'package:rensi_iptv/services/sleep_timer_service.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
 import 'package:rensi_iptv/widgets/channel_number_overlay.dart';
+import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:rensi_iptv/utils/subtitle_configuration.dart';
 import 'package:rensi_iptv/widgets/video_widget.dart';
@@ -896,7 +897,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
     int index,
     bool isSelected,
   ) {
-    return InkWell(
+    return FocusHighlight(
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+      autofocus: isSelected,
       onTap: () {
         EventBus().emit('player_content_item_index_changed', index);
         // Panel kapanmasın, sadece kanal değişsin
@@ -1005,6 +1009,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
               ),
           ],
         ),
+      ),
       ),
     );
   }

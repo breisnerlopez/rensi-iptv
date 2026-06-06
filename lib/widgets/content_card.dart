@@ -3,12 +3,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 
 class ContentCard extends StatelessWidget {
   final ContentItem content;
   final double width;
   final VoidCallback? onTap;
   final bool isSelected;
+  final bool autofocus;
 
   const ContentCard({
     super.key,
@@ -16,6 +18,7 @@ class ContentCard extends StatelessWidget {
     required this.width,
     this.onTap,
     this.isSelected = false,
+    this.autofocus = false,
   });
 
   @override
@@ -51,6 +54,7 @@ class ContentCard extends StatelessWidget {
       color: isSelected ? Theme.of(context).colorScheme.primaryContainer : null,
       child: InkWell(
         onTap: onTap,
+        autofocus: autofocus,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -136,7 +140,7 @@ class ContentCard extends StatelessWidget {
         ),
       ),
     );
-    return cardWidget;
+    return FocusHighlight(child: cardWidget);
   }
 
   BoxFit _getFitForContentType() {
