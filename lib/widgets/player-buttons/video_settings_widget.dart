@@ -288,9 +288,90 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
                     }
                   },
                 ),
+                const SizedBox(height: 16),
+                _buildExternalSubtitleButton(context),
+                const SizedBox(height: 16),
+                _buildSpeedSection(context),
               ],
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExternalSubtitleButton(BuildContext context) {
+    return InkWell(
+      onTap: () async {
+        final controller = TextEditingController();
+        final url = await showDialog<String>(
+          context: context,
+          builder: (c) => AlertDialog(
+            title: const Text('Subtítulo externo'),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'https://…/subtitulo.srt',
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(c),
+                  child: const Text('Cancelar')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(c, controller.text.trim()),
+                  child: const Text('Cargar')),
+            ],
+          ),
+        );
+        if (url != null && url.isNotEmpty) {
+          EventBus().emit('load_external_subtitle_uri', url);
+        }
+      },
+      child: const Padding(
+        padding: EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          children: [
+            Icon(Icons.subtitles_outlined, color: Colors.white, size: 20),
+            SizedBox(width: 10),
+            Text('Subtítulo externo (URL)',
+                style: TextStyle(color: Colors.white, fontSize: 14)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpeedSection(BuildContext context) {
+    const speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.speed, color: Colors.white, size: 20),
+            SizedBox(width: 10),
+            Text('Velocidad',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final s in speeds)
+              ActionChip(
+                label: Text(s == 1.0 ? 'Normal' : '${s}x'),
+                backgroundColor: Colors.white.withValues(alpha: 0.12),
+                labelStyle: const TextStyle(color: Colors.white),
+                onPressed: () =>
+                    EventBus().emit('playback_speed_changed', s),
+              ),
+          ],
         ),
       ],
     );

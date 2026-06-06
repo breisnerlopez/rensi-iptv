@@ -63,11 +63,14 @@ class RedesignHome extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = rensi(context);
     final hero = _hero;
+    final tv = MediaQuery.of(context).size.width >= 900;
+    final posterW = tv ? 168.0 : 138.0;
+    final sidePad = tv ? 48.0 : 20.0;
     final rails = <Widget>[];
 
     if (continueItems.isNotEmpty) {
       rails
-        ..add(SectionHeader(title: context.loc.history))
+        ..add(SectionHeader(title: context.loc.history, sidePad: sidePad))
         ..add(_ContinueRail(items: continueItems, onPlay: onPlay))
         ..add(const SizedBox(height: 26));
     }
@@ -76,14 +79,16 @@ class RedesignHome extends StatelessWidget {
       for (final c in cats) {
         if (c.contentItems.isEmpty) continue;
         rails
-          ..add(SectionHeader(title: _railTitle(context, c)))
+          ..add(SectionHeader(title: _railTitle(context, c), sidePad: sidePad))
           ..add(RensiRail(
+            sidePadding: sidePad,
+            posterWidth: posterW,
             children: [
               for (final it in c.contentItems.take(18))
-                RensiPoster(item: it, onTap: () => onOpen(it)),
+                RensiPoster(item: it, width: posterW, onTap: () => onOpen(it)),
             ],
           ))
-          ..add(const SizedBox(height: 26));
+          ..add(SizedBox(height: tv ? 34 : 26));
       }
     }
 
@@ -92,14 +97,18 @@ class RedesignHome extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: ListView(
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
         padding: const EdgeInsets.only(bottom: 18),
         children: [
           _TopBar(
+              tv: tv,
               onSearch: onSearch,
               onSettings: onSettings,
               playlistSwitcher: playlistSwitcher),
-          if (hero != null) _Hero(item: hero, onOpen: onOpen, onPlay: onPlay),
+          if (hero != null)
+            _Hero(item: hero, onOpen: onOpen, onPlay: onPlay, tv: tv),
           const SizedBox(height: 8),
           ...rails,
           if (rails.isEmpty)
@@ -110,34 +119,40 @@ class RedesignHome extends StatelessWidget {
               ),
             ),
         ],
+        ),
       ),
     );
   }
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({this.onSearch, this.onSettings, this.playlistSwitcher});
+  const _TopBar(
+      {this.onSearch, this.onSettings, this.playlistSwitcher, this.tv = false});
   final VoidCallback? onSearch;
   final VoidCallback? onSettings;
   final Widget? playlistSwitcher;
+  final bool tv;
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+      padding: EdgeInsets.fromLTRB(tv ? 48 : 20, tv ? 20 : 12, tv ? 48 : 20, 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Buenas noches',
-                  style: TextStyle(
-                      fontSize: 12.5, fontWeight: FontWeight.w600, color: r.text3)),
-              const Text('Rensi',
+              if (!tv)
+                Text('Buenas noches',
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: r.text3)),
+              Text('Rensi',
                   style: TextStyle(
                       fontFamily: 'Bricolage Grotesque',
-                      fontSize: 22,
+                      fontSize: tv ? 28 : 22,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.4)),
             ],
@@ -209,21 +224,96 @@ class _IconBtn extends StatelessWidget {
 }
 
 class _Hero extends StatelessWidget {
-  const _Hero({required this.item, required this.onOpen, required this.onPlay});
+  const _Hero(
+      {required this.item,
+      required this.onOpen,
+      required this.onPlay,
+      this.tv = false});
   final ContentItem item;
   final void Function(ContentItem) onOpen;
   final void Function(ContentItem) onPlay;
+  final bool tv;
 
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
+
+    final playBtn = FilledButton.icon(
+      onPressed: () => onPlay(item),
+      autofocus: tv,
+      style: FilledButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        minimumSize: Size(0, tv ? 52 : 50),
+        padding: EdgeInsets.symmetric(horizontal: tv ? 30 : 16),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      icon: const Icon(Icons.play_arrow_rounded, size: 24),
+      label: Text('Reproducir',
+          style: TextStyle(
+              fontSize: tv ? 16.5 : 15.5, fontWeight: FontWeight.w700)),
+    );
+
+    final actions = Row(
+      mainAxisSize: tv ? MainAxisSize.min : MainAxisSize.max,
+      children: [
+        tv ? playBtn : Expanded(child: playBtn),
+        const SizedBox(width: 12),
+        _GlassBtn(icon: Icons.info_outline, onTap: () => onOpen(item)),
+        const SizedBox(width: 10),
+        _FavBtn(item: item),
+      ],
+    );
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: const Text('★ DESTACADO HOY',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                  color: Colors.white)),
+        ),
+        Text(
+          item.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontFamily: 'Bricolage Grotesque',
+            fontSize: tv ? 52 : 32,
+            fontWeight: FontWeight.w800,
+            height: 0.98,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _HeroMeta(item: item),
+        const SizedBox(height: 16),
+        // On TV constrain the action row so it doesn't stretch edge-to-edge.
+        tv ? actions : actions,
+      ],
+    );
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      height: 440,
+      margin: tv
+          ? const EdgeInsets.only(bottom: 8)
+          : const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      height: tv ? 520 : 440,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: r.hairline),
+        borderRadius: tv ? BorderRadius.zero : BorderRadius.circular(22),
+        border: tv ? null : Border.all(color: r.hairline),
       ),
       child: Stack(
         fit: StackFit.expand,
@@ -239,71 +329,27 @@ class _Hero extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            left: 18,
-            right: 18,
-            bottom: 18,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-                  ),
-                  child: const Text('★ DESTACADO HOY',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
-                          color: Colors.white)),
+          if (tv)
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [Color(0xCC080808), Color(0x00080808)],
+                  stops: [0.0, 0.55],
                 ),
-                Text(
-                  item.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontFamily: 'Bricolage Grotesque',
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                    height: 0.98,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _HeroMeta(item: item),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: () => onPlay(item),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          minimumSize: const Size(0, 50),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                        icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                        label: const Text('Reproducir',
-                            style: TextStyle(
-                                fontSize: 15.5, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    _GlassBtn(icon: Icons.info_outline, onTap: () => onOpen(item)),
-                    const SizedBox(width: 10),
-                    _FavBtn(item: item),
-                  ],
-                ),
-              ],
+              ),
             ),
+          Positioned(
+            left: tv ? 56 : 18,
+            right: 18,
+            bottom: tv ? 44 : 18,
+            child: tv
+                ? ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 760),
+                    child: content,
+                  )
+                : content,
           ),
         ],
       ),
