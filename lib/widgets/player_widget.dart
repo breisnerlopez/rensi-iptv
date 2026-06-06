@@ -726,6 +726,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
     final key = event.logicalKey;
     final hasQueue = _queue != null && _queue!.length > 1;
+    // Channel up/down (D-pad up/down) only makes sense for live TV. For
+    // VOD/series it must not jump to another title — those use up/down for
+    // the controls instead.
+    final isLive =
+        PlayerState.currentContent?.contentType == ContentType.liveStream;
 
     // Channel-number entry: digit keys accumulate, Enter commits, Backspace
     // deletes. Only meaningful when there's a queue to jump within.
@@ -789,19 +794,22 @@ class _PlayerWidgetState extends State<PlayerWidget>
       return KeyEventResult.handled;
     }
 
-    // Channel up/down via D-pad up/down or dedicated channel keys
-    if (hasQueue &&
-        (key == LogicalKeyboardKey.arrowUp ||
+    // Channel up/down — live only (dedicated channel keys, or D-pad up/down
+    // on a live stream). On VOD/series, D-pad up/down falls through to the
+    // controls instead of switching titles.
+    if (key == LogicalKeyboardKey.channelUp ||
+        key == LogicalKeyboardKey.channelDown ||
+        (isLive &&
+            (key == LogicalKeyboardKey.arrowUp ||
+                key == LogicalKeyboardKey.pageUp ||
+                key == LogicalKeyboardKey.arrowDown ||
+                key == LogicalKeyboardKey.pageDown))) {
+      if (hasQueue) {
+        final up = key == LogicalKeyboardKey.arrowUp ||
             key == LogicalKeyboardKey.channelUp ||
-            key == LogicalKeyboardKey.pageUp)) {
-      _changeChannel(1);
-      return KeyEventResult.handled;
-    }
-    if (hasQueue &&
-        (key == LogicalKeyboardKey.arrowDown ||
-            key == LogicalKeyboardKey.channelDown ||
-            key == LogicalKeyboardKey.pageDown)) {
-      _changeChannel(-1);
+            key == LogicalKeyboardKey.pageUp;
+        _changeChannel(up ? 1 : -1);
+      }
       return KeyEventResult.handled;
     }
 
