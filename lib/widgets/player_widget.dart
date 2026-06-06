@@ -53,6 +53,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
   late StreamSubscription videoTrackSubscription;
   late StreamSubscription audioTrackSubscription;
   late StreamSubscription subtitleTrackSubscription;
+  StreamSubscription? _externalSubUriSubscription;
+  StreamSubscription? _externalSubDataSubscription;
+  StreamSubscription? _playbackSpeedSubscription;
   late StreamSubscription contentItemIndexChangedSubscription;
   late StreamSubscription _connectivitySubscription;
 
@@ -121,6 +124,30 @@ class _PlayerWidgetState extends State<PlayerWidget>
           await UserPreferences.setSubtitleTrack(data.language ?? 'null');
         });
 
+    // External subtitle from a URL (.srt/.ass/.vtt).
+    _externalSubUriSubscription = EventBus()
+        .on<String>('load_external_subtitle_uri')
+        .listen((uri) {
+          if (uri.trim().isEmpty) return;
+          _player.setSubtitleTrack(SubtitleTrack.uri(uri.trim()));
+        });
+
+    // External subtitle from raw file contents.
+    _externalSubDataSubscription = EventBus()
+        .on<String>('load_external_subtitle_data')
+        .listen((data) {
+          if (data.isEmpty) return;
+          _player.setSubtitleTrack(SubtitleTrack.data(data));
+        });
+
+    // Persist + apply playback speed changes.
+    _playbackSpeedSubscription = EventBus()
+        .on<double>('playback_speed_changed')
+        .listen((rate) async {
+          await _player.setRate(rate);
+          await UserPreferences.setPlaybackSpeed(rate);
+        });
+
     _initializePlayer();
   }
 
@@ -141,6 +168,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
     videoTrackSubscription.cancel();
     audioTrackSubscription.cancel();
     subtitleTrackSubscription.cancel();
+    _externalSubUriSubscription?.cancel();
+    _externalSubDataSubscription?.cancel();
+    _playbackSpeedSubscription?.cancel();
     contentItemIndexChangedSubscription.cancel();
     _connectivitySubscription.cancel();
     _errorHandler.reset();
@@ -433,19 +463,29 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
       var selectedAudioLanguage = await UserPreferences.getAudioTrack();
       var possibleAudioTrack = event.audio.firstWhere(
-        (x) => x.language == selectedAudioLanguage,
+        (x) => _langMatches(x.language, x.title, selectedAudioLanguage),
         orElse: AudioTrack.auto,
       );
 
       await _player.setAudioTrack(possibleAudioTrack);
 
       var selectedSubtitleLanguage = await UserPreferences.getSubtitleTrack();
-      var possibleSubtitleLanguage = event.subtitle.firstWhere(
-        (x) => x.language == selectedSubtitleLanguage,
-        orElse: SubtitleTrack.auto,
-      );
+      final SubtitleTrack possibleSubtitleLanguage;
+      if (selectedSubtitleLanguage == 'off') {
+        // Preferred: subtitles off by default.
+        possibleSubtitleLanguage = SubtitleTrack.no();
+      } else {
+        possibleSubtitleLanguage = event.subtitle.firstWhere(
+          (x) => _langMatches(x.language, x.title, selectedSubtitleLanguage),
+          orElse: SubtitleTrack.auto,
+        );
+      }
 
       await _player.setSubtitleTrack(possibleSubtitleLanguage);
+
+      // Apply the remembered playback speed.
+      final rate = await UserPreferences.getPlaybackSpeed();
+      if (rate > 0) await _player.setRate(rate);
     });
 
     _player.stream.track.listen((event) async {
@@ -616,6 +656,24 @@ class _PlayerWidgetState extends State<PlayerWidget>
       default:
         break;
     }
+  }
+
+  // Tolerant language match so a saved preference like "spa" picks up tracks
+  // labelled spa / es / spanish / castellano / latino, etc.
+  static const Map<String, List<String>> _langSynonyms = {
+    'spa': ['spa', 'es', 'esp', 'spanish', 'castellano', 'español', 'lat', 'latino'],
+    'eng': ['eng', 'en', 'english', 'ingles', 'inglés'],
+    'por': ['por', 'pt', 'portugu'],
+    'fra': ['fra', 'fre', 'fr', 'french', 'franc'],
+    'ita': ['ita', 'it', 'italian'],
+    'deu': ['deu', 'ger', 'de', 'german', 'aleman'],
+  };
+
+  bool _langMatches(String? lang, String? title, String pref) {
+    if (pref == 'auto' || pref.isEmpty) return false;
+    final hay = '${lang ?? ''} ${title ?? ''}'.toLowerCase();
+    final syns = _langSynonyms[pref] ?? [pref.toLowerCase()];
+    return syns.any((s) => hay.contains(s));
   }
 
   Future<void> _setupPip() async {

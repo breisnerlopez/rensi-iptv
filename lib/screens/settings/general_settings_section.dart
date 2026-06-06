@@ -53,6 +53,23 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
   bool _seekOnDoubleTap = true;
   bool _autoPipOnHome = true;
   bool _pipSupported = false;
+  String _prefAudioLang = 'auto';
+  String _prefSubLang = 'auto';
+  double _playbackSpeed = 1.0;
+
+  static const _audioLangOptions = ['auto', 'spa', 'eng', 'por', 'fra', 'ita', 'deu'];
+  static const _subLangOptions = ['auto', 'off', 'spa', 'eng', 'por', 'fra', 'ita', 'deu'];
+  static const _langLabels = {
+    'auto': 'Automático',
+    'off': 'Desactivados',
+    'spa': 'Español',
+    'eng': 'Inglés',
+    'por': 'Portugués',
+    'fra': 'Francés',
+    'ita': 'Italiano',
+    'deu': 'Alemán',
+  };
+  static const _speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
   String _appVersion = '';
   String _tmdbToken = '';
   bool _hasTmdbCredential = false;
@@ -78,9 +95,16 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
       final pipSupported = await PipService.instance.isAvailable() &&
           mounted &&
           !ResponsiveHelper.isDesktopOrTV(context);
+      final prefAudio = await UserPreferences.getAudioTrack();
+      final prefSub = await UserPreferences.getSubtitleTrack();
+      final speed = await UserPreferences.getPlaybackSpeed();
       final packageInfo = await PackageInfo.fromPlatform();
       final tmdb = await TmdbCredentialsService.getCredential();
       setState(() {
+        _prefAudioLang =
+            _audioLangOptions.contains(prefAudio) ? prefAudio : 'auto';
+        _prefSubLang = _subLangOptions.contains(prefSub) ? prefSub : 'auto';
+        _playbackSpeed = _speedOptions.contains(speed) ? speed : 1.0;
         _backgroundPlayEnabled = backgroundPlay;
         _selectedTheme = _themeModeToString(themeMode);
         _brightnessGesture = brightnessGesture;
@@ -135,6 +159,24 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
         _autoPipOnHome = !value;
       });
     }
+  }
+
+  Future<void> _savePrefAudio(String? v) async {
+    if (v == null) return;
+    await UserPreferences.setAudioTrack(v);
+    setState(() => _prefAudioLang = v);
+  }
+
+  Future<void> _savePrefSub(String? v) async {
+    if (v == null) return;
+    await UserPreferences.setSubtitleTrack(v);
+    setState(() => _prefSubLang = v);
+  }
+
+  Future<void> _savePlaybackSpeed(double? v) async {
+    if (v == null) return;
+    await UserPreferences.setPlaybackSpeed(v);
+    setState(() => _playbackSpeed = v);
   }
 
   Future<void> _saveBackgroundPlaySetting(bool value) async {
@@ -575,6 +617,43 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
                         onChanged: _saveAutoPipSetting,
                       ),
                     ],
+                    const Divider(height: 1),
+                    DropdownTileWidget<String>(
+                      icon: Icons.translate,
+                      label: 'Audio preferido',
+                      value: _prefAudioLang,
+                      items: [
+                        for (final o in _audioLangOptions)
+                          DropdownMenuItem(
+                              value: o, child: Text(_langLabels[o] ?? o)),
+                      ],
+                      onChanged: _savePrefAudio,
+                    ),
+                    const Divider(height: 1),
+                    DropdownTileWidget<String>(
+                      icon: Icons.closed_caption_outlined,
+                      label: 'Subtítulos preferidos',
+                      value: _prefSubLang,
+                      items: [
+                        for (final o in _subLangOptions)
+                          DropdownMenuItem(
+                              value: o, child: Text(_langLabels[o] ?? o)),
+                      ],
+                      onChanged: _savePrefSub,
+                    ),
+                    const Divider(height: 1),
+                    DropdownTileWidget<double>(
+                      icon: Icons.speed,
+                      label: 'Velocidad',
+                      value: _playbackSpeed,
+                      items: [
+                        for (final s in _speedOptions)
+                          DropdownMenuItem(
+                              value: s,
+                              child: Text(s == 1.0 ? 'Normal' : '${s}x')),
+                      ],
+                      onChanged: _savePlaybackSpeed,
+                    ),
                     const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.subtitles_outlined),

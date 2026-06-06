@@ -198,6 +198,18 @@ class UserPreferences {
     await prefs.setString(_keyVideoQuality, id);
   }
 
+  static const String _keyPlaybackSpeed = 'playback_speed';
+
+  static Future<void> setPlaybackSpeed(double rate) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_keyPlaybackSpeed, rate);
+  }
+
+  static Future<double> getPlaybackSpeed() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getDouble(_keyPlaybackSpeed) ?? 1.0;
+  }
+
   static Future<String> getVideoTrack() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyVideoQuality) ?? 'auto';
