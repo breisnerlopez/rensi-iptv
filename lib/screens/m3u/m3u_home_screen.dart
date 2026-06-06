@@ -166,12 +166,10 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     );
   }
 
-  void _openSearch(M3UHomeController controller) {
+  void _openSearch() {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => SearchRedesign(
-          movieCategories: controller.vodCategories ?? const [],
-          seriesCategories: controller.seriesCategories ?? const [],
           onOpen: (it) => navigateByContentType(context, it),
         ),
       ),
@@ -188,14 +186,18 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
         seriesCategories: seriesCats,
         onOpen: (it) => navigateByContentType(context, it),
         onPlay: (it) => navigateByContentType(context, it),
-        onSearch: () => _openSearch(controller),
+        onSearch: _openSearch,
         onSettings: () => controller.onNavigationTap(4),
+        playlistSwitcher: PlaylistSwitcherButton(
+          currentPlaylist: widget.playlist,
+          currentIndex: controller.currentIndex,
+        ),
       ),
       BrowseRedesign(
         movieCategories: movieCats,
         seriesCategories: seriesCats,
         onOpen: (it) => navigateByContentType(context, it),
-        onSearch: () => _openSearch(controller),
+        onSearch: _openSearch,
       ),
       LiveRedesign(
         liveCategories: controller.liveCategories ?? const [],

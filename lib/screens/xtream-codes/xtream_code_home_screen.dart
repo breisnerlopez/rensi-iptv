@@ -179,12 +179,10 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     );
   }
 
-  void _openSearch(XtreamCodeHomeController controller) {
+  void _openSearch() {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => SearchRedesign(
-          movieCategories: controller.movieCategories,
-          seriesCategories: controller.seriesCategories,
           onOpen: (it) => navigateByContentType(context, it),
         ),
       ),
@@ -199,14 +197,18 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         seriesCategories: controller.seriesCategories,
         onOpen: (it) => navigateByContentType(context, it),
         onPlay: (it) => navigateByContentType(context, it),
-        onSearch: () => _openSearch(controller),
+        onSearch: _openSearch,
         onSettings: () => controller.onNavigationTap(4),
+        playlistSwitcher: PlaylistSwitcherButton(
+          currentPlaylist: widget.playlist,
+          currentIndex: controller.currentIndex,
+        ),
       ),
       BrowseRedesign(
         movieCategories: controller.movieCategories,
         seriesCategories: controller.seriesCategories,
         onOpen: (it) => navigateByContentType(context, it),
-        onSearch: () => _openSearch(controller),
+        onSearch: _openSearch,
       ),
       LiveRedesign(
         liveCategories: controller.liveCategories!,

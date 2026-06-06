@@ -21,6 +21,7 @@ class RedesignHome extends StatelessWidget {
     this.continueItems = const [],
     this.onSearch,
     this.onSettings,
+    this.playlistSwitcher,
   });
 
   final List<CategoryViewModel> movieCategories;
@@ -30,6 +31,7 @@ class RedesignHome extends StatelessWidget {
   final void Function(ContentItem) onPlay;
   final VoidCallback? onSearch;
   final VoidCallback? onSettings;
+  final Widget? playlistSwitcher;
 
   static String _railTitle(BuildContext context, CategoryViewModel c) {
     if (!isAllCategorySentinel(c.category.categoryId)) {
@@ -93,7 +95,10 @@ class RedesignHome extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.only(bottom: 18),
         children: [
-          _TopBar(onSearch: onSearch, onSettings: onSettings),
+          _TopBar(
+              onSearch: onSearch,
+              onSettings: onSettings,
+              playlistSwitcher: playlistSwitcher),
           if (hero != null) _Hero(item: hero, onOpen: onOpen, onPlay: onPlay),
           const SizedBox(height: 8),
           ...rails,
@@ -111,9 +116,10 @@ class RedesignHome extends StatelessWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({this.onSearch, this.onSettings});
+  const _TopBar({this.onSearch, this.onSettings, this.playlistSwitcher});
   final VoidCallback? onSearch;
   final VoidCallback? onSettings;
+  final Widget? playlistSwitcher;
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
@@ -138,6 +144,10 @@ class _TopBar extends StatelessWidget {
           ),
           Row(
             children: [
+              if (playlistSwitcher != null) ...[
+                playlistSwitcher!,
+                const SizedBox(width: 6),
+              ],
               _IconBtn(icon: Icons.search, onTap: onSearch),
               const SizedBox(width: 10),
               FocusHighlight(
