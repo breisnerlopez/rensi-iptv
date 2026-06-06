@@ -84,23 +84,38 @@ class PlaylistEmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.playlist_add, size: 80, color: Colors.grey[400]),
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color:
+                    Theme.of(context).colorScheme.primary.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(28),
+              ),
+              child: Icon(
+                Icons.movie_filter_outlined,
+                size: 44,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
             const SizedBox(height: 24),
             Text(
               context.loc.empty_playlist_title,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[600],
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontFamily: 'Bricolage Grotesque',
+                fontSize: 26,
+                fontWeight: FontWeight.w800,
+                height: 1.05,
               ),
             ),
             const SizedBox(height: 12),
             Text(
               context.loc.empty_playlist_message,
               style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[500],
-                height: 1.4,
+                fontSize: 15,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                height: 1.5,
               ),
               textAlign: TextAlign.center,
             ),
