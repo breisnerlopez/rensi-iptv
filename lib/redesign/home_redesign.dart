@@ -92,7 +92,9 @@ class RedesignHome extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: ListView(
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
         padding: const EdgeInsets.only(bottom: 18),
         children: [
           _TopBar(
@@ -110,6 +112,7 @@ class RedesignHome extends StatelessWidget {
               ),
             ),
         ],
+        ),
       ),
     );
   }

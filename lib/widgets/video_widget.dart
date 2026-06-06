@@ -62,6 +62,10 @@ class _VideoWidgetState extends State<VideoWidget> {
       return const Center(child: CircularProgressIndicator());
     }
 
+    // Keep the on-video controls clear of the status bar / gesture-nav area
+    // when playing inline (non-fullscreen) on a phone.
+    final insets = MediaQuery.of(context).padding;
+
     switch (Theme.of(context).platform) {
       case TargetPlatform.android:
       case TargetPlatform.iOS:
@@ -84,7 +88,13 @@ class _VideoWidgetState extends State<VideoWidget> {
             SleepTimerWidget(),
             VideoSettingsWidget(),
           ],
+          topButtonBarMargin:
+              EdgeInsets.only(top: insets.top + 8, left: 8, right: 8),
           bottomButtonBar: const [MaterialPositionIndicator()],
+          bottomButtonBarMargin:
+              EdgeInsets.only(left: 16, right: 16, bottom: insets.bottom + 8),
+          seekBarMargin:
+              EdgeInsets.only(left: 16, right: 16, bottom: insets.bottom + 8),
         ),
         fullscreen: MaterialVideoControlsThemeData().copyWith(
           brightnessGesture: _brightnessGesture,
