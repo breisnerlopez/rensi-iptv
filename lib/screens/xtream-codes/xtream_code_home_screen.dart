@@ -18,6 +18,7 @@ import 'package:rensi_iptv/widgets/category_section.dart';
 import 'package:rensi_iptv/widgets/confirm_exit_scope.dart';
 import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
+import 'package:rensi_iptv/redesign/home_redesign.dart';
 import '../../models/content_type.dart';
 
 class XtreamCodeHomeScreen extends StatefulWidget {
@@ -27,7 +28,7 @@ class XtreamCodeHomeScreen extends StatefulWidget {
   const XtreamCodeHomeScreen({
     super.key,
     required this.playlist,
-    this.initialIndex = 1,
+    this.initialIndex = 0,
   });
 
   @override
@@ -176,9 +177,14 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
 
   List<Widget> _buildPages(XtreamCodeHomeController controller) {
     return [
-      WatchHistoryScreen(
-        key: ValueKey('watch_history_${widget.playlist.id}'),
-        playlistId: widget.playlist.id,
+      RedesignHome(
+        key: ValueKey('inicio_${widget.playlist.id}'),
+        movieCategories: controller.movieCategories,
+        seriesCategories: controller.seriesCategories,
+        onOpen: (it) => navigateByContentType(context, it),
+        onPlay: (it) => navigateByContentType(context, it),
+        onSearch: () => controller.onNavigationTap(4),
+        onSettings: () => controller.onNavigationTap(5),
       ),
       _buildContentPage(
         controller.liveCategories!,
@@ -475,7 +481,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
 
   List<NavigationItem> _getNavigationItems(BuildContext context) {
     return [
-      NavigationItem(icon: Icons.history, label: context.loc.history, index: 0),
+      NavigationItem(icon: Icons.home_filled, label: 'Inicio', index: 0),
       NavigationItem(icon: Icons.live_tv, label: context.loc.live, index: 1),
       NavigationItem(
         icon: Icons.movie_outlined,

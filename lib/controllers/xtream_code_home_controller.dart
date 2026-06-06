@@ -98,7 +98,7 @@ class XtreamCodeHomeController extends ChangeNotifier {
 
   XtreamCodeHomeController(
     bool all, {
-    int initialIndex = 1,
+    int initialIndex = 0,
     bool autoLoad = true,
   }) {
     _pageController = PageController();
