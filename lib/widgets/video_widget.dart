@@ -1,3 +1,4 @@
+import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/repositories/user_preferences.dart';
 import 'package:rensi_iptv/services/player_state.dart';
 import 'package:rensi_iptv/widgets/player-buttons/back_button_widget.dart';
@@ -66,6 +67,11 @@ class _VideoWidgetState extends State<VideoWidget> {
     // when playing inline (non-fullscreen) on a phone.
     final insets = MediaQuery.of(context).padding;
 
+    // Live has no real timeline — hide the seek bar so it doesn't animate
+    // constantly (and waste battery redrawing) when controls are shown.
+    final isLive =
+        PlayerState.currentContent?.contentType == ContentType.liveStream;
+
     switch (Theme.of(context).platform) {
       case TargetPlatform.android:
       case TargetPlatform.iOS:
@@ -88,9 +94,12 @@ class _VideoWidgetState extends State<VideoWidget> {
             SleepTimerWidget(),
             VideoSettingsWidget(),
           ],
+          displaySeekBar: !isLive,
           topButtonBarMargin:
               EdgeInsets.only(top: insets.top + 8, left: 8, right: 8),
-          bottomButtonBar: const [MaterialPositionIndicator()],
+          bottomButtonBar: isLive
+              ? const [Spacer(), _LiveBadge()]
+              : const [MaterialPositionIndicator()],
           bottomButtonBarMargin:
               EdgeInsets.only(left: 16, right: 16, bottom: insets.bottom + 8),
           seekBarMargin:
@@ -114,6 +123,10 @@ class _VideoWidgetState extends State<VideoWidget> {
             SleepTimerWidget(),
             VideoSettingsWidget(),
           ],
+          displaySeekBar: !isLive,
+          bottomButtonBar: isLive
+              ? const [Spacer(), _LiveBadge()]
+              : const [MaterialPositionIndicator()],
           seekBarMargin: EdgeInsets.fromLTRB(0, 0, 0, 10),
         ),
         child: Scaffold(
@@ -192,4 +205,32 @@ Widget getVideo(
     controller: controller,
     subtitleViewConfiguration: subtitleViewConfiguration,
   );
+}
+
+/// Small static "EN VIVO" badge used instead of the seek bar for live
+/// streams (which have no meaningful timeline).
+class _LiveBadge extends StatelessWidget {
+  const _LiveBadge();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xE0E0563E),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.fiber_manual_record, size: 10, color: Colors.white),
+          SizedBox(width: 6),
+          Text('EN VIVO',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
 }
