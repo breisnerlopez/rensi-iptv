@@ -98,11 +98,11 @@ class XtreamCodeHomeController extends ChangeNotifier {
 
   XtreamCodeHomeController(
     bool all, {
-    int initialIndex = 1,
+    int initialIndex = 0,
     bool autoLoad = true,
   }) {
     _pageController = PageController();
-    _currentIndex = initialIndex.clamp(0, 5);
+    _currentIndex = initialIndex.clamp(0, 4);
     if (autoLoad) {
       _loadCategories(all);
       reloadHiddenCategoriesFromPrefs();
@@ -136,16 +136,14 @@ class XtreamCodeHomeController extends ChangeNotifier {
   String getPageTitle(BuildContext context) {
     switch (currentIndex) {
       case 0:
-        return context.loc.history;
+        return 'Inicio';
       case 1:
-        return context.loc.live_streams;
+        return 'Explorar';
       case 2:
-        return context.loc.movies;
+        return context.loc.live_streams;
       case 3:
-        return context.loc.series_plural;
+        return 'Mi lista';
       case 4:
-        return context.loc.tmdb_global_search;
-      case 5:
         return context.loc.settings;
       default:
         return 'Rensi IPTV';

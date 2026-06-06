@@ -78,11 +78,11 @@ class PlaylistSwitcherButton extends StatelessWidget {
     final screen = switch (playlist.type) {
       PlaylistType.xtream => XtreamCodeHomeScreen(
         playlist: playlist,
-        initialIndex: currentIndex.clamp(0, 5).toInt(),
+        initialIndex: currentIndex.clamp(0, 4).toInt(),
       ),
       PlaylistType.m3u => M3UHomeScreen(
         playlist: playlist,
-        initialIndex: currentIndex.clamp(0, 3).toInt(),
+        initialIndex: currentIndex.clamp(0, 4).toInt(),
       ),
     };
 
