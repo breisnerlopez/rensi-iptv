@@ -4,6 +4,7 @@ import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/repositories/favorites_repository.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/services/app_state.dart';
@@ -404,6 +405,8 @@ class _MovieScreenState extends State<MovieScreen> {
           _buildInfoChips(context)!,
           const SizedBox(height: 24),
         ],
+        _MovieActionsRow(item: widget.contentItem),
+        const SizedBox(height: 24),
         if (_buildDescriptionSection(context) != null) ...[
           _buildDescriptionSection(context)!,
           const SizedBox(height: 24),
@@ -440,6 +443,8 @@ class _MovieScreenState extends State<MovieScreen> {
                 _buildInfoChips(context)!,
                 const SizedBox(height: 24),
               ],
+              _MovieActionsRow(item: widget.contentItem),
+              const SizedBox(height: 24),
               if (_buildDescriptionSection(context) != null) ...[
                 _buildDescriptionSection(context)!,
                 const SizedBox(height: 24),
@@ -1036,6 +1041,78 @@ class _MoviePlayerPageState extends State<_MoviePlayerPage> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Secondary action row on the detail screen (redesign): Mi lista (toggles
+/// favourite), Descargar, Enviar.
+class _MovieActionsRow extends StatefulWidget {
+  const _MovieActionsRow({required this.item});
+  final ContentItem item;
+  @override
+  State<_MovieActionsRow> createState() => _MovieActionsRowState();
+}
+
+class _MovieActionsRowState extends State<_MovieActionsRow> {
+  final _repo = FavoritesRepository();
+  bool _saved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _repo
+        .isFavorite(widget.item.id, widget.item.contentType)
+        .then((v) => mounted ? setState(() => _saved = v) : null);
+  }
+
+  Future<void> _toggle() async {
+    final now = await _repo.toggleFavorite(widget.item);
+    if (mounted) setState(() => _saved = now);
+  }
+
+  void _soon() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Próximamente')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    Widget action(IconData icon, String label, VoidCallback onTap, bool active) {
+      return Expanded(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon,
+                    size: 23,
+                    color: active ? scheme.primary : scheme.onSurfaceVariant),
+                const SizedBox(height: 6),
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: active ? scheme.primary : scheme.onSurfaceVariant)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        action(_saved ? Icons.check : Icons.add, _saved ? 'Guardado' : 'Mi lista',
+            _toggle, _saved),
+        action(Icons.download_outlined, 'Descargar', _soon, false),
+        action(Icons.cast, 'Enviar', _soon, false),
+      ],
     );
   }
 }
