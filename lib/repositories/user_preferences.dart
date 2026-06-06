@@ -356,14 +356,16 @@ class UserPreferences {
 
   static Future<ThemeMode> getThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
-    final mode = prefs.getString(_keyThemeMode) ?? 'system';
+    // Cinematic redesign ships dark-first; a fresh install with no saved
+    // preference lands on the dark theme.
+    final mode = prefs.getString(_keyThemeMode) ?? 'dark';
     switch (mode) {
       case 'light':
         return ThemeMode.light;
-      case 'dark':
-        return ThemeMode.dark;
-      default:
+      case 'system':
         return ThemeMode.system;
+      default:
+        return ThemeMode.dark;
     }
   }
 

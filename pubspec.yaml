@@ -99,6 +99,13 @@ flutter:
       fonts:
         - asset: assets/fonts/BabaPro-Bold.ttf
           weight: 700
+    # Redesign type system (variable fonts; fontWeight drives the wght axis).
+    - family: Bricolage Grotesque
+      fonts:
+        - asset: assets/fonts/BricolageGrotesque.ttf
+    - family: Hanken Grotesk
+      fonts:
+        - asset: assets/fonts/HankenGrotesk.ttf
 
 flutter_icons:
   android: true
