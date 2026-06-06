@@ -19,6 +19,8 @@ import 'package:rensi_iptv/widgets/confirm_exit_scope.dart';
 import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/redesign/home_redesign.dart';
+import 'package:rensi_iptv/redesign/browse_redesign.dart';
+import 'package:rensi_iptv/redesign/list_redesign.dart';
 import '../../models/content_type.dart';
 
 class XtreamCodeHomeScreen extends StatefulWidget {
@@ -175,6 +177,12 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     );
   }
 
+  void _openGlobalSearch() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+    );
+  }
+
   List<Widget> _buildPages(XtreamCodeHomeController controller) {
     return [
       RedesignHome(
@@ -183,25 +191,21 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         seriesCategories: controller.seriesCategories,
         onOpen: (it) => navigateByContentType(context, it),
         onPlay: (it) => navigateByContentType(context, it),
-        onSearch: () => controller.onNavigationTap(4),
-        onSettings: () => controller.onNavigationTap(5),
+        onSearch: _openGlobalSearch,
+        onSettings: () => controller.onNavigationTap(4),
+      ),
+      BrowseRedesign(
+        movieCategories: controller.movieCategories,
+        seriesCategories: controller.seriesCategories,
+        onOpen: (it) => navigateByContentType(context, it),
+        onSearch: _openGlobalSearch,
       ),
       _buildContentPage(
         controller.liveCategories!,
         ContentType.liveStream,
         controller,
       ),
-      _buildContentPage(
-        controller.movieCategories,
-        ContentType.vod,
-        controller,
-      ),
-      _buildContentPage(
-        controller.seriesCategories,
-        ContentType.series,
-        controller,
-      ),
-      const GlobalSearchScreen(),
+      ListRedesign(onOpen: (it) => navigateByContentType(context, it)),
       XtreamCodePlaylistSettingsScreen(playlist: widget.playlist),
     ];
   }
@@ -482,26 +486,13 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   List<NavigationItem> _getNavigationItems(BuildContext context) {
     return [
       NavigationItem(icon: Icons.home_filled, label: 'Inicio', index: 0),
-      NavigationItem(icon: Icons.live_tv, label: context.loc.live, index: 1),
-      NavigationItem(
-        icon: Icons.movie_outlined,
-        label: context.loc.movie,
-        index: 2,
-      ),
-      NavigationItem(
-        icon: Icons.tv,
-        label: context.loc.series_plural,
-        index: 3,
-      ),
-      NavigationItem(
-        icon: Icons.search,
-        label: context.loc.search,
-        index: 4,
-      ),
+      NavigationItem(icon: Icons.grid_view_rounded, label: 'Explorar', index: 1),
+      NavigationItem(icon: Icons.live_tv, label: 'En vivo', index: 2),
+      NavigationItem(icon: Icons.bookmark_border, label: 'Mi lista', index: 3),
       NavigationItem(
         icon: Icons.settings,
         label: context.loc.settings,
-        index: 5,
+        index: 4,
       ),
     ];
   }
