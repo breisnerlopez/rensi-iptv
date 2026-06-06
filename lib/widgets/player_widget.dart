@@ -56,6 +56,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
   StreamSubscription? _externalSubUriSubscription;
   StreamSubscription? _externalSubDataSubscription;
   StreamSubscription? _playbackSpeedSubscription;
+  Duration? _seekPos;
+  Duration? _seekDur;
+  Timer? _seekHideTimer;
   late StreamSubscription contentItemIndexChangedSubscription;
   late StreamSubscription _connectivitySubscription;
 
@@ -171,6 +174,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _externalSubUriSubscription?.cancel();
     _externalSubDataSubscription?.cancel();
     _playbackSpeedSubscription?.cancel();
+    _seekHideTimer?.cancel();
     contentItemIndexChangedSubscription.cancel();
     _connectivitySubscription.cancel();
     _errorHandler.reset();
@@ -676,6 +680,70 @@ class _PlayerWidgetState extends State<PlayerWidget>
     return syns.any((s) => hay.contains(s));
   }
 
+  void _showSeekFeedback(Duration pos, Duration dur) {
+    _seekHideTimer?.cancel();
+    if (mounted) {
+      setState(() {
+        _seekPos = pos;
+        _seekDur = dur;
+      });
+    }
+    _seekHideTimer = Timer(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => _seekPos = null);
+    });
+  }
+
+  static String _fmtDur(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+
+  Widget _buildSeekOverlay() {
+    final pos = _seekPos, dur = _seekDur;
+    if (pos == null || dur == null || dur.inMilliseconds <= 0) {
+      return const SizedBox.shrink();
+    }
+    final progress = (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0);
+    return Positioned(
+      left: 24,
+      right: 24,
+      bottom: 40,
+      child: IgnorePointer(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.7),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Text(_fmtDur(pos),
+                  style: const TextStyle(color: Colors.white, fontSize: 12)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 4,
+                    backgroundColor: Colors.white24,
+                    valueColor:
+                        const AlwaysStoppedAnimation(Color(0xFFC75F41)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(_fmtDur(dur),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _setupPip() async {
     // PiP is a phone feature. On Android TV / large screens the system PiP
     // transition can hang the device, so never arm auto-PiP there.
@@ -817,18 +885,27 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (key == LogicalKeyboardKey.arrowRight ||
         key == LogicalKeyboardKey.mediaFastForward ||
         key == LogicalKeyboardKey.mediaStepForward) {
-      final pos = _player.state.position;
-      final dur = _player.state.duration;
-      final target = pos + const Duration(seconds: 10);
-      _player.seek(target > dur ? dur : target);
+      if (!isLive) {
+        final pos = _player.state.position;
+        final dur = _player.state.duration;
+        final target = pos + const Duration(seconds: 10);
+        final clamped = target > dur ? dur : target;
+        _player.seek(clamped);
+        _showSeekFeedback(clamped, dur);
+      }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowLeft ||
         key == LogicalKeyboardKey.mediaRewind ||
         key == LogicalKeyboardKey.mediaStepBackward) {
-      final pos = _player.state.position;
-      final target = pos - const Duration(seconds: 10);
-      _player.seek(target < Duration.zero ? Duration.zero : target);
+      if (!isLive) {
+        final pos = _player.state.position;
+        final dur = _player.state.duration;
+        final target = pos - const Duration(seconds: 10);
+        final clamped = target < Duration.zero ? Duration.zero : target;
+        _player.seek(clamped);
+        _showSeekFeedback(clamped, dur);
+      }
       return KeyEventResult.handled;
     }
 
@@ -1285,6 +1362,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
           // Channel-number entry overlay (TV remote).
           ChannelNumberOverlay(buffer: _channelBuffer.buffer),
+
+          // Transient seek progress bar (D-pad ±10s feedback).
+          _buildSeekOverlay(),
         ],
       ),
       ),
