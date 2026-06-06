@@ -27,7 +27,7 @@ class XtreamCodeHomeScreen extends StatefulWidget {
   const XtreamCodeHomeScreen({
     super.key,
     required this.playlist,
-    this.initialIndex = 4,
+    this.initialIndex = 1,
   });
 
   @override
@@ -489,7 +489,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       ),
       NavigationItem(
         icon: Icons.search,
-        label: context.loc.tmdb_global_search,
+        label: context.loc.search,
         index: 4,
       ),
       NavigationItem(

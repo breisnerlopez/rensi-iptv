@@ -26,7 +26,7 @@ class M3UHomeScreen extends StatefulWidget {
   const M3UHomeScreen({
     super.key,
     required this.playlist,
-    this.initialIndex = 2,
+    this.initialIndex = 1,
   });
 
   @override
@@ -419,7 +419,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       NavigationItem(icon: Icons.all_inbox, label: context.loc.all, index: 1),
       NavigationItem(
         icon: Icons.search,
-        label: context.loc.tmdb_global_search,
+        label: context.loc.search,
         index: 2,
       ),
       NavigationItem(
