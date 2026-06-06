@@ -10,6 +10,7 @@ import 'package:rensi_iptv/services/sleep_timer_service.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
 import 'package:rensi_iptv/widgets/channel_number_overlay.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:rensi_iptv/utils/subtitle_configuration.dart';
 import 'package:rensi_iptv/widgets/video_widget.dart';
@@ -618,6 +619,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
   }
 
   Future<void> _setupPip() async {
+    // PiP is a phone feature. On Android TV / large screens the system PiP
+    // transition can hang the device, so never arm auto-PiP there.
+    if (!mounted) return;
+    if (ResponsiveHelper.isDesktopOrTV(context)) {
+      await PipService.instance.setAutoEnter(false);
+      return;
+    }
     final pip = PipService.instance;
     if (!await pip.isAvailable()) return;
     if (!mounted) return;

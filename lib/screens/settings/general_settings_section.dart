@@ -2,6 +2,7 @@ import 'package:rensi_iptv/database/database.dart';
 import 'package:rensi_iptv/screens/settings/subtitle_settings_section.dart';
 import 'package:rensi_iptv/services/backup_service.dart';
 import 'package:rensi_iptv/services/pip_service.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/services/service_locator.dart';
 import 'package:rensi_iptv/services/tmdb_credentials_service.dart';
 import 'package:rensi_iptv/utils/backup_import_flow.dart';
@@ -72,7 +73,11 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
       final speedUpOnLongPress = await UserPreferences.getSpeedUpOnLongPress();
       final seekOnDoubleTap = await UserPreferences.getSeekOnDoubleTap();
       final autoPipOnHome = await UserPreferences.getAutoPipOnHome();
-      final pipSupported = await PipService.instance.isAvailable();
+      // Hide the PiP toggle on Android TV / large screens — PiP isn't a
+      // lean-back feature and arming it there can hang the device.
+      final pipSupported = await PipService.instance.isAvailable() &&
+          mounted &&
+          !ResponsiveHelper.isDesktopOrTV(context);
       final packageInfo = await PackageInfo.fromPlatform();
       final tmdb = await TmdbCredentialsService.getCredential();
       setState(() {
