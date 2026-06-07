@@ -6,7 +6,6 @@ import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
-import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 
 /// Cinematic "Inicio" — hero + themed rails, fed by the real catalogue.
