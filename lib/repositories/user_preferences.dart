@@ -25,6 +25,10 @@ class UserPreferences {
   static const String _keyVolumeGesture = 'volume_gesture';
   static const String _keySeekGesture = 'seek_gesture';
   static const String _keyOkHintCount = 'ok_hint_shown_count';
+  // Video decoder mode: 'auto' (default, GPU + auto-safe HW), 'hw_direct'
+  // (zero-copy mediacodec_embed — smoother on weak TV boxes but can green/black
+  // screen on some decoders), or 'software'.
+  static const String _keyVideoDecoder = 'video_decoder_mode';
   static const String _keySpeedUpOnLongPress = 'speed_up_on_long_press';
   static const String _keySeekOnDoubleTap = 'seek_on_double_tap';
   static const String _keyAutoPipOnHome = 'auto_pip_on_home';
@@ -411,6 +415,17 @@ class UserPreferences {
   static Future<void> setSeekGesture(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keySeekGesture, value);
+  }
+
+  /// 'auto' (default) | 'hw_direct' | 'software'.
+  static Future<String> getVideoDecoder() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyVideoDecoder) ?? 'auto';
+  }
+
+  static Future<void> setVideoDecoder(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyVideoDecoder, value);
   }
 
   // How many times the "hold OK for options" TV hint has been shown, so it

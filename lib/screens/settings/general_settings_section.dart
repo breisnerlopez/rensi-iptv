@@ -43,6 +43,7 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
   final AppDatabase database = getIt<AppDatabase>();
 
   bool _backgroundPlayEnabled = false;
+String _videoDecoder = 'auto';
   bool _isLoading = true;
   Uint8List? _selectedFileBytes;
   String _selectedTheme = 'system';
@@ -98,6 +99,7 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
       final prefAudio = await UserPreferences.getAudioTrack();
       final prefSub = await UserPreferences.getSubtitleTrack();
       final speed = await UserPreferences.getPlaybackSpeed();
+      final decoder = await UserPreferences.getVideoDecoder();
       final packageInfo = await PackageInfo.fromPlatform();
       final tmdb = await TmdbCredentialsService.getCredential();
       setState(() {
@@ -106,6 +108,10 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
         _prefSubLang = _subLangOptions.contains(prefSub) ? prefSub : 'auto';
         _playbackSpeed = _speedOptions.contains(speed) ? speed : 1.0;
         _backgroundPlayEnabled = backgroundPlay;
+        _videoDecoder =
+            const ['auto', 'hw_direct', 'software'].contains(decoder)
+                ? decoder
+                : 'auto';
         _selectedTheme = _themeModeToString(themeMode);
         _brightnessGesture = brightnessGesture;
         _volumeGesture = volumeGesture;
@@ -189,6 +195,19 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
       setState(() {
         _backgroundPlayEnabled = !value;
       });
+    }
+  }
+
+  Future<void> _saveVideoDecoder(String? value) async {
+    if (value == null) return;
+    await UserPreferences.setVideoDecoder(value);
+    setState(() => _videoDecoder = value);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Se aplicará al abrir el próximo video'),
+        ),
+      );
     }
   }
 
@@ -617,6 +636,23 @@ class _GeneralSettingsWidgetState extends State<GeneralSettingsWidget> {
                         onChanged: _saveAutoPipSetting,
                       ),
                     ],
+                    const Divider(height: 1),
+                    DropdownTileWidget<String>(
+                      icon: Icons.memory,
+                      label: 'Decodificación de video',
+                      value: _videoDecoder,
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'auto',
+                            child: Text('Automático (recomendado)')),
+                        DropdownMenuItem(
+                            value: 'hw_direct',
+                            child: Text('Hardware directo (experimental)')),
+                        DropdownMenuItem(
+                            value: 'software', child: Text('Software')),
+                      ],
+                      onChanged: _saveVideoDecoder,
+                    ),
                     const Divider(height: 1),
                     DropdownTileWidget<String>(
                       icon: Icons.translate,

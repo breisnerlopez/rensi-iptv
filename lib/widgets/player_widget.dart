@@ -362,6 +362,36 @@ class _PlayerWidgetState extends State<PlayerWidget>
     });
   }
 
+  /// Build the VideoController per the user's decoder preference.
+  /// - 'auto' (default): GPU render + auto-safe HW decode (mediacodec-copy). Most
+  ///   compatible; the copy-back can drop frames on weak boxes.
+  /// - 'hw_direct': zero-copy decode straight to a native Surface (smoothest on
+  ///   Amlogic TV boxes). EXPERIMENTAL — can green/black-screen on some decoders;
+  ///   the user can switch back in Settings if a stream fails.
+  /// - 'software': no HW decode (last resort for odd codecs).
+  VideoController _createVideoController(String mode) {
+    switch (mode) {
+      case 'hw_direct':
+        return VideoController(
+          _player,
+          configuration: const VideoControllerConfiguration(
+            vo: 'mediacodec_embed',
+            hwdec: 'mediacodec',
+            androidAttachSurfaceAfterVideoParameters: false,
+          ),
+        );
+      case 'software':
+        return VideoController(
+          _player,
+          configuration: const VideoControllerConfiguration(
+            enableHardwareAcceleration: false,
+          ),
+        );
+      default:
+        return VideoController(_player);
+    }
+  }
+
   Future<void> _initializePlayer() async {
     if (!mounted) return;
 
@@ -369,7 +399,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
     PlayerState.backgroundPlay = await UserPreferences.getBackgroundPlay();
     _audioHandler.setPlayer(_player);
-    _videoController = VideoController(_player);
+    final decoderMode = await UserPreferences.getVideoDecoder();
+    _videoController = _createVideoController(decoderMode);
 
     // Picture-in-Picture: arm auto-enter on user-leave-hint and keep the
     // native side in sync with the video aspect ratio.
