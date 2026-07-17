@@ -516,7 +516,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline, color: Colors.grey.shade600),
+                Icon(Icons.info_outline, color: Colors.white70),
                 const SizedBox(width: 12),
                 Text(context.loc.not_found_in_category),
               ],
@@ -607,13 +607,13 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   const SizedBox(height: 8),
                   Text(
                     context.loc.episode_count(displayCount),
-                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                    style: TextStyle(fontSize: 14, color: Colors.white70),
                   ),
                   if (season.airDate != null) ...[
                     const SizedBox(height: 4),
                     Text(
                       season.airDate!,
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                      style: TextStyle(fontSize: 12, color: Colors.white60),
                     ),
                   ],
                 ],
@@ -766,7 +766,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                       Text(
                         context.loc.episode_count(displayCount),
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: Colors.white70,
                           fontSize: 14,
                         ),
                       ),
@@ -960,7 +960,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                         context.loc.duration(episode.duration!),
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: Colors.white70,
                         ),
                       ),
                     ],
@@ -972,7 +972,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: Colors.white70,
                         ),
                       ),
                     ],
@@ -1071,14 +1071,14 @@ class _SeriesScreenState extends State<SeriesScreen> {
                           ? loadingProgress.cumulativeBytesLoaded /
                           loadingProgress.expectedTotalBytes!
                           : null,
-                      color: Colors.grey.shade400,
+                      color: Colors.white70,
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'Görsel yükleniyor...',
                       // Bu string için de localization ekleyebiliriz
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: Colors.white70,
                         fontSize: 14,
                       ),
                     ),
@@ -1110,14 +1110,14 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 color: Colors.grey.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.tv, size: 64, color: Colors.grey.shade500),
+              child: Icon(Icons.tv, size: 64, color: Colors.white60),
             ),
             const SizedBox(height: 16),
             Text(
               'Görsel Bulunamadı',
               // Bu string için de localization ekleyebiliriz
               style: TextStyle(
-                color: Colors.grey.shade600,
+                color: Colors.white70,
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
