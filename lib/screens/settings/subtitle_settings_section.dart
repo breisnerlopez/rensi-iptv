@@ -119,6 +119,51 @@ class _SubtitleSettingsScreenState extends State<SubtitleSettingsScreen> {
     _saveSettings();
   }
 
+  /// Wraps a [SliderTileWidget] with -/+ [IconButton]s so a D-pad can step
+  /// the value in coarse, reasonable increments instead of walking through
+  /// every one of the slider's (up to 120) divisions one nudge at a time.
+  /// The [Slider] itself is untouched, so touch/drag behaviour is preserved.
+  Widget _buildSteppedSlider({
+    required IconData icon,
+    required String label,
+    required double value,
+    required double min,
+    required double max,
+    required int divisions,
+    required double step,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.remove_circle_outline),
+          tooltip: '-',
+          onPressed: value <= min
+              ? null
+              : () => onChanged((value - step).clamp(min, max)),
+        ),
+        Expanded(
+          child: SliderTileWidget(
+            icon: icon,
+            label: label,
+            value: value,
+            min: min,
+            max: max,
+            divisions: divisions,
+            onChanged: onChanged,
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.add_circle_outline),
+          tooltip: '+',
+          onPressed: value >= max
+              ? null
+              : () => onChanged((value + step).clamp(min, max)),
+        ),
+      ],
+    );
+  }
+
   Widget _buildPreviewCard() {
     return Container(
       width: double.infinity,
@@ -228,53 +273,58 @@ class _SubtitleSettingsScreenState extends State<SubtitleSettingsScreen> {
                                 ],
                               ),
                             ),
-                            SliderTileWidget(
+                            _buildSteppedSlider(
                               icon: Icons.format_size,
                               label: context.loc.font_size,
                               value: _fontSize,
                               min: 24,
                               max: 96,
                               divisions: 18,
+                              step: 4.0,
                               onChanged: _updateFontSize,
                             ),
                             const Divider(height: 1),
-                            SliderTileWidget(
+                            _buildSteppedSlider(
                               icon: Icons.format_line_spacing,
                               label: context.loc.font_height,
                               value: _height,
                               min: 1.0,
                               max: 2.5,
                               divisions: 15,
+                              step: 0.2,
                               onChanged: _updateHeight,
                             ),
                             const Divider(height: 1),
-                            SliderTileWidget(
+                            _buildSteppedSlider(
                               icon: Icons.space_bar,
                               label: context.loc.letter_spacing,
                               value: _letterSpacing,
                               min: -2.0,
                               max: 5.0,
                               divisions: 70,
+                              step: 0.5,
                               onChanged: _updateLetterSpacing,
                             ),
                             const Divider(height: 1),
-                            SliderTileWidget(
+                            _buildSteppedSlider(
                               icon: Icons.format_textdirection_l_to_r,
                               label: context.loc.word_spacing,
                               value: _wordSpacing,
                               min: -2.0,
                               max: 10.0,
                               divisions: 120,
+                              step: 1.0,
                               onChanged: _updateWordSpacing,
                             ),
                             const Divider(height: 1),
-                            SliderTileWidget(
+                            _buildSteppedSlider(
                               icon: Icons.padding,
                               label: context.loc.padding,
                               value: _padding,
                               min: 8.0,
                               max: 48.0,
                               divisions: 40,
+                              step: 4.0,
                               onChanged: _updatePadding,
                             ),
                           ],

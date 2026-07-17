@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
+import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 
 class WatchHistoryCard extends StatelessWidget {
   final WatchHistory history;
@@ -10,6 +11,7 @@ class WatchHistoryCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onRemove;
   final bool showProgress;
+  final bool autofocus;
 
   const WatchHistoryCard({
     super.key,
@@ -19,6 +21,7 @@ class WatchHistoryCard extends StatelessWidget {
     this.onTap,
     this.onRemove,
     this.showProgress = false,
+    this.autofocus = false,
   });
 
   @override
@@ -27,12 +30,15 @@ class WatchHistoryCard extends StatelessWidget {
       width: width,
       height: height,
       margin: EdgeInsets.symmetric(horizontal: 4),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: InkWell(
-          onTap: onTap,
-          child: Stack(
+      child: FocusHighlight(
+        borderRadius: BorderRadius.circular(12),
+        child: Card(
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: InkWell(
+            onTap: onTap,
+            autofocus: autofocus,
+            child: Stack(
             children: [
               // Background/Thumbnail
               _buildThumbnail(),
@@ -42,15 +48,21 @@ class WatchHistoryCard extends StatelessWidget {
                 Positioned(
                   top: 8,
                   right: 8,
-                  child: GestureDetector(
-                    onTap: onRemove,
-                    child: Container(
-                      padding: EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        shape: BoxShape.circle,
+                  // Focusable so the D-pad can reach "remove" on Android TV.
+                  child: FocusHighlight(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Material(
+                      color: Colors.black54,
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: IconButton(
+                        onPressed: onRemove,
+                        iconSize: 16,
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Quitar',
+                        icon: const Icon(Icons.close, color: Colors.white),
                       ),
-                      child: Icon(Icons.close, color: Colors.white, size: 16),
                     ),
                   ),
                 ),
@@ -99,6 +111,7 @@ class WatchHistoryCard extends StatelessWidget {
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),

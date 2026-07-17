@@ -52,6 +52,14 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   static const double _defaultFontSize = 10.0;
   static const double _largeFontSize = 11.0;
   final ScrollController _scrollController = ScrollController();
+  // One focus node per rail item, so a tab change (incl. programmatic ones like
+  // the avatar → settings shortcut) can move focus to the target rail item
+  // instead of losing it when the previous page gets ExcludeFocus'd.
+  final Map<int, FocusNode> _railNodes = {};
+  int _lastRailIndex = -1;
+
+  FocusNode _railNode(int index) =>
+      _railNodes.putIfAbsent(index, () => FocusNode(debugLabel: 'rail$index'));
 
   @override
   void initState() {
@@ -61,8 +69,24 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
 
   @override
   void dispose() {
+    for (final n in _railNodes.values) {
+      n.dispose();
+    }
     _controller.dispose();
     super.dispose();
+  }
+
+  /// On a tab change, land focus on the target rail item (TV only). Skips the
+  /// initial build so the page's own autofocus (e.g. the Home hero) wins.
+  void _maybeRefocusRail(int index) {
+    if (index == _lastRailIndex) return;
+    final firstBuild = _lastRailIndex == -1;
+    _lastRailIndex = index;
+    if (firstBuild) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !ResponsiveHelper.isDesktopOrTV(context)) return;
+      _railNodes[index]?.requestFocus();
+    });
   }
 
   void _initializeController() {
@@ -103,7 +127,10 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     return ConfirmExitScope(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth >= _desktopBreakpoint) {
+          // Real TV/leanback always gets the side-rail layout; width is only a
+          // fallback for large tablets / desktop windows.
+          if (ResponsiveHelper.isDesktopOrTV(context) ||
+              constraints.maxWidth >= _desktopBreakpoint) {
             return _buildDesktopLayout(context, controller, constraints);
           }
           return _buildMobileLayout(context, controller);
@@ -142,6 +169,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     XtreamCodeHomeController controller,
     BoxConstraints constraints,
   ) {
+    _maybeRefocusRail(controller.currentIndex);
     // Each column is its own FocusTraversalGroup so D-pad left/right
     // resolves the next focusable item in the *other* column (the
     // navigation rail or the page) without falling off the screen.
@@ -167,6 +195,9 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     // but the off-screen pages stay in the focus tree — on TV the D-pad can
     // then jump focus into an invisible page and "disappear". ExcludeFocus
     // pulls the hidden pages out of traversal so focus stays on screen.
+    // NOTE: do NOT wrap pages in a FocusScope — it traps directional focus and
+    // makes the side rail unreachable from the content. Initial focus is
+    // handled by each page's own `autofocus` (e.g. the Home hero Play button).
     return IndexedStack(
       index: controller.currentIndex,
       children: [
@@ -196,9 +227,10 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         movieCategories: controller.movieCategories,
         seriesCategories: controller.seriesCategories,
         onOpen: (it) => navigateByContentType(context, it),
-        onPlay: (it) => navigateByContentType(context, it),
+        onPlay: (it) => playByContentType(context, it),
         onSearch: _openSearch,
         onSettings: () => controller.onNavigationTap(4),
+        onSeeAll: _navigateToCategoryDetail,
         playlistSwitcher: PlaylistSwitcherButton(
           currentPlaylist: widget.playlist,
           currentIndex: controller.currentIndex,
@@ -211,7 +243,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         onSearch: _openSearch,
       ),
       LiveRedesign(
-        liveCategories: controller.liveCategories!,
+        liveCategories: controller.liveCategories ?? const [],
         onPlay: (it) => navigateByContentType(context, it),
       ),
       ListRedesign(
@@ -433,7 +465,11 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         ),
         child: InkWell(
           onTap: onTap,
-          autofocus: isSelected,
+          focusNode: _railNode(item.index),
+          // Don't autofocus the rail on entry — let the page content (e.g. the
+          // Home hero Play button) take initial focus; the rail stays reachable
+          // with LEFT.
+          autofocus: false,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [

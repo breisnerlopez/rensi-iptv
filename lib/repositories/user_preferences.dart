@@ -24,6 +24,7 @@ class UserPreferences {
   static const String _keyBrightnessGesture = 'brightness_gesture';
   static const String _keyVolumeGesture = 'volume_gesture';
   static const String _keySeekGesture = 'seek_gesture';
+  static const String _keyOkHintCount = 'ok_hint_shown_count';
   static const String _keySpeedUpOnLongPress = 'speed_up_on_long_press';
   static const String _keySeekOnDoubleTap = 'seek_on_double_tap';
   static const String _keyAutoPipOnHome = 'auto_pip_on_home';
@@ -384,7 +385,7 @@ class UserPreferences {
   // Player gesture settings
   static Future<bool> getBrightnessGesture() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_keyBrightnessGesture) ?? false;
+    return prefs.getBool(_keyBrightnessGesture) ?? true;
   }
 
   static Future<void> setBrightnessGesture(bool value) async {
@@ -394,7 +395,7 @@ class UserPreferences {
 
   static Future<bool> getVolumeGesture() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_keyVolumeGesture) ?? false;
+    return prefs.getBool(_keyVolumeGesture) ?? true;
   }
 
   static Future<void> setVolumeGesture(bool value) async {
@@ -404,12 +405,24 @@ class UserPreferences {
 
   static Future<bool> getSeekGesture() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_keySeekGesture) ?? false;
+    return prefs.getBool(_keySeekGesture) ?? true;
   }
 
   static Future<void> setSeekGesture(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keySeekGesture, value);
+  }
+
+  // How many times the "hold OK for options" TV hint has been shown, so it
+  // stops nagging once the user has learned the gesture.
+  static Future<int> getOkHintShownCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_keyOkHintCount) ?? 0;
+  }
+
+  static Future<void> setOkHintShownCount(int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_keyOkHintCount, value);
   }
 
   static Future<bool> getSpeedUpOnLongPress() async {

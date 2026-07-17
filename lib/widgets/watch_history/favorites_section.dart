@@ -3,6 +3,7 @@ import 'package:rensi_iptv/models/favorite.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/widgets/content_card.dart';
+import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/utils/build_media_url.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
@@ -84,48 +85,55 @@ class FavoritesSection extends StatelessWidget {
       margin: EdgeInsets.symmetric(horizontal: 4),
       child: Stack(
         children: [
-          FutureBuilder<ContentItem?>(
-            future: _getContentItemFromFavorite(favorite),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Container(
+          FocusHighlight(
+            borderRadius: BorderRadius.circular(8),
+            child: FutureBuilder<ContentItem?>(
+              future: _getContentItemFromFavorite(favorite),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Container(
+                    width: cardWidth,
+                    height: cardHeight,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                }
+
+                final contentItem =
+                    snapshot.data ?? _convertFavoriteToContentItem(favorite);
+
+                return ContentCard(
+                  content: contentItem,
                   width: cardWidth,
-                  height: cardHeight,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
+                  onTap: () => _navigateToContent(context, contentItem),
                 );
-              }
-
-              final contentItem =
-                  snapshot.data ?? _convertFavoriteToContentItem(favorite);
-
-              return ContentCard(
-                content: contentItem,
-                width: cardWidth,
-                onTap: () => _navigateToContent(context, contentItem),
-              );
-            },
+              },
+            ),
           ),
           if (onFavoriteRemove != null)
             Positioned(
               top: 8,
               right: 8,
-              child: GestureDetector(
-                onTap: () async {
-                  onFavoriteRemove?.call(favorite);
-                },
-                child: Container(
-                  padding: EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(12),
+              // Focusable so the D-pad can remove a favorite on Android TV.
+              child: FocusHighlight(
+                borderRadius: BorderRadius.circular(12),
+                child: Material(
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.antiAlias,
+                  child: IconButton(
+                    onPressed: () => onFavoriteRemove?.call(favorite),
+                    iconSize: 16,
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(),
+                    tooltip: 'Quitar de favoritos',
+                    icon: const Icon(Icons.favorite, color: Colors.red),
                   ),
-                  child: Icon(Icons.favorite, color: Colors.red, size: 16),
                 ),
               ),
             ),

@@ -1,4 +1,7 @@
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:flutter/material.dart';
 
 class PlaylistLoadingState extends StatelessWidget {
@@ -31,32 +34,46 @@ class PlaylistErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final r = rensi(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            Icon(Icons.error_outline, size: 64, color: r.accent),
             const SizedBox(height: 16),
             Text(
               context.loc.error_occurred,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontFamily: 'Bricolage Grotesque',
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               error,
-              style: const TextStyle(color: Colors.red),
+              style: TextStyle(color: r.text3),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: Text(context.loc.try_again),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
+            FocusHighlight(
+              borderRadius: BorderRadius.circular(20),
+              child: FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: Text(context.loc.try_again),
+                style: FilledButton.styleFrom(
+                  backgroundColor: r.accent,
+                  foregroundColor: r.onAccent,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 14,
+                  ),
+                  textStyle: const TextStyle(fontSize: 16),
+                ),
               ),
             ),
           ],
@@ -129,24 +146,33 @@ class PlaylistEmptyState extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  FilledButton.icon(
-                    onPressed: onCreatePlaylist,
-                    icon: const Icon(Icons.add),
-                    label: Text(context.loc.empty_playlist_button),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      textStyle: const TextStyle(fontSize: 16),
+                  // Autofocus on TV so the remote has an immediate target, and
+                  // a loud FocusHighlight ring visible at a 3 m distance.
+                  FocusHighlight(
+                    borderRadius: BorderRadius.circular(20),
+                    child: FilledButton.icon(
+                      autofocus: ResponsiveHelper.isDesktopOrTV(context),
+                      onPressed: onCreatePlaylist,
+                      icon: const Icon(Icons.add),
+                      label: Text(context.loc.empty_playlist_button),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        textStyle: const TextStyle(fontSize: 16),
+                      ),
                     ),
                   ),
                   if (onImportBackup != null) ...[
                     const SizedBox(height: 12),
-                    FilledButton.tonalIcon(
-                      onPressed: onImportBackup,
-                      icon: const Icon(Icons.download_outlined),
-                      label: Text(context.loc.import_playlists_and_settings),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        textStyle: const TextStyle(fontSize: 16),
+                    FocusHighlight(
+                      borderRadius: BorderRadius.circular(20),
+                      child: FilledButton.tonalIcon(
+                        onPressed: onImportBackup,
+                        icon: const Icon(Icons.download_outlined),
+                        label: Text(context.loc.import_playlists_and_settings),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          textStyle: const TextStyle(fontSize: 16),
+                        ),
                       ),
                     ),
                   ],

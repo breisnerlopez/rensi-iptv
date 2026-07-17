@@ -8,6 +8,8 @@ import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import '../../../controllers/favorites_controller.dart';
 import 'episode_screen.dart';
 
@@ -249,12 +251,14 @@ class _SeriesScreenState extends State<SeriesScreen> {
                                   ),
                                 ),
                                 // Favori butonu
-                                IconButton(
-                                  onPressed: _toggleFavorite,
-                                  icon: Icon(
-                                    _isFavorite ? Icons.favorite : Icons.favorite_border,
-                                    color: _isFavorite ? Colors.red : Colors.white,
-                                    size: 28,
+                                FocusHighlight(
+                                  child: IconButton(
+                                    onPressed: _toggleFavorite,
+                                    icon: Icon(
+                                      _isFavorite ? Icons.favorite : Icons.favorite_border,
+                                      color: _isFavorite ? Colors.red : Colors.white,
+                                      size: 28,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -391,6 +395,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
     final contentColor = isDark ? Colors.black87 : Colors.white;
 
     return InkWell(
+      autofocus: ResponsiveHelper.isDesktopOrTV(context),
       borderRadius: BorderRadius.circular(12),
       onTap: () => _openEpisodeFromSeries(episode),
       child: Container(
@@ -540,66 +545,75 @@ class _SeriesScreenState extends State<SeriesScreen> {
 
     // NEW WAY (Only trust what we actually have)
     final String displayCount = realEpisodeCount.toString();
-    return Container(
-      width: 200,
-      margin: const EdgeInsets.only(right: 12),
-      decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
+    // On TV, land the initial focus on the first season card only when
+    // there's no Continue Watching button ahead of it to take that spot.
+    final bool autofocusSeason = index == 0 &&
+        _lastOpenedEpisode == null &&
+        ResponsiveHelper.isDesktopOrTV(context);
+    return FocusHighlight(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 200,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            _showSeasonEpisodes(season);
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        Icons.play_circle_outline,
-                        size: 20,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        season.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+          border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            autofocus: autofocusSeason,
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              _showSeasonEpisodes(season);
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        overflow: TextOverflow.ellipsis,
+                        child: Icon(
+                          Icons.play_circle_outline,
+                          size: 20,
+                          color: Theme.of(context).primaryColor,
+                        ),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          season.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    context.loc.episode_count(displayCount),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  ),
+                  if (season.airDate != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      season.airDate!,
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                     ),
                   ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  context.loc.episode_count(displayCount),
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                ),
-                if (season.airDate != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    season.airDate!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                  ),
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -779,7 +793,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                         itemCount: episodes.length,
                         itemBuilder: (context, index) {
                           final episode = episodes[index];
-                          return _buildEpisodeCard(episode);
+                          return _buildEpisodeCard(episode, autofocus: index == 0);
                         },
                       );
                     },
@@ -793,7 +807,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
     );
   }
 
-  Widget _buildEpisodeCard(EpisodesData episode) {
+  Widget _buildEpisodeCard(EpisodesData episode, {bool autofocus = false}) {
     bool isRecent = false;
 
     // --- FIX: Smart Date Logic ---
@@ -831,7 +845,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
       } catch (e) {}
     }
 
-    return Container(
+    return FocusHighlight(
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: isRecent
@@ -841,6 +857,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
         border: Border.all(color: Colors.grey.withOpacity(0.2), width: 1),
       ),
       child: InkWell(
+        autofocus: autofocus,
         borderRadius: BorderRadius.circular(12),
         onTap: () {
           Navigator.pop(context);
@@ -1000,6 +1017,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

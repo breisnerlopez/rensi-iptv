@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 
 /// Shared primitives for the cinematic redesign. They read tokens from the
@@ -32,16 +33,19 @@ class RensiKeyArt extends StatelessWidget {
   }
 
   Widget _fallback(BuildContext context) {
-    final r = rensi(context);
-    // Stable hue from the id so each title keeps the same art.
-    final seed = item.id.hashCode;
-    final g1 = HSLColor.fromAHSL(1, (seed % 360).toDouble(), 0.45, 0.22).toColor();
+    // Stable but BRAND-COHESIVE art: constrain the hue to a warm terracotta/
+    // amber band (not a random 0-360° rainbow) and keep it dark, so a rail full
+    // of missing posters reads as one curated system, like Plex/TiviMate.
+    final seed = item.id.hashCode.abs();
+    final hue = (6 + seed % 34).toDouble(); // 6°..40°, brand warm family
+    final g1 = HSLColor.fromAHSL(1, hue, 0.30, 0.17).toColor();
+    final g2 = HSLColor.fromAHSL(1, (hue + 10) % 360, 0.24, 0.10).toColor();
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [g1, r.accent.withValues(alpha: 0.85)],
+          colors: [g1, g2],
         ),
       ),
       child: Center(
@@ -137,9 +141,11 @@ class RensiPoster extends StatelessWidget {
                           item.name,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'Bricolage Grotesque',
-                            fontSize: 15,
+                            // Larger at a 3 m viewing distance on TV.
+                            fontSize:
+                                ResponsiveHelper.isDesktopOrTV(context) ? 18 : 15,
                             fontWeight: FontWeight.w700,
                             height: 1.06,
                             color: Colors.white,
@@ -151,7 +157,8 @@ class RensiPoster extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize:
+                                ResponsiveHelper.isDesktopOrTV(context) ? 13 : 11,
                             color: Colors.white.withValues(alpha: 0.78),
                           ),
                         ),
@@ -331,6 +338,9 @@ class RensiRail extends StatelessWidget {
       height: height ?? posterWidth * 1.48 + 4,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        // Pre-build a few posters beyond the viewport so D-pad focus can jump
+        // to the next tile without waiting for the scroll to catch up.
+        cacheExtent: 1200,
         padding: EdgeInsets.fromLTRB(sidePadding, 0, sidePadding, 4),
         itemCount: children.length,
         separatorBuilder: (_, __) => SizedBox(width: sidePadding >= 40 ? 16 : 12),

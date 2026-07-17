@@ -1,6 +1,8 @@
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/screens/xtream-codes/xtream_code_data_loader_screen.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../../controllers/playlist_controller.dart';
 import '../../../../models/api_configuration_model.dart';
@@ -55,6 +57,19 @@ class NewXtreamCodePlaylistScreenState
     _passwordNode.dispose();
     _submitNode.dispose();
     super.dispose();
+  }
+
+  // Lets a remote-control user drop a long URL/user/pass into a field
+  // without typing it character-by-character on a D-pad keyboard.
+  Future<void> _pasteInto(TextEditingController controller) async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+    if (text != null && text.trim().isNotEmpty) {
+      controller.text = text.trim();
+      controller.selection = TextSelection.collapsed(
+        offset: controller.text.length,
+      );
+    }
   }
 
   void _validateForm() {
@@ -212,6 +227,14 @@ class NewXtreamCodePlaylistScreenState
           decoration: InputDecoration(
             hintText: 'http://example.com:8080',
             prefixIcon: Icon(Icons.link, color: colorScheme.primary),
+            suffixIcon: IconButton(
+              icon: Icon(
+                Icons.content_paste,
+                color: colorScheme.onSurface.withOpacity(0.6),
+              ),
+              tooltip: 'Pegar',
+              onPressed: () => _pasteInto(_urlController),
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: colorScheme.outline),
@@ -265,6 +288,14 @@ class NewXtreamCodePlaylistScreenState
           decoration: InputDecoration(
             hintText: context.loc.username_placeholder,
             prefixIcon: Icon(Icons.person, color: colorScheme.primary),
+            suffixIcon: IconButton(
+              icon: Icon(
+                Icons.content_paste,
+                color: colorScheme.onSurface.withOpacity(0.6),
+              ),
+              tooltip: 'Pegar',
+              onPressed: () => _pasteInto(_usernameController),
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: colorScheme.outline),
@@ -315,16 +346,29 @@ class NewXtreamCodePlaylistScreenState
           decoration: InputDecoration(
             hintText: context.loc.password_placeholder,
             prefixIcon: Icon(Icons.lock, color: colorScheme.primary),
-            suffixIcon: IconButton(
-              icon: Icon(
-                _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                color: colorScheme.onSurface.withOpacity(0.6),
-              ),
-              onPressed: () {
-                setState(() {
-                  _obscurePassword = !_obscurePassword;
-                });
-              },
+            suffixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.content_paste,
+                    color: colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                  tooltip: 'Pegar',
+                  onPressed: () => _pasteInto(_passwordController),
+                ),
+                IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                    color: colorScheme.onSurface.withOpacity(0.6),
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
+              ],
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -505,7 +549,17 @@ class NewXtreamCodePlaylistScreenState
       var playerInfo = await repository.getPlayerInfo(forceRefresh: true);
 
       if (playerInfo == null) {
-        controller.setError(context.loc.invalid_credentials);
+        if (!mounted) return;
+        // getPlayerInfo() collapses every failure (timeout, DNS, server down,
+        // bad password) to null. Don't blame the credentials when the device is
+        // simply offline — that's the most common and most misleading case.
+        final conn = await Connectivity().checkConnectivity();
+        final offline =
+            conn.isEmpty || conn.every((c) => c == ConnectivityResult.none);
+        if (!mounted) return;
+        controller.setError(offline
+            ? context.loc.no_connection
+            : context.loc.invalid_credentials);
         return;
       }
 

@@ -130,13 +130,28 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
     }
 
     return Positioned.fill(
-      child: Container(
-        color: Colors.black.withOpacity(0.3),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: Material(
-            color: Colors.black.withOpacity(0.95),
-            elevation: 8,
+      child: FocusScope(
+        child: Focus(
+          // canRequestFocus:false so this wrapper doesn't trap directional
+          // traversal; the close button autofocuses to pull focus into the panel.
+          canRequestFocus: false,
+          onKeyEvent: (node, event) {
+            if (event is KeyDownEvent &&
+                (event.logicalKey == LogicalKeyboardKey.goBack ||
+                    event.logicalKey == LogicalKeyboardKey.escape ||
+                    event.logicalKey == LogicalKeyboardKey.browserBack)) {
+              EventBus().emit('toggle_video_info', false);
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Container(
+            color: Colors.black.withOpacity(0.3),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Material(
+                color: Colors.black.withOpacity(0.95),
+                elevation: 8,
             child: Container(
               width: panelWidth,
               height: double.infinity,
@@ -173,6 +188,7 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
                           ),
                         ),
                         IconButton(
+                          autofocus: true,
                           icon: const Icon(
                             Icons.close,
                             color: Colors.white,
@@ -451,6 +467,8 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
               ),
             ),
           ),
+        ),
+      ),
         ),
       ),
     );

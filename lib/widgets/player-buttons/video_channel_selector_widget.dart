@@ -4,6 +4,7 @@ import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/services/player_state.dart';
 import 'package:rensi_iptv/services/playlist_content_state.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import '../../models/content_type.dart';
 import '../../utils/get_playlist_type.dart';
@@ -336,9 +337,12 @@ class _VideoChannelSelectorWidgetState
                           _showCategories && isLiveStream
                               ? context.loc.categories
                               : _selectedCategoryId != null && isLiveStream
-                                  ? PlaylistContentState.liveCategories
-                                      .firstWhere((c) => c.categoryId == _selectedCategoryId)
-                                      .categoryName
+                                  ? (PlaylistContentState.liveCategories
+                                          .firstWhereOrNull((c) =>
+                                              c.categoryId ==
+                                              _selectedCategoryId)
+                                          ?.categoryName ??
+                                      context.loc.categories)
                                       : _showSeasons && isSeries
                                           ? context.loc.seasons
                                           : _selectedSeason != null && isSeries

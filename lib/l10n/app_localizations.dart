@@ -420,6 +420,30 @@ abstract class AppLocalizations {
   /// **'Audio Track'**
   String get audio_track;
 
+  /// No description provided for @speed.
+  ///
+  /// In en, this message translates to:
+  /// **'Speed'**
+  String get speed;
+
+  /// No description provided for @load.
+  ///
+  /// In en, this message translates to:
+  /// **'Load'**
+  String get load;
+
+  /// No description provided for @external_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'External subtitle'**
+  String get external_subtitle;
+
+  /// No description provided for @external_subtitle_url.
+  ///
+  /// In en, this message translates to:
+  /// **'External subtitle (URL)'**
+  String get external_subtitle_url;
+
   /// No description provided for @subtitle_track.
   ///
   /// In en, this message translates to:
@@ -431,6 +455,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settings'**
   String get settings;
+
+  /// No description provided for @hold_ok_for_options.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold OK for audio & subtitles'**
+  String get hold_ok_for_options;
 
   /// No description provided for @general_settings.
   ///
@@ -1547,6 +1577,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Contribute to the project on GitHub'**
   String get support_on_github_description;
+
+  /// No description provided for @last_channel.
+  ///
+  /// In en, this message translates to:
+  /// **'Last channel'**
+  String get last_channel;
 
   /// No description provided for @select_channel.
   ///

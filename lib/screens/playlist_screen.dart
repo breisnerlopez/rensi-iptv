@@ -5,6 +5,7 @@ import '../../controllers/playlist_controller.dart';
 import '../../models/playlist_model.dart';
 import '../../services/backup_service.dart';
 import '../../utils/backup_import_flow.dart';
+import '../../utils/responsive_helper.dart';
 import '../../widgets/confirm_exit_scope.dart';
 import '../../widgets/playlist_card.dart';
 import '../../widgets/playlist_states.dart';
@@ -101,6 +102,8 @@ class _PlaylistScreenBody extends StatelessWidget {
         itemBuilder: (context, index) {
           return PlaylistCard(
             playlist: controller.playlists[index],
+            autofocus:
+                index == 0 && ResponsiveHelper.isDesktopOrTV(context),
             onTap: () =>
                 controller.openPlaylist(context, controller.playlists[index]),
             onDelete: () => _showDeleteDialog(

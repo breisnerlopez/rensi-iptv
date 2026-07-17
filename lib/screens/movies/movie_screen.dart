@@ -7,6 +7,7 @@ import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/repositories/iptv_repository.dart';
+import 'package:rensi_iptv/redesign/rensi_widgets.dart' show rensi;
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
@@ -17,11 +18,16 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../widgets/player_widget.dart';
+import '../../../widgets/tv/focus_highlight.dart';
 
 class MovieScreen extends StatefulWidget {
   final ContentItem contentItem;
+  // When true (e.g. the Home hero "Start watching" button), skip straight into
+  // playback instead of showing the detail page first.
+  final bool autoPlay;
 
-  const MovieScreen({super.key, required this.contentItem});
+  const MovieScreen(
+      {super.key, required this.contentItem, this.autoPlay = false});
 
   @override
   State<MovieScreen> createState() => _MovieScreenState();
@@ -58,6 +64,15 @@ class _MovieScreenState extends State<MovieScreen> {
     _loadWatchHistory();
     _loadVodInfo();
     _loadCategoryMovies();
+
+    // Hero "Start watching": jump straight into playback (pushReplacement, so
+    // Back returns Home, not this detail page). The category queue fills in
+    // asynchronously; playing immediately keeps the hero button snappy.
+    if (widget.autoPlay) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _openPlayer();
+      });
+    }
   }
 
   Future<void> _loadCategoryMovies() async {
@@ -489,15 +504,55 @@ class _MovieScreenState extends State<MovieScreen> {
         child: CachedNetworkImage(
           imageUrl: url,
           fit: BoxFit.cover,
-          placeholder: (context, url) => Container(
-            color: Colors.grey.shade900,
-            child: const Center(child: CircularProgressIndicator()),
-          ),
-          errorWidget: (context, url, error) => Container(
-            color: Colors.grey.shade900,
-            child: const Icon(Icons.movie, size: 50, color: Colors.grey),
-          ),
+          placeholder: (context, url) =>
+              _posterFallback(context, showSpinner: true),
+          errorWidget: (context, url, error) => _posterFallback(context),
         ),
+      ),
+    );
+  }
+
+  /// Brand-cohesive fallback matching [RensiKeyArt]'s warm terracotta
+  /// key-art: a stable gradient seeded from the item id, with the title
+  /// overlaid — instead of a generic grey "broken image" placeholder.
+  Widget _posterFallback(BuildContext context, {bool showSpinner = false}) {
+    final seed = widget.contentItem.id.hashCode.abs();
+    final hue = (6 + seed % 34).toDouble(); // 6°..40°, brand warm family
+    final g1 = HSLColor.fromAHSL(1, hue, 0.30, 0.17).toColor();
+    final g2 = HSLColor.fromAHSL(1, (hue + 10) % 360, 0.24, 0.10).toColor();
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [g1, g2],
+        ),
+      ),
+      child: Center(
+        child: showSpinner
+            ? const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white54,
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.all(10),
+                child: Text(
+                  widget.contentItem.name,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: 'Bricolage Grotesque',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.92),
+                  ),
+                ),
+              ),
       ),
     );
   }
@@ -506,21 +561,25 @@ class _MovieScreenState extends State<MovieScreen> {
     return Text(
       widget.contentItem.name,
       textAlign: textAlign,
-      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            shadows: [
-              Shadow(
-                blurRadius: 10,
-                color: Colors.black.withOpacity(0.5),
-                offset: const Offset(0, 2),
-              ),
-            ],
+      style: TextStyle(
+        fontFamily: 'Bricolage Grotesque',
+        fontSize: 32,
+        fontWeight: FontWeight.w800,
+        height: 1.05,
+        color: Colors.white,
+        shadows: [
+          Shadow(
+            blurRadius: 10,
+            color: Colors.black.withOpacity(0.5),
+            offset: const Offset(0, 2),
           ),
+        ],
+      ),
     );
   }
 
   Widget? _buildRatingSection(BuildContext context) {
+    final r = rensi(context);
     final vod = widget.contentItem.vodStream;
     if (vod == null) {
       return null;
@@ -549,7 +608,7 @@ class _MovieScreenState extends State<MovieScreen> {
       children: [
         Icon(
           Icons.star_rounded,
-          color: Colors.amber.shade500,
+          color: r.gold,
           size: 28,
         ),
         const SizedBox(width: 8),
@@ -730,6 +789,7 @@ class _MovieScreenState extends State<MovieScreen> {
   }
 
   Widget? _buildTrailerButton(BuildContext context) {
+    final r = rensi(context);
     final vod = widget.contentItem.vodStream;
     if (vod == null || widget.contentItem.name.isEmpty) {
       return null;
@@ -740,14 +800,19 @@ class _MovieScreenState extends State<MovieScreen> {
       icon: const Icon(Icons.ondemand_video),
       label: Text(context.loc.trailer),
       style: FilledButton.styleFrom(
-        backgroundColor: Colors.red.withOpacity(0.2),
+        backgroundColor: r.surface3,
         foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: r.hairline),
+        ),
       ),
     );
   }
 
   Widget _buildPlayButton(BuildContext context) {
     final theme = Theme.of(context);
+    final r = rensi(context);
     final progress = _progress;
     final hasProgress = !_isLoadingHistory &&
         progress != null &&
@@ -770,7 +835,7 @@ class _MovieScreenState extends State<MovieScreen> {
           value: progress,
           minHeight: 4,
           backgroundColor: Colors.white24,
-          valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
+          valueColor: AlwaysStoppedAnimation<Color>(r.accent),
           borderRadius: BorderRadius.circular(2),
         ),
       );
@@ -794,19 +859,19 @@ class _MovieScreenState extends State<MovieScreen> {
         autofocus: true,
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          backgroundColor: theme.colorScheme.primary,
-          foregroundColor: theme.colorScheme.onPrimary,
+          backgroundColor: r.accent,
+          foregroundColor: r.onAccent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           elevation: 8,
-          shadowColor: theme.colorScheme.primary.withOpacity(0.5),
+          shadowColor: r.accent.withOpacity(0.5),
         ),
         icon: const Icon(Icons.play_arrow_rounded, size: 32),
         label: Text(
           label,
           style: theme.textTheme.titleLarge?.copyWith(
-            color: theme.colorScheme.onPrimary,
+            color: r.onAccent,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -905,12 +970,13 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final r = rensi(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: r.surface3.withOpacity(0.7),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: r.hairline2),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -948,11 +1014,13 @@ class _DetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final r = rensi(context);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
+        color: r.surface3.withOpacity(0.6),
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: r.hairline),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1071,35 +1139,32 @@ class _MovieActionsRowState extends State<_MovieActionsRow> {
     if (mounted) setState(() => _saved = now);
   }
 
-  void _soon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Próximamente')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     Widget action(IconData icon, String label, VoidCallback onTap, bool active) {
       return Expanded(
-        child: InkWell(
+        child: FocusHighlight(
           borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon,
-                    size: 23,
-                    color: active ? scheme.primary : scheme.onSurfaceVariant),
-                const SizedBox(height: 6),
-                Text(label,
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: active ? scheme.primary : scheme.onSurfaceVariant)),
-              ],
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon,
+                      size: 23,
+                      color: active ? scheme.primary : scheme.onSurfaceVariant),
+                  const SizedBox(height: 6),
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: active ? scheme.primary : scheme.onSurfaceVariant)),
+                ],
+              ),
             ),
           ),
         ),
@@ -1108,10 +1173,10 @@ class _MovieActionsRowState extends State<_MovieActionsRow> {
 
     return Row(
       children: [
+        // Descargar / Enviar hidden: both are "Próximamente" (not implemented
+        // yet), so they shouldn't be focusable dead ends on TV.
         action(_saved ? Icons.check : Icons.add, _saved ? 'Guardado' : 'Mi lista',
             _toggle, _saved),
-        action(Icons.download_outlined, 'Descargar', _soon, false),
-        action(Icons.cast, 'Enviar', _soon, false),
       ],
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 
 class ColorPickerTileWidget extends StatelessWidget {
   final String title;
@@ -24,17 +25,21 @@ class ColorPickerTileWidget extends StatelessWidget {
         title,
         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
       ),
-      trailing: GestureDetector(
-        onTap: () => _showColorPickerDialog(context),
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Theme.of(context).colorScheme.outline,
-              width: 1.5,
+      trailing: FocusHighlight(
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: () => _showColorPickerDialog(context),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outline,
+                width: 1.5,
+              ),
             ),
           ),
         ),
@@ -67,22 +72,27 @@ class ColorPickerTileWidget extends StatelessWidget {
           runSpacing: 8,
           children: colors
               .map(
-                (c) => GestureDetector(
-                  onTap: () {
-                    onChanged(c);
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: c,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: color == c
-                            ? Theme.of(context).primaryColor
-                            : Colors.grey,
-                        width: color == c ? 3 : 1,
+                (c) => Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    autofocus: color == c,
+                    borderRadius: BorderRadius.circular(8),
+                    onTap: () {
+                      onChanged(c);
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: c,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: color == c
+                              ? Theme.of(context).primaryColor
+                              : Colors.grey,
+                          width: color == c ? 3 : 1,
+                        ),
                       ),
                     ),
                   ),

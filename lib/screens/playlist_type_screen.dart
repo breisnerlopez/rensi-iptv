@@ -1,5 +1,7 @@
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/screens/m3u/new_m3u_playlist_screen.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:flutter/material.dart';
 import 'xtream-codes/new_xtream_code_playlist_screen.dart';
 
@@ -50,6 +52,7 @@ class PlaylistTypeScreen extends StatelessWidget {
                         icon: Icons.stream,
                         accent: colorScheme.primary,
                         onAccent: colorScheme.onPrimary,
+                        autofocus: ResponsiveHelper.isDesktopOrTV(context),
                         onTap: () {
                           Navigator.push(
                             context,
@@ -125,13 +128,17 @@ class PlaylistTypeScreen extends StatelessWidget {
     required Color accent,
     required Color onAccent,
     required VoidCallback onTap,
+    bool autofocus = false,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Card(
+    return FocusHighlight(
+      borderRadius: BorderRadius.circular(16),
+      child: Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         onTap: onTap,
+        autofocus: autofocus,
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(24),
@@ -183,6 +190,7 @@ class PlaylistTypeScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

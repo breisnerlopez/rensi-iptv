@@ -459,7 +459,9 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
   }
 
   String _getLocalizedError(String? errorKey, String fallbackMessage) {
-    return '';
+    // Was returning '' → the M3U error card showed a blank body. Surface the
+    // real message so the user knows what failed (bad URL, timeout, parse…).
+    return fallbackMessage;
   }
 
   //   if (errorKey == null) return fallbackMessage;

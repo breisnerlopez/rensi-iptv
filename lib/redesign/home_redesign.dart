@@ -6,6 +6,7 @@ import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 
 /// Cinematic "Inicio" — hero + themed rails, fed by the real catalogue.
@@ -20,6 +21,7 @@ class RedesignHome extends StatelessWidget {
     this.continueItems = const [],
     this.onSearch,
     this.onSettings,
+    this.onSeeAll,
     this.playlistSwitcher,
   });
 
@@ -30,6 +32,8 @@ class RedesignHome extends StatelessWidget {
   final void Function(ContentItem) onPlay;
   final VoidCallback? onSearch;
   final VoidCallback? onSettings;
+  // Opens the full category grid ("Ver todo") — a rail only shows the first 18.
+  final void Function(CategoryViewModel)? onSeeAll;
   final Widget? playlistSwitcher;
 
   static String _railTitle(BuildContext context, CategoryViewModel c) {
@@ -62,7 +66,7 @@ class RedesignHome extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = rensi(context);
     final hero = _hero;
-    final tv = MediaQuery.of(context).size.width >= 900;
+    final tv = ResponsiveHelper.isDesktopOrTV(context);
     final posterW = tv ? 168.0 : 138.0;
     final sidePad = tv ? 48.0 : 20.0;
     final rails = <Widget>[];
@@ -74,20 +78,38 @@ class RedesignHome extends StatelessWidget {
         ..add(const SizedBox(height: 26));
     }
 
+    // With no hero (e.g. a live-only playlist has no movie to feature), the
+    // first content poster must take focus so the remote lands on something.
+    var fallbackFocus = tv && hero == null;
     void addRails(List<CategoryViewModel> cats) {
       for (final c in cats) {
         if (c.contentItems.isEmpty) continue;
+        final items = c.contentItems.take(18).toList();
+        // Only surface "Ver todo" when there's more than the rail shows, so the
+        // extra content past 18 is actually reachable (was silently truncated).
+        final hasMore = onSeeAll != null && c.contentItems.length > items.length;
         rails
-          ..add(SectionHeader(title: _railTitle(context, c), sidePad: sidePad))
+          ..add(SectionHeader(
+            title: _railTitle(context, c),
+            sidePad: sidePad,
+            actionLabel: hasMore ? context.loc.see_all : null,
+            onAction: hasMore ? () => onSeeAll!(c) : null,
+          ))
           ..add(RensiRail(
             sidePadding: sidePad,
             posterWidth: posterW,
             children: [
-              for (final it in c.contentItems.take(18))
-                RensiPoster(item: it, width: posterW, onTap: () => onOpen(it)),
+              for (var i = 0; i < items.length; i++)
+                RensiPoster(
+                  item: items[i],
+                  width: posterW,
+                  autofocus: fallbackFocus && i == 0,
+                  onTap: () => onOpen(items[i]),
+                ),
             ],
           ))
           ..add(SizedBox(height: tv ? 34 : 26));
+        fallbackFocus = false; // only the very first rail's first poster
       }
     }
 
@@ -112,9 +134,41 @@ class RedesignHome extends StatelessWidget {
           ...rails,
           if (rails.isEmpty)
             Padding(
-              padding: const EdgeInsets.all(40),
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
               child: Center(
-                child: Text('—', style: TextStyle(color: r.text3)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.movie_filter_outlined,
+                        size: 56, color: r.text3),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No hay películas ni series en esta lista todavía.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: tv ? 20 : 16,
+                          fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Usa "En vivo" en el menú para ver canales, o busca contenido.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: r.text3, fontSize: tv ? 15 : 13),
+                    ),
+                    const SizedBox(height: 20),
+                    // Always a focusable target so the remote lands somewhere.
+                    FocusHighlight(
+                      borderRadius: BorderRadius.circular(14),
+                      child: FilledButton.icon(
+                        autofocus: tv,
+                        onPressed: onSearch,
+                        icon: const Icon(Icons.search),
+                        label: const Text('Buscar'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
         ],
@@ -249,7 +303,7 @@ class _Hero extends StatelessWidget {
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       icon: const Icon(Icons.play_arrow_rounded, size: 24),
-      label: Text('Reproducir',
+      label: Text(context.loc.start_watching,
           style: TextStyle(
               fontSize: tv ? 16.5 : 15.5, fontWeight: FontWeight.w700)),
     );

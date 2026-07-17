@@ -43,7 +43,12 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:banner="@drawable/tv_banner"
-        android:isGame="false">
+        android:isGame="false"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        tools:replace="android:allowBackup"><!-- Local DB (rensi-iptv.sqlite) may hold Xtream creds; keep it out of
+             cloud Auto Backup. tools:replace ensures our value wins any
+             library manifest merge. -->
 
         <activity
             android:name=".MainActivity"

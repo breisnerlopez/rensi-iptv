@@ -243,6 +243,10 @@ class AppThemes {
         unselectedItemColor: text3,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
+        // Smaller labels so all 5 tabs (incl. "Configuración") fit without
+        // truncation on narrow phones.
+        selectedLabelStyle: const TextStyle(fontSize: 11),
+        unselectedLabelStyle: const TextStyle(fontSize: 11),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,

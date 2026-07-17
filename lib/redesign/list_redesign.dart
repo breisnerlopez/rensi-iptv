@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
@@ -35,7 +36,8 @@ class _ListRedesignState extends State<ListRedesign> {
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
-    final cross = MediaQuery.of(context).size.width >= 900 ? 6 : 3;
+    final cross = ResponsiveHelper.getCrossAxisCount(context);
+    final sidePad = ResponsiveHelper.isDesktopOrTV(context) ? 48.0 : 20.0;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -48,7 +50,7 @@ class _ListRedesignState extends State<ListRedesign> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
+                  padding: EdgeInsets.fromLTRB(sidePad, 10, sidePad, 4),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -69,7 +71,7 @@ class _ListRedesignState extends State<ListRedesign> {
                       : items.isEmpty
                           ? _empty(context)
                           : GridView.builder(
-                              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                              padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 24),
                               gridDelegate:
                                   SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: cross,
@@ -119,7 +121,7 @@ class _ListRedesignState extends State<ListRedesign> {
           SizedBox(
             width: 250,
             child: Text(
-              'Toca el + en cualquier título para guardarlo y verlo más tarde.',
+              'Selecciona un título y agrégalo a favoritos para verlo aquí.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13.5, color: r.text3),
             ),

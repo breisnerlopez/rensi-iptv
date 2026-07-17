@@ -12,6 +12,7 @@ class WatchHistorySection extends StatelessWidget {
   final Function(WatchHistory)? onHistoryTap;
   final Function(WatchHistory)? onHistoryRemove;
   final VoidCallback? onSeeAllTap;
+  final bool autofocusFirst;
 
   const WatchHistorySection({
     super.key,
@@ -23,6 +24,7 @@ class WatchHistorySection extends StatelessWidget {
     this.onHistoryTap,
     this.onHistoryRemove,
     this.onSeeAllTap,
+    this.autofocusFirst = false,
   });
 
   @override
@@ -66,6 +68,7 @@ class WatchHistorySection extends StatelessWidget {
                 width: cardWidth,
                 height: cardHeight,
                 showProgress: showProgress,
+                autofocus: autofocusFirst && index == 0,
                 onTap: () => onHistoryTap?.call(history),
                 onRemove: () => onHistoryRemove?.call(history),
               );

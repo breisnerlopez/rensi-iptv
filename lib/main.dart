@@ -13,6 +13,10 @@ import 'utils/app_themes.dart';
 import 'utils/responsive_helper.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Resolve the TV/leanback flag once so ResponsiveHelper.isDesktopOrTV has a
+  // real platform signal instead of relying on screen width alone.
+  await ResponsiveHelper.initTelevisionFlag();
   await setupServiceLocator();
   runApp(
     MultiProvider(

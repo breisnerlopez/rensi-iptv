@@ -353,6 +353,12 @@ class BackupService {
     final iterations = ByteData.sublistView(bytes, offset, offset + 4)
         .getUint32(0, Endian.big);
     offset += 4;
+    // The iteration count comes from the (untrusted) file header. Bound it so
+    // a crafted backup can't pin the CPU with a huge PBKDF2 work factor (DoS).
+    // Legitimate backups use 200k, well within this range.
+    if (iterations < 1000 || iterations > 1000000) {
+      throw BackupFormatException('backup_invalid_format', 'iterations');
+    }
     final salt = Uint8List.sublistView(bytes, offset, offset + _saltLen);
     offset += _saltLen;
     final nonce = Uint8List.sublistView(bytes, offset, offset + _nonceLen);

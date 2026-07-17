@@ -57,10 +57,14 @@ class WatchHistoryListScreen extends StatelessWidget {
                   history: history,
                   width: cardWidth,
                   height: cardHeight,
-                  showProgress:
-                      title == 'Devam Et' ||
-                      title == 'Filmler' ||
-                      title == 'Diziler',
+                  // Movies/series/continue have a resume position → show the
+                  // progress bar; live does not. Compared against the LOCALIZED
+                  // titles (were hard-coded Turkish, so this was always false in
+                  // every other language).
+                  showProgress: title == context.loc.continue_watching ||
+                      title == context.loc.movies ||
+                      title == context.loc.series_plural,
+                  autofocus: index == 0 && ResponsiveHelper.isDesktopOrTV(context),
                   onTap: () => onHistoryTap?.call(history),
                   onRemove: () => onHistoryRemove?.call(history),
                 );

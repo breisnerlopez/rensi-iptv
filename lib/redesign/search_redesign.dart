@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/database/database.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
@@ -30,7 +32,12 @@ class _SearchRedesignState extends State<SearchRedesign> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focus.requestFocus());
+    // On TV, don't auto-open the full-screen IME on entry — the user focuses
+    // the field with the D-pad and presses OK to bring up the keyboard.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (!ResponsiveHelper.isDesktopOrTV(context)) _focus.requestFocus();
+    });
   }
 
   @override
@@ -93,7 +100,8 @@ class _SearchRedesignState extends State<SearchRedesign> {
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
-    final cross = MediaQuery.of(context).size.width >= 900 ? 6 : 3;
+    final cross = ResponsiveHelper.getCrossAxisCount(context);
+    final sidePad = ResponsiveHelper.isDesktopOrTV(context) ? 48.0 : 20.0;
     final q = _query.trim();
 
     Widget body;
@@ -118,7 +126,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
       );
     } else {
       body = GridView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+        padding: EdgeInsets.fromLTRB(sidePad, 4, sidePad, 24),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: cross,
           childAspectRatio: 1 / 1.48,
@@ -129,6 +137,8 @@ class _SearchRedesignState extends State<SearchRedesign> {
         itemBuilder: (_, i) => RensiPoster(
           item: _results[i],
           width: double.infinity,
+          // Land focus on the first result when results arrive on TV.
+          autofocus: i == 0 && ResponsiveHelper.isDesktopOrTV(context),
           onTap: () => widget.onOpen(_results[i]),
         ),
       );
@@ -163,7 +173,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
                             child: TextField(
                               controller: _controller,
                               focusNode: _focus,
-                              autofocus: true,
+                              autofocus: !ResponsiveHelper.isDesktopOrTV(context),
                               textInputAction: TextInputAction.search,
                               onChanged: _onChanged,
                               decoration: const InputDecoration(
@@ -174,12 +184,20 @@ class _SearchRedesignState extends State<SearchRedesign> {
                             ),
                           ),
                           if (q.isNotEmpty)
-                            GestureDetector(
-                              onTap: () {
-                                _controller.clear();
-                                _onChanged('');
-                              },
-                              child: Icon(Icons.close, size: 18, color: r.text3),
+                            FocusHighlight(
+                              borderRadius: BorderRadius.circular(20),
+                              child: IconButton(
+                                iconSize: 18,
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(),
+                                tooltip: 'Limpiar',
+                                onPressed: () {
+                                  _controller.clear();
+                                  _onChanged('');
+                                },
+                                icon: Icon(Icons.close,
+                                    size: 18, color: r.text3),
+                              ),
                             ),
                         ],
                       ),

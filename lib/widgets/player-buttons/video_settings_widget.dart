@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/services/player_state.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
@@ -170,26 +171,47 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
   Widget build(BuildContext context) {
     final backgroundColor = Colors.black.withOpacity(0.95);
 
+    // The overlay lives in the root Overlay (outside the player's Focus), so it
+    // must GRAB focus on open or the D-pad keeps driving the video behind it.
+    // FocusScope + autofocus pulls focus into the panel; BACK closes it.
     return Positioned.fill(
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Material(
-          color: backgroundColor,
-          elevation: 8,
-          child: Container(
-            width: widget.width,
-            height: double.infinity,
-            decoration: BoxDecoration(
+      child: FocusScope(
+        child: Focus(
+          // canRequestFocus:false so this full-screen wrapper does NOT trap the
+          // directional traversal — it only bubbles BACK to close. The first
+          // actionable item (the close button) autofocuses to pull focus in.
+          canRequestFocus: false,
+          onKeyEvent: (node, event) {
+            if (event is KeyDownEvent &&
+                (event.logicalKey == LogicalKeyboardKey.goBack ||
+                    event.logicalKey == LogicalKeyboardKey.escape ||
+                    event.logicalKey == LogicalKeyboardKey.browserBack)) {
+              widget.onClose();
+              return KeyEventResult.handled;
+            }
+            return KeyEventResult.ignored;
+          },
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Material(
               color: backgroundColor,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 10,
-                  spreadRadius: 2,
+              elevation: 8,
+              child: Container(
+                width: widget.width,
+                height: double.infinity,
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      spreadRadius: 2,
+                    ),
+                  ],
                 ),
-              ],
+                child: _buildMainSettings(context),
+              ),
             ),
-            child: _buildMainSettings(context),
           ),
         ),
       ),
@@ -224,6 +246,7 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
                 ),
               ),
               IconButton(
+                autofocus: true,
                 icon: Icon(Icons.close, color: textColor, size: 20),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -307,7 +330,7 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
         final url = await showDialog<String>(
           context: context,
           builder: (c) => AlertDialog(
-            title: const Text('Subtítulo externo'),
+            title: Text(context.loc.external_subtitle),
             content: TextField(
               controller: controller,
               autofocus: true,
@@ -318,10 +341,10 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
             actions: [
               TextButton(
                   onPressed: () => Navigator.pop(c),
-                  child: const Text('Cancelar')),
+                  child: Text(context.loc.cancel)),
               FilledButton(
                   onPressed: () => Navigator.pop(c, controller.text.trim()),
-                  child: const Text('Cargar')),
+                  child: Text(context.loc.load)),
             ],
           ),
         );
@@ -329,14 +352,17 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
           EventBus().emit('load_external_subtitle_uri', url);
         }
       },
-      child: const Padding(
-        padding: EdgeInsets.symmetric(vertical: 10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            Icon(Icons.subtitles_outlined, color: Colors.white, size: 20),
-            SizedBox(width: 10),
-            Text('Subtítulo externo (URL)',
-                style: TextStyle(color: Colors.white, fontSize: 14)),
+            const Icon(Icons.subtitles_outlined, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(context.loc.external_subtitle_url,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 14)),
+            ),
           ],
         ),
       ),
@@ -348,15 +374,18 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
           children: [
-            Icon(Icons.speed, color: Colors.white, size: 20),
-            SizedBox(width: 10),
-            Text('Velocidad',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600)),
+            const Icon(Icons.speed, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(context.loc.speed,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -365,7 +394,7 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
           children: [
             for (final s in speeds)
               ActionChip(
-                label: Text(s == 1.0 ? 'Normal' : '${s}x'),
+                label: Text(s == 1.0 ? context.loc.normal : '${s}x'),
                 backgroundColor: Colors.white.withValues(alpha: 0.12),
                 labelStyle: const TextStyle(color: Colors.white),
                 onPressed: () =>
@@ -409,12 +438,15 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
             children: [
               Icon(icon, size: 20, color: primaryColor),
               const SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: textColor,
+              Flexible(
+                child: Text(
+                  title,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: textColor,
+                  ),
                 ),
               ),
             ],

@@ -235,8 +235,9 @@ class _ChannelRow extends StatelessWidget {
                                   color: r.live)),
                         ],
                       ),
-                      const SizedBox(height: 6),
-                      RensiProgress(value: 0.5, height: 3),
+                      // No fake progress bar: without real EPG now/next data a
+                      // fixed 50% bar just misleads (every channel looked
+                      // half-watched). The "● EN VIVO" badge above is enough.
                     ],
                   ),
                 ),

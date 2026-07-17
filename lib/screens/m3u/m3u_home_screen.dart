@@ -52,6 +52,25 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
   static const double _defaultFontSize = 10.0;
   static const double _largeFontSize = 11.0;
 
+  // One focus node per rail item so a tab change (incl. programmatic ones)
+  // moves focus to the target rail item instead of losing it.
+  final Map<int, FocusNode> _railNodes = {};
+  int _lastRailIndex = -1;
+
+  FocusNode _railNode(int index) =>
+      _railNodes.putIfAbsent(index, () => FocusNode(debugLabel: 'm3uRail$index'));
+
+  void _maybeRefocusRail(int index) {
+    if (index == _lastRailIndex) return;
+    final firstBuild = _lastRailIndex == -1;
+    _lastRailIndex = index;
+    if (firstBuild) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !ResponsiveHelper.isDesktopOrTV(context)) return;
+      _railNodes[index]?.requestFocus();
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +79,9 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
 
   @override
   void dispose() {
+    for (final n in _railNodes.values) {
+      n.dispose();
+    }
     _controller.dispose();
     super.dispose();
   }
@@ -89,7 +111,10 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     return ConfirmExitScope(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth >= _desktopBreakpoint) {
+          // Real TV/leanback always gets the side-rail layout; width is only a
+          // fallback for large tablets / desktop windows.
+          if (ResponsiveHelper.isDesktopOrTV(context) ||
+              constraints.maxWidth >= _desktopBreakpoint) {
             return _buildDesktopLayout(context, controller, constraints);
           }
 
@@ -129,6 +154,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     M3UHomeController controller,
     BoxConstraints constraints,
   ) {
+    _maybeRefocusRail(controller.currentIndex);
     // Each column is its own FocusTraversalGroup so D-pad left/right
     // resolves the next focusable item in the *other* column (the
     // navigation rail or the page) without falling off the screen.
@@ -150,10 +176,9 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
 
   Widget _buildPageView(M3UHomeController controller) {
     final pages = _buildPages(controller);
-    // IndexedStack keeps every page mounted (so state survives tab switches),
-    // but the off-screen pages stay in the focus tree — on TV the D-pad can
-    // then jump focus into an invisible page and "disappear". ExcludeFocus
-    // pulls the hidden pages out of traversal so focus stays on screen.
+    // ExcludeFocus pulls hidden pages out of traversal. Do NOT wrap in a
+    // FocusScope — it traps directional focus and makes the side rail
+    // unreachable from the content. Initial focus is each page's own autofocus.
     return IndexedStack(
       index: controller.currentIndex,
       children: [
@@ -185,9 +210,10 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
         movieCategories: movieCats,
         seriesCategories: seriesCats,
         onOpen: (it) => navigateByContentType(context, it),
-        onPlay: (it) => navigateByContentType(context, it),
+        onPlay: (it) => playByContentType(context, it),
         onSearch: _openSearch,
         onSettings: () => controller.onNavigationTap(4),
+        onSeeAll: _navigateToCategoryDetail,
         playlistSwitcher: PlaylistSwitcherButton(
           currentPlaylist: widget.playlist,
           currentIndex: controller.currentIndex,
@@ -384,7 +410,10 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       ),
       child: InkWell(
         onTap: onTap,
-        autofocus: isSelected,
+        focusNode: _railNode(item.index),
+        // Don't autofocus the rail on entry — let page content take initial
+        // focus; the rail stays reachable with LEFT.
+        autofocus: false,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

@@ -166,10 +166,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get audio_track => '音频轨道';
 
   @override
+  String get speed => 'Speed';
+
+  @override
+  String get load => 'Load';
+
+  @override
+  String get external_subtitle => 'External subtitle';
+
+  @override
+  String get external_subtitle_url => 'External subtitle (URL)';
+
+  @override
   String get subtitle_track => '字幕轨道';
 
   @override
   String get settings => '设置';
+
+  @override
+  String get hold_ok_for_options => 'Hold OK for audio & subtitles';
 
   @override
   String get general_settings => '常规设置';
@@ -756,6 +771,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get support_on_github_description => '在 GitHub 上为项目做出贡献';
+
+  @override
+  String get last_channel => 'Last channel';
 
   @override
   String get select_channel => '选择频道';

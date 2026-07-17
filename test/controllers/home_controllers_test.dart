@@ -53,9 +53,10 @@ void main() {
       controller.dispose();
     });
 
-    test('starts at index 4 (TMDb) by default', () {
+    // Redesign tab layout: 0=Home, 1=Browse, 2=Live, 3=My list, 4=Settings.
+    test('starts at index 0 (Home) by default', () {
       controller = XtreamCodeHomeController(false, autoLoad: false);
-      expect(controller.currentIndex, 4);
+      expect(controller.currentIndex, 0);
     });
 
     test('respects explicit initialIndex', () {
@@ -65,7 +66,7 @@ void main() {
 
     test('clamps index to valid range', () {
       controller = XtreamCodeHomeController(false, autoLoad: false, initialIndex: 99);
-      expect(controller.currentIndex, 5);
+      expect(controller.currentIndex, 4);
     });
   });
 }

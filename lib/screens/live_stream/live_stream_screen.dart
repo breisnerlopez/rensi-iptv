@@ -35,20 +35,25 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
 
   Future<void> _initializeQueue() async {
     allContents = isXtreamCode
-        ? (await AppState.xtreamCodeRepository!.getLiveChannelsByCategoryId(
-            categoryId: widget.content.liveStream!.categoryId,
-          ))!.map((x) {
-            return ContentItem(
-              x.streamId,
-              x.name,
-              x.streamIcon,
-              ContentType.liveStream,
-              liveStream: x,
-            );
-          }).toList()
-        : (await AppState.m3uRepository!.getM3uItemsByCategoryId(
-            categoryId: widget.content.m3uItem!.categoryId!,
-          ))!.map((x) {
+        ? ((await AppState.xtreamCodeRepository!.getLiveChannelsByCategoryId(
+                categoryId: widget.content.liveStream!.categoryId,
+              )) ??
+              const [])
+              .map((x) {
+                return ContentItem(
+                  x.streamId,
+                  x.name,
+                  x.streamIcon,
+                  ContentType.liveStream,
+                  liveStream: x,
+                );
+              })
+              .toList()
+        : ((await AppState.m3uRepository!.getM3uItemsByCategoryId(
+                categoryId: widget.content.m3uItem!.categoryId!,
+              )) ??
+              const [])
+              .map((x) {
             return ContentItem(
               x.url,
               x.name ?? 'NO NAME',

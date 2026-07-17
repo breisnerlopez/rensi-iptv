@@ -32,6 +32,13 @@ class WatchHistoryContent extends StatelessWidget {
       builder: (context, controller, child) {
         final cardWidth = ResponsiveHelper.getCardWidth(context);
         final cardHeight = ResponsiveHelper.getCardHeight(context);
+        // Autofocus (TV only) lands on the first card of whichever history
+        // section actually renders first — never more than one at a time.
+        final isTv = ResponsiveHelper.isDesktopOrTV(context);
+        final liveFirst = controller.liveHistory.isNotEmpty;
+        final movieFirst = !liveFirst && controller.movieHistory.isNotEmpty;
+        final seriesFirst =
+            !liveFirst && !movieFirst && controller.seriesHistory.isNotEmpty;
 
         return NestedScrollView(
           headerSliverBuilder: (context, innerBoxIsScrolled) {
@@ -65,6 +72,7 @@ class WatchHistoryContent extends StatelessWidget {
                   histories: controller.liveHistory,
                   cardWidth: cardWidth,
                   cardHeight: cardHeight,
+                  autofocusFirst: isTv && liveFirst,
                   onHistoryTap: onHistoryTap,
                   onHistoryRemove: onHistoryRemove,
                   onSeeAllTap: () => onSeeAllTap(
@@ -78,6 +86,7 @@ class WatchHistoryContent extends StatelessWidget {
                   cardWidth: cardWidth,
                   cardHeight: cardHeight,
                   showProgress: true,
+                  autofocusFirst: isTv && movieFirst,
                   onHistoryTap: onHistoryTap,
                   onHistoryRemove: onHistoryRemove,
                   onSeeAllTap: () =>
@@ -89,6 +98,7 @@ class WatchHistoryContent extends StatelessWidget {
                   cardWidth: cardWidth,
                   cardHeight: cardHeight,
                   showProgress: true,
+                  autofocusFirst: isTv && seriesFirst,
                   onHistoryTap: onHistoryTap,
                   onHistoryRemove: onHistoryRemove,
                   onSeeAllTap: () => onSeeAllTap(

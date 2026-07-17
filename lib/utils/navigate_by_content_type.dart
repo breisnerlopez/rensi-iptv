@@ -8,6 +8,25 @@ import '../screens/m3u/m3u_player_screen.dart';
 import '../screens/movies/movie_screen.dart';
 import '../screens/series/series_screen.dart';
 
+/// Like [navigateByContentType], but a "play" intent: a VOD item jumps straight
+/// into playback (the Home hero / continue-watching row) instead of opening its
+/// detail page. Live already plays; series still open their episode list (no
+/// single episode to resume from a poster).
+void playByContentType(BuildContext context, ContentItem content) {
+  final isXtreamVod = content.contentType == ContentType.vod &&
+      !(isM3u && content.m3uItem != null && content.m3uItem!.groupTitle == null);
+  if (isXtreamVod) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MovieScreen(contentItem: content, autoPlay: true),
+      ),
+    );
+    return;
+  }
+  navigateByContentType(context, content);
+}
+
 void navigateByContentType(BuildContext context, ContentItem content) {
   if (isM3u &&
       ((content.m3uItem != null && content.m3uItem!.groupTitle == null) ||

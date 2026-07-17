@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'tv/focus_highlight.dart';
 
 class DropdownTileWidget<T> extends StatelessWidget {
   final IconData icon;
@@ -27,40 +28,47 @@ class DropdownTileWidget<T> extends StatelessWidget {
       ),
       trailing: SizedBox(
         width: 120,
-        child: DropdownButtonFormField<T>(
-          value: value,
-          decoration: InputDecoration(
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.outline,
+        child: FocusHighlight(
+          borderRadius: BorderRadius.circular(8),
+          child: DropdownButtonFormField<T>(
+            value: value,
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.outline.withOpacity(0.5),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(
+                  color: Theme.of(context).colorScheme.primary,
+                  width: 2,
+                ),
               ),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(
-                color: Theme.of(context).colorScheme.primary,
-                width: 2,
-              ),
-            ),
+            items: items,
+            onChanged: onChanged,
+            isExpanded: true,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontSize: 12),
+            dropdownColor: Theme.of(context).colorScheme.surface,
+            icon: Icon(Icons.keyboard_arrow_down, size: 18),
           ),
-          items: items,
-          onChanged: onChanged,
-          isExpanded: true,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
-          dropdownColor: Theme.of(context).colorScheme.surface,
-          icon: Icon(Icons.keyboard_arrow_down, size: 18),
         ),
       ),
     );

@@ -168,10 +168,25 @@ class AppLocalizationsRu extends AppLocalizations {
   String get audio_track => 'Аудиодорожка';
 
   @override
+  String get speed => 'Speed';
+
+  @override
+  String get load => 'Load';
+
+  @override
+  String get external_subtitle => 'External subtitle';
+
+  @override
+  String get external_subtitle_url => 'External subtitle (URL)';
+
+  @override
   String get subtitle_track => 'Дорожка субтитров';
 
   @override
   String get settings => 'Настройки';
+
+  @override
+  String get hold_ok_for_options => 'Hold OK for audio & subtitles';
 
   @override
   String get general_settings => 'Общие настройки';
@@ -782,6 +797,9 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get support_on_github_description => 'Внести вклад в проект на GitHub';
+
+  @override
+  String get last_channel => 'Last channel';
 
   @override
   String get select_channel => 'Выбрать Канал';

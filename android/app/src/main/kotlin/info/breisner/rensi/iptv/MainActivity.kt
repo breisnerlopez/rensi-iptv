@@ -26,6 +26,7 @@ class MainActivity : AudioServiceActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "isAvailable" -> result.success(isPipSupported())
+                    "isTelevision" -> result.success(isTelevision())
                     "setAutoEnter" -> {
                         autoPipEnabled = (call.arguments as? Boolean) ?: false
                         result.success(null)
@@ -72,6 +73,19 @@ class MainActivity : AudioServiceActivity() {
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         pipEventSink?.success(isInPictureInPictureMode)
+    }
+
+    // True on real Android TV / leanback devices. Used by Dart as the primary
+    // (platform-level) TV signal instead of guessing from screen width.
+    private fun isTelevision(): Boolean {
+        val uiModeManager = getSystemService(android.content.Context.UI_MODE_SERVICE)
+            as? android.app.UiModeManager
+        if (uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION) {
+            return true
+        }
+        return packageManager.hasSystemFeature(
+            android.content.pm.PackageManager.FEATURE_LEANBACK
+        ) || packageManager.hasSystemFeature("android.hardware.type.television")
     }
 
     private fun isPipSupported(): Boolean {

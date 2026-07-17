@@ -6,6 +6,7 @@ import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/utils/picker_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:media_kit_video/media_kit_video_controls/src/controls/methods/video_state.dart';
 import 'package:provider/provider.dart';
 import '../../../../controllers/playlist_controller.dart';
@@ -259,7 +260,12 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
           child: Row(
             children: [
               Expanded(
-                child: GestureDetector(
+                child: FocusHighlight(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    bottomLeft: Radius.circular(12),
+                  ),
+                  child: InkWell(
                   onTap: () => _onSourceTypeChanged(true),
                   child: Container(
                     padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -294,11 +300,17 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                       ],
                     ),
                   ),
+                  ),
                 ),
               ),
               Container(width: 1, height: 56, color: colorScheme.outline),
               Expanded(
-                child: GestureDetector(
+                child: FocusHighlight(
+                  borderRadius: const BorderRadius.only(
+                    topRight: Radius.circular(12),
+                    bottomRight: Radius.circular(12),
+                  ),
+                  child: InkWell(
                   onTap: () => _onSourceTypeChanged(false),
                   child: Container(
                     padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -333,6 +345,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                       ],
                     ),
                   ),
+                ),
                 ),
               ),
             ],
@@ -412,8 +425,11 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
           ),
         ),
         SizedBox(height: 8),
-        GestureDetector(
+        FocusHighlight(
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
           onTap: _pickFile,
+          borderRadius: BorderRadius.circular(12),
           child: Container(
             width: double.infinity,
             padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
@@ -451,6 +467,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
               ],
             ),
           ),
+        ),
         ),
         if (_selectedFileBytes == null && !_isUrlSource)
           Padding(
@@ -617,7 +634,8 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
 
       try {
         if (_isUrlSource) {
-          print('URL: ${_urlController.text.trim()}');
+          // Never log the playlist URL: M3U/Xtream get.php URLs embed
+          // username/password in the query string.
           final params = {'id': playlist!.id, 'url': _urlController.text};
 
           m3uItems = await compute(M3uParser.parseM3uUrl, params);

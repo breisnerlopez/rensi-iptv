@@ -168,10 +168,25 @@ class AppLocalizationsPt extends AppLocalizations {
   String get audio_track => 'Faixa de Áudio';
 
   @override
+  String get speed => 'Speed';
+
+  @override
+  String get load => 'Load';
+
+  @override
+  String get external_subtitle => 'External subtitle';
+
+  @override
+  String get external_subtitle_url => 'External subtitle (URL)';
+
+  @override
   String get subtitle_track => 'Faixa de Legendas';
 
   @override
   String get settings => 'Configurações';
+
+  @override
+  String get hold_ok_for_options => 'Hold OK for audio & subtitles';
 
   @override
   String get general_settings => 'Configurações Gerais';
@@ -786,6 +801,9 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get support_on_github_description =>
       'Contribuir para o projeto no GitHub';
+
+  @override
+  String get last_channel => 'Last channel';
 
   @override
   String get select_channel => 'Selecionar Canal';

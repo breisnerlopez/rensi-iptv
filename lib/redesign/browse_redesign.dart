@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
@@ -76,7 +77,8 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
           .toList();
     }
 
-    final cross = MediaQuery.of(context).size.width >= 900 ? 6 : 3;
+    final cross = ResponsiveHelper.getCrossAxisCount(context);
+    final sidePad = ResponsiveHelper.isDesktopOrTV(context) ? 48.0 : 20.0;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -86,7 +88,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
+              padding: EdgeInsets.fromLTRB(sidePad, 8, sidePad, 14),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -116,7 +118,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
             ),
             // Type tabs
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 12),
               child: Row(
                 children: [
                   for (final e in const [
@@ -143,7 +145,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
               height: 44,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 0),
                 itemCount: genres.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (_, i) => RensiChip(
@@ -160,7 +162,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
                       child: Text('Sin resultados para este filtro',
                           style: TextStyle(color: r.text3)))
                   : GridView.builder(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                      padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 24),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: cross,
                         childAspectRatio: 1 / 1.48,

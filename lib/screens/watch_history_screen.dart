@@ -92,7 +92,9 @@ class _WatchHistoryScreenState extends State<WatchHistoryScreen> {
                       onHistoryRemove: (history) => _showRemoveDialog(history),
                       onSeeAllTap: _showAllHistory,
                       onFavoriteRemove: _removeFavorite,
-                      onSeeAllFavorites: _showAllFavorites,
+                      // No screen implements the full favorites list yet, so
+                      // omit the callback: FavoritesSection only renders the
+                      // "see all" button when onSeeAllTap is non-null.
                     ),
             );
           },
@@ -137,11 +139,5 @@ class _WatchHistoryScreenState extends State<WatchHistoryScreen> {
         ),
       );
     }
-  }
-
-  void _showAllFavorites() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Favoriler listesi yakında eklenecek')),
-    );
   }
 }

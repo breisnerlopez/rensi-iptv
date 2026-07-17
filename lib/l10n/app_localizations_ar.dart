@@ -167,10 +167,25 @@ class AppLocalizationsAr extends AppLocalizations {
   String get audio_track => 'مسار الصوت';
 
   @override
+  String get speed => 'Speed';
+
+  @override
+  String get load => 'Load';
+
+  @override
+  String get external_subtitle => 'External subtitle';
+
+  @override
+  String get external_subtitle_url => 'External subtitle (URL)';
+
+  @override
   String get subtitle_track => 'مسار الترجمة';
 
   @override
   String get settings => 'الإعدادات';
+
+  @override
+  String get hold_ok_for_options => 'Hold OK for audio & subtitles';
 
   @override
   String get general_settings => 'الإعدادات العامة';
@@ -779,6 +794,9 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get support_on_github_description => 'ساهم في المشروع على GitHub';
+
+  @override
+  String get last_channel => 'Last channel';
 
   @override
   String get select_channel => 'اختر القناة';
