@@ -17,12 +17,21 @@ void main() {
     await pumpScreen(tester, const AppInitializerScreen(), size: phoneSize);
     await shot(tester, 'touch_1_empty.png');
 
-    // The onboarding empty-state renders after an async init (playlist lookup);
-    // on slower CI runners it isn't ready right after settle — wait for it.
-    final createBtn = find.widgetWithIcon(FilledButton, Icons.add);
-    for (var i = 0; i < 25 && !tester.any(createBtn); i++) {
-      await tester.pump(const Duration(milliseconds: 200));
+    // The onboarding empty-state renders after REAL async init (SharedPreferences
+    // + DB playlist lookup) that FakeAsync pump() can't advance; interleave
+    // runAsync so it makes progress. On slower CI runners this matters.
+    Future<bool> waitFor(Finder f) async {
+      for (var i = 0; i < 40; i++) {
+        if (tester.any(f)) return true;
+        await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 80)));
+        await tester.pump();
+      }
+      return tester.any(f);
     }
+
+    final createBtn = find.widgetWithIcon(FilledButton, Icons.add);
+    expect(await waitFor(createBtn), isTrue,
+        reason: 'el estado vacío del onboarding debe mostrar el botón Crear');
     // Tap the "create" button (has Icons.add) with a real tap gesture.
     await tester.tap(createBtn.first);
     await settle(tester);
@@ -32,9 +41,8 @@ void main() {
 
     // Tap the M3U card (wait for the type screen to settle in first).
     final m3uCard = find.text('M3U Playlist');
-    for (var i = 0; i < 25 && !tester.any(m3uCard); i++) {
-      await tester.pump(const Duration(milliseconds: 200));
-    }
+    expect(await waitFor(m3uCard), isTrue,
+        reason: 'la tarjeta M3U debe renderizarse');
     await tester.tap(m3uCard.first);
     await settle(tester);
     expect(find.byType(NewM3uPlaylistScreen), findsOneWidget,
