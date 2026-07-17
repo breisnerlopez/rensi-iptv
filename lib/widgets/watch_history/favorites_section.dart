@@ -2,7 +2,7 @@ import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/models/favorite.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:flutter/material.dart';
-import 'package:rensi_iptv/widgets/content_card.dart';
+import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/utils/build_media_url.dart';
@@ -62,7 +62,7 @@ class FavoritesSection extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: cardHeight + 16,
+          height: cardWidth * 1.48 + 16,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: 12),
@@ -79,41 +79,41 @@ class FavoritesSection extends StatelessWidget {
   }
 
   Widget _buildFavoriteCard(BuildContext context, Favorite favorite) {
+    final h = cardWidth * 1.48; // matches RensiPoster's intrinsic height
     return Container(
       width: cardWidth,
-      height: cardHeight,
-      margin: EdgeInsets.symmetric(horizontal: 4),
+      height: h,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
       child: Stack(
         children: [
-          FocusHighlight(
-            borderRadius: BorderRadius.circular(8),
-            child: FutureBuilder<ContentItem?>(
-              future: _getContentItemFromFavorite(favorite),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Container(
-                    width: cardWidth,
-                    height: cardHeight,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  );
-                }
-
-                final contentItem =
-                    snapshot.data ?? _convertFavoriteToContentItem(favorite);
-
-                return ContentCard(
-                  content: contentItem,
+          // RensiPoster brings its own FocusHighlight ring, so it isn't wrapped
+          // in another one (that would double the ring).
+          FutureBuilder<ContentItem?>(
+            future: _getContentItemFromFavorite(favorite),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Container(
                   width: cardWidth,
-                  onTap: () => _navigateToContent(context, contentItem),
+                  height: h,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                 );
-              },
-            ),
+              }
+
+              final contentItem =
+                  snapshot.data ?? _convertFavoriteToContentItem(favorite);
+
+              return RensiPoster(
+                item: contentItem,
+                width: cardWidth,
+                onTap: () => _navigateToContent(context, contentItem),
+              );
+            },
           ),
           if (onFavoriteRemove != null)
             Positioned(
