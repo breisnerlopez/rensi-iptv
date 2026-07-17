@@ -117,7 +117,7 @@ abstract class AppLocalizations {
   /// No description provided for @slogan.
   ///
   /// In en, this message translates to:
-  /// **'Open Source IPTV Player'**
+  /// **'IPTV Player'**
   String get slogan;
 
   /// No description provided for @search.

@@ -9,7 +9,7 @@ class AppLocalizationsTr extends AppLocalizations {
   AppLocalizationsTr([String locale = 'tr']) : super(locale);
 
   @override
-  String get slogan => 'Açık Kaynaklı IPTV Oynatıcı';
+  String get slogan => 'IPTV Oynatıcı';
 
   @override
   String get search => 'Ara';

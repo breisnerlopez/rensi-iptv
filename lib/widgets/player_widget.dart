@@ -830,17 +830,29 @@ class _PlayerWidgetState extends State<PlayerWidget>
     return syns.any((s) => hay.contains(s));
   }
 
-  /// Enable hardware video decoding + a healthy network cache so playback
-  /// is smooth on low-power Android TV boxes (libmpv via media_kit).
+  /// Tune libmpv (via media_kit) for smooth IPTV playback on low-power Android
+  /// TV boxes (e.g. Amlogic Mi Box). NOTE: `hwdec` is intentionally NOT set here
+  /// — the AndroidVideoController fixes it to `auto-safe` AFTER this runs, so a
+  /// value here would be overwritten. HW decode is already active via that path.
   Future<void> _tuneForPerformance() async {
     final platform = _player.platform;
     if (platform is NativePlayer) {
+      final isLive =
+          widget.contentItem.contentType == ContentType.liveStream;
       try {
-        await platform.setProperty('hwdec', 'auto-safe');
         await platform.setProperty('cache', 'yes');
+        // Root cause of the stutter on TV boxes: media_kit defaults to caching
+        // to DISK; on slow eMMC/flash that causes periodic I/O stalls. Cache in
+        // RAM instead.
+        await platform.setProperty('cache-on-disk', 'no');
         await platform.setProperty('demuxer-max-bytes', '64MiB');
         await platform.setProperty('demuxer-max-back-bytes', '32MiB');
-        await platform.setProperty('demuxer-readahead-secs', '20');
+        // High readahead smooths VOD jitter; keep it low on live to reduce
+        // zap latency and RAM.
+        await platform.setProperty(
+            'demuxer-readahead-secs', isLive ? '5' : '20');
+        // Don't freeze on brief IPTV network hiccups.
+        await platform.setProperty('cache-pause', 'no');
       } catch (_) {
         // Best-effort; defaults are fine if a property is unsupported.
       }

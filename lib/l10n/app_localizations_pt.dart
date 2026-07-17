@@ -9,7 +9,7 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
-  String get slogan => 'Player IPTV de Código Aberto';
+  String get slogan => 'Player IPTV';
 
   @override
   String get search => 'Pesquisar';

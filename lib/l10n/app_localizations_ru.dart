@@ -9,7 +9,7 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
-  String get slogan => 'IPTV-плеер с открытым исходным кодом';
+  String get slogan => 'IPTV-плеер';
 
   @override
   String get search => 'Поиск';

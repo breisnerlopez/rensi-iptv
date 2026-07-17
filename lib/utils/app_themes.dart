@@ -323,10 +323,18 @@ class AppThemes {
       listTileTheme: ListTileThemeData(
         selectedTileColor: focusRing.withValues(alpha: 0.18),
       ),
+      // Real Material chips (ChoiceChip/FilterChip/… in search filters, genre
+      // pickers, playback speed) are NOT wrapped in FocusHighlight, so they need
+      // their own strong D-pad focus ring. Match the FocusHighlight language:
+      // white on dark, brand accent on light. (RensiChip is a custom Container,
+      // it doesn't read chipTheme, so there's no double ring.)
       chipTheme: base.chipTheme.copyWith(
         side: WidgetStateBorderSide.resolveWith((states) {
           if (states.contains(WidgetState.focused)) {
-            return BorderSide(color: focusRing, width: 3);
+            final ring = scheme.brightness == Brightness.dark
+                ? const Color(0xFFFFFFFF)
+                : scheme.primary;
+            return BorderSide(color: ring, width: 3);
           }
           return BorderSide(color: scheme.outlineVariant, width: 1);
         }),

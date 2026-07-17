@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get slogan => '开源IPTV播放器';
+  String get slogan => 'IPTV 播放器';
 
   @override
   String get search => '搜索';

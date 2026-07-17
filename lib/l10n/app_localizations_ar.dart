@@ -9,7 +9,7 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
-  String get slogan => 'مشغل IPTV مفتوح المصدر';
+  String get slogan => 'مشغل IPTV';
 
   @override
   String get search => 'بحث';

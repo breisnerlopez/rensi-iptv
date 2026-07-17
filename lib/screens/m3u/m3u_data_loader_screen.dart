@@ -153,7 +153,7 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF1a1a2e), Color(0xFF16213e), Color(0xFF0f3460)],
+            colors: [Color(0xFF0B0B0D), Color(0xFF16161B), Color(0xFF2A1A12)],
           ),
         ),
         child: ChangeNotifierProvider.value(
@@ -187,14 +187,14 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                                     shape: BoxShape.circle,
                                     gradient: RadialGradient(
                                       colors: [
-                                        Color(0xFF00d4ff),
-                                        Color(0xFF0099cc),
+                                        Color(0xFFC75F41),
+                                        Color(0xFFA0472C),
                                       ],
                                     ),
                                     boxShadow: [
                                       BoxShadow(
                                         color: Color(
-                                          0xFF00d4ff,
+                                          0xFFC75F41,
                                         ).withOpacity(0.3),
                                         blurRadius: 20,
                                         spreadRadius: 5,
@@ -259,7 +259,7 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
                                             border: Border.all(
-                                              color: Color(0xFF00d4ff)
+                                              color: Color(0xFFC75F41)
                                                   .withOpacity(
                                                     (1 - _waveAnimation.value) *
                                                         (0.3 - i * 0.1),
@@ -277,8 +277,8 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                                         shape: BoxShape.circle,
                                         gradient: LinearGradient(
                                           colors: [
-                                            Color(0xFF00d4ff),
-                                            Color(0xFF0099cc),
+                                            Color(0xFFC75F41),
+                                            Color(0xFFA0472C),
                                           ],
                                         ),
                                       ),
@@ -324,7 +324,7 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(4),
                                   color: isActive
-                                      ? Color(0xFF00d4ff)
+                                      ? Color(0xFFC75F41)
                                       : Colors.white.withOpacity(0.3),
                                 ),
                               );
@@ -358,8 +358,8 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                                           ),
                                           gradient: LinearGradient(
                                             colors: [
-                                              Color(0xFF00d4ff),
-                                              Color(0xFF0099cc),
+                                              Color(0xFFC75F41),
+                                              Color(0xFFA0472C),
                                             ],
                                           ),
                                         ),
@@ -372,7 +372,7 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w500,
-                                      color: Color(0xFF00d4ff),
+                                      color: Color(0xFFC75F41),
                                     ),
                                   ),
                                 ],
@@ -433,7 +433,7 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                                       );
                                     },
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: Color(0xFF00d4ff),
+                                      backgroundColor: Color(0xFFC75F41),
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(8),

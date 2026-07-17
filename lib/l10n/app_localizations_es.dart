@@ -9,7 +9,7 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
-  String get slogan => 'Reproductor IPTV de Código Abierto';
+  String get slogan => 'Reproductor IPTV';
 
   @override
   String get search => 'Buscar';

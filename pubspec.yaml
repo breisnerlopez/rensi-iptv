@@ -1,8 +1,8 @@
 name: rensi_iptv
-description: "Rensi IPTV — Free Open Source IPTV Player"
+description: "Rensi IPTV — Reproductor IPTV para móvil y Android TV"
 publish_to: "none"
 
-version: 2.0.4+8
+version: 2.0.5+9
 
 environment:
   sdk: ^3.9.2

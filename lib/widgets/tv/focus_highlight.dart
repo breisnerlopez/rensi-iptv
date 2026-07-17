@@ -15,7 +15,7 @@ class FocusHighlight extends StatefulWidget {
     super.key,
     required this.child,
     this.borderRadius,
-    this.scale = 1.04,
+    this.scale = 1.06,
   });
 
   final Widget child;
@@ -59,33 +59,37 @@ class _FocusHighlightState extends State<FocusHighlight> {
 
     if (!ResponsiveHelper.isDesktopOrTV(context)) return observer;
 
-    final scheme = Theme.of(context).colorScheme;
-    // Same ring colour as AppThemes.applyTvOverrides: amber on dark, brand
-    // red on light — highest contrast at a 3 m viewing distance.
-    final ring = scheme.brightness == Brightness.dark
-        ? const Color(0xFFFFD54F)
-        : scheme.primary;
+    // Single, commercial-grade focus language (Netflix / Google TV): a clean
+    // ring + a neutral "lift" shadow, no saturated colour glow (the old amber
+    // clashed with the warm brand). White reads at 3 m on the dark theme; on the
+    // light theme (white surfaces) fall back to the brand accent so the ring
+    // never vanishes into a white card.
+    final ring = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFFFFFFF)
+        : Theme.of(context).colorScheme.primary;
 
     return AnimatedScale(
       scale: _focused ? widget.scale : 1.0,
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOut,
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOutCubic,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
           borderRadius: radius,
-          // Always a 3 px border so the surrounding layout never shifts
-          // when focus arrives — only the colour changes.
+          // Always a 3 px border so the surrounding layout never shifts when
+          // focus arrives — only the colour changes.
           border: Border.all(
             color: _focused ? ring : Colors.transparent,
             width: 3,
           ),
+          // Neutral elevation (the tile "lifts"), NOT a saturated colour glow.
           boxShadow: _focused
-              ? [
+              ? const [
                   BoxShadow(
-                    color: ring.withValues(alpha: 0.45),
-                    blurRadius: 12,
-                    spreadRadius: 1,
+                    color: Color(0x8C000000),
+                    blurRadius: 18,
+                    offset: Offset(0, 8),
                   ),
                 ]
               : null,

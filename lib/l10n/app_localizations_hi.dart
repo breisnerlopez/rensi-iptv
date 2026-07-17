@@ -9,7 +9,7 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
-  String get slogan => 'ओपन सोर्स IPTV प्लेयर';
+  String get slogan => 'आईपीटीवी प्लेयर';
 
   @override
   String get search => 'खोजें';

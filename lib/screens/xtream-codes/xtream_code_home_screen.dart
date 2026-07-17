@@ -479,14 +479,24 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
                 size: sizes.iconSize,
               ),
               const SizedBox(height: 2),
-              Text(
-                item.label,
-                style: TextStyle(
-                  color: _getTextColor(context, isSelected),
-                  fontSize: sizes.fontSize,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              // Keep long labels ("Configuración") on ONE line — shrink to fit
+              // instead of wrapping a single orphaned character.
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    item.label,
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: _getTextColor(context, isSelected),
+                      fontSize: sizes.fontSize,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),
