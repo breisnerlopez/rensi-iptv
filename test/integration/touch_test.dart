@@ -8,7 +8,10 @@ import 'harness.dart';
 
 void main() {
   setUpAll(loadFonts);
-  setUp(() => setUpHarness());
+  // Coherent MOBILE config (native isTelevision=false) to match the phone
+  // viewport — mixing tv=true with a phone size left the onboarding empty-state
+  // unrendered on CI (mobile_screens_test uses tv:false and taps reliably).
+  setUp(() => setUpHarness(tv: false));
   tearDown(tearDownHarness);
 
   testWidgets('Móvil (táctil): onboarding con tap real → tipo → form M3U',
