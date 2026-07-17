@@ -11,6 +11,7 @@ import 'package:rensi_iptv/redesign/rensi_widgets.dart' show rensi;
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -563,7 +564,8 @@ class _MovieScreenState extends State<MovieScreen> {
       textAlign: textAlign,
       style: TextStyle(
         fontFamily: 'Bricolage Grotesque',
-        fontSize: 32,
+        // 10-foot: larger title on TV so it reads at 3 m.
+        fontSize: ResponsiveHelper.isDesktopOrTV(context) ? 46 : 32,
         fontWeight: FontWeight.w800,
         height: 1.05,
         color: Colors.white,

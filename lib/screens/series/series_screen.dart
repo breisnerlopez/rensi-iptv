@@ -235,9 +235,13 @@ class _SeriesScreenState extends State<SeriesScreen> {
                                 Expanded(
                                   child: Text(
                                     seriesInfo?.name ?? widget.contentItem.name,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 24,
+                                      // 10-foot: bigger title on TV.
+                                      fontSize: ResponsiveHelper.isDesktopOrTV(
+                                              context)
+                                          ? 44
+                                          : 24,
                                       fontWeight: FontWeight.bold,
                                       shadows: [
                                         Shadow(
