@@ -32,10 +32,12 @@ void main() {
       return tester.any(f);
     }
 
-    final createBtn = find.widgetWithIcon(FilledButton, Icons.add);
+    // Find by the button's LABEL text (version-robust; find.widgetWithIcon on a
+    // FilledButton.icon matched under Flutter 3.44 locally but not 3.35 on CI).
+    final createBtn = find.text('Crear Mi Primera Lista');
     expect(await waitFor(createBtn), isTrue,
         reason: 'el estado vacío del onboarding debe mostrar el botón Crear');
-    // Tap the "create" button (has Icons.add) with a real tap gesture.
+    // Tap the "create" button with a real tap gesture.
     await tester.tap(createBtn.first);
     await settle(tester);
     await shot(tester, 'touch_2_type.png');
