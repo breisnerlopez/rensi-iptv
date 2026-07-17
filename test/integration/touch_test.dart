@@ -17,15 +17,25 @@ void main() {
     await pumpScreen(tester, const AppInitializerScreen(), size: phoneSize);
     await shot(tester, 'touch_1_empty.png');
 
+    // The onboarding empty-state renders after an async init (playlist lookup);
+    // on slower CI runners it isn't ready right after settle — wait for it.
+    final createBtn = find.widgetWithIcon(FilledButton, Icons.add);
+    for (var i = 0; i < 25 && !tester.any(createBtn); i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
     // Tap the "create" button (has Icons.add) with a real tap gesture.
-    await tester.tap(find.widgetWithIcon(FilledButton, Icons.add).first);
+    await tester.tap(createBtn.first);
     await settle(tester);
     await shot(tester, 'touch_2_type.png');
     expect(find.byType(PlaylistTypeScreen), findsOneWidget,
         reason: 'tap en Crear debe abrir el selector de tipo');
 
-    // Tap the M3U card.
-    await tester.tap(find.text('M3U Playlist'));
+    // Tap the M3U card (wait for the type screen to settle in first).
+    final m3uCard = find.text('M3U Playlist');
+    for (var i = 0; i < 25 && !tester.any(m3uCard); i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    await tester.tap(m3uCard.first);
     await settle(tester);
     expect(find.byType(NewM3uPlaylistScreen), findsOneWidget,
         reason: 'tap en la tarjeta M3U debe abrir el formulario');
