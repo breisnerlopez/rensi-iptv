@@ -318,13 +318,19 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                               : colorScheme.onSurface,
                         ),
                         SizedBox(width: 8),
-                        Text(
-                          context.loc.url,
-                          style: TextStyle(
-                            color: _isUrlSource
-                                ? colorScheme.onPrimary
-                                : colorScheme.onSurface,
-                            fontWeight: FontWeight.w600,
+                        // Flexible + ellipsis: the localised label overflowed
+                        // this segment by 17px on a 360dp phone.
+                        Flexible(
+                          child: Text(
+                            context.loc.url,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _isUrlSource
+                                  ? colorScheme.onPrimary
+                                  : colorScheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -355,6 +361,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.folder,
@@ -363,13 +370,19 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                               : colorScheme.onSurface,
                         ),
                         SizedBox(width: 8),
-                        Text(
-                          context.loc.file,
-                          style: TextStyle(
-                            color: !_isUrlSource
-                                ? colorScheme.onPrimary
-                                : colorScheme.onSurface,
-                            fontWeight: FontWeight.w600,
+                        // Flexible + ellipsis: the localised label overflowed
+                        // this segment by 17px on a 360dp phone.
+                        Flexible(
+                          child: Text(
+                            context.loc.file,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: !_isUrlSource
+                                  ? colorScheme.onPrimary
+                                  : colorScheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -560,12 +573,21 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.save, size: 20),
                   SizedBox(width: 8),
-                  Text(
-                    context.loc.create_playlist,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  // Flexible: the label is localised, and on a 360dp phone the
+                  // Spanish string overflowed the button by 199px — a hard
+                  // layout error, invisible in a profile build.
+                  Flexible(
+                    child: Text(
+                      context.loc.create_playlist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ],
               ),

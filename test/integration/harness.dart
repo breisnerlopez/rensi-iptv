@@ -44,16 +44,24 @@ late AppDatabase _db;
 
 /// Call inside setUp(). Resets get_it, installs an in-memory DB and empty
 /// mocked plugin state.
-Future<void> setUpHarness({Map<String, Object> prefs = const {}, bool tv = true}) async {
+/// [tv] mocks the native TV-detection channel. Pass **null** on a real device
+/// to leave the channel unmocked so MainActivity answers for itself — anything
+/// else renders the 10-foot UI on a phone, which is exactly how a screenshot
+/// campaign can spend six devices photographing the wrong layout.
+Future<void> setUpHarness(
+    {Map<String, Object> prefs = const {}, bool? tv = true}) async {
   TestWidgetsFlutterBinding.ensureInitialized();
   SharedPreferences.setMockInitialValues(prefs);
   FlutterSecureStorage.setMockInitialValues({});
   _mockPathProvider();
   _mockPackageInfo();
   _mockConnectivity();
-  // Drive the real native TV-detection path. tv:false → phone (mobile layout).
-  _mockChannel('info.breisner.rensi.iptv/pip',
-      (call) => call.method == 'isTelevision' ? tv : false);
+  // Drive the real native TV-detection path. tv:false → phone (mobile layout);
+  // tv:null → no mock at all, so the device decides.
+  if (tv != null) {
+    _mockChannel('info.breisner.rensi.iptv/pip',
+        (call) => call.method == 'isTelevision' ? tv : false);
+  }
   await ResponsiveHelper.initTelevisionFlag();
 
   // Clear static/singleton state that leaks between tests.
@@ -183,10 +191,41 @@ Future<void> pumpScreen(WidgetTester tester, Widget home,
 // ---------------------------------------------------------------------------
 // Remote (D-pad) events
 // ---------------------------------------------------------------------------
+/// Key-simulation platform. On the host `flutter_test` infers it, but in an
+/// on-device integration run KeyEventSimulator cannot resolve the physical-key
+/// map on its own and throws "Null check operator used on a null value" from
+/// _findPhysicalKey — so every D-pad press failed the moment these helpers were
+/// first exercised on real hardware.
+/// Null on the host so flutter_test keeps its own default — forcing 'linux'
+/// there broke four suites that pass with the inferred one.
+final String? _keyPlatform = Platform.isAndroid ? 'android' : null;
+
 Future<void> dpad(WidgetTester tester, LogicalKeyboardKey key,
     {int times = 1}) async {
   for (var i = 0; i < times; i++) {
-    await tester.sendKeyEvent(key);
+    if (_keyPlatform != null) {
+      await tester.sendKeyEvent(key, platform: _keyPlatform);
+    } else {
+      await tester.sendKeyEvent(key);
+    }
+    await tester.pump(const Duration(milliseconds: 120));
+  }
+  await settle(tester);
+}
+
+/// Moves focus the way the D-pad does, without KeyEventSimulator.
+///
+/// On device the simulator cannot resolve a physical-key map and throws from
+/// _findPhysicalKey, so every press fails — which is why the D-pad steps of the
+/// screenshot campaign produced nothing. This drives the same code path a real
+/// press ends up in (DirectionalFocusIntent -> focusInDirection), so traversal,
+/// focus order and any onFocusChange side effects are exercised for real. It is
+/// NOT a substitute for [dpad] in behavioural tests: it skips the key handling
+/// layer, so a screen that swallows arrow keys would still look navigable here.
+Future<void> moveFocus(WidgetTester tester, TraversalDirection dir,
+    {int times = 1}) async {
+  for (var i = 0; i < times; i++) {
+    FocusManager.instance.primaryFocus?.focusInDirection(dir);
     await tester.pump(const Duration(milliseconds: 120));
   }
   await settle(tester);
