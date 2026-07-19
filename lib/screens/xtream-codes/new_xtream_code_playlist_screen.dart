@@ -8,6 +8,9 @@ import '../../../../controllers/playlist_controller.dart';
 import '../../../../models/api_configuration_model.dart';
 import '../../../../models/playlist_model.dart';
 import '../../../../repositories/iptv_repository.dart';
+import 'package:rensi_iptv/widgets/tv/tv_field_traversal.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 
 class NewXtreamCodePlaylistScreen extends StatefulWidget {
   const NewXtreamCodePlaylistScreen({super.key});
@@ -92,8 +95,11 @@ class NewXtreamCodePlaylistScreenState
       body: Consumer<PlaylistController>(
         builder: (context, controller, child) {
           return SingleChildScrollView(
-            padding: EdgeInsets.all(24),
-            child: Form(
+            // RensiSafeColumn instead of a flat 24dp: on TV that margin sat
+            // inside the 5% overscan crop, so the form's own focus rings were
+            // partly off the picture.
+            child: RensiSafeColumn(
+              child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -118,6 +124,7 @@ class NewXtreamCodePlaylistScreenState
                 ],
               ),
             ),
+            ),
           );
         },
       ),
@@ -141,7 +148,9 @@ class NewXtreamCodePlaylistScreenState
         Text(
           'XStream Code Playlist',
           style: TextStyle(
-            fontSize: 26,
+            fontFamily: 'Bricolage Grotesque',
+            letterSpacing: -0.7,
+            fontSize: 36,
             fontWeight: FontWeight.bold,
             color: colorScheme.onSurface,
           ),
@@ -171,9 +180,15 @@ class NewXtreamCodePlaylistScreenState
           ),
         ),
         SizedBox(height: 8),
-        TextFormField(
+        TvFieldTraversal(child: TextFormField(
           controller: _nameController,
           focusNode: _nameNode,
+          // Focus the first field on every platform. On TV the IME does pop
+          // up with it, which is not ideal, but the alternative shipped worse:
+          // no autofocus left the screen with NOTHING focused, and the submit
+          // button starts disabled so it cannot take focus either — a remote
+          // user was stranded. TvFieldTraversal below is what lets the D-pad
+          // leave the field once the keyboard is dismissed.
           autofocus: true,
           textInputAction: TextInputAction.next,
           onFieldSubmitted: (_) => _urlNode.requestFocus(),
@@ -200,7 +215,7 @@ class NewXtreamCodePlaylistScreenState
             }
             return null;
           },
-        ),
+        )),
       ],
     );
   }
@@ -218,10 +233,16 @@ class NewXtreamCodePlaylistScreenState
           ),
         ),
         SizedBox(height: 8),
-        TextFormField(
+        TvFieldTraversal(child: TextFormField(
           controller: _urlController,
           focusNode: _urlNode,
           keyboardType: TextInputType.url,
+          // An M3U URL carries username= and password=. Without these the IME
+          // learns the credential into its dictionary and then offers it as a
+          // suggestion pill above the keyboard — on a screen the whole room
+          // can see.
+          autocorrect: false,
+          enableSuggestions: false,
           textInputAction: TextInputAction.next,
           onFieldSubmitted: (_) => _usernameNode.requestFocus(),
           decoration: InputDecoration(
@@ -262,7 +283,7 @@ class NewXtreamCodePlaylistScreenState
 
             return null;
           },
-        ),
+        )),
       ],
     );
   }
@@ -280,9 +301,11 @@ class NewXtreamCodePlaylistScreenState
           ),
         ),
         SizedBox(height: 8),
-        TextFormField(
+        TvFieldTraversal(child: TextFormField(
           controller: _usernameController,
           focusNode: _usernameNode,
+          autocorrect: false,
+          enableSuggestions: false,
           textInputAction: TextInputAction.next,
           onFieldSubmitted: (_) => _passwordNode.requestFocus(),
           decoration: InputDecoration(
@@ -316,7 +339,7 @@ class NewXtreamCodePlaylistScreenState
             }
             return null;
           },
-        ),
+        )),
       ],
     );
   }
@@ -334,9 +357,11 @@ class NewXtreamCodePlaylistScreenState
           ),
         ),
         SizedBox(height: 8),
-        TextFormField(
+        TvFieldTraversal(child: TextFormField(
           controller: _passwordController,
           focusNode: _passwordNode,
+          autocorrect: false,
+          enableSuggestions: false,
           obscureText: _obscurePassword,
           textInputAction: TextInputAction.done,
           onFieldSubmitted: (_) {
@@ -390,7 +415,7 @@ class NewXtreamCodePlaylistScreenState
             }
             return null;
           },
-        ),
+        )),
       ],
     );
   }

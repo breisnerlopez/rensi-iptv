@@ -96,10 +96,6 @@ flutter:
     - assets/logo_full.png
     - assets/logo_foreground.png
   fonts:
-    - family: BabaPro
-      fonts:
-        - asset: assets/fonts/BabaPro-Bold.ttf
-          weight: 700
     # Redesign type system (variable fonts; fontWeight drives the wght axis).
     - family: Bricolage Grotesque
       fonts:

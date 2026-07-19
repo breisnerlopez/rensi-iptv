@@ -479,5 +479,9 @@
   "file_browser_empty": "لا توجد ملفات متوافقة في هذا المجلد.",
   "exit_confirm_title": "هل تريد الخروج من التطبيق؟",
   "exit_confirm_message": "أنت على وشك الخروج من Rensi IPTV.",
-  "exit_confirm_action": "خروج"
+  "exit_confirm_action": "خروج",
+  "nav_home": "الرئيسية",
+  "nav_browse": "تصفح",
+  "nav_live": "مباشر",
+  "nav_my_list": "قائمتي"
 }

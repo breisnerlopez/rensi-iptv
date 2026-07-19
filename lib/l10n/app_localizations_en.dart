@@ -1212,4 +1212,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'Exit';
+
+  @override
+  String get nav_home => 'Home';
+
+  @override
+  String get nav_browse => 'Browse';
+
+  @override
+  String get nav_live => 'Live';
+
+  @override
+  String get nav_my_list => 'My List';
 }

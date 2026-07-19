@@ -1222,4 +1222,16 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'Sair';
+
+  @override
+  String get nav_home => 'Início';
+
+  @override
+  String get nav_browse => 'Explorar';
+
+  @override
+  String get nav_live => 'Ao vivo';
+
+  @override
+  String get nav_my_list => 'Minha lista';
 }

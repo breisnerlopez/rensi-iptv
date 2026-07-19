@@ -479,5 +479,9 @@
   "file_browser_empty": "Bu klasörde uyumlu dosya yok.",
   "exit_confirm_title": "Uygulamadan çıkılsın mı?",
   "exit_confirm_message": "Rensi IPTV'den çıkmak üzeresiniz.",
-  "exit_confirm_action": "Çık"
+  "exit_confirm_action": "Çık",
+  "nav_home": "Ana Sayfa",
+  "nav_browse": "Keşfet",
+  "nav_live": "Canlı",
+  "nav_my_list": "Listem"
 }

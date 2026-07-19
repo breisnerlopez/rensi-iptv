@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/models/all_category_sentinel.dart';
@@ -351,13 +352,13 @@ class _Hero extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = rensi(context);
 
-    final playBtn = FilledButton.icon(
+    final playBtnCore = FilledButton.icon(
       onPressed: () => onPlay(item),
       autofocus: tv,
       style: FilledButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
-        minimumSize: Size(0, tv ? 52 : 50),
+        minimumSize: Size(0, tv ? 60 : 50),
         padding: EdgeInsets.symmetric(horizontal: tv ? 30 : 16),
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -365,8 +366,17 @@ class _Hero extends StatelessWidget {
       icon: const Icon(Icons.play_arrow_rounded, size: 24),
       label: Text(context.loc.start_watching,
           style: TextStyle(
-              fontSize: tv ? 16.5 : 15.5, fontWeight: FontWeight.w700)),
+              fontSize: tv ? 19 : 15.5, fontWeight: FontWeight.w700)),
     );
+    // This is the remote's landing target on entry, and it was the ONE control
+    // with no visible focus state: a white fill ringed in #FFF5F0 by the theme
+    // is 1.03:1 — the user could not see where the D-pad had put them.
+    final playBtn = tv
+        ? FocusHighlight(
+            borderRadius: BorderRadius.circular(14),
+            child: playBtnCore,
+          )
+        : playBtnCore;
 
     final actions = Row(
       mainAxisSize: tv ? MainAxisSize.min : MainAxisSize.max,
@@ -393,7 +403,7 @@ class _Hero extends StatelessWidget {
           ),
           child: const Text('★ DESTACADO HOY',
               style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.5,
                   color: Colors.white)),
@@ -422,7 +432,13 @@ class _Hero extends StatelessWidget {
       margin: tv
           ? const EdgeInsets.only(bottom: 8)
           : const EdgeInsets.fromLTRB(16, 0, 16, 24),
-      height: tv ? 520 : 440,
+      // Proportional, not fixed: an Android TV viewport is 540dp tall, so the
+      // old flat 520 left the hero CTAs under the fold and showed not one rail.
+      // Every competitor keeps the top of the first row visible on load — it is
+      // the signal that says "there is a catalogue here".
+      height: tv
+          ? math.min(520.0, MediaQuery.sizeOf(context).height * 0.68)
+          : 440,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: tv ? BorderRadius.zero : BorderRadius.circular(22),
@@ -431,7 +447,12 @@ class _Hero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          RensiKeyArt(item: item),
+          // Landscape backdrop when the provider gave us one. The hero used to
+          // render `item.imagePath` — a 2:3 POSTER — with BoxFit.cover into a
+          // wide box, which crops ~15% of it and scales it hard. Series already
+          // carry backdropPath in the DB and the detail screens use it; the
+          // hero was the one place still stretching a poster.
+          RensiKeyArt(item: item, preferBackdrop: true, titleScale: 0),
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -454,7 +475,9 @@ class _Hero extends StatelessWidget {
               ),
             ),
           Positioned(
-            left: tv ? 56 : 18,
+            // 48 to match the top bar and the rails; it was 56, and those 8dp
+            // put the hero's badge visibly out of line with the wordmark above.
+            left: tv ? 48 : 18,
             right: 18,
             bottom: tv ? 44 : 18,
             child: tv
@@ -487,13 +510,14 @@ class _HeroMeta extends StatelessWidget {
         Text(rating,
             style: const TextStyle(
                 color: Colors.white,
-                fontSize: 13,
+                fontSize: 18,
                 fontWeight: FontWeight.w600)),
       ]));
     }
     if (genre != null && genre.isNotEmpty) {
       parts.add(Text(genre.split(',').first.trim(),
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13)));
+          style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.85), fontSize: 18)));
     }
     if (parts.isEmpty) return const SizedBox.shrink();
     return Wrap(

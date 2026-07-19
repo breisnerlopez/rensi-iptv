@@ -479,5 +479,9 @@
   "file_browser_empty": "此文件夹中无匹配文件。",
   "exit_confirm_title": "退出应用？",
   "exit_confirm_message": "您即将退出 Rensi IPTV。",
-  "exit_confirm_action": "退出"
+  "exit_confirm_action": "退出",
+  "nav_home": "首页",
+  "nav_browse": "浏览",
+  "nav_live": "直播",
+  "nav_my_list": "我的列表"
 }

@@ -12,6 +12,9 @@ import 'package:provider/provider.dart';
 import '../../../../controllers/playlist_controller.dart';
 import '../../models/m3u_item.dart';
 import '../../utils/show_loading_dialog.dart';
+import 'package:rensi_iptv/widgets/tv/tv_field_traversal.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 
 class NewM3uPlaylistScreen extends StatefulWidget {
   const NewM3uPlaylistScreen({super.key});
@@ -111,8 +114,11 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
       body: Consumer<PlaylistController>(
         builder: (context, controller, child) {
           return SingleChildScrollView(
-            padding: EdgeInsets.all(24),
-            child: Form(
+            // RensiSafeColumn instead of a flat 24dp: on TV that margin sat
+            // inside the 5% overscan crop, so the form's own focus rings were
+            // partly off the picture.
+            child: RensiSafeColumn(
+              child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -142,6 +148,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                 ],
               ),
             ),
+            ),
           );
         },
       ),
@@ -169,7 +176,9 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         Text(
           context.loc.m3u_playlist,
           style: TextStyle(
-            fontSize: 26,
+            fontFamily: 'Bricolage Grotesque',
+            letterSpacing: -0.7,
+            fontSize: 36,
             fontWeight: FontWeight.bold,
             color: colorScheme.onSurface,
           ),
@@ -199,9 +208,15 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
           ),
         ),
         SizedBox(height: 8),
-        TextFormField(
+        TvFieldTraversal(child: TextFormField(
           controller: _nameController,
           focusNode: _nameNode,
+          // Focus the first field on every platform. On TV the IME does pop
+          // up with it, which is not ideal, but the alternative shipped worse:
+          // no autofocus left the screen with NOTHING focused, and the submit
+          // button starts disabled so it cannot take focus either — a remote
+          // user was stranded. TvFieldTraversal below is what lets the D-pad
+          // leave the field once the keyboard is dismissed.
           autofocus: true,
           textInputAction: TextInputAction.next,
           onFieldSubmitted: (_) {
@@ -234,7 +249,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
             }
             return null;
           },
-        ),
+        )),
       ],
     );
   }
@@ -368,10 +383,16 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
           ),
         ),
         SizedBox(height: 8),
-        TextFormField(
+        TvFieldTraversal(child: TextFormField(
           controller: _urlController,
           focusNode: _urlNode,
           keyboardType: TextInputType.url,
+          // An M3U URL carries username= and password=. Without these the IME
+          // learns the credential into its dictionary and then offers it as a
+          // suggestion pill above the keyboard — on a screen the whole room
+          // can see.
+          autocorrect: false,
+          enableSuggestions: false,
           textInputAction: TextInputAction.done,
           onFieldSubmitted: (_) {
             _urlNode.unfocus();
@@ -407,7 +428,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
 
             return null;
           },
-        ),
+        )),
       ],
     );
   }

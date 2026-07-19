@@ -479,5 +479,9 @@
   "file_browser_empty": "В этой папке нет совместимых файлов.",
   "exit_confirm_title": "Выйти из приложения?",
   "exit_confirm_message": "Вы собираетесь выйти из Rensi IPTV.",
-  "exit_confirm_action": "Выйти"
+  "exit_confirm_action": "Выйти",
+  "nav_home": "Главная",
+  "nav_browse": "Обзор",
+  "nav_live": "Эфир",
+  "nav_my_list": "Мой список"
 }

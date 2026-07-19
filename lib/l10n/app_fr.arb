@@ -479,5 +479,9 @@
   "file_browser_empty": "Aucun fichier compatible dans ce dossier.",
   "exit_confirm_title": "Quitter l'application ?",
   "exit_confirm_message": "Vous êtes sur le point de quitter Rensi IPTV.",
-  "exit_confirm_action": "Quitter"
+  "exit_confirm_action": "Quitter",
+  "nav_home": "Accueil",
+  "nav_browse": "Explorer",
+  "nav_live": "En direct",
+  "nav_my_list": "Ma liste"
 }

@@ -485,5 +485,9 @@
   "file_browser_empty": "No hay archivos compatibles en esta carpeta.",
   "exit_confirm_title": "¿Salir de la app?",
   "exit_confirm_message": "Estás a punto de salir de Rensi IPTV.",
-  "exit_confirm_action": "Salir"
+  "exit_confirm_action": "Salir",
+  "nav_home": "Inicio",
+  "nav_browse": "Explorar",
+  "nav_live": "En vivo",
+  "nav_my_list": "Mi lista"
 }

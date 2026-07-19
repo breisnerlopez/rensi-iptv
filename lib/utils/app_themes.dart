@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 
 /// Extra design tokens from the cinematic redesign that don't map onto a
 /// standard [ColorScheme] slot (accent ramp, rating gold, live red, the
@@ -96,19 +97,33 @@ class AppThemes {
 
   // Terracotta brand accent — single source the rest derives from.
   static const Color _accent = Color(0xFFC75F41);
+  /// Darker accent for FILLED buttons, which carry text. `#FFF5F0` on [_accent]
+  /// measures 3.81:1 — under the 4.5:1 WCAG AA needs for normal text — while on
+  /// this it is 4.99:1. [_accent] stays for icons and large shapes, which only
+  /// need 3:1. (Chips are NOT covered: chipTheme.selectedColor still uses
+  /// [_accent] with large-ish label text.)
+  static const Color _accentInk = Color(0xFFB04C2E);
   static const Color _accent2 = Color(0xFFDA8A56); // accent 72% + warm gold
   static const Color _onAccent = Color(0xFFFFF5F0);
   static const Color _gold = Color(0xFFD8A34A);
   static const Color _live = Color(0xFFE0563E);
 
   // ---- Dark (default) tokens ----
-  static const Color _dBg = Color(0xFF0B0B0D);
-  static const Color _dSurface = Color(0xFF16161B);
-  static const Color _dSurface2 = Color(0xFF202027);
-  static const Color _dSurface3 = Color(0xFF2A2A32);
+  // Warm neutrals (hue ~25-30°), not the blue-violet ramp these used to be
+  // (~250°). A terracotta brand sitting on slate-blue surfaces is what made the
+  // product read as "generic dark mode with an orange on top" instead of the
+  // warm, cinematic look the rest of the design is reaching for.
+  static const Color _dBg = Color(0xFF0C0A09);
+  static const Color _dSurface = Color(0xFF17130F);
+  static const Color _dSurface2 = Color(0xFF221D18);
+  static const Color _dSurface3 = Color(0xFF2D2721);
   static const Color _dText = Color(0xFFF3F1EE);
-  static const Color _dText2 = Color(0xFFB6B4BD);
-  static const Color _dText3 = Color(0xFF76747E);
+  static const Color _dText2 = Color(0xFFB9B2A8);
+  // Was #76747E at 4.28:1 on the background — under AA. #8A8175 measures
+  // 5.16:1 on bg and 4.82:1 on surface. NOTE: on surface2 (4.36:1) and
+  // surface3 (3.85:1) it still falls short; those pairings need either a
+  // lighter token or larger type.
+  static const Color _dText3 = Color(0xFF8A8175);
 
   // ---- Light tokens ----
   static const Color _lBg = Color(0xFFF4F1EC);
@@ -160,7 +175,9 @@ class AppThemes {
       onSurface: text,
       onSurfaceVariant: text2,
       surfaceContainerLowest: bg,
-      surfaceContainerLow: isDark ? const Color(0xFF0F0F12) : _lBg,
+      // Retinted with the rest of the ramp; it was the one step left at the
+      // old blue-violet hue.
+      surfaceContainerLow: isDark ? const Color(0xFF120F0D) : _lBg,
       surfaceContainer: surface,
       surfaceContainerHigh: surface2,
       surfaceContainerHighest: surface3,
@@ -216,6 +233,19 @@ class AppThemes {
       textTheme: textTheme,
       extensions: [rensi],
       dividerColor: hairline,
+      // Filled buttons carry text, so they need the darker accent: white on
+      // _accent measures 3.9:1, below the 4.5:1 WCAG AA needs for normal text.
+      // Icons and large shapes keep _accent (they only need 3:1).
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: _accentInk,
+          foregroundColor: _onAccent,
+          // Without these an explicit backgroundColor makes the disabled state
+          // resolve to null, i.e. a transparent button instead of the grey one.
+          disabledBackgroundColor: text.withValues(alpha: 0.12),
+          disabledForegroundColor: text.withValues(alpha: 0.38),
+        ),
+      ),
       appBarTheme: AppBarTheme(
         backgroundColor: bg,
         foregroundColor: text,
@@ -282,29 +312,67 @@ class AppThemes {
     );
   }
 
+  /// Single content gutter for the 10-foot UI. Five different left margins
+  /// (16 / 24 / 72 / 120 / 128) across four screens was the most immediate
+  /// visual tell that this was a phone layout stretched onto a TV.
+  static const double _tvGutter = 48;
+
+  /// The one focus-ring colour for the whole product.
+  ///
+  /// Before this existed the app had five: white on cards, terracotta on text
+  /// fields, terracotta on text/outlined buttons, #FFF5F0 on filled buttons
+  /// (contrast 1.03:1 against their white fill — i.e. invisible) and a filled
+  /// terracotta background on the nav rail. On a 10-foot UI the user navigates
+  /// by tracking a single bright point; five dialects break that contract.
+  static Color focusRing(Brightness brightness) =>
+      brightness == Brightness.dark ? const Color(0xFFFFFFFF) : _accent;
+
   /// Returns [base] augmented with TV-grade focus visuals: a strong accent
   /// ring + tinted overlay on every interactive Material widget. Applied
   /// from `MaterialApp.builder` only on large screens / Android TV.
   static ThemeData applyTvOverrides(ThemeData base) {
     final scheme = base.colorScheme;
-    final focusRing = scheme.primary; // terracotta reads on dark + light
-    final focusOverlay = focusRing.withValues(alpha: 0.32);
+    // Single source of truth, shared with FocusHighlight so the two can never
+    // drift into different dialects.
+    final ring = focusRing(base.brightness);
+    final focusOverlay = ring.withValues(alpha: 0.28);
 
     return base.copyWith(
       focusColor: focusOverlay,
+      // AppBars kept Material's phone defaults: a 16dp titleSpacing puts the
+      // title — and the back arrow — inside the 5% a TV crops. One theme entry
+      // aligns every screen's header with the body gutter.
+      appBarTheme: base.appBarTheme.copyWith(
+        titleSpacing: _tvGutter,
+        toolbarHeight: 72,
+      ),
+      // Only on a REAL television. `isDesktopOrTV` also covers tablets and
+      // desktop (>=900dp), where the handles are still draggable — hiding them
+      // there would leave an invisible-but-live control, which is worse than
+      // the artefact it removes.
+      textSelectionTheme: ResponsiveHelper.isTelevisionDevice
+          ? base.textSelectionTheme
+              .copyWith(selectionHandleColor: Colors.transparent)
+          : base.textSelectionTheme,
       // Filled / elevated buttons paint a primary fill, so a primary ring
       // would be invisible on them — use onPrimary for contrast there.
+      // MERGE, don't replace: `copyWith` swaps the whole theme, and rebuilding
+      // it here silently threw away the base style's accessible background —
+      // on TV the filled buttons fell back to colorScheme.primary at 3.81:1,
+      // i.e. the contrast fix did not exist on the target platform.
       filledButtonTheme: FilledButtonThemeData(
-        style: _tvButtonStyle(scheme.onPrimary, focusOverlay),
+        style: (base.filledButtonTheme.style ?? const ButtonStyle())
+            .merge(_tvButtonStyle(scheme.onPrimary, focusOverlay)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: _tvButtonStyle(scheme.onPrimary, focusOverlay),
+        style: (base.elevatedButtonTheme.style ?? const ButtonStyle())
+            .merge(_tvButtonStyle(scheme.onPrimary, focusOverlay)),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
-        style: _tvButtonStyle(focusRing, focusOverlay),
+        style: _tvButtonStyle(ring, focusOverlay),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: _tvButtonStyle(focusRing, focusOverlay),
+        style: _tvButtonStyle(ring, focusOverlay),
       ),
       iconButtonTheme: IconButtonThemeData(
         style: ButtonStyle(
@@ -312,16 +380,10 @@ class AppThemes {
             if (states.contains(WidgetState.focused)) return focusOverlay;
             return null;
           }),
-          side: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.focused)) {
-              return BorderSide(color: focusRing, width: 3);
-            }
-            return null;
-          }),
         ),
       ),
       listTileTheme: ListTileThemeData(
-        selectedTileColor: focusRing.withValues(alpha: 0.18),
+        selectedTileColor: ring.withValues(alpha: 0.18),
       ),
       // Real Material chips (ChoiceChip/FilterChip/… in search filters, genre
       // pickers, playback speed) are NOT wrapped in FocusHighlight, so they need
@@ -341,23 +403,21 @@ class AppThemes {
       ),
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: focusRing, width: 3),
+          borderSide: BorderSide(color: ring, width: 3),
           borderRadius: BorderRadius.circular(12),
         ),
       ),
     );
   }
 
+  /// Overlay only. The ring belongs to [FocusHighlight]; painting one here too
+  /// produced two concentric-ish rings with a dark gap between them, and on a
+  /// StadiumBorder button the theme's rectangular radius did not even match the
+  /// pill it was drawn around.
   static ButtonStyle _tvButtonStyle(Color ring, Color overlay) {
     return ButtonStyle(
       overlayColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.focused)) return overlay;
-        return null;
-      }),
-      side: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.focused)) {
-          return BorderSide(color: ring, width: 3);
-        }
         return null;
       }),
     );

@@ -1216,4 +1216,16 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'Выйти';
+
+  @override
+  String get nav_home => 'Главная';
+
+  @override
+  String get nav_browse => 'Обзор';
+
+  @override
+  String get nav_live => 'Эфир';
+
+  @override
+  String get nav_my_list => 'Мой список';
 }

@@ -1173,4 +1173,16 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get exit_confirm_action => '退出';
+
+  @override
+  String get nav_home => '首页';
+
+  @override
+  String get nav_browse => '浏览';
+
+  @override
+  String get nav_live => '直播';
+
+  @override
+  String get nav_my_list => '我的列表';
 }

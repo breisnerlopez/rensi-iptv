@@ -1214,4 +1214,16 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'Çık';
+
+  @override
+  String get nav_home => 'Ana Sayfa';
+
+  @override
+  String get nav_browse => 'Keşfet';
+
+  @override
+  String get nav_live => 'Canlı';
+
+  @override
+  String get nav_my_list => 'Listem';
 }

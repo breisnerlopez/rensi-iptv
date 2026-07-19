@@ -1224,4 +1224,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'Salir';
+
+  @override
+  String get nav_home => 'Inicio';
+
+  @override
+  String get nav_browse => 'Explorar';
+
+  @override
+  String get nav_live => 'En vivo';
+
+  @override
+  String get nav_my_list => 'Mi lista';
 }

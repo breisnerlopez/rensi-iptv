@@ -1227,4 +1227,16 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'Beenden';
+
+  @override
+  String get nav_home => 'Start';
+
+  @override
+  String get nav_browse => 'Entdecken';
+
+  @override
+  String get nav_live => 'Live';
+
+  @override
+  String get nav_my_list => 'Meine Liste';
 }

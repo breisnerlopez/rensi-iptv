@@ -152,6 +152,10 @@ Future<String?> _askForUrl(BuildContext context) async {
             controller: controller,
             autofocus: true,
             keyboardType: TextInputType.url,
+            // A backup URL can embed credentials; without these the IME learns
+            // them and offers them as a suggestion later.
+            autocorrect: false,
+            enableSuggestions: false,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => submit(),
             decoration: InputDecoration(

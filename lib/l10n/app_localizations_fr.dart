@@ -1227,4 +1227,16 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'Quitter';
+
+  @override
+  String get nav_home => 'Accueil';
+
+  @override
+  String get nav_browse => 'Explorer';
+
+  @override
+  String get nav_live => 'En direct';
+
+  @override
+  String get nav_my_list => 'Ma liste';
 }

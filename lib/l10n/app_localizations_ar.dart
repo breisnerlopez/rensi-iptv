@@ -1213,4 +1213,16 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'خروج';
+
+  @override
+  String get nav_home => 'الرئيسية';
+
+  @override
+  String get nav_browse => 'تصفح';
+
+  @override
+  String get nav_live => 'مباشر';
+
+  @override
+  String get nav_my_list => 'قائمتي';
 }

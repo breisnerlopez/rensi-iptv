@@ -165,11 +165,19 @@ class PlaylistEmptyState extends StatelessWidget {
                     const SizedBox(height: 12),
                     FocusHighlight(
                       borderRadius: BorderRadius.circular(20),
+                      // Explicit tonal colours: the app-wide filledButtonTheme
+                      // also reaches FilledButton.tonal*, which would paint this
+                      // secondary action identically to the primary button right
+                      // above it.
                       child: FilledButton.tonalIcon(
                         onPressed: onImportBackup,
                         icon: const Icon(Icons.download_outlined),
                         label: Text(context.loc.import_playlists_and_settings),
                         style: FilledButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.secondaryContainer,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onSecondaryContainer,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           textStyle: const TextStyle(fontSize: 16),
                         ),

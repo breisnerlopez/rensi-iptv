@@ -1214,4 +1214,16 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'बाहर जाएँ';
+
+  @override
+  String get nav_home => 'होम';
+
+  @override
+  String get nav_browse => 'ब्राउज़';
+
+  @override
+  String get nav_live => 'लाइव';
+
+  @override
+  String get nav_my_list => 'मेरी सूची';
 }

@@ -2315,6 +2315,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Exit'**
   String get exit_confirm_action;
+
+  /// No description provided for @nav_home.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get nav_home;
+
+  /// No description provided for @nav_browse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse'**
+  String get nav_browse;
+
+  /// No description provided for @nav_live.
+  ///
+  /// In en, this message translates to:
+  /// **'Live'**
+  String get nav_live;
+
+  /// No description provided for @nav_my_list.
+  ///
+  /// In en, this message translates to:
+  /// **'My List'**
+  String get nav_my_list;
 }
 
 class _AppLocalizationsDelegate

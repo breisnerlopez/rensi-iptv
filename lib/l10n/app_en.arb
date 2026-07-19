@@ -485,5 +485,9 @@
   "file_browser_empty": "No matching files in this folder.",
   "exit_confirm_title": "Exit the app?",
   "exit_confirm_message": "You are about to leave Rensi IPTV.",
-  "exit_confirm_action": "Exit"
+  "exit_confirm_action": "Exit",
+  "nav_home": "Home",
+  "nav_browse": "Browse",
+  "nav_live": "Live",
+  "nav_my_list": "My List"
 }

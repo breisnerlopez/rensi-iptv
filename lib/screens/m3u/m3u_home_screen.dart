@@ -45,6 +45,14 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
   static const double _largeScreenBreakpoint = 1200.0;
   static const double _defaultNavWidth = 72.0;
   static const double _largeNavWidth = 88.0;
+  // 10-foot rail. The old _large* values were gated behind a 1200dp breakpoint
+  // that an Android TV never reaches (it reports 960dp), so the TV rail was
+  // rendering at phone scale: 72dp wide with a 10dp label, unreadable at 3m.
+  // Leanback guidance puts primary navigation at >=18sp.
+  static const double _tvNavWidth = 104.0;
+  static const double _tvItemHeight = 76.0;
+  static const double _tvIconSize = 32.0;
+  static const double _tvFontSize = 17.0;
   static const double _defaultItemHeight = 50.0;
   static const double _largeItemHeight = 56.0;
   static const double _defaultIconSize = 24.0;
@@ -345,7 +353,13 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     BuildContext context,
   ) {
     return _getNavigationItems(context).map((item) {
-      return BottomNavigationBarItem(icon: Icon(item.icon), label: item.label);
+      // Same outline-inactive / filled-active semantics as the TV rail; the
+      // bottom bar was painting every tab filled.
+      return BottomNavigationBarItem(
+        icon: Icon(item.resolve(false)),
+        activeIcon: Icon(item.resolve(true)),
+        label: item.label,
+      );
     }).toList();
   }
 
@@ -354,7 +368,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     M3UHomeController controller,
     BoxConstraints constraints,
   ) {
-    final navWidth = _getNavigationWidth(constraints.maxWidth);
+    final navWidth = _getNavigationWidth(context, constraints.maxWidth);
 
     return Container(
       width: navWidth,
@@ -374,7 +388,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     BoxConstraints constraints,
   ) {
     final items = _getNavigationItems(context);
-    final sizes = _getNavigationSizes(constraints.maxWidth);
+    final sizes = _getNavigationSizes(context, constraints.maxWidth);
 
     return Column(
       children: items.map((item) {
@@ -404,8 +418,12 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       height: sizes.itemHeight,
       margin: const EdgeInsets.symmetric(vertical: 2),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        // Selected = quiet tint + accent bar; the bright treatment belongs to
+        // focus alone. The old filled primaryContainer with accent text was
+        // 3.65:1 — the current section was the least legible item in the rail.
         color: isSelected
-            ? Theme.of(context).colorScheme.primaryContainer
+            ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)
             : Colors.transparent,
       ),
       child: InkWell(
@@ -418,7 +436,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              item.icon,
+              item.resolve(isSelected),
               color: _getIconColor(context, isSelected),
               size: sizes.iconSize,
             ),
@@ -457,13 +475,26 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     );
   }
 
-  double _getNavigationWidth(double screenWidth) {
+  double _getNavigationWidth(BuildContext context, double screenWidth) {
+    // Reserve the overscan inset on top of the rail: at x=0 the rail — and the
+    // focus ring of whatever is selected in it — sits in the strip a consumer
+    // TV crops.
+    if (ResponsiveHelper.isDesktopOrTV(context)) {
+      return _tvNavWidth + ResponsiveHelper.safeInset(context);
+    }
     return screenWidth >= _largeScreenBreakpoint
         ? _largeNavWidth
         : _defaultNavWidth;
   }
 
-  NavigationSizes _getNavigationSizes(double screenWidth) {
+  NavigationSizes _getNavigationSizes(BuildContext context, double screenWidth) {
+    if (ResponsiveHelper.isDesktopOrTV(context)) {
+      return NavigationSizes(
+        itemHeight: _tvItemHeight,
+        iconSize: _tvIconSize,
+        fontSize: _tvFontSize,
+      );
+    }
     final isLargeScreen = screenWidth >= _largeScreenBreakpoint;
 
     return NavigationSizes(
@@ -474,25 +505,45 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
   }
 
   Color _getIconColor(BuildContext context, bool isSelected) {
+    // Accent stays on the icon — it is a large shape, so it clears 3:1 — while
+    // the label carries the contrast.
     return isSelected
         ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurface;
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.72);
   }
 
   Color _getTextColor(BuildContext context, bool isSelected) {
-    return isSelected
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurface;
+    // The active section must be the MOST readable item, not the least. The
+    // accent-on-tint pairing it used before measured 3.65:1, below AA.
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return isSelected ? onSurface : onSurface.withValues(alpha: 0.72);
   }
 
   List<NavigationItem> _getNavigationItems(BuildContext context) {
     return [
-      NavigationItem(icon: Icons.home_filled, label: 'Inicio', index: 0),
-      NavigationItem(icon: Icons.grid_view_rounded, label: 'Explorar', index: 1),
-      NavigationItem(icon: Icons.live_tv, label: 'En vivo', index: 2),
-      NavigationItem(icon: Icons.bookmark_border, label: 'Mi lista', index: 3),
       NavigationItem(
-        icon: Icons.settings,
+          icon: Icons.home_rounded,
+          iconOutlined: Icons.home_outlined,
+          label: context.loc.nav_home,
+          index: 0),
+      NavigationItem(
+          icon: Icons.grid_view_rounded,
+          iconOutlined: Icons.grid_view_outlined,
+          label: context.loc.nav_browse,
+          index: 1),
+      NavigationItem(
+          icon: Icons.live_tv_rounded,
+          iconOutlined: Icons.live_tv_outlined,
+          label: context.loc.nav_live,
+          index: 2),
+      NavigationItem(
+          icon: Icons.bookmark_rounded,
+          iconOutlined: Icons.bookmark_border_rounded,
+          label: context.loc.nav_my_list,
+          index: 3),
+      NavigationItem(
+        icon: Icons.settings_rounded,
+        iconOutlined: Icons.settings_outlined,
         label: context.loc.settings,
         index: 4,
       ),
@@ -501,15 +552,24 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
 }
 
 class NavigationItem {
+  /// Filled variant, shown when this section is the active one.
   final IconData icon;
+
+  /// Outlined variant for the inactive state. Outline-vs-fill is the state
+  /// reinforcement the rail was missing — before, five items mixed filled and
+  /// outlined glyphs arbitrarily, so weight carried no meaning.
+  final IconData iconOutlined;
   final String label;
   final int index;
 
   const NavigationItem({
     required this.icon,
+    required this.iconOutlined,
     required this.label,
     required this.index,
   });
+
+  IconData resolve(bool isSelected) => isSelected ? icon : iconOutlined;
 }
 
 class NavigationSizes {

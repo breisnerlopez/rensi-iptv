@@ -213,12 +213,17 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                           SizedBox(height: 24),
                           Text(
                             'Rensi IPTV',
+                            // One wordmark, one typeface. This used to be
+                            // BabaPro at +1.5 tracking while the home rendered
+                            // the same brand in Bricolage at -0.4: two fonts and
+                            // two trackings for one name. BabaPro appeared in
+                            // exactly these two files.
                             style: TextStyle(
-                              fontFamily: 'BabaPro',
+                              fontFamily: 'Bricolage Grotesque',
                               fontSize: 36,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w800,
                               color: Colors.white,
-                              letterSpacing: 1.5,
+                              letterSpacing: -1.1,
                             ),
                           ),
                           SizedBox(height: 8),

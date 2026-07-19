@@ -479,5 +479,9 @@
   "file_browser_empty": "Keine passenden Dateien in diesem Ordner.",
   "exit_confirm_title": "App beenden?",
   "exit_confirm_message": "Du verlässt Rensi IPTV.",
-  "exit_confirm_action": "Beenden"
+  "exit_confirm_action": "Beenden",
+  "nav_home": "Start",
+  "nav_browse": "Entdecken",
+  "nav_live": "Live",
+  "nav_my_list": "Meine Liste"
 }
