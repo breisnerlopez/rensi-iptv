@@ -10,9 +10,10 @@ import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/services/epg_service.dart';
 import 'package:rensi_iptv/widgets/live/now_playing_line.dart';
 
-/// "En vivo" — channel rows (logo + name + category) grouped by category
-/// chips. The backend doesn't expose now/next EPG for this provider, so the
-/// rows show the channel + live badge instead of a programme guide.
+/// "En vivo" — channel rows grouped by category chips. When the panel provides
+/// a schedule, each row also shows what is on now and how far through it is
+/// (see [NowPlayingLine]); channels without a listing simply show the channel,
+/// so a gap in the provider's data looks like a gap, not like a stuck row.
 class LiveRedesign extends StatefulWidget {
   const LiveRedesign({
     this.epgService,

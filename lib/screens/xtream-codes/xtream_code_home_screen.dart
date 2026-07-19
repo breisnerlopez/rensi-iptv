@@ -25,6 +25,7 @@ import 'package:rensi_iptv/redesign/live_redesign.dart';
 import 'package:rensi_iptv/redesign/search_redesign.dart';
 import '../../models/content_type.dart';
 import 'package:rensi_iptv/widgets/tv/navigation_models.dart';
+import 'package:rensi_iptv/services/epg_service.dart';
 
 class XtreamCodeHomeScreen extends StatefulWidget {
   final Playlist playlist;
@@ -42,6 +43,7 @@ class XtreamCodeHomeScreen extends StatefulWidget {
 
 class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   late XtreamCodeHomeController _controller;
+  late EpgService _epgService;
   static const double _desktopBreakpoint = 900.0;
   static const double _largeScreenBreakpoint = 1200.0;
   static const double _defaultNavWidth = 72.0;
@@ -109,6 +111,10 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       widget.playlist.id,
     );
     AppState.xtreamCodeRepository = repository;
+    // One service per playlist, and rebuilt here so switching playlists cannot
+    // serve the previous panel's schedule: stream ids are only unique within a
+    // provider, so a shared cache would show the wrong programme.
+    _epgService = EpgService(repository.getShortEpg);
     _controller = XtreamCodeHomeController(
       false,
       initialIndex: widget.initialIndex,
@@ -255,6 +261,9 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       LiveRedesign(
         liveCategories: controller.liveCategories ?? const [],
         onPlay: (it) => navigateByContentType(context, it),
+        // Xtream only: M3U playlists have no panel to ask for a schedule, and
+        // their item ids are not stream ids.
+        epgService: _epgService,
       ),
       ListRedesign(
         key: ValueKey('milista_${controller.currentIndex == 3}'),

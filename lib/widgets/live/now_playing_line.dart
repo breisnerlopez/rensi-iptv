@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/models/epg_entry.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
@@ -31,11 +33,32 @@ class NowPlayingLine extends StatefulWidget {
 class _NowPlayingLineState extends State<NowPlayingLine> {
   EpgEntry? _entry;
   bool _loaded = false;
+  Timer? _tick;
 
   @override
   void initState() {
     super.initState();
     _load();
+    // Without this the bar is painted once and frozen: it never advances, and
+    // when the programme ends the row keeps showing it. A frozen bar misleads
+    // exactly as much as the fixed 50% one this replaced. A minute is finer
+    // than the eye can read on a progress bar and costs one setState.
+    _tick = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (!mounted) return;
+      final entry = _entry;
+      if (entry != null && !entry.isLiveAt(DateTime.now())) {
+        // The programme finished: fetch what is on now.
+        _load();
+      } else {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
   }
 
   @override
@@ -55,7 +78,14 @@ class _NowPlayingLineState extends State<NowPlayingLine> {
     // request is in flight, and applying a stale result would show one
     // channel's programme on another's row.
     final requested = widget.streamId;
-    final entry = await widget.service.nowPlaying(requested);
+    EpgEntry? entry;
+    try {
+      entry = await widget.service.nowPlaying(requested);
+    } catch (_) {
+      // A row that cannot fetch its programme shows no programme; it must not
+      // take the screen down with it.
+      entry = null;
+    }
     if (!mounted || requested != widget.streamId) return;
     setState(() {
       _entry = entry;
