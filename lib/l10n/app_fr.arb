@@ -484,5 +484,6 @@
   "nav_browse": "Explorer",
   "nav_live": "En direct",
   "nav_my_list": "Ma liste",
-  "onboarding_requirements_hint": "Vous aurez besoin de l'URL ou des identifiants de votre fournisseur IPTV"
+  "onboarding_requirements_hint": "Vous aurez besoin de l'URL ou des identifiants de votre fournisseur IPTV",
+  "nav_settings": "Réglages"
 }

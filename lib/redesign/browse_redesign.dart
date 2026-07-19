@@ -4,6 +4,7 @@ import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 /// "Explorar" — type tabs (Todo / Películas / Series) + genre chips over a
 /// 3-column poster grid, fed by the real catalogue.
@@ -153,7 +154,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
                   const Text('Explorar',
                       style: TextStyle(
                           fontFamily: 'Bricolage Grotesque',
-                          fontSize: 26,
+                          fontSize: AppThemes.h2Size,
                           fontWeight: FontWeight.w800)),
                   FocusHighlight(
                     borderRadius: BorderRadius.circular(12),
@@ -200,7 +201,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
             ),
             // Genre chips
             SizedBox(
-              height: 44,
+              height: 60,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 0),

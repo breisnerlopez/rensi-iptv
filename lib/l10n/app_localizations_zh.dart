@@ -1188,4 +1188,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get onboarding_requirements_hint => '你需要 IPTV 供应商提供的网址或登录信息';
+
+  @override
+  String get nav_settings => '设置';
 }

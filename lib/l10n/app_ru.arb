@@ -484,5 +484,6 @@
   "nav_browse": "Обзор",
   "nav_live": "Эфир",
   "nav_my_list": "Мой список",
-  "onboarding_requirements_hint": "Понадобится URL или данные для входа от вашего IPTV-провайдера"
+  "onboarding_requirements_hint": "Понадобится URL или данные для входа от вашего IPTV-провайдера",
+  "nav_settings": "Настройки"
 }

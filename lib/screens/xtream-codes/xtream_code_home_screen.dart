@@ -472,7 +472,16 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       child: Container(
         width: double.infinity,
         height: sizes.itemHeight,
-        margin: const EdgeInsets.symmetric(vertical: 2),
+        // The left inset is what actually moves the item off the overscan
+        // strip. _getNavigationWidth reserves it in the rail's width, but a
+        // full-width item spanned the reservation too, so the focus ring still
+        // started at x=0: we paid the width and bought nothing.
+        margin: EdgeInsets.only(
+            left: ResponsiveHelper.isDesktopOrTV(context)
+                ? ResponsiveHelper.safeInset(context)
+                : 0,
+            top: 2,
+            bottom: 2),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           // Selected = a quiet tint; the accent bar is drawn as a child, not as
@@ -617,7 +626,10 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       NavigationItem(
         icon: Icons.settings_rounded,
         iconOutlined: Icons.settings_outlined,
-        label: context.loc.settings,
+        // nav_settings, not `settings`: the long form clipped against the right
+        // edge of the bottom bar on a 360dp phone, and "Ajustes" is the standard
+        // Android term in es-ES anyway.
+        label: context.loc.nav_settings,
         index: 4,
       ),
     ];

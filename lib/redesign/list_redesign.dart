@@ -58,7 +58,7 @@ class _ListRedesignState extends State<ListRedesign> {
                       const Text('Mi lista',
                           style: TextStyle(
                               fontFamily: 'Bricolage Grotesque',
-                              fontSize: 26,
+                              fontSize: AppThemes.h2Size,
                               fontWeight: FontWeight.w800)),
                       const SizedBox(height: 3),
                       Text('${items.length} títulos guardados',
@@ -116,7 +116,7 @@ class _ListRedesignState extends State<ListRedesign> {
           const Text('Tu lista está vacía',
               style: TextStyle(
                   fontFamily: 'Bricolage Grotesque',
-                  fontSize: 19,
+                  fontSize: AppThemes.h3Size,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           SizedBox(

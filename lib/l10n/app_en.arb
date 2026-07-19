@@ -490,5 +490,6 @@
   "nav_browse": "Browse",
   "nav_live": "Live",
   "nav_my_list": "My List",
-  "onboarding_requirements_hint": "You'll need the URL or sign-in details from your IPTV provider"
+  "onboarding_requirements_hint": "You'll need the URL or sign-in details from your IPTV provider",
+  "nav_settings": "Settings"
 }

@@ -1229,4 +1229,7 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get onboarding_requirements_hint =>
       'ستحتاج إلى رابط أو بيانات الدخول من مزوّد IPTV الخاص بك';
+
+  @override
+  String get nav_settings => 'الإعدادات';
 }

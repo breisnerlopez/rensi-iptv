@@ -484,5 +484,6 @@
   "nav_browse": "Keşfet",
   "nav_live": "Canlı",
   "nav_my_list": "Listem",
-  "onboarding_requirements_hint": "IPTV sağlayıcınızın URL'sine veya giriş bilgilerine ihtiyacınız olacak"
+  "onboarding_requirements_hint": "IPTV sağlayıcınızın URL'sine veya giriş bilgilerine ihtiyacınız olacak",
+  "nav_settings": "Ayarlar"
 }

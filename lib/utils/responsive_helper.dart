@@ -71,7 +71,10 @@ class ResponsiveHelper {
     return math.max(1.0, (w - 2 * safeInset(context)) / focusZoom);
   }
   static const double _tvGutter = 20;
-  static const double _tvTargetTile = 200; // desired poster width at 3 m
+  // 150, not 200. At 200 the grid resolved to 3 columns on a 960dp TV — Netflix,
+  // Prime and Google TV all show 5-6 — and it made the same RensiPoster render
+  // 149dp on Home and 229dp in Browse, a 54% difference for one component.
+  static const double _tvTargetTile = 150; // desired poster width at 3 m
 
   static double getCardWidth(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
@@ -100,13 +103,14 @@ class ResponsiveHelper {
       // Columns that yield ~[_tvTargetTile]dp tiles inside the safe area.
       final avail = tvMaxContentWidth(context);
       final n = ((avail + _tvGutter) / (_tvTargetTile + _tvGutter)).floor();
-      return n.clamp(3, 7);
+      return n.clamp(5, 7);
     }
+    // Phones showed 2 columns where Netflix, Prime and Plex show 3, so a
+    // catalogue app displayed ~40% less of the thing it sells per screen.
     if (w >= 1200) return 6;
     if (w >= 900) return 5;
     if (w >= 600) return 4;
-    if (w >= 400) return 3;
-    return 2;
+    return 3;
   }
 
   /// Single source of truth for "should this render the TV / 10-foot UI?".

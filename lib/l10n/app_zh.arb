@@ -484,5 +484,6 @@
   "nav_browse": "浏览",
   "nav_live": "直播",
   "nav_my_list": "我的列表",
-  "onboarding_requirements_hint": "你需要 IPTV 供应商提供的网址或登录信息"
+  "onboarding_requirements_hint": "你需要 IPTV 供应商提供的网址或登录信息",
+  "nav_settings": "设置"
 }

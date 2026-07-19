@@ -2345,6 +2345,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You\'ll need the URL or sign-in details from your IPTV provider'**
   String get onboarding_requirements_hint;
+
+  /// No description provided for @nav_settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get nav_settings;
 }
 
 class _AppLocalizationsDelegate

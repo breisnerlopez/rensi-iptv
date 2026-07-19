@@ -32,7 +32,7 @@ void main() {
 
     // 2) The side rail is reachable with LEFT.
     await left(tester);
-    bool onRail() => ['Inicio', 'Explorar', 'vivo', 'lista', 'Configuración']
+    bool onRail() => ['Inicio', 'Explorar', 'vivo', 'lista', 'Ajustes']
         .any((s) => focusedInfo().contains(s));
     expect(onRail(), isTrue, reason: 'el rail debe alcanzarse con LEFT');
     await shot(tester, 'home_2_rail.png');
@@ -68,10 +68,10 @@ void main() {
     expect(focusedInfo(), contains('Comenzar a ver'),
         reason: 'foco inicial en el contenido');
 
-    await tester.tap(find.text('Configuración'), warnIfMissed: false);
+    await tester.tap(find.text('Ajustes'), warnIfMissed: false);
     await settle(tester);
     debugPrint('tras rail→Ajustes focus=${focusedInfo()}');
-    expect(focusedInfo(), contains('Configuración'),
+    expect(focusedInfo(), contains('Ajustes'),
         reason: 'tras el cambio el foco debe quedarse en el rail, no perderse');
   }, timeout: const Timeout(Duration(seconds: 60)));
 }

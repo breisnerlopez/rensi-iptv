@@ -6,6 +6,7 @@ import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 
 /// "En vivo" — channel rows (logo + name + category) grouped by category
 /// chips. The backend doesn't expose now/next EPG for this provider, so the
@@ -65,14 +66,19 @@ class _LiveRedesignState extends State<LiveRedesign> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              // safeInset, not a hand-written 20: this screen was left out of the overscan
+            // pass, so the focused row drew from x=0 to the panel edge and its ring
+            // was cropped on a real TV.
+            padding: EdgeInsets.fromLTRB(
+                ResponsiveHelper.safeInset(context), 8,
+                ResponsiveHelper.safeInset(context), 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('En vivo',
                       style: TextStyle(
                           fontFamily: 'Bricolage Grotesque',
-                          fontSize: 26,
+                          fontSize: AppThemes.h2Size,
                           fontWeight: FontWeight.w800)),
                   Row(
                     children: [
@@ -102,10 +108,11 @@ class _LiveRedesignState extends State<LiveRedesign> {
               ),
             ),
             SizedBox(
-              height: 44,
+              height: 60,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveHelper.safeInset(context)),
                 itemCount: chips.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (_, i) => RensiChip(
@@ -122,7 +129,9 @@ class _LiveRedesignState extends State<LiveRedesign> {
                       child: Text('Sin canales',
                           style: TextStyle(color: r.text3)))
                   : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                      padding: EdgeInsets.fromLTRB(
+                          ResponsiveHelper.safeInset(context), 4,
+                          ResponsiveHelper.safeInset(context), 24),
                       itemCount: channels.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 11),
                       itemBuilder: (_, i) => _ChannelRow(
@@ -225,7 +234,7 @@ class _ChannelRow extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                   fontFamily: 'Bricolage Grotesque',
-                                  fontSize: 15,
+                                  fontSize: AppThemes.bodySmallSize,
                                   fontWeight: FontWeight.w700),
                             ),
                           ),

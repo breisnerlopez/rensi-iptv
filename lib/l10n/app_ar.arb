@@ -484,5 +484,6 @@
   "nav_browse": "تصفح",
   "nav_live": "مباشر",
   "nav_my_list": "قائمتي",
-  "onboarding_requirements_hint": "ستحتاج إلى رابط أو بيانات الدخول من مزوّد IPTV الخاص بك"
+  "onboarding_requirements_hint": "ستحتاج إلى رابط أو بيانات الدخول من مزوّد IPTV الخاص بك",
+  "nav_settings": "الإعدادات"
 }

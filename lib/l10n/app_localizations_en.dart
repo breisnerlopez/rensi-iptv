@@ -1228,4 +1228,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get onboarding_requirements_hint =>
       'You\'ll need the URL or sign-in details from your IPTV provider';
+
+  @override
+  String get nav_settings => 'Settings';
 }

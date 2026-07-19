@@ -1232,4 +1232,7 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get onboarding_requirements_hint =>
       'Понадобится URL или данные для входа от вашего IPTV-провайдера';
+
+  @override
+  String get nav_settings => 'Настройки';
 }
