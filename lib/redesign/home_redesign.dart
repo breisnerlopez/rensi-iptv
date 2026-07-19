@@ -363,7 +363,17 @@ class _Hero extends StatelessWidget {
     final actions = Row(
       mainAxisSize: tv ? MainAxisSize.min : MainAxisSize.max,
       children: [
-        tv ? playBtn : Expanded(child: playBtn),
+        // Capped, not stretched: on a 800dp tablet Expanded pushed this to
+        // ~600dp wide, which reads as a stretched box rather than a control.
+        tv
+            ? playBtn
+            : Flexible(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                      maxWidth: ResponsiveHelper.maxActionWidth),
+                  child: playBtn,
+                ),
+              ),
         const SizedBox(width: 12),
         _GlassBtn(icon: Icons.info_outline, onTap: () => onOpen(item)),
         const SizedBox(width: 10),

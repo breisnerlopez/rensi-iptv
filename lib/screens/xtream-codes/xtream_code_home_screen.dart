@@ -136,10 +136,11 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     return ConfirmExitScope(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // Real TV/leanback always gets the side-rail layout; width is only a
-          // fallback for large tablets / desktop windows.
-          if (ResponsiveHelper.isDesktopOrTV(context) ||
-              constraints.maxWidth >= _desktopBreakpoint) {
+          // Real TV/leanback always gets the side-rail layout. Width takes over
+          // at 600dp — Material 3's breakpoint, and where every tablet
+          // streaming app switches. A 10" tablet reports 800dp and was still
+          // stretching a five-tab bottom bar across it.
+          if (ResponsiveHelper.useNavigationRail(context)) {
             return _buildDesktopLayout(context, controller, constraints);
           }
           return _buildMobileLayout(context, controller);
@@ -279,7 +280,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     XtreamCodeHomeController controller,
     ContentType contentType,
   ) {
-    if (ResponsiveHelper.isDesktopOrTV(context)) {
+    if (ResponsiveHelper.useNavigationRail(context)) {
       return _buildDesktopAppBar(context, controller, contentType);
     }
     return _buildMobileAppBar(context, controller, contentType);
@@ -552,9 +553,8 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     if (ResponsiveHelper.isDesktopOrTV(context)) {
       return _tvNavWidth + ResponsiveHelper.safeInset(context);
     }
-    return screenWidth >= _largeScreenBreakpoint
-        ? _largeNavWidth
-        : _defaultNavWidth;
+    // Tablet: wide enough to read, far from the 10-foot scale.
+    return screenWidth >= _desktopBreakpoint ? _largeNavWidth : _defaultNavWidth;
   }
 
   NavigationSizes _getNavigationSizes(BuildContext context, double screenWidth) {
@@ -598,10 +598,10 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       // TV only. Search sits right under Home, where Google TV puts it: it is
       // how people reach a specific title in a catalogue of thousands, and on a
       // remote it was reachable only from a small icon in the top bar. It is
-      // NOT added on phone: BottomNavigationBar indexes by position, so an item
-      // that is an action rather than a page would shift every tab off its own
-      // page.
-      if (ResponsiveHelper.isDesktopOrTV(context))
+      // NOT added when the bottom bar is in use: BottomNavigationBar indexes by
+      // position, so an item that is an action rather than a page would shift
+      // every tab off its own page.
+      if (ResponsiveHelper.useNavigationRail(context))
         NavigationItem(
             icon: Icons.search_rounded,
             iconOutlined: Icons.search_outlined,

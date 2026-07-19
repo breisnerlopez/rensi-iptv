@@ -113,6 +113,21 @@ class ResponsiveHelper {
     return 3;
   }
 
+  /// Should navigation be a side rail rather than a bottom bar?
+  ///
+  /// Material 3 puts the switch at 600dp, and every tablet streaming app agrees
+  /// — Netflix and Prime move to a side column, Plex to a rail. A 10" tablet
+  /// reports 800dp and was still getting a five-tab bottom bar stretched across
+  /// 1250 physical pixels, which is the clearest single tell that a layout is a
+  /// phone stretched rather than a tablet design.
+  static bool useNavigationRail(BuildContext context) =>
+      isDesktopOrTV(context) || MediaQuery.of(context).size.width >= 600;
+
+  /// Widest a form or a primary action should get before it stops looking like
+  /// a control and starts looking like a stretched box. A "Start watching"
+  /// button 600dp wide is not a better target, it is a worse one.
+  static const double maxActionWidth = 480;
+
   /// Single source of truth for "should this render the TV / 10-foot UI?".
   /// Priority: real TV device (native) > directional navigation (D-pad) >
   /// wide screen (desktop / large tablet fallback).

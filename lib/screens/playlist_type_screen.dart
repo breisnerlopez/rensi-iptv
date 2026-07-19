@@ -28,7 +28,9 @@ class PlaylistTypeScreen extends StatelessWidget {
           // same pair forced the column to at least viewport height and then
           // overflowed it by ~91px — invisible in a profile build, but the
           // notice was clipped and the layout was in an error state.
-          final tv = ResponsiveHelper.isDesktopOrTV(context);
+          // Side by side wherever there is room, not only on TV: on a 800dp tablet
+    // two stacked cards ran 1160dp wide for two words each.
+    final tv = ResponsiveHelper.useNavigationRail(context);
           final body = RensiSafeColumn(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -119,7 +121,9 @@ class PlaylistTypeScreen extends StatelessWidget {
   /// long description now appears only under the focused card (the Google TV
   /// "contextual detail" pattern) instead of being duplicated on both.
   Widget _buildTypeChoices(BuildContext context, ColorScheme colorScheme) {
-    final tv = ResponsiveHelper.isDesktopOrTV(context);
+    // Side by side wherever there is room, not only on TV: on a 800dp tablet
+    // two stacked cards ran 1160dp wide for two words each.
+    final tv = ResponsiveHelper.useNavigationRail(context);
     final xtream = _TypeChoice(
       title: 'Xtream Codes',
       support: context.loc.xtream_code_title,
@@ -199,7 +203,9 @@ class _TypeChoiceState extends State<_TypeChoice> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final tv = ResponsiveHelper.isDesktopOrTV(context);
+    // Side by side wherever there is room, not only on TV: on a 800dp tablet
+    // two stacked cards ran 1160dp wide for two words each.
+    final tv = ResponsiveHelper.useNavigationRail(context);
 
     final content = Padding(
       padding: EdgeInsets.all(tv ? 24 : 20),
