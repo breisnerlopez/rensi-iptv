@@ -21,6 +21,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../widgets/player_widget.dart';
 import '../../../widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class MovieScreen extends StatefulWidget {
   final ContentItem contentItem;
@@ -550,7 +551,7 @@ class _MovieScreenState extends State<MovieScreen> {
                   style: TextStyle(
                     fontFamily: 'Bricolage Grotesque',
                     fontWeight: FontWeight.w700,
-                    fontSize: 14,
+                    fontSize: AppThemes.labelSize,
                     color: Colors.white.withOpacity(0.92),
                   ),
                 ),

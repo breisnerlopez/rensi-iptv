@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/services/sleep_timer_service.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 /// Top-bar player button that opens a bottom sheet of sleep-timer presets
 /// and, when a timer is running, overlays the remaining time as a chip.
@@ -72,7 +73,7 @@ class SleepTimerWidget extends StatelessWidget {
                       sheetContext.loc.sleep_timer,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: AppThemes.bodySize,
                         fontWeight: FontWeight.w600,
                       ),
                     ),

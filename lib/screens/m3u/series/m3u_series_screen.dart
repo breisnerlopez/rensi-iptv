@@ -10,6 +10,7 @@ import '../../../models/favorite.dart';
 
 import '../../../models/content_type.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class M3uSeriesScreen extends StatefulWidget {
   final ContentItem contentItem;
@@ -241,7 +242,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
             const SizedBox(height: 16),
             Text(
               error!,
-              style: TextStyle(fontSize: 16, color: Colors.red.shade600),
+              style: TextStyle(fontSize: AppThemes.bodySmallSize, color: Colors.red.shade600),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -338,7 +339,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
                       child: Text(
                         context.loc.season_number(season.toString()),
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: AppThemes.bodySmallSize,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -350,7 +351,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
                   context.loc.episode_count(
                     getEpisodesBySeason(episodes, season).length,
                   ),
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: AppThemes.labelSize, color: Colors.grey.shade600),
                 ),
               ],
             ),
@@ -423,7 +424,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
                         ),
                         style: TextStyle(
                           color: Colors.grey.shade600,
-                          fontSize: 14,
+                          fontSize: AppThemes.labelSize,
                         ),
                       ),
                     ],
@@ -525,7 +526,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
                                 style: TextStyle(
                                   color: Theme.of(context).primaryColor,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                                  fontSize: AppThemes.bodySmallSize,
                                 ),
                               ),
                             );
@@ -538,7 +539,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
                           style: TextStyle(
                             color: Theme.of(context).primaryColor,
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: AppThemes.bodySmallSize,
                           ),
                         ),
                       ),
@@ -556,7 +557,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: AppThemes.labelSize,
                       ),
                     ),
                   ],
@@ -621,7 +622,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
                       context.loc.image_loading,
                       style: TextStyle(
                         color: Colors.grey.shade600,
-                        fontSize: 14,
+                        fontSize: AppThemes.labelSize,
                       ),
                     ),
                   ],
@@ -659,7 +660,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
               context.loc.image_not_found,
               style: TextStyle(
                 color: Colors.grey.shade600,
-                fontSize: 16,
+                fontSize: AppThemes.bodySmallSize,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -669,7 +670,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.grey.shade700,
-                fontSize: 18,
+                fontSize: AppThemes.bodySize,
                 fontWeight: FontWeight.bold,
               ),
             ),

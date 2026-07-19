@@ -8,6 +8,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import '../../models/content_type.dart';
 import '../../utils/get_playlist_type.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class VideoChannelSelectorWidget extends StatefulWidget {
   final List<ContentItem>? queue;
@@ -353,7 +354,7 @@ class _VideoChannelSelectorWidgetState
                                                       ? context.loc.episodes
                                                       : context.loc.select_channel,
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: AppThemes.bodySize,
                             fontWeight: FontWeight.bold,
                             color: textColor,
                           ),
@@ -472,7 +473,7 @@ class _VideoChannelSelectorWidgetState
                         Text(
                           context.loc.season_number_format(season),
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: AppThemes.labelSize,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                             color: textColor,
                           ),
@@ -578,7 +579,7 @@ class _VideoChannelSelectorWidgetState
                         Text(
                           category.categoryName,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: AppThemes.labelSize,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                             color: textColor,
                           ),

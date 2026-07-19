@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class ColorPickerTileWidget extends StatelessWidget {
   final String title;
@@ -23,7 +24,7 @@ class ColorPickerTileWidget extends StatelessWidget {
       leading: Icon(icon, size: 20),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        style: const TextStyle(fontSize: AppThemes.labelSize, fontWeight: FontWeight.w500),
       ),
       trailing: FocusHighlight(
         borderRadius: BorderRadius.circular(8),

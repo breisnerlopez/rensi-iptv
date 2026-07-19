@@ -5,6 +5,7 @@ import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:flutter/material.dart';
 import '../../../../models/playlist_model.dart';
 import '../../utils/playlist_utils.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class PlaylistCard extends StatelessWidget {
   final Playlist playlist;
@@ -93,7 +94,7 @@ class _PlaylistInfo extends StatelessWidget {
           playlist.name,
           style: const TextStyle(
             fontFamily: 'Bricolage Grotesque',
-            fontSize: 18,
+            fontSize: AppThemes.bodySize,
             fontWeight: FontWeight.w700,
             color: Colors.white,
           ),

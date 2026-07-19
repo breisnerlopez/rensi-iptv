@@ -9,6 +9,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class GlobalSearchScreen extends StatefulWidget {
   const GlobalSearchScreen({super.key});
@@ -514,7 +515,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                             result.tmdb.title,
                             style: const TextStyle(
                               fontWeight: FontWeight.w600,
-                              fontSize: 14,
+                              fontSize: AppThemes.labelSize,
                             ),
                           ),
                         ),
@@ -627,7 +628,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                       match.content.name,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: AppThemes.labelSize,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -850,7 +851,7 @@ class _TmdbDetailSheetState extends State<_TmdbDetailSheet> {
                       child: Text(
                         widget.item.title,
                         style: const TextStyle(
-                          fontSize: 22,
+                          fontSize: AppThemes.h3Size,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

@@ -15,6 +15,7 @@ import '../../utils/show_loading_dialog.dart';
 import 'package:rensi_iptv/widgets/tv/tv_field_traversal.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class NewM3uPlaylistScreen extends StatefulWidget {
   const NewM3uPlaylistScreen({super.key});
@@ -193,7 +194,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
           style: TextStyle(
             fontFamily: 'Bricolage Grotesque',
             letterSpacing: -0.7,
-            fontSize: 36,
+            fontSize: AppThemes.h1Size,
             fontWeight: FontWeight.bold,
             color: colorScheme.onSurface,
           ),
@@ -202,7 +203,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         Text(
           context.loc.m3u_playlist_load_description,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             color: colorScheme.onSurface.withOpacity(0.7),
           ),
         ),
@@ -217,7 +218,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         Text(
           context.loc.playlist_name,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
@@ -276,7 +277,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         Text(
           context.loc.source_type,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
@@ -405,7 +406,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         Text(
           context.loc.m3u_url,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
@@ -468,7 +469,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         Text(
           context.loc.m3u_file,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
@@ -567,7 +568,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                   SizedBox(width: 12),
                   Text(
                     context.loc.processing,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: AppThemes.bodySmallSize, fontWeight: FontWeight.w600),
                   ),
                 ],
               )
@@ -586,7 +587,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          TextStyle(fontSize: AppThemes.bodySmallSize, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -623,7 +624,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                   error,
                   style: TextStyle(
                     color: colorScheme.onErrorContainer,
-                    fontSize: 14,
+                    fontSize: AppThemes.labelSize,
                   ),
                 ),
               ],

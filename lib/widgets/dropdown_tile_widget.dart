@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'tv/focus_highlight.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class DropdownTileWidget<T> extends StatelessWidget {
   final IconData icon;
@@ -24,7 +25,7 @@ class DropdownTileWidget<T> extends StatelessWidget {
       leading: Icon(icon, size: 20),
       title: Text(
         label,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        style: const TextStyle(fontSize: AppThemes.labelSize, fontWeight: FontWeight.w500),
       ),
       trailing: SizedBox(
         width: 120,

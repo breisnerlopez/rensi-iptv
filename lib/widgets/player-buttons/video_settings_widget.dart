@@ -5,6 +5,7 @@ import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/services/player_state.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:media_kit/media_kit.dart' hide PlayerState;
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class VideoSettingsWidget extends StatefulWidget {
   const VideoSettingsWidget({super.key});
@@ -239,7 +240,7 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
                 child: Text(
                   context.loc.settings,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: AppThemes.bodySize,
                     fontWeight: FontWeight.bold,
                     color: textColor,
                   ),
@@ -361,7 +362,7 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
             Flexible(
               child: Text(context.loc.external_subtitle_url,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 14)),
+                  style: const TextStyle(color: Colors.white, fontSize: AppThemes.labelSize)),
             ),
           ],
         ),
@@ -383,7 +384,7 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 14,
+                      fontSize: AppThemes.labelSize,
                       fontWeight: FontWeight.w600)),
             ),
           ],
@@ -443,7 +444,7 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
                   title,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: AppThemes.labelSize,
                     fontWeight: FontWeight.w500,
                     color: textColor,
                   ),

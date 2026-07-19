@@ -33,6 +33,7 @@ import '../../services/player_state.dart';
 import '../../services/service_locator.dart';
 import '../../utils/audio_handler.dart';
 import '../utils/player_error_handler.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class PlayerWidget extends StatefulWidget {
   final ContentItem contentItem;
@@ -1312,7 +1313,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                             child: Text(
                               overlayTitle,
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: AppThemes.bodySize,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
@@ -1842,7 +1843,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                     context.loc.hold_ok_for_options,
                     style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 14,
+                        fontSize: AppThemes.labelSize,
                         fontWeight: FontWeight.w600),
                   ),
                 ],

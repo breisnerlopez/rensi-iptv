@@ -395,7 +395,7 @@ class _Hero extends StatelessWidget {
           ),
           child: const Text('★ DESTACADO HOY',
               style: TextStyle(
-                  fontSize: 14,
+                  fontSize: AppThemes.labelSize,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.5,
                   color: Colors.white)),
@@ -414,6 +414,26 @@ class _Hero extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         _HeroMeta(item: item),
+        // A two-line synopsis. The hero carried four atoms of information —
+        // badge, title, rating, genre — where Netflix and Prime give you enough
+        // to decide without opening the detail page. The width is already there;
+        // it was going unused.
+        if (tv && (item.description?.trim().isNotEmpty ?? false)) ...[
+          const SizedBox(height: 10),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: Text(
+              item.description!.trim(),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: AppThemes.bodySmallSize,
+                height: 1.4,
+                color: Colors.white.withValues(alpha: 0.78),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         // On TV constrain the action row so it doesn't stretch edge-to-edge.
         tv ? actions : actions,
@@ -502,14 +522,14 @@ class _HeroMeta extends StatelessWidget {
         Text(rating,
             style: const TextStyle(
                 color: Colors.white,
-                fontSize: 18,
+                fontSize: AppThemes.bodySize,
                 fontWeight: FontWeight.w600)),
       ]));
     }
     if (genre != null && genre.isNotEmpty) {
       parts.add(Text(genre.split(',').first.trim(),
           style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.85), fontSize: 18)));
+              color: Colors.white.withValues(alpha: 0.85), fontSize: AppThemes.bodySize)));
     }
     if (parts.isEmpty) return const SizedBox.shrink();
     return Wrap(

@@ -42,6 +42,9 @@ class M3UHomeScreen extends StatefulWidget {
 class _M3UHomeScreenState extends State<M3UHomeScreen> {
   late M3UHomeController _controller;
 
+  /// Drives the rail's dimming: full strength only while it holds the focus.
+  bool _railHasFocus = false;
+
   static const double _desktopBreakpoint = 900.0;
   static const double _largeScreenBreakpoint = 1200.0;
   static const double _defaultNavWidth = 72.0;
@@ -171,8 +174,24 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     return Scaffold(
       body: Row(
         children: [
+          // Dimmed while the focus lives in the content. With both areas at
+          // full strength the eye reads two active zones and you have to hunt
+          // for the white ring to know where you are — Netflix collapses the
+          // rail, Google TV fades it to about half.
           FocusTraversalGroup(
-            child: _buildDesktopNavigationBar(context, controller, constraints),
+            child: Focus(
+              canRequestFocus: false,
+              skipTraversal: true,
+              onFocusChange: (f) {
+                if (f != _railHasFocus) setState(() => _railHasFocus = f);
+              },
+              child: AnimatedOpacity(
+                opacity: _railHasFocus ? 1.0 : 0.45,
+                duration: const Duration(milliseconds: 200),
+                child: _buildDesktopNavigationBar(
+                    context, controller, constraints),
+              ),
+            ),
           ),
           Expanded(
             child: FocusTraversalGroup(

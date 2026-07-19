@@ -137,12 +137,26 @@ class _LiveRedesignState extends State<LiveRedesign> {
                   ? Center(
                       child: Text('Sin canales',
                           style: TextStyle(color: r.text3)))
-                  : ListView.separated(
+                  // Two columns wherever there is room. One column showed four
+                  // channels on a 960dp TV, where Plex and Google TV show 8-12;
+                  // a 200-channel playlist was 45 presses of DOWN to reach the
+                  // middle. The ~600dp of dead space in the middle of each row
+                  // is what pays for the second column.
+                  : GridView.builder(
                       padding: EdgeInsets.fromLTRB(
                           ResponsiveHelper.safeInset(context), 4,
                           ResponsiveHelper.safeInset(context), 24),
+                      gridDelegate:
+                          SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent:
+                            ResponsiveHelper.useNavigationRail(context)
+                                ? 460
+                                : double.infinity,
+                        mainAxisExtent: 92,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 11,
+                      ),
                       itemCount: channels.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 11),
                       itemBuilder: (_, i) => _ChannelRow(
                         epgService: widget.epgService,
                         item: channels[i],

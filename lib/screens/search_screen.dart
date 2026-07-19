@@ -8,6 +8,7 @@ import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import '../../widgets/content_card.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class SearchScreen extends StatefulWidget {
   final ContentType contentType;
@@ -278,7 +279,7 @@ class SearchScreenState extends State<SearchScreen> {
           SizedBox(height: 16),
           Text(
             _getEmptyStateMessage(),
-            style: TextStyle(fontSize: 16, color: Colors.grey),
+            style: TextStyle(fontSize: AppThemes.bodySmallSize, color: Colors.grey),
             textAlign: TextAlign.center,
           ),
         ],
@@ -317,7 +318,7 @@ class SearchScreenState extends State<SearchScreen> {
           const SizedBox(height: 16),
           Text(
             '${context.loc.error_occurred}: $errorMessage',
-            style: const TextStyle(fontSize: 16, color: Colors.red),
+            style: const TextStyle(fontSize: AppThemes.bodySmallSize, color: Colors.red),
             textAlign: TextAlign.center,
           ),
         ],

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../models/content_type.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class VideoInfoWidget extends StatefulWidget {
   const VideoInfoWidget({super.key});
@@ -182,7 +183,7 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
                           child: Text(
                             context.loc.video_info,
                             style: const TextStyle(
-                              fontSize: 18,
+                              fontSize: AppThemes.bodySize,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
@@ -645,7 +646,7 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
                   const SizedBox(height: 4),
                   Text(
                     value,
-                    style: TextStyle(fontSize: 14, color: textColor),
+                    style: TextStyle(fontSize: AppThemes.labelSize, color: textColor),
                     maxLines: isMultiline ? null : 2,
                     overflow: isMultiline
                         ? TextOverflow.visible

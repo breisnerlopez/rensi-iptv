@@ -10,6 +10,7 @@ import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:provider/provider.dart';
 import 'xtream_code_home_screen.dart';
 import '../playlist_screen.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class XtreamCodeDataLoaderScreen extends StatefulWidget {
   final Playlist playlist;
@@ -222,7 +223,7 @@ class XtreamCodeDataLoaderScreenState extends State<XtreamCodeDataLoaderScreen>
                             // exactly these two files.
                             style: TextStyle(
                               fontFamily: 'Bricolage Grotesque',
-                              fontSize: 36,
+                              fontSize: AppThemes.h1Size,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
                               letterSpacing: -1.1,
@@ -232,7 +233,7 @@ class XtreamCodeDataLoaderScreenState extends State<XtreamCodeDataLoaderScreen>
                           Text(
                             context.loc.slogan,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: AppThemes.labelSize,
                               color: Colors.white.withOpacity(0.7),
                               letterSpacing: 1,
                             ),
@@ -306,7 +307,7 @@ class XtreamCodeDataLoaderScreenState extends State<XtreamCodeDataLoaderScreen>
                           Text(
                             stepTitles[controller.currentStep]!,
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: AppThemes.bodySize,
                               fontWeight: FontWeight.w400,
                               color: Colors.white,
                             ),
@@ -377,7 +378,7 @@ class XtreamCodeDataLoaderScreenState extends State<XtreamCodeDataLoaderScreen>
                                   Text(
                                     '${(_progressAnimation.value * 100).toInt()}%',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: AppThemes.bodySmallSize,
                                       fontWeight: FontWeight.w500,
                                       color: Color(0xFFC75F41),
                                     ),
@@ -410,7 +411,7 @@ class XtreamCodeDataLoaderScreenState extends State<XtreamCodeDataLoaderScreen>
                                   Text(
                                     context.loc.error_occurred,
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: AppThemes.bodySmallSize,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.red,
                                     ),
@@ -422,7 +423,7 @@ class XtreamCodeDataLoaderScreenState extends State<XtreamCodeDataLoaderScreen>
                                       controller.errorMessage!,
                                     ),
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: AppThemes.labelSize,
                                       color: Colors.white.withOpacity(0.8),
                                     ),
                                     textAlign: TextAlign.center,

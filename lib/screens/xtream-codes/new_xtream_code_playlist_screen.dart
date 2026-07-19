@@ -11,6 +11,7 @@ import '../../../../repositories/iptv_repository.dart';
 import 'package:rensi_iptv/widgets/tv/tv_field_traversal.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class NewXtreamCodePlaylistScreen extends StatefulWidget {
   const NewXtreamCodePlaylistScreen({super.key});
@@ -165,7 +166,7 @@ class NewXtreamCodePlaylistScreenState
           style: TextStyle(
             fontFamily: 'Bricolage Grotesque',
             letterSpacing: -0.7,
-            fontSize: 36,
+            fontSize: AppThemes.h1Size,
             fontWeight: FontWeight.bold,
             color: colorScheme.onSurface,
           ),
@@ -174,7 +175,7 @@ class NewXtreamCodePlaylistScreenState
         Text(
           context.loc.xtream_code_description,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             color: colorScheme.onSurface.withOpacity(0.7),
           ),
         ),
@@ -189,7 +190,7 @@ class NewXtreamCodePlaylistScreenState
         Text(
           context.loc.playlist_name,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
@@ -242,7 +243,7 @@ class NewXtreamCodePlaylistScreenState
         Text(
           context.loc.api_url,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
@@ -310,7 +311,7 @@ class NewXtreamCodePlaylistScreenState
         Text(
           context.loc.username,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
@@ -366,7 +367,7 @@ class NewXtreamCodePlaylistScreenState
         Text(
           context.loc.password,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
@@ -472,7 +473,7 @@ class NewXtreamCodePlaylistScreenState
                   SizedBox(width: 12),
                   Text(
                     context.loc.submitting,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: AppThemes.bodySmallSize, fontWeight: FontWeight.w600),
                   ),
                 ],
               )
@@ -483,7 +484,7 @@ class NewXtreamCodePlaylistScreenState
                   SizedBox(width: 8),
                   Text(
                     context.loc.submit_create_playlist,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: AppThemes.bodySmallSize, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -519,7 +520,7 @@ class NewXtreamCodePlaylistScreenState
                   error,
                   style: TextStyle(
                     color: colorScheme.onErrorContainer,
-                    fontSize: 14,
+                    fontSize: AppThemes.labelSize,
                   ),
                 ),
               ],

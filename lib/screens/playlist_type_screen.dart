@@ -5,6 +5,7 @@ import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:flutter/material.dart';
 import 'xtream-codes/new_xtream_code_playlist_screen.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class PlaylistTypeScreen extends StatelessWidget {
   const PlaylistTypeScreen({super.key});
@@ -41,14 +42,14 @@ class PlaylistTypeScreen extends StatelessWidget {
                         style: const TextStyle(
                           fontFamily: 'Bricolage Grotesque',
                           letterSpacing: -0.7,
-                          fontSize: 36,
+                          fontSize: AppThemes.h1Size,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         context.loc.select_playlist_message,
-                        style: const TextStyle(fontSize: 16),
+                        style: const TextStyle(fontSize: AppThemes.bodySmallSize),
                       ),
                       SizedBox(
                           height: ResponsiveHelper.isDesktopOrTV(context)
@@ -89,7 +90,7 @@ class PlaylistTypeScreen extends StatelessWidget {
                                 context.loc.select_playlist_type_footer,
                                 style: TextStyle(
                                   color: colorScheme.onPrimaryContainer,
-                                  fontSize: 14,
+                                  fontSize: AppThemes.labelSize,
                                 ),
                               ),
                             ),

@@ -13,6 +13,7 @@ import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import '../../../controllers/favorites_controller.dart';
 import 'episode_screen.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class SeriesScreen extends StatefulWidget {
   final ContentItem contentItem;
@@ -278,7 +279,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                                     '',
                                 style: TextStyle(
                                   color: Colors.white.withOpacity(0.9),
-                                  fontSize: 14,
+                                  fontSize: AppThemes.labelSize,
                                   shadows: const [
                                     Shadow(
                                       offset: Offset(0, 1),
@@ -340,7 +341,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
             const SizedBox(height: 16),
             Text(
               error!,
-              style: TextStyle(fontSize: 16, color: Colors.red.shade600),
+              style: TextStyle(fontSize: AppThemes.bodySmallSize, color: Colors.red.shade600),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
@@ -482,7 +483,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
             style: TextStyle(
               color: Colors.amber.shade700,
               fontWeight: FontWeight.w600,
-              fontSize: 14,
+              fontSize: AppThemes.labelSize,
             ),
           ),
         ),
@@ -597,7 +598,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                         child: Text(
                           season.name,
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: AppThemes.bodySmallSize,
                             fontWeight: FontWeight.bold,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -608,7 +609,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   const SizedBox(height: 8),
                   Text(
                     context.loc.episode_count(displayCount),
-                    style: TextStyle(fontSize: 14, color: Colors.white70),
+                    style: TextStyle(fontSize: AppThemes.labelSize, color: Colors.white70),
                   ),
                   if (season.airDate != null) ...[
                     const SizedBox(height: 4),
@@ -768,7 +769,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                         context.loc.episode_count(displayCount),
                         style: TextStyle(
                           color: Colors.white70,
-                          fontSize: 14,
+                          fontSize: AppThemes.labelSize,
                         ),
                       ),
                     ],
@@ -894,7 +895,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                           style: TextStyle(
                             color: Theme.of(context).primaryColor,
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: AppThemes.bodySmallSize,
                           ),
                         ),
                       );
@@ -907,7 +908,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                     style: TextStyle(
                       color: Theme.of(context).primaryColor,
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
+                      fontSize: AppThemes.bodySmallSize,
                     ),
                   ),
                 ),
@@ -928,7 +929,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontWeight: FontWeight.w600,
-                              fontSize: 14,
+                              fontSize: AppThemes.labelSize,
                             ),
                           ),
                         ),
@@ -1080,7 +1081,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                       // Bu string için de localization ekleyebiliriz
                       style: TextStyle(
                         color: Colors.white70,
-                        fontSize: 14,
+                        fontSize: AppThemes.labelSize,
                       ),
                     ),
                   ],
@@ -1119,7 +1120,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
               // Bu string için de localization ekleyebiliriz
               style: TextStyle(
                 color: Colors.white70,
-                fontSize: 16,
+                fontSize: AppThemes.bodySmallSize,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -1129,7 +1130,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.grey.shade700,
-                fontSize: 18,
+                fontSize: AppThemes.bodySize,
                 fontWeight: FontWeight.bold,
               ),
             ),

@@ -137,7 +137,10 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
     });
 
     final cross = ResponsiveHelper.getCrossAxisCount(context);
-    final sidePad = ResponsiveHelper.isDesktopOrTV(context) ? 48.0 : 20.0;
+    // safeInset, not a duplicated 48/20: the hand-written pair gave 20dp on
+    // phones where every other screen uses 24, and did not scale with wider
+    // surfaces the way the overscan margin has to.
+    final sidePad = ResponsiveHelper.safeInset(context);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,

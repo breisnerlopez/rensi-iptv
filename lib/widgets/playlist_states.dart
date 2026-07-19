@@ -3,6 +3,7 @@ import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class PlaylistLoadingState extends StatelessWidget {
   const PlaylistLoadingState({super.key});
@@ -72,7 +73,7 @@ class PlaylistErrorState extends StatelessWidget {
                     horizontal: 24,
                     vertical: 14,
                   ),
-                  textStyle: const TextStyle(fontSize: 16),
+                  textStyle: const TextStyle(fontSize: AppThemes.bodySmallSize),
                 ),
               ),
             ),
@@ -156,7 +157,7 @@ class PlaylistEmptyState extends StatelessWidget {
                       context.loc.onboarding_requirements_hint,
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: AppThemes.bodySmallSize,
                         height: 1.4,
                         color:
                             Theme.of(context).colorScheme.onSurfaceVariant,
@@ -187,7 +188,7 @@ class PlaylistEmptyState extends StatelessWidget {
                       label: Text(context.loc.empty_playlist_button),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        textStyle: const TextStyle(fontSize: 16),
+                        textStyle: const TextStyle(fontSize: AppThemes.bodySmallSize),
                       ),
                     ),
                   ),
@@ -209,7 +210,7 @@ class PlaylistEmptyState extends StatelessWidget {
                           foregroundColor:
                               Theme.of(context).colorScheme.onSecondaryContainer,
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          textStyle: const TextStyle(fontSize: 16),
+                          textStyle: const TextStyle(fontSize: AppThemes.bodySmallSize),
                         ),
                       ),
                     ),

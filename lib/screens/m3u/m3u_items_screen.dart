@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import '../../models/content_type.dart';
 import '../../models/playlist_content_model.dart';
 import '../../utils/navigate_by_content_type.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class M3uItemsScreen extends StatefulWidget {
   final List<M3uItem> m3uItems;
@@ -232,7 +233,7 @@ class _M3uItemsScreenState extends State<M3uItemsScreen> {
                                   channel.name ?? context.loc.unknown_channel,
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w600,
-                                    fontSize: 14,
+                                    fontSize: AppThemes.labelSize,
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,

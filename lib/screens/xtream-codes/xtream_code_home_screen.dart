@@ -44,6 +44,9 @@ class XtreamCodeHomeScreen extends StatefulWidget {
 class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   late XtreamCodeHomeController _controller;
   late EpgService _epgService;
+
+  /// Drives the rail's dimming: full strength only while it holds the focus.
+  bool _railHasFocus = false;
   static const double _desktopBreakpoint = 900.0;
   static const double _largeScreenBreakpoint = 1200.0;
   static const double _defaultNavWidth = 72.0;
@@ -114,7 +117,11 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     // One service per playlist, and rebuilt here so switching playlists cannot
     // serve the previous panel's schedule: stream ids are only unique within a
     // provider, so a shared cache would show the wrong programme.
-    _epgService = EpgService(repository.getShortEpg);
+    // Rebuilt per playlist AND explicitly emptied: stream ids are only unique
+    // within a provider, so carrying entries across would show one panel's
+    // schedule on another's channels. A test asserted this guarantee while
+    // production never exercised it.
+    _epgService = EpgService(repository.getShortEpg)..invalidate();
     _controller = XtreamCodeHomeController(
       false,
       initialIndex: widget.initialIndex,
@@ -192,8 +199,24 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     return Scaffold(
       body: Row(
         children: [
+          // Dimmed while the focus lives in the content. With both areas at
+          // full strength the eye reads two active zones and you have to hunt
+          // for the white ring to know where you are — Netflix collapses the
+          // rail, Google TV fades it to about half.
           FocusTraversalGroup(
-            child: _buildDesktopNavigationBar(context, controller, constraints),
+            child: Focus(
+              canRequestFocus: false,
+              skipTraversal: true,
+              onFocusChange: (f) {
+                if (f != _railHasFocus) setState(() => _railHasFocus = f);
+              },
+              child: AnimatedOpacity(
+                opacity: _railHasFocus ? 1.0 : 0.45,
+                duration: const Duration(milliseconds: 200),
+                child: _buildDesktopNavigationBar(
+                    context, controller, constraints),
+              ),
+            ),
           ),
           Expanded(
             child: FocusTraversalGroup(
