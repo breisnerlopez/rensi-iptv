@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
@@ -15,13 +16,34 @@ RensiColors rensi(BuildContext c) => Theme.of(c).extension<RensiColors>()!;
 /// generative terracotta-tinted gradient with the title (the "key-art"
 /// fallback from the handoff).
 class RensiKeyArt extends StatelessWidget {
-  const RensiKeyArt({super.key, required this.item, this.fit = BoxFit.cover});
+  const RensiKeyArt({
+    super.key,
+    required this.item,
+    this.fit = BoxFit.cover,
+    this.preferBackdrop = false,
+    this.titleScale = 1.0,
+  });
   final ContentItem item;
   final BoxFit fit;
 
+  /// Use the 16:9 backdrop when the provider supplied one. Only worth it in a
+  /// wide slot (the hero); in a 2:3 tile the poster is the right art.
+  final bool preferBackdrop;
+
+  /// Scales the fallback title with the slot. A fixed 14dp looked correct in a
+  /// 168dp tile and absurd in an 888x520 hero.
+  final double titleScale;
+
+  String? get _backdrop {
+    final b = item.seriesStream?.backdropPath;
+    if (b != null && b.isNotEmpty && b.first.isNotEmpty) return b.first;
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (item.imagePath.isNotEmpty) {
+    final source = preferBackdrop ? (_backdrop ?? item.imagePath) : item.imagePath;
+    if (source.isNotEmpty) {
       // Decode posters at the slot's physical size, not full source resolution.
       // IPTV posters ship at ~600x900–1000x1500; decoding those full-res into a
       // ~190dp tile blows the ImageCache (100MB) on a TV box, causing re-decode
@@ -36,7 +58,7 @@ class RensiKeyArt extends StatelessWidget {
           final w = (constraints.maxWidth.isFinite ? constraints.maxWidth : 200) * dpr;
           final cw = w.round();
           return CachedNetworkImage(
-            imageUrl: item.imagePath,
+            imageUrl: source,
             fit: fit,
             // Guard the degenerate 0-width layout (would be an invalid decode size).
             memCacheWidth: cw > 0 ? cw : null,
@@ -50,6 +72,8 @@ class RensiKeyArt extends StatelessWidget {
   }
 
   Widget _fallback(BuildContext context) {
+    // Sized to the slot: a flat 14dp read as a tiny ghost caption inside the
+    // 888x520 hero, duplicating the 52dp title right below it.
     // Stable but BRAND-COHESIVE art: constrain the hue to a warm terracotta/
     // amber band (not a random 0-360° rainbow) and keep it dark, so a rail full
     // of missing posters reads as one curated system, like Plex/TiviMate.
@@ -65,23 +89,30 @@ class RensiKeyArt extends StatelessWidget {
           colors: [g1, g2],
         ),
       ),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Text(
-            item.name,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: 'Bricolage Grotesque',
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-              color: Colors.white.withValues(alpha: 0.92),
+      child: titleScale <= 0
+          ? const SizedBox.expand()
+          : LayoutBuilder(
+              builder: (context, c) {
+                final w = c.maxWidth.isFinite ? c.maxWidth : 200.0;
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Text(
+                      item.name,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'Bricolage Grotesque',
+                        fontWeight: FontWeight.w700,
+                        fontSize: (w * 0.11 * titleScale).clamp(12.0, 34.0),
+                        color: Colors.white.withValues(alpha: 0.92),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -95,13 +126,18 @@ const _scrim = LinearGradient(
 
 /// 2:3 poster card with optional badge + meta. Wrapped in [FocusHighlight]
 /// so it gets the TV focus ring/zoom for free.
-class RensiPoster extends StatelessWidget {
+class RensiPoster extends StatefulWidget {
   const RensiPoster({
     super.key,
     required this.item,
     this.width = 138,
     this.onTap,
-    this.showMeta = true,
+    // Null = reveal on focus (the Google TV pattern). The old default printed
+    // the title over EVERY cover, darkening its bottom 38% at 94% opacity to
+    // repeat what the artwork already says. Netflix and Prime print nothing on
+    // the poster; Plex puts the title below it; Google TV shows it only for the
+    // item you are actually on. Pass true/false to force it either way.
+    this.showMeta,
     this.badge,
     this.autofocus = false,
   });
@@ -109,18 +145,36 @@ class RensiPoster extends StatelessWidget {
   final ContentItem item;
   final double width;
   final VoidCallback? onTap;
-  final bool showMeta;
+  final bool? showMeta;
   final String? badge;
   final bool autofocus;
 
   @override
+  State<RensiPoster> createState() => _RensiPosterState();
+}
+
+class _RensiPosterState extends State<RensiPoster> {
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
+    final item = widget.item;
+    final width = widget.width;
+    final autofocus = widget.autofocus;
+    final onTap = widget.onTap;
+    final showMeta = widget.showMeta ?? _focused;
     final r = rensi(context);
-    final h = width * 1.48;
-    final tag = badge ?? _tagFor(item);
+    final h = width * 1.5; // true 2:3; was 1.48, cropping the artwork 1.3%
+    final tag = widget.badge ?? _tagFor(item);
     return FocusHighlight(
       borderRadius: BorderRadius.circular(14),
-      child: SizedBox(
+      child: Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onFocusChange: (f) {
+          if (f != _focused) setState(() => _focused = f);
+        },
+        child: SizedBox(
         width: width,
         height: h,
         child: Material(
@@ -168,17 +222,6 @@ class RensiPoster extends StatelessWidget {
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          _subtitleFor(item),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize:
-                                ResponsiveHelper.isDesktopOrTV(context) ? 13 : 11,
-                            color: Colors.white.withValues(alpha: 0.78),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -187,21 +230,12 @@ class RensiPoster extends StatelessWidget {
           ),
         ),
       ),
+      ),
     );
   }
 
   static String? _tagFor(ContentItem item) => null;
 
-  static String _subtitleFor(ContentItem item) {
-    switch (item.contentType) {
-      case ContentType.liveStream:
-        return 'En vivo';
-      case ContentType.vod:
-        return 'Película';
-      case ContentType.series:
-        return 'Serie';
-    }
-  }
 }
 
 class _Badge extends StatelessWidget {
@@ -362,6 +396,60 @@ class RensiRail extends StatelessWidget {
         itemCount: children.length,
         separatorBuilder: (_, __) => SizedBox(width: sidePadding >= 40 ? 16 : 12),
         itemBuilder: (_, i) => children[i],
+      ),
+    );
+  }
+}
+
+/// Keeps a column of content inside the TV-safe area and off the overscan cut.
+///
+/// On a phone this is a plain padded box. On a 10-foot screen it also caps the
+/// measure at [ResponsiveHelper.tvMaxContentWidth] and centres it: full-bleed
+/// content on a 1920 px panel puts the focus ring — grown 6% by
+/// [FocusHighlight] — past the edge of the picture, where a consumer TV simply
+/// does not draw it. A focus indicator the viewer cannot see is the same as no
+/// focus indicator at all.
+class RensiSafeColumn extends StatelessWidget {
+  const RensiSafeColumn({
+    super.key,
+    required this.child,
+    this.verticalPadding = 24,
+  });
+
+  final Widget child;
+  final double verticalPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!ResponsiveHelper.isDesktopOrTV(context)) {
+      return Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: ResponsiveHelper.safeInset(context),
+          vertical: verticalPadding,
+        ),
+        child: child,
+      );
+    }
+    // On TV the cap already reserves the overscan margin, and centring is what
+    // turns it into whitespace. Adding horizontal padding on top would subtract
+    // the inset twice and leave the column needlessly narrow.
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: ResponsiveHelper.tvMaxContentWidth(context),
+        ),
+        child: Padding(
+          // Overscan crops the top and bottom too. 24dp is under the 5% of a
+          // 540dp-tall TV surface, so derive it the same way as the sides.
+          padding: EdgeInsets.symmetric(
+            vertical: math.max(
+              verticalPadding,
+              MediaQuery.of(context).size.height *
+                  ResponsiveHelper.overscanFraction,
+            ),
+          ),
+          child: child,
+        ),
       ),
     );
   }

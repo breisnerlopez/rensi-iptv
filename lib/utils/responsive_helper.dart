@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -27,6 +28,48 @@ class ResponsiveHelper {
   // absolute thresholds made a 1080p box (~960 logical dp) fall to the tablet
   // branch and render tiny, cramped tiles.
   static const double _tvSafe = 48; // overscan side margin
+
+  /// Fraction of the panel a consumer TV may still crop.
+  static const double overscanFraction = 0.05;
+
+  /// Side margin that keeps content clear of a TV's overscan cut. Anything
+  /// drawn at x=0 may simply not exist for the viewer — including a focus ring,
+  /// which is the one thing that must never be invisible.
+  ///
+  /// Proportional, not fixed: overscan is a percentage of the panel. The old
+  /// flat 48dp happened to equal 5% only because a 1080p TV reports 960dp; on a
+  /// wider surface it silently shrank to 3.75% and content crept back into the
+  /// crop zone.
+  static double safeInset(BuildContext context) {
+    // 24 on phones: matches the margin the screens already used, so adopting
+    // this helper does not silently narrow a touch layout.
+    if (!isDesktopOrTV(context)) return 24;
+    final w = MediaQuery.of(context).size.width;
+    // A narrow surface can report as "TV" via NavigationMode.directional (a
+    // phone with a remote paired). Reserving a TV overscan margin there would
+    // throw away a third of a 360dp screen, so cap the inset at a sane share.
+    return math.min(w * 0.12, math.max(_tvSafe, w * overscanFraction));
+  }
+
+  /// How much [FocusHighlight] grows a focused element. Kept here because the
+  /// safe-width maths below has to account for it; the two must not drift.
+  static const double focusZoom = 1.06;
+
+  /// Widest a column of content may be on a 10-foot screen and still keep its
+  /// focus ring on the picture.
+  ///
+  /// This has to be computed, not a constant. An Android TV reports its 1080p
+  /// panel as **960×540 logical dp** (dpr 2.0 at 320 dpi) — and a 4K panel
+  /// reports the same 960 dp — so any figure written in pixel-sized numbers
+  /// silently never binds. Worse, a naive `width - 2*inset` still overflows:
+  /// [FocusHighlight] scales the focused element by [focusZoom], so a row
+  /// filling the safe area grows back out past it the moment it takes focus.
+  /// Dividing by the zoom is what actually keeps the ring inside the overscan
+  /// margin.
+  static double tvMaxContentWidth(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    return math.max(1.0, (w - 2 * safeInset(context)) / focusZoom);
+  }
   static const double _tvGutter = 20;
   static const double _tvTargetTile = 200; // desired poster width at 3 m
 
@@ -55,7 +98,7 @@ class ResponsiveHelper {
     final w = MediaQuery.of(context).size.width;
     if (isDesktopOrTV(context)) {
       // Columns that yield ~[_tvTargetTile]dp tiles inside the safe area.
-      final avail = w - 2 * _tvSafe;
+      final avail = tvMaxContentWidth(context);
       final n = ((avail + _tvGutter) / (_tvTargetTile + _tvGutter)).floor();
       return n.clamp(3, 7);
     }
