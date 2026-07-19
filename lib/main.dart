@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' show PlatformDispatcher;
 import 'package:rensi_iptv/controllers/playlist_controller.dart';
 import 'package:rensi_iptv/screens/app_initializer_screen.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/services/service_locator.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -42,6 +43,31 @@ Future<void> main() async {
 /// the stream URL, which for Xtream carries the subscription user and password
 /// — so the default behaviour turns any playback hiccup into a full-screen
 /// credential disclosure (and, on a shared or cast screen, a permanent one).
+@visibleForTesting
+void installErrorGuards() => _installErrorGuards();
+
+/// The widget the app paints when a build throws. Exposed so a test can
+/// exercise the real one: the guard used to be verified against a copy declared
+/// inside the test, so removing the scrubbing from THIS function left the suite
+/// green — a credential-disclosure fix with no net under it.
+@visibleForTesting
+Widget buildScrubbedErrorWidget(FlutterErrorDetails details) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: Material(
+        color: const Color(0xFF0B0B0D),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              scrubCredentials(details.exception),
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ),
+        ),
+      ),
+    );
+
 void _installErrorGuards() {
   final defaultOnError = FlutterError.onError;
   FlutterError.onError = (details) {
@@ -88,22 +114,7 @@ void _installErrorGuards() {
   // MaterialApp.builder — makes Text throw "No Directionality widget found",
   // which re-enters this builder and recurses without bottom. Observed before
   // this wrapper: the app hangs and dumps megabytes to the log.
-  ErrorWidget.builder = (details) => Directionality(
-        textDirection: TextDirection.ltr,
-        child: Material(
-          color: const Color(0xFF0B0B0D),
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text(
-                scrubCredentials(details.exception),
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-            ),
-          ),
-        ),
-      );
+  ErrorWidget.builder = buildScrubbedErrorWidget;
 }
 
 class _ScrubbedException implements Exception {

@@ -14,14 +14,18 @@ import 'package:rensi_iptv/utils/app_themes.dart';
 // Scope is the surfaces that render the 10-foot UI. Phone-only screens are not
 // covered — their constraints are different and sweeping them all at once would
 // be a rename, not a design decision.
-const _tvSurfaces = <String>[
-  'lib/redesign/rensi_widgets.dart',
-  'lib/redesign/home_redesign.dart',
-  'lib/redesign/browse_redesign.dart',
-  'lib/redesign/live_redesign.dart',
-  'lib/redesign/search_redesign.dart',
-  'lib/redesign/list_redesign.dart',
-  'lib/widgets/tv/navigation_models.dart',
+/// Directories scanned recursively, so a file added to a 10-foot surface is
+/// covered the day it lands. A hand-written list missed
+/// lib/widgets/live/now_playing_line.dart — added in the same branch that
+/// claimed this floor was enforced — and an audit proved the gap by planting
+/// `fontSize: 9` there and watching the suite stay green.
+const _tvSurfaceDirs = <String>[
+  'lib/redesign',
+  'lib/widgets/tv',
+  'lib/widgets/live',
+];
+
+const _tvSurfaceFiles = <String>[
   'lib/screens/playlist_type_screen.dart',
 ];
 
@@ -31,9 +35,22 @@ void main() {
   test('no 10-foot surface renders text below the readable floor', () {
     final offenders = <String>[];
 
-    for (final path in _tvSurfaces) {
+    final paths = <String>[
+      for (final dir in _tvSurfaceDirs)
+        ...Directory(dir)
+            .listSync(recursive: true)
+            .whereType<File>()
+            .map((f) => f.path)
+            .where((p) => p.endsWith('.dart')),
+      ..._tvSurfaceFiles,
+    ];
+    expect(paths, isNotEmpty, reason: 'the scan found no files to check');
+
+    for (final path in paths) {
       final file = File(path);
-      if (!file.existsSync()) continue;
+      // Fail loudly rather than skip: a rename used to disable the guard in
+      // total silence.
+      expect(file.existsSync(), isTrue, reason: '$path is listed but missing');
       final lines = file.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
         for (final m in _fontSize.allMatches(lines[i])) {

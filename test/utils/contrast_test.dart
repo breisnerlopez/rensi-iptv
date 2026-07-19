@@ -63,10 +63,24 @@ void main() {
   });
 
   group('light theme', () {
-    test('muted text clears AA — the light theme was skipped once already', () {
+    // The same ramp as dark, not just the background. An audit darkened the
+    // light surface2/surface3 until they broke AA against text3 and the suite
+    // stayed green — the exact regression this file claims to prevent, unseen
+    // in the theme most likely to be edited without a TV to check it on.
+    test('muted text clears AA on every surface in the ramp', () {
       final scheme = light.colorScheme;
-      expectAA('light text3 on background',
-          light.extension<RensiColors>()!.text3, scheme.surfaceContainerLowest);
+      final rensi = light.extension<RensiColors>()!;
+      expectAA('light text3 on background', rensi.text3,
+          scheme.surfaceContainerLowest);
+      expectAA('light text3 on surface', rensi.text3, scheme.surface);
+      expectAA('light text3 on surface2', rensi.text3, rensi.surface2);
+      expectAA('light text3 on surface3', rensi.text3, rensi.surface3);
+    });
+
+    test('the focus ring is unmistakable on light surfaces too', () {
+      expectAA('light focus ring', AppThemes.focusRing(Brightness.light),
+          light.colorScheme.surface,
+          min: aaLarge);
     });
   });
 

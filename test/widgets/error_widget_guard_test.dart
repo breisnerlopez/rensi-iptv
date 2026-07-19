@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rensi_iptv/utils/credential_scrubber.dart';
+import 'package:rensi_iptv/main.dart' show buildScrubbedErrorWidget;
 
 // Regression guard for the app's ErrorWidget.builder.
 //
@@ -18,30 +18,15 @@ class _Boom extends StatelessWidget {
       throw Exception('Failed to open http://h:8080/live/juan/s3cr3tpass/1.ts');
 }
 
-// Mirrors the builder installed in main.dart.
-Widget _errorWidgetBuilder(FlutterErrorDetails details) => Directionality(
-      textDirection: TextDirection.ltr,
-      child: Material(
-        color: const Color(0xFF0B0B0D),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              scrubCredentials(details.exception),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
-            ),
-          ),
-        ),
-      ),
-    );
 
 void main() {
   late ErrorWidgetBuilder original;
 
   setUp(() {
     original = ErrorWidget.builder;
-    ErrorWidget.builder = _errorWidgetBuilder;
+    // The real one from main.dart. This test used to declare its own copy,
+    // so deleting the scrubbing from production left it green.
+    ErrorWidget.builder = buildScrubbedErrorWidget;
   });
 
   tearDown(() => ErrorWidget.builder = original);

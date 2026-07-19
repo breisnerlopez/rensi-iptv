@@ -102,7 +102,13 @@ class IptvRepository {
   /// `get_short_epg` is per-stream, so this is deliberately narrow — fetching a
   /// full guide for a 5000-channel playlist would be thousands of requests. The
   /// caller asks only for the channels it is about to show.
-  Future<List<EpgEntry>> getShortEpg(String streamId, {int limit = 4}) async {
+  ///
+  /// Returns **null on failure** and an empty list when the panel simply has no
+  /// listing. Collapsing both into `[]` cost 245 requests per scroll of a
+  /// 300-channel playlist without EPG: the caller could not tell "there is
+  /// nothing to remember" from "ask again later", so it asked again every time
+  /// a row was rebuilt. Xtream panels rate-limit and ban for that.
+  Future<List<EpgEntry>?> getShortEpg(String streamId, {int limit = 4}) async {
     try {
       final response = await _makeRequest(
         'player_api.php',
@@ -112,7 +118,7 @@ class IptvRepository {
           'limit': '$limit',
         },
       );
-      if (response.statusCode != 200) return const [];
+      if (response.statusCode != 200) return null;
 
       final decoded = json.decode(utf8.decode(response.bodyBytes));
       // Panels disagree on the envelope: some return {"epg_listings": [...]},
@@ -129,7 +135,7 @@ class IptvRepository {
         ..sort((a, b) => a.start.compareTo(b.start));
     } catch (e) {
       _logError('getShortEpg', e);
-      return const [];
+      return null;
     }
   }
 

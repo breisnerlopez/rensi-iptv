@@ -14,8 +14,21 @@ class EpgService {
   /// Just the lookup, not the whole repository. Depending on IptvRepository
   /// dragged a database and platform plugins into every test of this service —
   /// which is the coupling telling you the dependency was too wide.
-  final Future<List<EpgEntry>> Function(String streamId) _fetch;
+  /// Returns null when the request failed, an empty list when the panel has no
+  /// listing for the channel. The distinction is the whole point: see
+  /// [_failureBackoff].
+  final Future<List<EpgEntry>?> Function(String streamId) _fetch;
   final Duration _ttl;
+
+  /// How long to wait before asking again after a FAILED request.
+  ///
+  /// Short, because a failure is usually transient, but not zero: without it a
+  /// panel that is refusing requests gets hammered by every row that scrolls
+  /// past. Success — including a legitimately empty schedule — uses the full
+  /// [_ttl] instead. Treating "no guide" as "ask again" is what produced 245
+  /// requests for one pass over a 300-channel playlist, and Xtream panels ban
+  /// for that.
+  static const Duration _failureBackoff = Duration(minutes: 2);
 
   /// Bounded, and ordered by insertion so the oldest entry is the first key.
   /// A 5000-channel playlist scrolled end to end would otherwise leave 5000
@@ -25,6 +38,7 @@ class EpgService {
 
   final Map<String, List<EpgEntry>> _cache = {};
   final Map<String, DateTime> _fetchedAt = {};
+  final Map<String, DateTime> _failedAt = {};
   final Map<String, Future<List<EpgEntry>>> _inFlight = {};
 
   void _remember(String streamId, List<EpgEntry> entries) {
@@ -40,10 +54,16 @@ class EpgService {
 
   /// Entries for [streamId], from cache when fresh.
   Future<List<EpgEntry>> entriesFor(String streamId) {
+    final now = DateTime.now();
     final cached = _cache[streamId];
     final at = _fetchedAt[streamId];
-    if (cached != null && at != null && DateTime.now().difference(at) < _ttl) {
+    if (cached != null && at != null && now.difference(at) < _ttl) {
       return Future.value(cached);
+    }
+
+    final failed = _failedAt[streamId];
+    if (failed != null && now.difference(failed) < _failureBackoff) {
+      return Future.value(const []);
     }
 
     // Share the request rather than issuing one per caller: a rail and a grid
@@ -52,10 +72,15 @@ class EpgService {
     if (existing != null) return existing;
 
     final future = _fetch(streamId).then((entries) {
-      // Only remember a real answer. Caching an empty list would make a
-      // two-second network blip hide the schedule for the next 30 minutes,
-      // because "no data" and "the request failed" look identical here.
-      if (entries.isNotEmpty) _remember(streamId, entries);
+      if (entries == null) {
+        // Failure: back off briefly rather than remembering a wrong answer.
+        _failedAt[streamId] = DateTime.now();
+        return const <EpgEntry>[];
+      }
+      // A real answer, empty or not. Remembering the empty one is what stops a
+      // channel with no guide from re-asking on every rebuild.
+      _failedAt.remove(streamId);
+      _remember(streamId, entries);
       return entries;
       // Braces, not an arrow: `Map.remove` returns the value it removed — here
       // the very future being built — and `whenComplete` awaits a returned
@@ -81,21 +106,13 @@ class EpgService {
     return null;
   }
 
-  /// What follows the programme airing at [now].
-  Future<EpgEntry?> upNext(String streamId, {DateTime? now}) async {
-    final at = now ?? DateTime.now();
-    final entries = await entriesFor(streamId);
-    for (final e in entries) {
-      if (e.start.isAfter(at)) return e;
-    }
-    return null;
-  }
 
   /// Drops everything, including requests already in flight — otherwise a
   /// response that was on its way would repopulate a cache we just cleared.
   void invalidate() {
     _cache.clear();
     _fetchedAt.clear();
+    _failedAt.clear();
     _inFlight.clear();
   }
 }

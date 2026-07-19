@@ -135,9 +135,12 @@ class AppThemes {
   static const Color _lSurface3 = Color(0xFFE8E2D8);
   static const Color _lText = Color(0xFF1B1813);
   static const Color _lText2 = Color(0xFF59534B);
-  // Was #908A80 at 3.04:1 on the light background — well under AA. The dark
-  // theme's contrast pass had skipped the light one entirely.
-  static const Color _lText3 = Color(0xFF726C62);
+  // Clears AA against the whole light ramp, not just the background: bg 5.28,
+  // surface 5.95, surface2 5.19, surface3 4.62. Two earlier values fell short —
+  // #908A80 at 3.04:1 on the background, then #726C62 which passed there but
+  // measured 4.04:1 on surface3, where this token actually lives (cards, rows).
+  // Only found because the test was widened to walk the ramp.
+  static const Color _lText3 = Color(0xFF696359);
 
   static final ThemeData darkTheme = _build(Brightness.dark);
   static final ThemeData lightTheme = _build(Brightness.light);
