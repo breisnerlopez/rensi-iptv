@@ -6,6 +6,12 @@ class InfoTileWidget extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+
+  /// What "copy" puts on the clipboard when it differs from what is shown.
+  /// Lets a tile display a masked credential while still copying the real one —
+  /// otherwise the user silently walks away with `***` believing they have
+  /// their URL.
+  final String? copyValue;
   final Color? valueColor;
   final bool copyOnTap;
 
@@ -14,6 +20,7 @@ class InfoTileWidget extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    this.copyValue,
     this.valueColor,
     this.copyOnTap = false,
   });
@@ -30,7 +37,7 @@ class InfoTileWidget extends StatelessWidget {
       dense: true,
       onTap: copyOnTap
           ? () async {
-              await Clipboard.setData(ClipboardData(text: value));
+              await Clipboard.setData(ClipboardData(text: copyValue ?? value));
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

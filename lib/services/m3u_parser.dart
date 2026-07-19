@@ -5,11 +5,17 @@ import 'package:rensi_iptv/models/content_type.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 import '../models/m3u_item.dart';
+import '../utils/credential_scrubber.dart';
 
 class M3uParseException implements Exception {
   final String code;
   final String? detail;
-  M3uParseException(this.code, [this.detail]);
+
+  /// [detail] is scrubbed on the way in: it is routinely the offending playlist
+  /// URL, which for M3U carries `username=`/`password=`, and this exception is
+  /// rendered on screen by the data-loader screens.
+  M3uParseException(this.code, [String? detail])
+      : detail = detail == null ? null : scrubCredentials(detail);
 
   @override
   String toString() =>
@@ -45,7 +51,7 @@ class M3uParser {
           .transform(const LineSplitter());
       return await parseLines(playlistId, lines);
     } catch (e) {
-      debugPrint('M3U file parse error: $e');
+      debugPrint('M3U file parse error: ${scrubCredentials(e)}');
       throw M3uParseException('m3u_file_read_failed', e.toString());
     }
   }
@@ -79,7 +85,7 @@ class M3uParser {
       final content = utf8.decode(input, allowMalformed: true);
       return parseM3u(playlistId, content);
     } catch (e) {
-      debugPrint('M3U bytes parse error: $e');
+      debugPrint('M3U bytes parse error: ${scrubCredentials(e)}');
       throw M3uParseException('m3u_file_read_failed', e.toString());
     }
   }
@@ -143,7 +149,7 @@ class M3uParser {
     } on M3uParseException {
       rethrow;
     } catch (e) {
-      debugPrint('M3U URL parse error: $e');
+      debugPrint('M3U URL parse error: ${scrubCredentials(e)}');
       throw M3uParseException('m3u_url_fetch_failed', e.toString());
     } finally {
       client.close(force: true);

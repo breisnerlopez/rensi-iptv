@@ -7,6 +7,7 @@ import 'active_playlist_controller.dart';
 import '../models/playlist_model.dart';
 import '../screens/xtream-codes/xtream_code_home_screen.dart';
 import '../services/playlist_service.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class PlaylistController extends ChangeNotifier {
   List<Playlist> _playlists = [];
@@ -59,7 +60,7 @@ class PlaylistController extends ChangeNotifier {
       _sortPlaylists();
       _hasInitialized = true;
     } catch (e) {
-      _setError('playlist_load_failed', e.toString());
+      _setError('playlist_load_failed', scrubCredentials(e));
     } finally {
       _setLoading(false);
     }
@@ -121,7 +122,7 @@ class PlaylistController extends ChangeNotifier {
 
       return playlist;
     } catch (e) {
-      _setError('playlist_save_failed', e.toString());
+      _setError('playlist_save_failed', scrubCredentials(e));
       return null;
     } finally {
       _setLoading(false);
@@ -135,7 +136,7 @@ class PlaylistController extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _setError('playlist_delete_failed', e.toString());
+      _setError('playlist_delete_failed', scrubCredentials(e));
       return false;
     }
   }
@@ -152,7 +153,7 @@ class PlaylistController extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _setError('playlist_delete_failed', e.toString());
+      _setError('playlist_delete_failed', scrubCredentials(e));
       return false;
     } finally {
       _setLoading(false);
@@ -179,7 +180,7 @@ class PlaylistController extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      _setError('playlist_update_failed', e.toString());
+      _setError('playlist_update_failed', scrubCredentials(e));
       return false;
     } finally {
       _setLoading(false);

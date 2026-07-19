@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/services/player_state.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -454,9 +455,12 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
                           _buildInfoRow(
                             context,
                             context.loc.url,
-                            currentContent.url,
+                            // Xtream puts the subscription user/password inside
+                            // the stream path, so the raw URL is a credential.
+                            scrubUrlForDisplay(currentContent.url),
                             Icons.link,
                             isCopyable: true,
+                            copyValue: currentContent.url,
                           ),
                           ..._buildStreamInfoRows(context),
                         ],
@@ -592,6 +596,10 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
     IconData icon, {
     bool isMultiline = false,
     bool isCopyable = false,
+    // What "copy" yields when it differs from what is shown. The URL row
+    // displays a masked stream URL but must still copy the real one — copying
+    // "http://h/live/***/***/1.ts" is silently useless.
+    String? copyValue,
   }) {
     const textColor = Colors.white;
     const secondaryTextColor = Colors.grey;
@@ -601,7 +609,7 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
     return InkWell(
       onTap: isCopyable
           ? () {
-              Clipboard.setData(ClipboardData(text: value));
+              Clipboard.setData(ClipboardData(text: copyValue ?? value));
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(context.loc.url_copied_to_clipboard),

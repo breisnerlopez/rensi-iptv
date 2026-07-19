@@ -7,6 +7,7 @@ import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import '../../widgets/content_card.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class SearchScreen extends StatefulWidget {
   final ContentType contentType;
@@ -154,7 +155,7 @@ class SearchScreenState extends State<SearchScreen> {
       });
     } catch (e) {
       setState(() {
-        errorMessage = e.toString();
+        errorMessage = scrubCredentials(e);
         isLoading = false;
       });
     }

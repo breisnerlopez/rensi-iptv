@@ -10,6 +10,7 @@ import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import '../screens/m3u/m3u_player_screen.dart';
 import '../services/service_locator.dart';
 import '../screens/series/episode_screen.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class WatchHistoryController extends ChangeNotifier {
   late WatchHistoryService _historyService;
@@ -50,7 +51,7 @@ class WatchHistoryController extends ChangeNotifier {
       _seriesHistory.isEmpty;
 
   Future<void> loadWatchHistory() async {
-    print('WatchHistoryController: loadWatchHistory başladı');
+    debugPrint('WatchHistoryController: loadWatchHistory başladı');
     _setLoading(true);
     _clearError();
 
@@ -63,14 +64,14 @@ class WatchHistoryController extends ChangeNotifier {
     notifyListeners();
 
     if (AppState.currentPlaylist == null) {
-      print('WatchHistoryController: Aktif playlist bulunamadı');
+      debugPrint('WatchHistoryController: Aktif playlist bulunamadı');
       _setError('Aktif playlist bulunamadı');
       _setLoading(false);
       return;
     }
 
     final playlistId = AppState.currentPlaylist!.id;
-    print('WatchHistoryController: Playlist ID: $playlistId');
+    debugPrint('WatchHistoryController: Playlist ID: $playlistId');
 
     try {
       final futures = await Future.wait([
@@ -98,7 +99,7 @@ class WatchHistoryController extends ChangeNotifier {
 
       _setLoading(false);
     } catch (e) {
-      _setError('İzleme geçmişi yüklenirken hata oluştu: $e');
+      _setError('İzleme geçmişi yüklenirken hata oluştu: ${scrubCredentials(e)}');
       _setLoading(false);
     }
   }
@@ -117,7 +118,7 @@ class WatchHistoryController extends ChangeNotifier {
           break;
       }
     } catch (e) {
-      _setError('Video oynatılırken hata oluştu: $e');
+      _setError('Video oynatılırken hata oluştu: ${scrubCredentials(e)}');
     }
   }
 
@@ -129,7 +130,7 @@ class WatchHistoryController extends ChangeNotifier {
       );
       await loadWatchHistory();
     } catch (e) {
-      _setError('Hata oluştu: $e');
+      _setError('Hata oluştu: ${scrubCredentials(e)}');
     }
   }
 
@@ -138,7 +139,7 @@ class WatchHistoryController extends ChangeNotifier {
       await _historyService.clearAllHistory();
       await loadWatchHistory();
     } catch (e) {
-      _setError('Hata oluştu: $e');
+      _setError('Hata oluştu: ${scrubCredentials(e)}');
     }
   }
 

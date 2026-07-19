@@ -1,5 +1,6 @@
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:flutter/material.dart';
 import '../../../../models/playlist_model.dart';
@@ -113,7 +114,8 @@ class _PlaylistInfo extends StatelessWidget {
         if (playlist.url != null) ...[
           const SizedBox(height: 4),
           Text(
-            playlist.url!,
+            // M3U playlists carry user+password in this URL — never render it raw.
+            scrubUrlForDisplay(playlist.url),
             style: TextStyle(fontSize: 12, color: r.text3),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

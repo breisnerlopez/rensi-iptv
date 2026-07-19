@@ -8,6 +8,7 @@ import 'package:rensi_iptv/models/series.dart';
 import 'package:rensi_iptv/repositories/iptv_repository.dart';
 
 import '../models/category_type.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class IptvController extends ChangeNotifier {
   final IptvRepository _repository;
@@ -71,8 +72,8 @@ class IptvController extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      if (e.toString().contains('preparing_user_info_exception_1')) {
-        _setError(e.toString(), 'preparing_user_info_exception_1');
+      if (scrubCredentials(e).contains('preparing_user_info_exception_1')) {
+        _setError(scrubCredentials(e), 'preparing_user_info_exception_1');
       } else {
         _setError('preparing_user_info_exception_2', 'preparing_user_info_exception_2');
       }
@@ -142,8 +143,8 @@ class IptvController extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      if (e.toString().contains('preparing_live_streams_exception_1')) {
-        _setError(e.toString(), 'preparing_live_streams_exception_1');
+      if (scrubCredentials(e).contains('preparing_live_streams_exception_1')) {
+        _setError(scrubCredentials(e), 'preparing_live_streams_exception_1');
       } else {
         _setError('preparing_live_streams_exception_2', 'preparing_live_streams_exception_2');
       }
@@ -164,8 +165,8 @@ class IptvController extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      if (e.toString().contains('preparing_movies_exception_1')) {
-        _setError(e.toString(), 'preparing_movies_exception_1');
+      if (scrubCredentials(e).contains('preparing_movies_exception_1')) {
+        _setError(scrubCredentials(e), 'preparing_movies_exception_1');
       } else {
         _setError('preparing_movies_exception_2', 'preparing_movies_exception_2');
       }
@@ -186,8 +187,8 @@ class IptvController extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      if (e.toString().contains('preparing_series_exception_1')) {
-        _setError(e.toString(), 'preparing_series_exception_1');
+      if (scrubCredentials(e).contains('preparing_series_exception_1')) {
+        _setError(scrubCredentials(e), 'preparing_series_exception_1');
       } else {
         _setError('preparing_series_exception_2', 'preparing_series_exception_2');
       }

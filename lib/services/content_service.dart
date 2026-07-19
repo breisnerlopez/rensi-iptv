@@ -7,6 +7,7 @@ import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/repositories/m3u_repository.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import '../models/category_type.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class ContentService {
   Future<List<ContentItem>> fetchContentByCategory(
@@ -21,7 +22,7 @@ class ContentService {
           return await _fetchM3uContent(category.category.type, categoryId);
       }
     } catch (e) {
-      throw Exception('İçerik yüklenirken hata oluştu: $e');
+      throw Exception('İçerik yüklenirken hata oluştu: ${scrubCredentials(e)}');
     }
   }
 
@@ -160,7 +161,7 @@ class ContentService {
       if (result == null) return <ContentItem>[];
       return result.map(mapper).toList();
     } catch (e) {
-      throw Exception('$errorMessage: $e');
+      throw Exception('$errorMessage: ${scrubCredentials(e)}');
     }
   }
 }

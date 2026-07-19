@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart' hide Category;
 import 'package:uuid/uuid.dart';
 import '../models/category_with_content_type.dart';
 import '../models/m3u_series.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class M3uController extends ChangeNotifier {
   final String playlistId;
@@ -90,10 +91,10 @@ class M3uController extends ChangeNotifier {
       // Todo: Save db
       return true;
     } catch (e) {
-      if (e.toString().contains('preparing_m3u_exception_no_source')) {
-        _setError(e.toString(), 'preparing_m3u_exception_no_source');
-      } else if (e.toString().contains('preparing_m3u_exception_empty')) {
-        _setError(e.toString(), 'preparing_m3u_exception_empty');
+      if (scrubCredentials(e).contains('preparing_m3u_exception_no_source')) {
+        _setError(scrubCredentials(e), 'preparing_m3u_exception_no_source');
+      } else if (scrubCredentials(e).contains('preparing_m3u_exception_empty')) {
+        _setError(scrubCredentials(e), 'preparing_m3u_exception_empty');
       } else {
         _setError(
           'preparing_m3u_exception_parse',

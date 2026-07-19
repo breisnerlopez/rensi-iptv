@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' hide Category;
 import 'package:http/http.dart' as http;
 import 'package:rensi_iptv/database/database.dart';
 import 'package:rensi_iptv/models/api_configuration_model.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 import 'package:rensi_iptv/models/api_response.dart';
 import 'package:rensi_iptv/models/category.dart';
 import 'package:rensi_iptv/models/live_stream.dart';
@@ -22,18 +23,14 @@ class IptvRepository {
 
   IptvRepository(this._config, this._playlistId);
 
-  String _scrub(Object error) {
-    var text = error.toString();
-    final username = _config.username;
-    final password = _config.password;
-    if (username.isNotEmpty) {
-      text = text.replaceAll(username, '***');
-    }
-    if (password.isNotEmpty) {
-      text = text.replaceAll(password, '***');
-    }
-    return text;
-  }
+  // Single shared implementation — a second copy here would drift out of sync
+  // with the structural masking in credential_scrubber.dart.
+  String _scrub(Object error) => scrubCredentials(
+        error,
+        username: _config.username,
+        password: _config.password,
+      );
+
 
   void _logError(String tag, Object error) {
     debugPrint('[IPTV] $tag: ${_scrub(error)}');

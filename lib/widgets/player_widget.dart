@@ -10,6 +10,7 @@ import 'package:rensi_iptv/services/sleep_timer_service.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
 import 'package:rensi_iptv/utils/channel_order.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 import 'package:rensi_iptv/widgets/channel_number_overlay.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_info_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_settings_widget.dart';
@@ -333,7 +334,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     } catch (e) {
       // Silently handle database errors to prevent crashes
       // The next save attempt will retry
-      debugPrint('Error saving watch history: $e');
+      debugPrint('Error saving watch history: ${scrubCredentials(e)}');
     }
   }
 
@@ -563,7 +564,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             // the last saved position.
             await _reopenCurrent();
           } catch (e) {
-            debugPrint('Error reopening media after reconnect: $e');
+            debugPrint('Error reopening media after reconnect: ${scrubCredentials(e)}');
           }
         }
         _wasDisconnected = false;
@@ -686,7 +687,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     });
 
     _player.stream.error.listen((error) async {
-      debugPrint('PLAYER ERROR -> $error');
+      debugPrint('PLAYER ERROR -> ${scrubCredentials(error)}');
       _errorHandler.handleError(
         error,
         () async {
@@ -699,7 +700,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
           if (!mounted) return;
           setState(() {
             hasError = true;
-            errorMessage = message;
+            // Belt-and-braces: PlayerErrorHandler already scrubs, but this
+            // string goes straight to a full-screen Text().
+            errorMessage = scrubCredentials(message);
           });
         },
       );

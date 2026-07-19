@@ -12,6 +12,7 @@ import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import '../../../controllers/favorites_controller.dart';
 import 'episode_screen.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class SeriesScreen extends StatefulWidget {
   final ContentItem contentItem;
@@ -87,7 +88,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
       }
     } catch (e) {
       setState(() {
-        error = context.loc.preparing_series_exception_2(e.toString());
+        error = context.loc.preparing_series_exception_2(scrubCredentials(e));
         isLoading = false;
       });
     }

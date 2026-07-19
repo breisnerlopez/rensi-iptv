@@ -12,6 +12,7 @@ import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import '../repositories/user_preferences.dart';
 import '../screens/xtream-codes/xtream_code_data_loader_screen.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class XtreamCodeHomeController extends ChangeNotifier {
   late PageController _pageController;
@@ -306,8 +307,8 @@ class XtreamCodeHomeController extends ChangeNotifier {
 
       notifyListeners();
     } catch (e, st) {
-      debugPrint(st.toString());
-      _errorMessage = e.toString();
+      debugPrint(scrubCredentials(st));
+      _errorMessage = scrubCredentials(e);
       _errorKey = 'preparing_categories_exception';
       _setViewState(ViewState.error);
     }

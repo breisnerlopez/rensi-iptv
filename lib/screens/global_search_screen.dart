@@ -8,6 +8,7 @@ import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class GlobalSearchScreen extends StatefulWidget {
   const GlobalSearchScreen({super.key});
@@ -108,7 +109,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
     } catch (e) {
       if (!mounted || seq != _searchSeq) return;
       setState(() {
-        _error = '$e';
+        _error = scrubCredentials(e);
         _isLoading = false;
       });
     }
@@ -757,7 +758,7 @@ class _TmdbDetailSheetState extends State<_TmdbDetailSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = '$e';
+        _error = scrubCredentials(e);
         _loading = false;
       });
     }

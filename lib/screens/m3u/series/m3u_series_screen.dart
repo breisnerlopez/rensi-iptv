@@ -9,6 +9,7 @@ import '../../../controllers/favorites_controller.dart';
 import '../../../models/favorite.dart';
 
 import '../../../models/content_type.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class M3uSeriesScreen extends StatefulWidget {
   final ContentItem contentItem;
@@ -63,7 +64,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
         ..sort();
     } catch (e) {
       setState(() {
-        error = context.loc.preparing_series_exception_2(e.toString());
+        error = context.loc.preparing_series_exception_2(scrubCredentials(e));
         isLoading = false;
       });
     }

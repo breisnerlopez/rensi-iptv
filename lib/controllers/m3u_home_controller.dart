@@ -8,6 +8,7 @@ import 'package:rensi_iptv/models/view_state.dart';
 import 'package:rensi_iptv/repositories/m3u_repository.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class M3UHomeController extends ChangeNotifier {
   late PageController _pageController;
@@ -112,7 +113,7 @@ class M3UHomeController extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      _errorMessage = 'M3U items cannot loaded: $e';
+      _errorMessage = 'M3U items cannot loaded: ${scrubCredentials(e)}';
       _setViewState(ViewState.error);
       _isLoading = false;
     }
@@ -188,7 +189,7 @@ class M3UHomeController extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      _errorMessage = 'Kategoriler yüklenemedi: $e';
+      _errorMessage = 'Kategoriler yüklenemedi: ${scrubCredentials(e)}';
       _setViewState(ViewState.error);
       _isLoading = false;
     }
