@@ -9,6 +9,7 @@ import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 /// Cinematic "Inicio" — hero + themed rails, fed by the real catalogue.
 /// Mounts inside the existing home so it reuses controllers / navigation.
@@ -260,7 +261,7 @@ class _TopBar extends StatelessWidget {
               if (!tv)
                 Text('Buenas noches',
                     style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: AppThemes.labelSize,
                         fontWeight: FontWeight.w600,
                         color: r.text3)),
               Text('Rensi',
@@ -277,33 +278,14 @@ class _TopBar extends StatelessWidget {
                 playlistSwitcher!,
                 const SizedBox(width: 6),
               ],
-              _IconBtn(icon: Icons.search, onTap: onSearch),
-              const SizedBox(width: 10),
-              FocusHighlight(
-                borderRadius: BorderRadius.circular(12),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: onSettings,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        gradient: LinearGradient(colors: [r.accent, r.accent2]),
-                      ),
-                      child: const Center(
-                        child: Text('A',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 15)),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              // Search stays here on phone. On TV it now lives in the rail as
+              // a first-class destination, so duplicating it in the top bar
+              // would give the same target two homes.
+              if (!tv) _IconBtn(icon: Icons.search, onTap: onSearch),
+              // The avatar was a second door to Settings, which the rail already
+              // owns — a decorative control competing with a real one. Removed;
+              // the identity it implied (a single letter "A") was not real
+              // either, since the app has no accounts.
             ],
           ),
         ],

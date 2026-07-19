@@ -399,7 +399,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
           item,
           isSelected,
           sizes,
-          () => controller.onNavigationTap(item.index),
+          item.onSelected ?? () => controller.onNavigationTap(item.index),
         );
       }).toList(),
     );
@@ -527,6 +527,19 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
           iconOutlined: Icons.home_outlined,
           label: context.loc.nav_home,
           index: 0),
+      // TV only. Search sits right under Home, where Google TV puts it: it is
+      // how people reach a specific title in a catalogue of thousands, and on a
+      // remote it was reachable only from a small icon in the top bar. It is
+      // NOT added on phone: BottomNavigationBar indexes by position, so an item
+      // that is an action rather than a page would shift every tab off its own
+      // page.
+      if (ResponsiveHelper.isDesktopOrTV(context))
+        NavigationItem(
+            icon: Icons.search_rounded,
+            iconOutlined: Icons.search_outlined,
+            label: context.loc.search,
+            index: -1,
+            onSelected: _openSearch),
       NavigationItem(
           icon: Icons.grid_view_rounded,
           iconOutlined: Icons.grid_view_outlined,

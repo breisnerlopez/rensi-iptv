@@ -1239,4 +1239,8 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get nav_my_list => 'Meine Liste';
+
+  @override
+  String get onboarding_requirements_hint =>
+      'Du brauchst die URL oder die Zugangsdaten deines IPTV-Anbieters';
 }

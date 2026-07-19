@@ -3,6 +3,7 @@ import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 /// "Mi lista" — saved favourites in a poster grid, with an empty state.
 class ListRedesign extends StatefulWidget {
@@ -61,7 +62,7 @@ class _ListRedesignState extends State<ListRedesign> {
                               fontWeight: FontWeight.w800)),
                       const SizedBox(height: 3),
                       Text('${items.length} títulos guardados',
-                          style: TextStyle(fontSize: 13, color: r.text3)),
+                          style: TextStyle(fontSize: AppThemes.bodySmallSize, color: r.text3)),
                     ],
                   ),
                 ),
@@ -123,7 +124,7 @@ class _ListRedesignState extends State<ListRedesign> {
             child: Text(
               'Selecciona un título y agrégalo a favoritos para verlo aquí.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13.5, color: r.text3),
+              style: TextStyle(fontSize: AppThemes.bodySmallSize, color: r.text3),
             ),
           ),
         ],

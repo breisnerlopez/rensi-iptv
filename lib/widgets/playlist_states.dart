@@ -136,6 +136,36 @@ class PlaylistEmptyState extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 16),
+            // Say what the user needs BEFORE sending them into a form where an
+            // 80-character URL has to be typed with a remote. Google TV always
+            // states the cost of the next step up front; arriving at the form
+            // and only then discovering the requirement is where people quit.
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      context.loc.onboarding_requirements_hint,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 16,
+                        height: 1.4,
+                        color:
+                            Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 32),
             // The two CTAs match in size and stack vertically so a user
             // arriving fresh on the empty state sees both paths to

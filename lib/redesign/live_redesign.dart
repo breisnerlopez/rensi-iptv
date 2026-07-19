@@ -5,6 +5,7 @@ import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 /// "En vivo" — channel rows (logo + name + category) grouped by category
 /// chips. The backend doesn't expose now/next EPG for this provider, so the
@@ -92,7 +93,7 @@ class _LiveRedesignState extends State<LiveRedesign> {
                       const SizedBox(width: 8),
                       Text('EN DIRECTO',
                           style: TextStyle(
-                              fontSize: 12,
+                              fontSize: AppThemes.labelSize,
                               fontWeight: FontWeight.w700,
                               color: r.live)),
                     ],
@@ -199,7 +200,7 @@ class _ChannelRow extends StatelessWidget {
                             child: Text(
                               'CH ${(index + 1).toString().padLeft(2, '0')}',
                               style: const TextStyle(
-                                  fontSize: 9.5,
+                                  fontSize: AppThemes.labelSize,
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white),
                             ),
@@ -230,7 +231,7 @@ class _ChannelRow extends StatelessWidget {
                           ),
                           Text('● EN VIVO',
                               style: TextStyle(
-                                  fontSize: 10.5,
+                                  fontSize: AppThemes.labelSize,
                                   fontWeight: FontWeight.w700,
                                   color: r.live)),
                         ],

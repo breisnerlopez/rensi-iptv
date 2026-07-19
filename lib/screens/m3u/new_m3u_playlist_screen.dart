@@ -114,11 +114,25 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
       body: Consumer<PlaylistController>(
         builder: (context, controller, child) {
           return SingleChildScrollView(
+            // Room to scroll the active field clear of the on-screen keyboard.
+            // Without it the IME simply covers the middle of the form: the TV
+            // keyboard is a large overlay and the fields ran the full width, so
+            // the user could not read what they were typing.
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(context).bottom),
             // RensiSafeColumn instead of a flat 24dp: on TV that margin sat
             // inside the 5% overscan crop, so the form's own focus rings were
             // partly off the picture.
             child: RensiSafeColumn(
-              child: Form(
+              child: ConstrainedBox(
+                // A 910dp-wide field is unreadable next to a centred keyboard.
+                // Capping the measure keeps the text beside the caret visible.
+                constraints: BoxConstraints(
+                  maxWidth: ResponsiveHelper.isDesktopOrTV(context)
+                      ? 620
+                      : double.infinity,
+                ),
+                child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -147,6 +161,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                   _buildInfoCard(colorScheme),
                 ],
               ),
+            ),
             ),
             ),
           );

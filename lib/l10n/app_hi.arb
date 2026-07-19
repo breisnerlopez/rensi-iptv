@@ -483,5 +483,6 @@
   "nav_home": "होम",
   "nav_browse": "ब्राउज़",
   "nav_live": "लाइव",
-  "nav_my_list": "मेरी सूची"
+  "nav_my_list": "मेरी सूची",
+  "onboarding_requirements_hint": "आपको अपने IPTV प्रदाता का URL या लॉगिन विवरण चाहिए होगा"
 }

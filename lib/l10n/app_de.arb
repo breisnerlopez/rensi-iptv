@@ -483,5 +483,6 @@
   "nav_home": "Start",
   "nav_browse": "Entdecken",
   "nav_live": "Live",
-  "nav_my_list": "Meine Liste"
+  "nav_my_list": "Meine Liste",
+  "onboarding_requirements_hint": "Du brauchst die URL oder die Zugangsdaten deines IPTV-Anbieters"
 }

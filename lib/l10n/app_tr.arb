@@ -483,5 +483,6 @@
   "nav_home": "Ana Sayfa",
   "nav_browse": "Keşfet",
   "nav_live": "Canlı",
-  "nav_my_list": "Listem"
+  "nav_my_list": "Listem",
+  "onboarding_requirements_hint": "IPTV sağlayıcınızın URL'sine veya giriş bilgilerine ihtiyacınız olacak"
 }

@@ -14,11 +14,18 @@ class NavigationItem {
   final String label;
   final int index;
 
+  /// When set, selecting this item runs the callback instead of switching the
+  /// pager. Search is a first-class destination in the rail but it is not one
+  /// of the pages, and forcing it into the PageView just to appear in the rail
+  /// would be modelling the menu instead of the app.
+  final void Function()? onSelected;
+
   const NavigationItem({
     required this.icon,
     required this.iconOutlined,
     required this.label,
     required this.index,
+    this.onSelected,
   });
 
   IconData resolve(bool isSelected) => isSelected ? icon : iconOutlined;

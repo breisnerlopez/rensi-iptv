@@ -1226,4 +1226,8 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get nav_my_list => 'मेरी सूची';
+
+  @override
+  String get onboarding_requirements_hint =>
+      'आपको अपने IPTV प्रदाता का URL या लॉगिन विवरण चाहिए होगा';
 }

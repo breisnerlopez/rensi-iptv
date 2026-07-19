@@ -318,6 +318,24 @@ class AppThemes {
     );
   }
 
+  /// The type scale, in dp. Seven steps, no half points.
+  ///
+  /// The app renders 22 distinct sizes today — 9, 9.5, 10, 10.5, 11, 11.5, 12,
+  /// 12.5, 13, 13.5, 14, 14.5, 15, 16, 18, 19, 20, 22, 24, 26, 36, 64 — against
+  /// 22 uses of the textTheme. The half points are the signature of tuning by
+  /// eye. Netflix's TV UI runs on six or seven steps; this is that ladder.
+  ///
+  /// [tvBodyMin] is the floor for anything a viewer is expected to READ at
+  /// three metres. Below it text is decoration, and the rail labels sat at 10.
+  static const double displaySize = 52;
+  static const double h1Size = 36;
+  static const double h2Size = 28;
+  static const double h3Size = 22;
+  static const double bodySize = 18;
+  static const double bodySmallSize = 16;
+  static const double labelSize = 14;
+  static const double tvBodyMin = 14;
+
   /// Single content gutter for the 10-foot UI. Five different left margins
   /// (16 / 24 / 72 / 120 / 128) across four screens was the most immediate
   /// visual tell that this was a phone layout stretched onto a TV.

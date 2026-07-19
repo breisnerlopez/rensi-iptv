@@ -253,7 +253,7 @@ class _Badge extends StatelessWidget {
       child: Text(
         text.toUpperCase(),
         style: TextStyle(
-          fontSize: 10.5,
+          fontSize: AppThemes.labelSize,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.4,
           color: r.onAccent,
@@ -309,7 +309,7 @@ class RensiChip extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 13.5,
+                fontSize: AppThemes.bodySmallSize,
                 fontWeight: FontWeight.w600,
                 color: active ? theme.colorScheme.surface : r.text2,
               ),
@@ -358,7 +358,7 @@ class SectionHeader extends StatelessWidget {
                 child: Text(
                   actionLabel!,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppThemes.bodySmallSize,
                     fontWeight: FontWeight.w600,
                     color: r.text3,
                   ),

@@ -1226,4 +1226,8 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get nav_my_list => 'Listem';
+
+  @override
+  String get onboarding_requirements_hint =>
+      'IPTV sağlayıcınızın URL\'sine veya giriş bilgilerine ihtiyacınız olacak';
 }

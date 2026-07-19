@@ -52,43 +52,7 @@ class PlaylistTypeScreen extends StatelessWidget {
                           height: ResponsiveHelper.isDesktopOrTV(context)
                               ? 24
                               : 40),
-                      _buildPlaylistTypeCard(
-                        context,
-                        title: 'Xtream Codes',
-                        subtitle: context.loc.xtream_code_title,
-                        description: context.loc.xtream_code_description,
-                        icon: Icons.stream,
-                        accent: colorScheme.primary,
-                        onAccent: colorScheme.onPrimary,
-                        autofocus: ResponsiveHelper.isDesktopOrTV(context),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  NewXtreamCodePlaylistScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      _buildPlaylistTypeCard(
-                        context,
-                        title: 'M3U Playlist',
-                        subtitle: context.loc.m3u_playlist_title,
-                        description: context.loc.m3u_playlist_description,
-                        icon: Icons.playlist_play,
-                        accent: colorScheme.tertiary,
-                        onAccent: colorScheme.onTertiary,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => NewM3uPlaylistScreen(),
-                            ),
-                          );
-                        },
-                      ),
+                      _buildTypeChoices(context, colorScheme),
                       SizedBox(
                           height:
                               ResponsiveHelper.isDesktopOrTV(context) ? 24 : 0),
@@ -149,83 +113,162 @@ class PlaylistTypeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaylistTypeCard(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required String description,
-    required IconData icon,
-    required Color accent,
-    required Color onAccent,
-    required VoidCallback onTap,
-    bool autofocus = false,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return FocusHighlight(
-      borderRadius: BorderRadius.circular(16),
-      child: Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: onTap,
-        autofocus: autofocus,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: EdgeInsets.all(
-              ResponsiveHelper.isDesktopOrTV(context) ? 16 : 24),
-          child: Row(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: accent,
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: Icon(icon, size: 30, color: onAccent),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        // Not the accent: a coloured paragraph reads as a link
-                        // or an error. The accent's job is state and brand, not
-                        // body copy.
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      description,
-                      style: const TextStyle(fontSize: 13, height: 1.3),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: colorScheme.onSurface.withOpacity(0.4),
-                size: 20,
-              ),
-            ],
-          ),
-        ),
+  /// Two comparable choices. On TV they sit side by side: this is a binary
+  /// decision, and stacking two 860dp-wide rows — each with ~450dp of dead space
+  /// and a touch-only chevron — made the user read three lines to make it. The
+  /// long description now appears only under the focused card (the Google TV
+  /// "contextual detail" pattern) instead of being duplicated on both.
+  Widget _buildTypeChoices(BuildContext context, ColorScheme colorScheme) {
+    final tv = ResponsiveHelper.isDesktopOrTV(context);
+    final xtream = _TypeChoice(
+      title: 'Xtream Codes',
+      support: context.loc.xtream_code_title,
+      icon: Icons.stream,
+      accent: colorScheme.primary,
+      onAccent: colorScheme.onPrimary,
+      autofocus: tv,
+      wide: !tv,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => NewXtreamCodePlaylistScreen()),
       ),
+    );
+    final m3u = _TypeChoice(
+      title: 'M3U Playlist',
+      support: context.loc.m3u_playlist_title,
+      icon: Icons.playlist_play,
+      accent: colorScheme.tertiary,
+      onAccent: colorScheme.onTertiary,
+      wide: !tv,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => NewM3uPlaylistScreen()),
+      ),
+    );
+
+    if (!tv) {
+      return Column(
+        children: [xtream, const SizedBox(height: 20), m3u],
+      );
+    }
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: xtream),
+          const SizedBox(width: 24),
+          Expanded(child: m3u),
+        ],
       ),
     );
   }
+
+}
+
+/// One of the two playlist-type choices.
+class _TypeChoice extends StatefulWidget {
+  const _TypeChoice({
+    required this.title,
+    required this.support,
+    required this.icon,
+    required this.accent,
+    required this.onAccent,
+    required this.onTap,
+    this.autofocus = false,
+    this.wide = false,
+  });
+
+  final String title;
+  final String support;
+  final IconData icon;
+  final Color accent;
+  final Color onAccent;
+  final VoidCallback onTap;
+  final bool autofocus;
+
+  /// Phone layout: full-width row with the icon beside the text.
+  final bool wide;
+
+  @override
+  State<_TypeChoice> createState() => _TypeChoiceState();
+}
+
+class _TypeChoiceState extends State<_TypeChoice> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final tv = ResponsiveHelper.isDesktopOrTV(context);
+
+    final content = Padding(
+      padding: EdgeInsets.all(tv ? 24 : 20),
+      child: widget.wide
+          ? Row(children: [_icon(), const SizedBox(width: 20), Expanded(child: _text(colorScheme, tv))])
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [_icon(), const SizedBox(height: 16), _text(colorScheme, tv)],
+            ),
+    );
+
+    return FocusHighlight(
+      borderRadius: BorderRadius.circular(16),
+      child: Card(
+        elevation: 0,
+        color: colorScheme.surfaceContainerHigh,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onFocusChange: (f) {
+            if (f != _focused) setState(() => _focused = f);
+          },
+          child: InkWell(
+            onTap: widget.onTap,
+            autofocus: widget.autofocus,
+            borderRadius: BorderRadius.circular(16),
+            // No chevron: ">" is a touch convention meaning "swipe to detail".
+            // On a remote it carries no meaning and just adds visual noise.
+            child: content,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _icon() => Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: widget.accent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(widget.icon, size: 32, color: widget.onAccent),
+      );
+
+  Widget _text(ColorScheme colorScheme, bool tv) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            widget.title,
+            style: TextStyle(
+              fontFamily: 'Bricolage Grotesque',
+              fontSize: tv ? 24 : 20,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            widget.support,
+            style: TextStyle(
+              fontSize: tv ? 16 : 14,
+              color: colorScheme.onSurfaceVariant,
+              height: 1.3,
+            ),
+          ),
+        ],
+      );
 }
