@@ -190,7 +190,11 @@ class _RensiPosterState extends State<RensiPoster> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                RensiKeyArt(item: item),
+                // titleScale 0 when the tile itself will print the title:
+                // otherwise the generated fallback art draws it centred in grey
+                // AND the meta overlay draws it again in white, so the focused
+                // card shows the same words twice.
+                RensiKeyArt(item: item, titleScale: showMeta ? 0 : 1),
                 if (showMeta || tag != null)
                   const DecoratedBox(decoration: BoxDecoration(gradient: _scrim)),
                 if (tag != null)
