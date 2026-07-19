@@ -167,7 +167,6 @@ void main() {
     );
     await _loadFont('Bricolage Grotesque', 'assets/fonts/BricolageGrotesque.ttf');
     await _loadFont('Hanken Grotesk', 'assets/fonts/HankenGrotesk.ttf');
-    await _loadFont('BabaPro', 'assets/fonts/BabaPro-Bold.ttf');
     await _loadMaterialIcons();
   });
 

@@ -164,12 +164,18 @@ Future<void> settle(WidgetTester tester,
 }
 
 /// Pump a real screen inside the app shell at the given surface size.
+///
+/// Pass `size: null` when running on a real device/emulator: overriding the
+/// surface would render at the harness's synthetic size instead of the screen's
+/// own, and every capture would come out at the wrong resolution.
 Future<void> pumpScreen(WidgetTester tester, Widget home,
-    {Size size = tvSize}) async {
-  tester.view.physicalSize = size;
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
+    {Size? size = tvSize}) async {
+  if (size != null) {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+  }
   await tester.pumpWidget(_appShell(home));
   await settle(tester);
 }
@@ -259,7 +265,6 @@ Future<void> loadFonts() async {
 
   await load('Bricolage Grotesque', 'assets/fonts/BricolageGrotesque.ttf');
   await load('Hanken Grotesk', 'assets/fonts/HankenGrotesk.ttf');
-  await load('BabaPro', 'assets/fonts/BabaPro-Bold.ttf');
   final root = Platform.environment['FLUTTER_ROOT'] ??
       '/tmp/claude-1000/-workspace-rensi-iptv/aad59248-3ca7-4d7f-93cd-0334958c2000/scratchpad/flutter-sdk';
   final icons =
