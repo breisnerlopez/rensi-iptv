@@ -36,6 +36,13 @@ class RedesignHome extends StatelessWidget {
   final void Function(CategoryViewModel)? onSeeAll;
   final Widget? playlistSwitcher;
 
+  /// Number of category rails actually CONSTRUCTED (not just mounted). With the
+  /// lazy ListView.builder only near-viewport rows build; the old eager
+  /// ListView(children:) built every category's widgets on each build. Lets a
+  /// test prove the deferral (element-mount counts wouldn't distinguish them).
+  @visibleForTesting
+  static int debugRailBuilds = 0;
+
   static String _railTitle(BuildContext context, CategoryViewModel c) {
     if (!isAllCategorySentinel(c.category.categoryId)) {
       return c.category.categoryName;
@@ -69,111 +76,164 @@ class RedesignHome extends StatelessWidget {
     final tv = ResponsiveHelper.isDesktopOrTV(context);
     final posterW = tv ? 168.0 : 138.0;
     final sidePad = tv ? 48.0 : 20.0;
-    final rails = <Widget>[];
 
-    if (continueItems.isNotEmpty) {
-      rails
-        ..add(SectionHeader(title: context.loc.history, sidePad: sidePad))
-        ..add(_ContinueRail(items: continueItems, onPlay: onPlay))
-        ..add(const SizedBox(height: 26));
-    }
-
+    // Category rows are built lazily by the outer ListView.builder (only those
+    // near the viewport) instead of materializing SectionHeader + RensiRail + 18
+    // poster configs for EVERY category on each build. On a large catalogue
+    // (50+ categories) that upfront construction was a build-time spike on
+    // entering Inicio. Element-level laziness (and thus D-pad focus traversal)
+    // is unchanged — only widget-config construction is deferred.
+    final cats = <CategoryViewModel>[
+      for (final c in movieCategories)
+        if (c.contentItems.isNotEmpty) c,
+      for (final c in seriesCategories)
+        if (c.contentItems.isNotEmpty) c,
+    ];
     // With no hero (e.g. a live-only playlist has no movie to feature), the
     // first content poster must take focus so the remote lands on something.
-    var fallbackFocus = tv && hero == null;
-    void addRails(List<CategoryViewModel> cats) {
-      for (final c in cats) {
-        if (c.contentItems.isEmpty) continue;
-        final items = c.contentItems.take(18).toList();
-        // Only surface "Ver todo" when there's more than the rail shows, so the
-        // extra content past 18 is actually reachable (was silently truncated).
-        final hasMore = onSeeAll != null && c.contentItems.length > items.length;
-        rails
-          ..add(SectionHeader(
-            title: _railTitle(context, c),
-            sidePad: sidePad,
-            actionLabel: hasMore ? context.loc.see_all : null,
-            onAction: hasMore ? () => onSeeAll!(c) : null,
-          ))
-          ..add(RensiRail(
-            sidePadding: sidePad,
-            posterWidth: posterW,
-            children: [
-              for (var i = 0; i < items.length; i++)
-                RensiPoster(
-                  item: items[i],
-                  width: posterW,
-                  autofocus: fallbackFocus && i == 0,
-                  onTap: () => onOpen(items[i]),
-                ),
-            ],
-          ))
-          ..add(SizedBox(height: tv ? 34 : 26));
-        fallbackFocus = false; // only the very first rail's first poster
-      }
-    }
+    final noHero = tv && hero == null;
 
-    addRails(movieCategories);
-    addRails(seriesCategories);
+    // Fixed leading items (O(1)); always near the top so eager build is fine.
+    final leading = <Widget>[
+      _TopBar(
+          tv: tv,
+          onSearch: onSearch,
+          onSettings: onSettings,
+          playlistSwitcher: playlistSwitcher),
+      if (hero != null)
+        _Hero(item: hero, onOpen: onOpen, onPlay: onPlay, tv: tv),
+      const SizedBox(height: 8),
+      if (continueItems.isNotEmpty) ...[
+        SectionHeader(title: context.loc.history, sidePad: sidePad),
+        _ContinueRail(items: continueItems, onPlay: onPlay),
+        const SizedBox(height: 26),
+      ],
+    ];
+
+    final showEmpty = cats.isEmpty && continueItems.isEmpty;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         bottom: false,
-        child: ListView(
-        padding: const EdgeInsets.only(bottom: 18),
-        children: [
-          _TopBar(
-              tv: tv,
-              onSearch: onSearch,
-              onSettings: onSettings,
-              playlistSwitcher: playlistSwitcher),
-          if (hero != null)
-            _Hero(item: hero, onOpen: onOpen, onPlay: onPlay, tv: tv),
-          const SizedBox(height: 8),
-          ...rails,
-          if (rails.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.movie_filter_outlined,
-                        size: 56, color: r.text3),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No hay películas ni series en esta lista todavía.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: tv ? 20 : 16,
-                          fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Usa "En vivo" en el menú para ver canales, o busca contenido.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: r.text3, fontSize: tv ? 15 : 13),
-                    ),
-                    const SizedBox(height: 20),
-                    // Always a focusable target so the remote lands somewhere.
-                    FocusHighlight(
-                      borderRadius: BorderRadius.circular(14),
-                      child: FilledButton.icon(
-                        autofocus: tv,
-                        onPressed: onSearch,
-                        icon: const Icon(Icons.search),
-                        label: const Text('Buscar'),
+        child: ListView.builder(
+          padding: const EdgeInsets.only(bottom: 18),
+          itemCount: leading.length + (showEmpty ? 1 : cats.length),
+          itemBuilder: (context, index) {
+            if (index < leading.length) return leading[index];
+            if (showEmpty) {
+              return Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.movie_filter_outlined,
+                          size: 56, color: r.text3),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No hay películas ni series en esta lista todavía.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: tv ? 20 : 16,
+                            fontWeight: FontWeight.w700),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Text(
+                        'Usa "En vivo" en el menú para ver canales, o busca contenido.',
+                        textAlign: TextAlign.center,
+                        style:
+                            TextStyle(color: r.text3, fontSize: tv ? 15 : 13),
+                      ),
+                      const SizedBox(height: 20),
+                      // Always a focusable target so the remote lands somewhere.
+                      FocusHighlight(
+                        borderRadius: BorderRadius.circular(14),
+                        child: FilledButton.icon(
+                          autofocus: tv,
+                          onPressed: onSearch,
+                          icon: const Icon(Icons.search),
+                          label: const Text('Buscar'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
-        ],
+              );
+            }
+            final i = index - leading.length;
+            return _CategoryRail(
+              category: cats[i],
+              posterWidth: posterW,
+              sidePad: sidePad,
+              tv: tv,
+              onOpen: onOpen,
+              onSeeAll: onSeeAll,
+              autofocusFirst: noHero && i == 0,
+            );
+          },
         ),
       ),
+    );
+  }
+}
+
+/// One home rail (header + horizontal posters + spacing) as a single widget so
+/// the outer ListView.builder can defer its construction until it's near the
+/// viewport. Same output as the old inline per-category block.
+class _CategoryRail extends StatelessWidget {
+  const _CategoryRail({
+    required this.category,
+    required this.posterWidth,
+    required this.sidePad,
+    required this.tv,
+    required this.onOpen,
+    required this.onSeeAll,
+    required this.autofocusFirst,
+  });
+
+  final CategoryViewModel category;
+  final double posterWidth;
+  final double sidePad;
+  final bool tv;
+  final void Function(ContentItem) onOpen;
+  final void Function(CategoryViewModel)? onSeeAll;
+  final bool autofocusFirst;
+
+  @override
+  Widget build(BuildContext context) {
+    RedesignHome.debugRailBuilds++; // instrumentation for the deferral test
+    final items = category.contentItems.take(18).toList();
+    // Only surface "Ver todo" when there's more than the rail shows, so the
+    // extra content past 18 is actually reachable (was silently truncated).
+    final hasMore =
+        onSeeAll != null && category.contentItems.length > items.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: RedesignHome._railTitle(context, category),
+          sidePad: sidePad,
+          actionLabel: hasMore ? context.loc.see_all : null,
+          onAction: hasMore ? () => onSeeAll!(category) : null,
+        ),
+        RensiRail(
+          sidePadding: sidePad,
+          posterWidth: posterWidth,
+          children: [
+            for (var i = 0; i < items.length; i++)
+              RensiPoster(
+                item: items[i],
+                width: posterWidth,
+                autofocus: autofocusFirst && i == 0,
+                onTap: () => onOpen(items[i]),
+              ),
+          ],
+        ),
+        SizedBox(height: tv ? 34 : 26),
+      ],
     );
   }
 }

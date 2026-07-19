@@ -22,11 +22,28 @@ class RensiKeyArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (item.imagePath.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: item.imagePath,
-        fit: fit,
-        placeholder: (_, __) => _fallback(context),
-        errorWidget: (_, __, ___) => _fallback(context),
+      // Decode posters at the slot's physical size, not full source resolution.
+      // IPTV posters ship at ~600x900–1000x1500; decoding those full-res into a
+      // ~190dp tile blows the ImageCache (100MB) on a TV box, causing re-decode
+      // thrashing + GC pauses = the classic scroll stutter. memCacheWidth caps
+      // the decode to the display width (aspect preserved). Same pattern already
+      // used in global_search_screen.dart / m3u_items_screen.dart.
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          // devicePixelRatioOf (not MediaQuery.of) so a poster doesn't rebuild on
+          // unrelated MediaQuery changes (keyboard insets, textScale, orientation).
+          final dpr = MediaQuery.devicePixelRatioOf(context);
+          final w = (constraints.maxWidth.isFinite ? constraints.maxWidth : 200) * dpr;
+          final cw = w.round();
+          return CachedNetworkImage(
+            imageUrl: item.imagePath,
+            fit: fit,
+            // Guard the degenerate 0-width layout (would be an invalid decode size).
+            memCacheWidth: cw > 0 ? cw : null,
+            placeholder: (_, __) => _fallback(context),
+            errorWidget: (_, __, ___) => _fallback(context),
+          );
+        },
       );
     }
     return _fallback(context);
