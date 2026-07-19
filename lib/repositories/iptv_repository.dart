@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' hide Category;
 import 'package:http/http.dart' as http;
 import 'package:rensi_iptv/database/database.dart';
 import 'package:rensi_iptv/models/api_configuration_model.dart';
+import 'package:rensi_iptv/models/epg_entry.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
 import 'package:rensi_iptv/models/api_response.dart';
 import 'package:rensi_iptv/models/category.dart';
@@ -93,6 +94,42 @@ class IptvRepository {
     } catch (e) {
       _logError('Player Info', e);
       return null;
+    }
+  }
+
+  /// Short EPG for one channel: what is on now and what follows.
+  ///
+  /// `get_short_epg` is per-stream, so this is deliberately narrow — fetching a
+  /// full guide for a 5000-channel playlist would be thousands of requests. The
+  /// caller asks only for the channels it is about to show.
+  Future<List<EpgEntry>> getShortEpg(String streamId, {int limit = 4}) async {
+    try {
+      final response = await _makeRequest(
+        'player_api.php',
+        additionalParams: {
+          'action': 'get_short_epg',
+          'stream_id': streamId,
+          'limit': '$limit',
+        },
+      );
+      if (response.statusCode != 200) return const [];
+
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      // Panels disagree on the envelope: some return {"epg_listings": [...]},
+      // others the bare list.
+      final list = decoded is Map
+          ? (decoded['epg_listings'] as List? ?? const [])
+          : (decoded as List? ?? const []);
+
+      return list
+          .whereType<Map<String, dynamic>>()
+          .map((e) => EpgEntry.fromJson(e, streamId))
+          .whereType<EpgEntry>()
+          .toList()
+        ..sort((a, b) => a.start.compareTo(b.start));
+    } catch (e) {
+      _logError('getShortEpg', e);
+      return const [];
     }
   }
 

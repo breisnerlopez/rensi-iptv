@@ -7,12 +7,15 @@ import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/services/epg_service.dart';
+import 'package:rensi_iptv/widgets/live/now_playing_line.dart';
 
 /// "En vivo" — channel rows (logo + name + category) grouped by category
 /// chips. The backend doesn't expose now/next EPG for this provider, so the
 /// rows show the channel + live badge instead of a programme guide.
 class LiveRedesign extends StatefulWidget {
   const LiveRedesign({
+    this.epgService,
     super.key,
     required this.liveCategories,
     required this.onPlay,
@@ -20,6 +23,11 @@ class LiveRedesign extends StatefulWidget {
 
   final List<CategoryViewModel> liveCategories;
   final void Function(ContentItem) onPlay;
+
+  /// When present, each row shows what is on now and how far through it is.
+  /// Optional so the screen still renders for M3U playlists, which have no
+  /// Xtream panel to ask.
+  final EpgService? epgService;
 
   @override
   State<LiveRedesign> createState() => _LiveRedesignState();
@@ -135,6 +143,7 @@ class _LiveRedesignState extends State<LiveRedesign> {
                       itemCount: channels.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 11),
                       itemBuilder: (_, i) => _ChannelRow(
+                        epgService: widget.epgService,
                         item: channels[i],
                         index: i,
                         autofocus: i == 0,
@@ -155,11 +164,13 @@ class _ChannelRow extends StatelessWidget {
     required this.index,
     required this.onTap,
     this.autofocus = false,
+    this.epgService,
   });
   final ContentItem item;
   final int index;
   final VoidCallback onTap;
   final bool autofocus;
+  final EpgService? epgService;
 
   @override
   Widget build(BuildContext context) {
@@ -238,16 +249,24 @@ class _ChannelRow extends StatelessWidget {
                                   fontWeight: FontWeight.w700),
                             ),
                           ),
-                          Text('● EN VIVO',
-                              style: TextStyle(
-                                  fontSize: AppThemes.labelSize,
-                                  fontWeight: FontWeight.w700,
-                                  color: r.live)),
+                          // The per-row "EN VIVO" badge was removed: in a list
+                          // where every item is live it discriminated nothing,
+                          // used different wording from the header, and was the
+                          // only saturated colour on screen five times over.
+                          // Its space now carries what is actually on.
                         ],
                       ),
-                      // No fake progress bar: without real EPG now/next data a
-                      // fixed 50% bar just misleads (every channel looked
-                      // half-watched). The "● EN VIVO" badge above is enough.
+                      // Real EPG now, so the progress bar means something. A
+                      // previous version rejected a fixed 50% bar for exactly
+                      // the right reason: without data it made every channel
+                      // look half-watched. NowPlayingLine renders nothing when
+                      // the panel has no usable listing, so a channel without
+                      // EPG still looks like one.
+                      if (epgService != null)
+                        NowPlayingLine(
+                          streamId: item.id,
+                          service: epgService!,
+                        ),
                     ],
                   ),
                 ),
