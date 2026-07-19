@@ -23,6 +23,7 @@ import 'package:rensi_iptv/redesign/search_redesign.dart';
 
 import '../../services/app_state.dart';
 import '../watch_history_screen.dart';
+import 'package:rensi_iptv/widgets/tv/navigation_models.dart';
 
 class M3UHomeScreen extends StatefulWidget {
   final Playlist playlist;
@@ -551,35 +552,4 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
   }
 }
 
-class NavigationItem {
-  /// Filled variant, shown when this section is the active one.
-  final IconData icon;
 
-  /// Outlined variant for the inactive state. Outline-vs-fill is the state
-  /// reinforcement the rail was missing — before, five items mixed filled and
-  /// outlined glyphs arbitrarily, so weight carried no meaning.
-  final IconData iconOutlined;
-  final String label;
-  final int index;
-
-  const NavigationItem({
-    required this.icon,
-    required this.iconOutlined,
-    required this.label,
-    required this.index,
-  });
-
-  IconData resolve(bool isSelected) => isSelected ? icon : iconOutlined;
-}
-
-class NavigationSizes {
-  final double itemHeight;
-  final double iconSize;
-  final double fontSize;
-
-  const NavigationSizes({
-    required this.itemHeight,
-    required this.iconSize,
-    required this.fontSize,
-  });
-}

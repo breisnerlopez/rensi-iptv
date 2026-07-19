@@ -100,8 +100,7 @@ class AppThemes {
   /// Darker accent for FILLED buttons, which carry text. `#FFF5F0` on [_accent]
   /// measures 3.81:1 — under the 4.5:1 WCAG AA needs for normal text — while on
   /// this it is 4.99:1. [_accent] stays for icons and large shapes, which only
-  /// need 3:1. (Chips are NOT covered: chipTheme.selectedColor still uses
-  /// [_accent] with large-ish label text.)
+  /// need 3:1. Also used by selected chips, whose labels are normal-size text.
   static const Color _accentInk = Color(0xFFB04C2E);
   static const Color _accent2 = Color(0xFFDA8A56); // accent 72% + warm gold
   static const Color _onAccent = Color(0xFFFFF5F0);
@@ -116,14 +115,18 @@ class AppThemes {
   static const Color _dBg = Color(0xFF0C0A09);
   static const Color _dSurface = Color(0xFF17130F);
   static const Color _dSurface2 = Color(0xFF221D18);
-  static const Color _dSurface3 = Color(0xFF2D2721);
+  // Slightly lighter than the first warm retint: that pass dropped the
+  // card-vs-background separation from 1.091 to 1.069, flattening borders that
+  // were already subtle at 3m. This restores it without going back to cold.
+  static const Color _dSurface3 = Color(0xFF332C25);
   static const Color _dText = Color(0xFFF3F1EE);
   static const Color _dText2 = Color(0xFFB9B2A8);
-  // Was #76747E at 4.28:1 on the background — under AA. #8A8175 measures
-  // 5.16:1 on bg and 4.82:1 on surface. NOTE: on surface2 (4.36:1) and
-  // surface3 (3.85:1) it still falls short; those pairings need either a
-  // lighter token or larger type.
-  static const Color _dText3 = Color(0xFF8A8175);
+  // Passes AA (4.5:1) against EVERY surface in the ramp, not just the
+  // background: bg 6.61, surface 6.18, surface2 5.59, surface3 4.60. Two
+  // earlier attempts failed — #76747E was 4.28:1 even on the background, and
+  // #968D81 passed only until surface3 was lightened, which is why
+  // test/utils/contrast_test.dart checks the whole ramp instead of one pair.
+  static const Color _dText3 = Color(0xFF9D9488);
 
   // ---- Light tokens ----
   static const Color _lBg = Color(0xFFF4F1EC);
@@ -132,7 +135,9 @@ class AppThemes {
   static const Color _lSurface3 = Color(0xFFE8E2D8);
   static const Color _lText = Color(0xFF1B1813);
   static const Color _lText2 = Color(0xFF59534B);
-  static const Color _lText3 = Color(0xFF908A80);
+  // Was #908A80 at 3.04:1 on the light background — well under AA. The dark
+  // theme's contrast pass had skipped the light one entirely.
+  static const Color _lText3 = Color(0xFF726C62);
 
   static final ThemeData darkTheme = _build(Brightness.dark);
   static final ThemeData lightTheme = _build(Brightness.light);
@@ -262,7 +267,8 @@ class AppThemes {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: surface2,
-        selectedColor: _accent,
+        // Chip labels are normal-size text, so they need the AA-safe accent.
+        selectedColor: _accentInk,
         side: BorderSide(color: hairline),
         labelStyle: TextStyle(color: text2, fontFamily: _uiFont),
         shape: const StadiumBorder(),
