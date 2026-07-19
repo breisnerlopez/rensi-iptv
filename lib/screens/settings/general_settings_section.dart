@@ -29,6 +29,7 @@ import '../m3u/m3u_data_loader_screen.dart';
 import '../playlist_screen.dart';
 import '../xtream-codes/xtream_code_data_loader_screen.dart';
 import 'category_settings_section.dart';
+import 'package:rensi_iptv/widgets/tv/tv_field_traversal.dart';
 
 final controller = XtreamCodeHomeController(true);
 
@@ -307,7 +308,7 @@ String _videoDecoder = 'auto';
                   children: [
                     Text(subtitle),
                     const SizedBox(height: 12),
-                    TextField(
+                    TvFieldTraversal(child: TextField(
                       controller: controller,
                       autofocus: true,
                       obscureText: true,
@@ -325,10 +326,10 @@ String _videoDecoder = 'auto';
                         labelText: context.loc.backup_passphrase_field,
                         errorText: errorText,
                       ),
-                    ),
+                    )),
                     if (requireConfirm) ...[
                       const SizedBox(height: 8),
-                      TextField(
+                      TvFieldTraversal(child: TextField(
                         controller: confirmController,
                         focusNode: confirmNode,
                         obscureText: true,
@@ -337,7 +338,7 @@ String _videoDecoder = 'auto';
                         decoration: InputDecoration(
                           labelText: context.loc.backup_passphrase_confirm,
                         ),
-                      ),
+                      )),
                       const SizedBox(height: 8),
                       Text(
                         context.loc.backup_plain_warning,
@@ -552,7 +553,7 @@ String _videoDecoder = 'auto';
                                 else
                                   Text(context.loc.tmdb_credential_missing),
                                 const SizedBox(height: 8),
-                                TextField(
+                                TvFieldTraversal(child: TextField(
                                   obscureText: true,
                                   textInputAction: TextInputAction.done,
                                   onChanged: (v) => _tmdbToken = v,
@@ -563,7 +564,7 @@ String _videoDecoder = 'auto';
                                     labelText:
                                         context.loc.tmdb_credential_field_label,
                                   ),
-                                ),
+                                )),
                                 const SizedBox(height: 8),
                                 Align(
                                   alignment: Alignment.centerRight,
