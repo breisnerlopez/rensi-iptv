@@ -214,10 +214,10 @@ class NewXtreamCodePlaylistScreenState
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: colorScheme.outline),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
+            // No local focusedBorder: the theme owns the focus ring, and this
+            // override painted it orange while every other screen used the
+            // white one — the single convention a remote user has to learn.
+            
             filled: true,
             fillColor: colorScheme.surface,
           ),
@@ -275,10 +275,10 @@ class NewXtreamCodePlaylistScreenState
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: colorScheme.outline),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
+            // No local focusedBorder: the theme owns the focus ring, and this
+            // override painted it orange while every other screen used the
+            // white one — the single convention a remote user has to learn.
+            
             filled: true,
             fillColor: colorScheme.surface,
           ),
@@ -338,10 +338,10 @@ class NewXtreamCodePlaylistScreenState
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: colorScheme.outline),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
+            // No local focusedBorder: the theme owns the focus ring, and this
+            // override painted it orange while every other screen used the
+            // white one — the single convention a remote user has to learn.
+            
             filled: true,
             fillColor: colorScheme.surface,
           ),
@@ -414,10 +414,10 @@ class NewXtreamCodePlaylistScreenState
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: colorScheme.outline),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
+            // No local focusedBorder: the theme owns the focus ring, and this
+            // override painted it orange while every other screen used the
+            // white one — the single convention a remote user has to learn.
+            
             filled: true,
             fillColor: colorScheme.surface,
           ),

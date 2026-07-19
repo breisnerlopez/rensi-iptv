@@ -1233,4 +1233,20 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get nav_settings => 'Ayarlar';
+
+  @override
+  String get empty_list_title => 'Listeniz boş';
+
+  @override
+  String get empty_list_body => 'Listenize başlık ekleyin, burada bulun.';
+
+  @override
+  String get action_browse_catalogue => 'Kataloğa göz at';
+
+  @override
+  String get empty_history_title => 'Henüz bir şey izlemediniz';
+
+  @override
+  String get empty_history_body =>
+      'İzledikleriniz burada görünür, kaldığınız yerden devam edin.';
 }

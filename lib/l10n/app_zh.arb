@@ -485,5 +485,10 @@
   "nav_live": "直播",
   "nav_my_list": "我的列表",
   "onboarding_requirements_hint": "你需要 IPTV 供应商提供的网址或登录信息",
-  "nav_settings": "设置"
+  "nav_settings": "设置",
+  "empty_list_title": "你的列表是空的",
+  "empty_list_body": "把片名加入列表后可在此找到。",
+  "action_browse_catalogue": "浏览片库",
+  "empty_history_title": "还没有观看记录",
+  "empty_history_body": "你观看的内容会显示在这里，方便继续观看。"
 }

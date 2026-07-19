@@ -485,5 +485,10 @@
   "nav_live": "लाइव",
   "nav_my_list": "मेरी सूची",
   "onboarding_requirements_hint": "आपको अपने IPTV प्रदाता का URL या लॉगिन विवरण चाहिए होगा",
-  "nav_settings": "सेटिंग"
+  "nav_settings": "सेटिंग",
+  "empty_list_title": "आपकी सूची खाली है",
+  "empty_list_body": "सूची में शीर्षक जोड़ें और उन्हें यहाँ पाएँ।",
+  "action_browse_catalogue": "कैटलॉग ब्राउज़ करें",
+  "empty_history_title": "अभी तक कुछ नहीं देखा",
+  "empty_history_body": "आप जो देखेंगे वह यहाँ दिखेगा ताकि आप जारी रख सकें।"
 }

@@ -1246,4 +1246,21 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get nav_settings => 'Réglages';
+
+  @override
+  String get empty_list_title => 'Votre liste est vide';
+
+  @override
+  String get empty_list_body =>
+      'Ajoutez des titres à votre liste et retrouvez-les ici.';
+
+  @override
+  String get action_browse_catalogue => 'Parcourir le catalogue';
+
+  @override
+  String get empty_history_title => 'Rien de visionné pour l’instant';
+
+  @override
+  String get empty_history_body =>
+      'Ce que vous regardez apparaîtra ici pour reprendre plus tard.';
 }

@@ -485,5 +485,10 @@
   "nav_live": "Эфир",
   "nav_my_list": "Мой список",
   "onboarding_requirements_hint": "Понадобится URL или данные для входа от вашего IPTV-провайдера",
-  "nav_settings": "Настройки"
+  "nav_settings": "Настройки",
+  "empty_list_title": "Ваш список пуст",
+  "empty_list_body": "Добавьте названия в список — они появятся здесь.",
+  "action_browse_catalogue": "Открыть каталог",
+  "empty_history_title": "Пока ничего не просмотрено",
+  "empty_history_body": "Просмотренное появится здесь, чтобы продолжить."
 }

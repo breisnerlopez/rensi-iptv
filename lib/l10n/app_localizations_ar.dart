@@ -1232,4 +1232,19 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get nav_settings => 'الإعدادات';
+
+  @override
+  String get empty_list_title => 'قائمتك فارغة';
+
+  @override
+  String get empty_list_body => 'أضف عناوين إلى قائمتك وستجدها هنا.';
+
+  @override
+  String get action_browse_catalogue => 'تصفح الكتالوج';
+
+  @override
+  String get empty_history_title => 'لم تشاهد شيئًا بعد';
+
+  @override
+  String get empty_history_body => 'ما تشاهده سيظهر هنا لتتابعه لاحقًا.';
 }

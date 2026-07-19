@@ -454,3 +454,97 @@ class RensiSafeColumn extends StatelessWidget {
     );
   }
 }
+
+/// The one empty state.
+///
+/// The app had three grammars for the same idea: Onboarding used a 128dp tinted
+/// squircle with a 40dp title and two buttons; My List a 64dp rounded container
+/// with a bold white title; History a bare grey icon with a regular-weight
+/// title in the body font and no page header at all. Three designs, none derived
+/// from the others, which is what makes an app read as assembled rather than
+/// designed.
+///
+/// [action] is required on purpose. My List and History were dead ends: on a
+/// 10-foot screen neither had a single focusable element, so a remote user
+/// arrived and had nothing to press. An empty state that only informs is a
+/// screen the user has to escape from.
+class RensiEmptyState extends StatelessWidget {
+  const RensiEmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.actionLabel,
+    required this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final String actionLabel;
+  final VoidCallback onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = rensi(context);
+    final tv = ResponsiveHelper.isDesktopOrTV(context);
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: r.surface2,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, size: 40, color: r.text2),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Bricolage Grotesque',
+                fontSize: AppThemes.h3Size,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.4,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: tv ? AppThemes.bodySize : AppThemes.bodySmallSize,
+                height: 1.4,
+                color: r.text3,
+              ),
+            ),
+            const SizedBox(height: 28),
+            FocusHighlight(
+              borderRadius: BorderRadius.circular(12),
+              child: FilledButton(
+                onPressed: onAction,
+                autofocus: tv,
+                style: FilledButton.styleFrom(
+                  minimumSize: Size(0, tv ? 56 : 48),
+                  padding: const EdgeInsets.symmetric(horizontal: 28),
+                ),
+                child: Text(actionLabel,
+                    style: TextStyle(
+                        fontSize: tv
+                            ? AppThemes.bodySize
+                            : AppThemes.bodySmallSize,
+                        fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

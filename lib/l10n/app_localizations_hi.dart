@@ -1233,4 +1233,20 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get nav_settings => 'सेटिंग';
+
+  @override
+  String get empty_list_title => 'आपकी सूची खाली है';
+
+  @override
+  String get empty_list_body => 'सूची में शीर्षक जोड़ें और उन्हें यहाँ पाएँ।';
+
+  @override
+  String get action_browse_catalogue => 'कैटलॉग ब्राउज़ करें';
+
+  @override
+  String get empty_history_title => 'अभी तक कुछ नहीं देखा';
+
+  @override
+  String get empty_history_body =>
+      'आप जो देखेंगे वह यहाँ दिखेगा ताकि आप जारी रख सकें।';
 }

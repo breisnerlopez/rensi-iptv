@@ -491,5 +491,10 @@
   "nav_live": "Live",
   "nav_my_list": "My List",
   "onboarding_requirements_hint": "You'll need the URL or sign-in details from your IPTV provider",
-  "nav_settings": "Settings"
+  "nav_settings": "Settings",
+  "empty_list_title": "Your list is empty",
+  "empty_list_body": "Add titles to your list and find them here.",
+  "action_browse_catalogue": "Browse catalogue",
+  "empty_history_title": "Nothing watched yet",
+  "empty_history_body": "What you watch will show up here so you can pick it back up."
 }

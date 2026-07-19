@@ -485,5 +485,10 @@
   "nav_live": "Ao vivo",
   "nav_my_list": "Minha lista",
   "onboarding_requirements_hint": "Você vai precisar da URL ou dos dados de acesso do seu provedor IPTV",
-  "nav_settings": "Ajustes"
+  "nav_settings": "Ajustes",
+  "empty_list_title": "Sua lista está vazia",
+  "empty_list_body": "Adicione títulos à sua lista e encontre-os aqui.",
+  "action_browse_catalogue": "Explorar catálogo",
+  "empty_history_title": "Você ainda não assistiu nada",
+  "empty_history_body": "O que você assistir aparecerá aqui para continuar depois."
 }

@@ -1246,4 +1246,20 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get nav_settings => 'Einstellungen';
+
+  @override
+  String get empty_list_title => 'Deine Liste ist leer';
+
+  @override
+  String get empty_list_body => 'Füge Titel hinzu und finde sie hier wieder.';
+
+  @override
+  String get action_browse_catalogue => 'Katalog durchsuchen';
+
+  @override
+  String get empty_history_title => 'Noch nichts gesehen';
+
+  @override
+  String get empty_history_body =>
+      'Was du siehst, erscheint hier zum Weiterschauen.';
 }

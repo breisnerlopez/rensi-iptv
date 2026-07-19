@@ -1191,4 +1191,19 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get nav_settings => '设置';
+
+  @override
+  String get empty_list_title => '你的列表是空的';
+
+  @override
+  String get empty_list_body => '把片名加入列表后可在此找到。';
+
+  @override
+  String get action_browse_catalogue => '浏览片库';
+
+  @override
+  String get empty_history_title => '还没有观看记录';
+
+  @override
+  String get empty_history_body => '你观看的内容会显示在这里，方便继续观看。';
 }

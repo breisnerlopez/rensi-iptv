@@ -1241,4 +1241,21 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get nav_settings => 'Ajustes';
+
+  @override
+  String get empty_list_title => 'Sua lista está vazia';
+
+  @override
+  String get empty_list_body =>
+      'Adicione títulos à sua lista e encontre-os aqui.';
+
+  @override
+  String get action_browse_catalogue => 'Explorar catálogo';
+
+  @override
+  String get empty_history_title => 'Você ainda não assistiu nada';
+
+  @override
+  String get empty_history_body =>
+      'O que você assistir aparecerá aqui para continuar depois.';
 }

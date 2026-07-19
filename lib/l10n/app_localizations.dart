@@ -2351,6 +2351,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settings'**
   String get nav_settings;
+
+  /// No description provided for @empty_list_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Your list is empty'**
+  String get empty_list_title;
+
+  /// No description provided for @empty_list_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Add titles to your list and find them here.'**
+  String get empty_list_body;
+
+  /// No description provided for @action_browse_catalogue.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse catalogue'**
+  String get action_browse_catalogue;
+
+  /// No description provided for @empty_history_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing watched yet'**
+  String get empty_history_title;
+
+  /// No description provided for @empty_history_body.
+  ///
+  /// In en, this message translates to:
+  /// **'What you watch will show up here so you can pick it back up.'**
+  String get empty_history_body;
 }
 
 class _AppLocalizationsDelegate

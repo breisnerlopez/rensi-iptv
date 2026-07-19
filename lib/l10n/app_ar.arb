@@ -485,5 +485,10 @@
   "nav_live": "مباشر",
   "nav_my_list": "قائمتي",
   "onboarding_requirements_hint": "ستحتاج إلى رابط أو بيانات الدخول من مزوّد IPTV الخاص بك",
-  "nav_settings": "الإعدادات"
+  "nav_settings": "الإعدادات",
+  "empty_list_title": "قائمتك فارغة",
+  "empty_list_body": "أضف عناوين إلى قائمتك وستجدها هنا.",
+  "action_browse_catalogue": "تصفح الكتالوج",
+  "empty_history_title": "لم تشاهد شيئًا بعد",
+  "empty_history_body": "ما تشاهده سيظهر هنا لتتابعه لاحقًا."
 }

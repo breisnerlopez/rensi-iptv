@@ -1235,4 +1235,21 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get nav_settings => 'Настройки';
+
+  @override
+  String get empty_list_title => 'Ваш список пуст';
+
+  @override
+  String get empty_list_body =>
+      'Добавьте названия в список — они появятся здесь.';
+
+  @override
+  String get action_browse_catalogue => 'Открыть каталог';
+
+  @override
+  String get empty_history_title => 'Пока ничего не просмотрено';
+
+  @override
+  String get empty_history_body =>
+      'Просмотренное появится здесь, чтобы продолжить.';
 }
