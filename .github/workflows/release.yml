@@ -26,17 +26,19 @@ jobs:
           body: |
             ## 🎉 Rensi IPTV ${{ github.ref_name }}
 
-            Free & open-source IPTV streaming for Windows, macOS, Linux,
-            Android and iOS.
+            Reproductor IPTV para **Android móvil y Android TV** (build de
+            escritorio Linux incluido como extra).
 
-            ### 📥 Downloads
-            Pick the build for your platform below.
+            ### 📥 Descargas
+            - **Android TV / móvil (recomendado)**: `rensi-iptv-android-arm64-v8a-${{ github.ref_name }}.apk`
+            - **Emulador Android / equipos x86_64**: `rensi-iptv-android-x86_64-${{ github.ref_name }}.apk`
+            - **Dispositivos ARM de 32 bits**: `rensi-iptv-android-armeabi-v7a-${{ github.ref_name }}.apk`
+            - **Google Play (bundle)**: `rensi-iptv-android-${{ github.ref_name }}.aab`
+            - **Linux (escritorio)**: `rensi-iptv-linux-${{ github.ref_name }}.zip`
 
-            ### 🔧 Installation
-            - **Windows**: run the `rensi-iptv-windows-setup-${{ github.ref_name }}.exe` installer, or grab the portable zip
-            - **Linux**: extract the zip and run `iptv_player`
-            - **Android**: install the APK
-            - **iOS**: requires a developer account to install (no codesign in CI)
+            ### 🔧 Instalación
+            - **Android TV / móvil**: instala el APK (sideload). En TV, usa el arm64-v8a.
+            - **Linux**: extrae el zip y ejecuta `iptv_player`
 
             ---
             Rensi IPTV is a fork of [bsogulcan/another-iptv-player](https://github.com/bsogulcan/another-iptv-player) — see the repository LICENSE for the dual copyright notice.
@@ -48,54 +50,64 @@ jobs:
           omitNameDuringUpdate: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  build-windows:
-    needs: create-release
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.35.7'
-          channel: 'stable'
-      - name: Install dependencies
-        run: flutter pub get
-      - name: Generate files
-        run: flutter packages pub run build_runner build --delete-conflicting-outputs
-      - name: Build Windows
-        run: flutter build windows
-      - name: Install NSIS
-        run: choco install nsis -y
-      - name: Create Windows Installer
-        shell: pwsh
-        run: |
-          cd windows
-          $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
-          if (!(Test-Path $makensis)) {
-            throw "makensis not found at $makensis"
-          }
-          & $makensis installer.nsi
-
-          if (Test-Path "rensi-iptv-windows-setup.exe") {
-            Move-Item "rensi-iptv-windows-setup.exe" "..\rensi-iptv-windows-setup-${{ github.ref_name }}.exe"
-          } else {
-            throw "Installer file not found!"
-          }
-      - name: Create Windows Installer ZIP
-        run: |
-          7z a rensi-iptv-windows-setup-${{ github.ref_name }}.zip rensi-iptv-windows-setup-${{ github.ref_name }}.exe
-      - name: Create Windows Archive (Portable)
-        run: |
-          cd build/windows/x64/runner/Release
-          7z a ../../../../../rensi-iptv-windows-${{ github.ref_name }}.zip .
-      - name: Upload Windows Release Assets
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ github.ref_name }}
-          artifacts: |
-            rensi-iptv-windows-setup-${{ github.ref_name }}.zip
-            rensi-iptv-windows-${{ github.ref_name }}.zip
-          allowUpdates: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+# build-windows is parked. Windows is NOT a shipping target for Rensi IPTV
+# (the product is Android móvil + Android TV; Linux is a bonus desktop build).
+# The job also breaks on current `windows-latest` runners: Flutter 3.35.7
+# defaults CMake to the "Visual Studio 16 2019" generator, which GitHub's
+# runners no longer ship (they moved to VS 2022), so `flutter build windows`
+# fails at configure with "could not find any instance of Visual Studio". A
+# red Windows job marked the whole release as failed even though the Android
+# APKs uploaded fine. If Windows becomes a target, restore this job and either
+# bump flutter-version to one that defaults to the VS 2022 generator or pass an
+# explicit generator to the build.
+#  build-windows:
+#    needs: create-release
+#    runs-on: windows-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: subosito/flutter-action@v2
+#        with:
+#          flutter-version: '3.35.7'
+#          channel: 'stable'
+#      - name: Install dependencies
+#        run: flutter pub get
+#      - name: Generate files
+#        run: flutter packages pub run build_runner build --delete-conflicting-outputs
+#      - name: Build Windows
+#        run: flutter build windows
+#      - name: Install NSIS
+#        run: choco install nsis -y
+#      - name: Create Windows Installer
+#        shell: pwsh
+#        run: |
+#          cd windows
+#          $makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+#          if (!(Test-Path $makensis)) {
+#            throw "makensis not found at $makensis"
+#          }
+#          & $makensis installer.nsi
+#
+#          if (Test-Path "rensi-iptv-windows-setup.exe") {
+#            Move-Item "rensi-iptv-windows-setup.exe" "..\rensi-iptv-windows-setup-${{ github.ref_name }}.exe"
+#          } else {
+#            throw "Installer file not found!"
+#          }
+#      - name: Create Windows Installer ZIP
+#        run: |
+#          7z a rensi-iptv-windows-setup-${{ github.ref_name }}.zip rensi-iptv-windows-setup-${{ github.ref_name }}.exe
+#      - name: Create Windows Archive (Portable)
+#        run: |
+#          cd build/windows/x64/runner/Release
+#          7z a ../../../../../rensi-iptv-windows-${{ github.ref_name }}.zip .
+#      - name: Upload Windows Release Assets
+#        uses: ncipollo/release-action@v1
+#        with:
+#          tag: ${{ github.ref_name }}
+#          artifacts: |
+#            rensi-iptv-windows-setup-${{ github.ref_name }}.zip
+#            rensi-iptv-windows-${{ github.ref_name }}.zip
+#          allowUpdates: true
+#          token: ${{ secrets.GITHUB_TOKEN }}
 
 #  build-macos:
 #    needs: create-release
