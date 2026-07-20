@@ -5,6 +5,7 @@ import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 
 /// "Explorar" — type tabs (Todo / Películas / Series) + genre chips over a
 /// 3-column poster grid, fed by the real catalogue.
@@ -154,7 +155,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Explorar',
+                  Text(context.loc.nav_browse,
                       style: TextStyle(
                           fontFamily: 'Bricolage Grotesque',
                           fontSize: AppThemes.h2Size,
@@ -221,7 +222,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
             Expanded(
               child: items.isEmpty
                   ? Center(
-                      child: Text('Sin resultados para este filtro',
+                      child: Text(context.loc.no_results_filter,
                           style: TextStyle(color: r.text3)))
                   : GridView.builder(
                       padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 24),

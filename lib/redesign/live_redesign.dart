@@ -9,6 +9,7 @@ import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/services/epg_service.dart';
 import 'package:rensi_iptv/widgets/live/now_playing_line.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 
 /// "En vivo" — channel rows grouped by category chips. When the panel provides
 /// a schedule, each row also shows what is on now and how far through it is
@@ -84,7 +85,7 @@ class _LiveRedesignState extends State<LiveRedesign> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('En vivo',
+                  Text(context.loc.live,
                       style: TextStyle(
                           fontFamily: 'Bricolage Grotesque',
                           fontSize: AppThemes.h2Size,
@@ -106,7 +107,7 @@ class _LiveRedesignState extends State<LiveRedesign> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text('EN DIRECTO',
+                      Text(context.loc.live,
                           style: TextStyle(
                               fontSize: AppThemes.labelSize,
                               fontWeight: FontWeight.w700,
@@ -135,7 +136,7 @@ class _LiveRedesignState extends State<LiveRedesign> {
             Expanded(
               child: channels.isEmpty
                   ? Center(
-                      child: Text('Sin canales',
+                      child: Text(context.loc.no_channels,
                           style: TextStyle(color: r.text3)))
                   // Two columns wherever there is room. One column showed four
                   // channels on a 960dp TV, where Plex and Google TV show 8-12;

@@ -62,13 +62,13 @@ class _ListRedesignState extends State<ListRedesign> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Mi lista',
+                      Text(context.loc.nav_my_list,
                           style: TextStyle(
                               fontFamily: 'Bricolage Grotesque',
                               fontSize: AppThemes.h2Size,
                               fontWeight: FontWeight.w800)),
                       const SizedBox(height: 3),
-                      Text('${items.length} títulos guardados',
+                      Text(context.loc.saved_titles_count(items.length),
                           style: TextStyle(fontSize: AppThemes.bodySmallSize, color: r.text3)),
                     ],
                   ),

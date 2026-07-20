@@ -10,6 +10,7 @@ import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/service_locator.dart';
 import 'package:rensi_iptv/widgets/tv/tv_keyboard.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 
 /// Full-screen global search (redesign). Queries the local catalogue in the
 /// database across live + movies + series — not just the loaded categories —
@@ -117,7 +118,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
           children: [
             Icon(Icons.search, size: 56, color: r.surface3),
             const SizedBox(height: 12),
-            Text('Busca en todo tu catálogo',
+            Text(context.loc.search_catalog_hint,
                 style: TextStyle(color: r.text3, fontSize: AppThemes.labelSize)),
           ],
         ),
@@ -126,7 +127,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
       body = const Center(child: CircularProgressIndicator());
     } else if (_results.isEmpty) {
       body = Center(
-        child: Text('Sin resultados para "$q"',
+        child: Text(context.loc.no_results_for(q),
             style: TextStyle(color: r.text3)),
       );
     } else {
@@ -218,10 +219,10 @@ class _SearchRedesignState extends State<SearchRedesign> {
                               autofocus: !ResponsiveHelper.isDesktopOrTV(context),
                               textInputAction: TextInputAction.search,
                               onChanged: _onChanged,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 border: InputBorder.none,
                                 isCollapsed: true,
-                                hintText: 'Buscar películas, series, canales…',
+                                hintText: context.loc.search_placeholder,
                               ),
                             ),
                           ),

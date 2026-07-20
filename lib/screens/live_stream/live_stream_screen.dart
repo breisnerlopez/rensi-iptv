@@ -114,7 +114,7 @@ class _LiveStreamScreenState extends State<LiveStreamScreen> {
     if (!allContentsLoaded) {
       return Scaffold(
         backgroundColor: Colors.black,
-        body: SafeArea(child: buildFullScreenLoadingWidget()),
+        body: SafeArea(child: buildFullScreenLoadingWidget(context)),
       );
     }
 
