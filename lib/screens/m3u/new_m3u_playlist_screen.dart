@@ -524,7 +524,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
             padding: EdgeInsets.only(top: 8),
             child: Text(
               context.loc.please_select_m3u_file,
-              style: TextStyle(color: colorScheme.error, fontSize: 12),
+              style: TextStyle(color: colorScheme.error, fontSize: AppThemes.tenFoot(context, 12)),
             ),
           ),
       ],
@@ -664,7 +664,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
             context.loc.m3u_info_message,
             style: TextStyle(
               color: colorScheme.onPrimaryContainer,
-              fontSize: 13,
+              fontSize: AppThemes.tenFoot(context, 13),
               height: 1.4,
             ),
           ),

@@ -712,6 +712,68 @@ class AppLocalizationsAr extends AppLocalizations {
       'هل أنت متأكد من أنك تريد حذف كل سجل المشاهدة؟';
 
   @override
+  String get resume_failed => 'لم يعد هذا العنوان متاحًا في هذه القائمة';
+
+  @override
+  String get home_empty_title => 'لا توجد أفلام أو مسلسلات في هذه القائمة بعد.';
+
+  @override
+  String get home_empty_hint =>
+      'استخدم “مباشر” من القائمة لمشاهدة القنوات، أو ابحث عن محتوى.';
+
+  @override
+  String get loading => 'جارٍ التحميل...';
+
+  @override
+  String get greeting_morning => 'صباح الخير';
+
+  @override
+  String get greeting_afternoon => 'مساء الخير';
+
+  @override
+  String get greeting_evening => 'مساء الخير';
+
+  @override
+  String get featured_today => 'المميز اليوم';
+
+  @override
+  String get search_catalog_hint => 'ابحث في كامل الكتالوج';
+
+  @override
+  String get search_placeholder => 'ابحث عن أفلام ومسلسلات وقنوات…';
+
+  @override
+  String get no_channels => 'لا توجد قنوات';
+
+  @override
+  String get no_results_filter => 'لا نتائج لهذا المرشّح';
+
+  @override
+  String get preferred_audio => 'الصوت المفضّل';
+
+  @override
+  String get preferred_subtitles => 'الترجمات المفضّلة';
+
+  @override
+  String get decoder_applies_next_video => 'يُطبَّق عند فتح الفيديو التالي';
+
+  @override
+  String no_results_for(String query) {
+    return 'لا نتائج لـ \"$query\"';
+  }
+
+  @override
+  String saved_titles_count(int count) {
+    return '$count عنوانًا محفوظًا';
+  }
+
+  @override
+  String get history_cleared => 'تم مسح سجل المشاهدة';
+
+  @override
+  String get history_clear_failed => 'تعذّر مسح سجل المشاهدة';
+
+  @override
   String get appearance => 'المظهر';
 
   @override
@@ -1243,8 +1305,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get action_browse_catalogue => 'تصفح الكتالوج';
 
   @override
-  String get empty_history_title => 'لم تشاهد شيئًا بعد';
+  String get video_decoding_label => 'فك ترميز الفيديو';
 
   @override
-  String get empty_history_body => 'ما تشاهده سيظهر هنا لتتابعه لاحقًا.';
+  String get video_decoding_description =>
+      'يعمل الوضع التلقائي على معظم الأجهزة. غيّره فقط إذا تعذّر تشغيل قناة.';
+
+  @override
+  String get video_decoding_auto => 'تلقائي';
+
+  @override
+  String get video_decoding_hw => 'عتاد مباشر';
+
+  @override
+  String get video_decoding_software => 'برمجي';
 }

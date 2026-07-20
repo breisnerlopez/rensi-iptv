@@ -5,16 +5,15 @@ import 'package:rensi_iptv/controllers/xtream_code_home_controller.dart';
 import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/controllers/watch_history_controller.dart';
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/screens/category_detail_screen.dart';
-import 'package:rensi_iptv/screens/global_search_screen.dart';
-import 'package:rensi_iptv/screens/search_screen.dart';
 import 'package:rensi_iptv/screens/xtream-codes/xtream_code_playlist_settings_screen.dart';
-import 'package:rensi_iptv/screens/watch_history_screen.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
-import 'package:rensi_iptv/widgets/category_section.dart';
 import 'package:rensi_iptv/widgets/confirm_exit_scope.dart';
 import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
@@ -23,7 +22,6 @@ import 'package:rensi_iptv/redesign/browse_redesign.dart';
 import 'package:rensi_iptv/redesign/list_redesign.dart';
 import 'package:rensi_iptv/redesign/live_redesign.dart';
 import 'package:rensi_iptv/redesign/search_redesign.dart';
-import '../../models/content_type.dart';
 import 'package:rensi_iptv/widgets/tv/navigation_models.dart';
 import 'package:rensi_iptv/services/epg_service.dart';
 
@@ -45,6 +43,12 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   late XtreamCodeHomeController _controller;
   late EpgService _epgService;
 
+  /// Continue-watching, loaded here because the home screen is the only place
+  /// that shows it. The rail has existed since the redesign landed and has
+  /// never once appeared: `continueWatching` defaulted to an empty list and no
+  /// caller ever passed anything, so the feature shipped inert.
+  final WatchHistoryController _history = WatchHistoryController();
+
   /// Drives the rail's dimming: full strength only while it holds the focus.
   bool _railHasFocus = false;
   static const double _desktopBreakpoint = 900.0;
@@ -65,7 +69,6 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   static const double _largeIconSize = 28.0;
   static const double _defaultFontSize = 10.0;
   static const double _largeFontSize = 11.0;
-  final ScrollController _scrollController = ScrollController();
   // One focus node per rail item, so a tab change (incl. programmatic ones like
   // the avatar → settings shortcut) can move focus to the target rail item
   // instead of losing it when the previous page gets ExcludeFocus'd.
@@ -81,8 +84,28 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     _initializeController();
   }
 
+  void _onHistoryChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Reloads continue-watching whenever Inicio comes back to the front.
+  ///
+  /// Settings is page 4 of this same IndexedStack, so "clear all history" runs
+  /// a few centimetres away from this rail and never told it. Without this the
+  /// viewer wipes their history, returns to Inicio, sees the same cards, and
+  /// every one of them fails silently on tap because its row is gone.
+  int _lastIndex = 0;
+  void _onTabChanged() {
+    final i = _controller.currentIndex;
+    if (i == 0 && _lastIndex != 0) _history.loadWatchHistory();
+    _lastIndex = i;
+  }
+
   @override
   void dispose() {
+    _controller.removeListener(_onTabChanged);
+    _history.removeListener(_onHistoryChanged);
+    _history.dispose();
     for (final n in _railNodes.values) {
       n.dispose();
     }
@@ -122,10 +145,19 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     // schedule on another's channels. A test asserted this guarantee while
     // production never exercised it.
     _epgService = EpgService(repository.getShortEpg)..invalidate();
+    // After the playlist is in AppState: the controller reads it to scope the
+    // query, and reading it earlier returns the previous playlist's history.
+    // The load is async and the rail is built from a plain getter, so without
+    // a listener the home paints once with an empty list and never again.
+    _history.addListener(_onHistoryChanged);
+    _history.loadWatchHistory();
     _controller = XtreamCodeHomeController(
       false,
       initialIndex: widget.initialIndex,
     );
+    // After the controller exists: the tab listener is what reloads the rail
+    // when Inicio comes back to the front.
+    _controller.addListener(_onTabChanged);
   }
 
   @override
@@ -259,6 +291,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     );
   }
 
+
   List<Widget> _buildPages(XtreamCodeHomeController controller) {
     return [
       RedesignHome(
@@ -270,6 +303,32 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         onSearch: _openSearch,
         onSettings: () => controller.onNavigationTap(4),
         onSeeAll: _navigateToCategoryDetail,
+        continueWatching: resumableFrom(_history.continueWatching),
+        // Reload on the way back: the viewer has just moved the position of
+        // whatever they resumed, and a rail still showing the old progress —
+        // or still showing a title they have now finished — is worse than one
+        // that was never there.
+        onResume: (h) async {
+          final started = await _history.playContent(context, h);
+          if (!mounted) return;
+          if (!started) {
+            // La acción va aquí a propósito: éste es el momento exacto en que
+            // el usuario descubre que la entrada está muerta. Retirarla
+            // automáticamente sería peor — un refresh del catálogo a medias
+            // haría desaparecer historial válido.
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(context.loc.resume_failed),
+                action: SnackBarAction(
+                  label: context.loc.remove,
+                  onPressed: () => _history.removeHistory(h),
+                ),
+              ),
+            );
+          }
+          await _history.loadWatchHistory();
+        },
+        onRemove: (h) => _history.removeHistory(h),
         playlistSwitcher: PlaylistSwitcherButton(
           currentPlaylist: widget.playlist,
           currentIndex: controller.currentIndex,
@@ -294,127 +353,6 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       ),
       XtreamCodePlaylistSettingsScreen(playlist: widget.playlist),
     ];
-  }
-
-  Widget _buildContentPage(
-    List<CategoryViewModel> categories,
-    ContentType contentType,
-    XtreamCodeHomeController controller,
-  ) {
-    return Scaffold(
-      appBar: _buildAppBar(context, controller, contentType),
-      body: _buildCategoryList(categories, contentType),
-    );
-  }
-
-  AppBar _buildAppBar(
-    BuildContext context,
-    XtreamCodeHomeController controller,
-    ContentType contentType,
-  ) {
-    if (ResponsiveHelper.useNavigationRail(context)) {
-      return _buildDesktopAppBar(context, controller, contentType);
-    }
-    return _buildMobileAppBar(context, controller, contentType);
-  }
-
-  AppBar _buildDesktopAppBar(
-    BuildContext context,
-    XtreamCodeHomeController controller,
-    ContentType contentType,
-  ) {
-    return AppBar(
-      title: SelectableText(
-        _getDesktopTitle(context, contentType),
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
-      elevation: 0,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: () => _navigateToSearch(context, contentType),
-        ),
-        PlaylistSwitcherButton(
-          currentPlaylist: widget.playlist,
-          currentIndex: controller.currentIndex,
-        ),
-      ],
-    );
-  }
-
-  String _getDesktopTitle(BuildContext context, ContentType contentType) {
-    switch (contentType) {
-      case ContentType.liveStream:
-        return context.loc.live_streams;
-      case ContentType.vod:
-        return context.loc.movies;
-      case ContentType.series:
-        return context.loc.series_plural;
-    }
-  }
-
-  AppBar _buildMobileAppBar(
-    BuildContext context,
-    XtreamCodeHomeController controller,
-    ContentType contentType,
-  ) {
-    return AppBar(
-      title: SelectableText(
-        controller.getPageTitle(context),
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
-      elevation: 0,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: () => _navigateToSearch(context, contentType),
-        ),
-        PlaylistSwitcherButton(
-          currentPlaylist: widget.playlist,
-          currentIndex: controller.currentIndex,
-        ),
-      ],
-    );
-  }
-
-  void _navigateToSearch(BuildContext context, ContentType contentType) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SearchScreen(contentType: contentType),
-      ),
-    );
-  }
-
-  Widget _buildCategoryList(
-    List<CategoryViewModel> categories,
-    ContentType contentType,
-  ) {
-    return Scrollbar(
-      controller: _scrollController,
-      interactive: true,
-      child: ListView.builder(
-        controller: _scrollController,
-        shrinkWrap: true,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: categories.length,
-        itemBuilder: (context, index) =>
-            _buildCategorySection(categories[index], contentType),
-      ),
-    );
-  }
-
-  Widget _buildCategorySection(
-    CategoryViewModel category,
-    ContentType contentType,
-  ) {
-    return CategorySection(
-      category: category,
-      cardWidth: ResponsiveHelper.getCardWidth(context),
-      cardHeight: ResponsiveHelper.getCardHeight(context),
-      onSeeAllTap: () => _navigateToCategoryDetail(category),
-      onContentTap: (content) => navigateByContentType(context, content),
-    );
   }
 
   void _navigateToCategoryDetail(CategoryViewModel category) {

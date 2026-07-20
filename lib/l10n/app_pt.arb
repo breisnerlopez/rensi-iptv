@@ -212,6 +212,39 @@
   "clear_old": "Limpar antigos",
   "clear_all_history": "Limpar todo o histórico",
   "clear_all_history_confirmation": "Tem certeza de que deseja excluir todo o histórico de reprodução?",
+  "resume_failed": "Este título já não está disponível nesta lista",
+  "home_empty_title": "Ainda não há filmes nem séries nesta lista.",
+  "home_empty_hint": "Usa “Em Direto” no menu para ver canais, ou pesquisa conteúdo.",
+  "loading": "A carregar...",
+  "greeting_morning": "Bom dia",
+  "greeting_afternoon": "Boa tarde",
+  "greeting_evening": "Boa noite",
+  "featured_today": "DESTAQUE DE HOJE",
+  "search_catalog_hint": "Pesquisa em todo o teu catálogo",
+  "search_placeholder": "Pesquisar filmes, séries, canais…",
+  "no_channels": "Sem canais",
+  "no_results_filter": "Sem resultados para este filtro",
+  "preferred_audio": "Áudio preferido",
+  "preferred_subtitles": "Legendas preferidas",
+  "decoder_applies_next_video": "Aplica-se ao abrir o próximo vídeo",
+  "no_results_for": "Sem resultados para \"{query}\"",
+  "@no_results_for": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "saved_titles_count": "{count} títulos guardados",
+  "@saved_titles_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "history_cleared": "Histórico de reprodução apagado",
+  "history_clear_failed": "Não foi possível apagar o histórico de reprodução",
   "appearance": "Aparência",
   "theme": "Tema",
   "standard": "Padrão",
@@ -489,6 +522,9 @@
   "empty_list_title": "Sua lista está vazia",
   "empty_list_body": "Adicione títulos à sua lista e encontre-os aqui.",
   "action_browse_catalogue": "Explorar catálogo",
-  "empty_history_title": "Você ainda não assistiu nada",
-  "empty_history_body": "O que você assistir aparecerá aqui para continuar depois."
+  "video_decoding_label": "Decodificação de vídeo",
+  "video_decoding_description": "Automático funciona em quase todos os aparelhos. Mude apenas se um canal não reproduzir.",
+  "video_decoding_auto": "Automático",
+  "video_decoding_hw": "Hardware direto",
+  "video_decoding_software": "Software"
 }

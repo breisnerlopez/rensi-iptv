@@ -217,6 +217,39 @@
   "clear_old": "Clear Old",
   "clear_all_history": "Clear All History",
   "clear_all_history_confirmation": "Are you sure you want to delete all watch history?",
+  "resume_failed": "This title is no longer available in this playlist",
+  "home_empty_title": "No films or series in this playlist yet.",
+  "home_empty_hint": "Use “Live” in the menu to watch channels, or search for content.",
+  "loading": "Loading...",
+  "greeting_morning": "Good morning",
+  "greeting_afternoon": "Good afternoon",
+  "greeting_evening": "Good evening",
+  "featured_today": "FEATURED TODAY",
+  "search_catalog_hint": "Search your whole catalogue",
+  "search_placeholder": "Search films, series, channels…",
+  "no_channels": "No channels",
+  "no_results_filter": "No results for this filter",
+  "preferred_audio": "Preferred audio",
+  "preferred_subtitles": "Preferred subtitles",
+  "decoder_applies_next_video": "Applies the next time you open a video",
+  "no_results_for": "No results for \"{query}\"",
+  "@no_results_for": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "saved_titles_count": "{count} saved titles",
+  "@saved_titles_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "history_cleared": "Watch history cleared",
+  "history_clear_failed": "Could not clear watch history",
   "appearance": "Appearence",
   "theme": "Theme",
   "standard": "Default",
@@ -495,6 +528,9 @@
   "empty_list_title": "Your list is empty",
   "empty_list_body": "Add titles to your list and find them here.",
   "action_browse_catalogue": "Browse catalogue",
-  "empty_history_title": "Nothing watched yet",
-  "empty_history_body": "What you watch will show up here so you can pick it back up."
+  "video_decoding_label": "Video decoding",
+  "video_decoding_description": "Automatic works on almost every device. Change it only if a channel will not play.",
+  "video_decoding_auto": "Automatic",
+  "video_decoding_hw": "Direct hardware",
+  "video_decoding_software": "Software"
 }

@@ -54,6 +54,8 @@ void main() {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: RedesignHome(
+        onResume: (_) {},
+        onRemove: (_) {},
         movieCategories: [cat],
         seriesCategories: const [],
         onOpen: (_) {},
@@ -121,6 +123,8 @@ void main() {
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: RedesignHome(
+        onResume: (_) {},
+        onRemove: (_) {},
         movieCategories: [cat],
         seriesCategories: const [],
         onOpen: (_) {},

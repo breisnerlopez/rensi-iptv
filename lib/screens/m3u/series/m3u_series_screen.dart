@@ -163,9 +163,9 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
                                 Expanded(
                                   child: Text(
                                     widget.contentItem.name,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: Colors.white,
-                                      fontSize: 24,
+                                      fontSize: AppThemes.tenFoot(context, 24),
                                       fontWeight: FontWeight.bold,
                                       shadows: [
                                         Shadow(
@@ -709,8 +709,8 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: AppThemes.tenFoot(context, 12),
                     color: Colors.grey,
                     fontWeight: FontWeight.w500,
                   ),
@@ -718,8 +718,8 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 15,
+                  style: TextStyle(
+                    fontSize: AppThemes.tenFoot(context, 15),
                     fontWeight: FontWeight.w600,
                   ),
                 ),

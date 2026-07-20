@@ -217,6 +217,39 @@
   "clear_old": "Limpiar antiguos",
   "clear_all_history": "Limpiar todo el historial",
   "clear_all_history_confirmation": "¿Estás seguro de que quieres eliminar todo el historial de reproducción?",
+  "resume_failed": "Este título ya no está disponible en esta lista",
+  "home_empty_title": "No hay películas ni series en esta lista todavía.",
+  "home_empty_hint": "Usa “En Vivo” en el menú para ver canales, o busca contenido.",
+  "loading": "Cargando...",
+  "greeting_morning": "Buenos días",
+  "greeting_afternoon": "Buenas tardes",
+  "greeting_evening": "Buenas noches",
+  "featured_today": "DESTACADO HOY",
+  "search_catalog_hint": "Busca en todo tu catálogo",
+  "search_placeholder": "Buscar películas, series, canales…",
+  "no_channels": "Sin canales",
+  "no_results_filter": "Sin resultados para este filtro",
+  "preferred_audio": "Audio preferido",
+  "preferred_subtitles": "Subtítulos preferidos",
+  "decoder_applies_next_video": "Se aplicará al abrir el próximo video",
+  "no_results_for": "Sin resultados para \"{query}\"",
+  "@no_results_for": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "saved_titles_count": "{count} títulos guardados",
+  "@saved_titles_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "history_cleared": "Historial de reproducción borrado",
+  "history_clear_failed": "No se pudo borrar el historial de reproducción",
   "appearance": "Apariencia",
   "theme": "Tema",
   "standard": "Predeterminado",
@@ -495,6 +528,9 @@
   "empty_list_title": "Tu lista está vacía",
   "empty_list_body": "Añade títulos a tu lista y los encontrarás aquí.",
   "action_browse_catalogue": "Explorar catálogo",
-  "empty_history_title": "Aún no has visto nada",
-  "empty_history_body": "Lo que veas aparecerá aquí para que puedas retomarlo."
+  "video_decoding_label": "Decodificación de video",
+  "video_decoding_description": "Automático funciona en casi todos los equipos. Cambia solo si un canal no se ve.",
+  "video_decoding_auto": "Automático",
+  "video_decoding_hw": "Hardware directo",
+  "video_decoding_software": "Software"
 }

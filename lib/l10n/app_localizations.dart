@@ -1422,6 +1422,120 @@ abstract class AppLocalizations {
   /// **'Are you sure you want to delete all watch history?'**
   String get clear_all_history_confirmation;
 
+  /// No description provided for @resume_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'This title is no longer available in this playlist'**
+  String get resume_failed;
+
+  /// No description provided for @home_empty_title.
+  ///
+  /// In en, this message translates to:
+  /// **'No films or series in this playlist yet.'**
+  String get home_empty_title;
+
+  /// No description provided for @home_empty_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use “Live” in the menu to watch channels, or search for content.'**
+  String get home_empty_hint;
+
+  /// No description provided for @loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading...'**
+  String get loading;
+
+  /// No description provided for @greeting_morning.
+  ///
+  /// In en, this message translates to:
+  /// **'Good morning'**
+  String get greeting_morning;
+
+  /// No description provided for @greeting_afternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Good afternoon'**
+  String get greeting_afternoon;
+
+  /// No description provided for @greeting_evening.
+  ///
+  /// In en, this message translates to:
+  /// **'Good evening'**
+  String get greeting_evening;
+
+  /// No description provided for @featured_today.
+  ///
+  /// In en, this message translates to:
+  /// **'FEATURED TODAY'**
+  String get featured_today;
+
+  /// No description provided for @search_catalog_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search your whole catalogue'**
+  String get search_catalog_hint;
+
+  /// No description provided for @search_placeholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Search films, series, channels…'**
+  String get search_placeholder;
+
+  /// No description provided for @no_channels.
+  ///
+  /// In en, this message translates to:
+  /// **'No channels'**
+  String get no_channels;
+
+  /// No description provided for @no_results_filter.
+  ///
+  /// In en, this message translates to:
+  /// **'No results for this filter'**
+  String get no_results_filter;
+
+  /// No description provided for @preferred_audio.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferred audio'**
+  String get preferred_audio;
+
+  /// No description provided for @preferred_subtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'Preferred subtitles'**
+  String get preferred_subtitles;
+
+  /// No description provided for @decoder_applies_next_video.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies the next time you open a video'**
+  String get decoder_applies_next_video;
+
+  /// No description provided for @no_results_for.
+  ///
+  /// In en, this message translates to:
+  /// **'No results for \"{query}\"'**
+  String no_results_for(String query);
+
+  /// No description provided for @saved_titles_count.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} saved titles'**
+  String saved_titles_count(int count);
+
+  /// No description provided for @history_cleared.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch history cleared'**
+  String get history_cleared;
+
+  /// No description provided for @history_clear_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not clear watch history'**
+  String get history_clear_failed;
+
   /// No description provided for @appearance.
   ///
   /// In en, this message translates to:
@@ -2370,17 +2484,35 @@ abstract class AppLocalizations {
   /// **'Browse catalogue'**
   String get action_browse_catalogue;
 
-  /// No description provided for @empty_history_title.
+  /// No description provided for @video_decoding_label.
   ///
   /// In en, this message translates to:
-  /// **'Nothing watched yet'**
-  String get empty_history_title;
+  /// **'Video decoding'**
+  String get video_decoding_label;
 
-  /// No description provided for @empty_history_body.
+  /// No description provided for @video_decoding_description.
   ///
   /// In en, this message translates to:
-  /// **'What you watch will show up here so you can pick it back up.'**
-  String get empty_history_body;
+  /// **'Automatic works on almost every device. Change it only if a channel will not play.'**
+  String get video_decoding_description;
+
+  /// No description provided for @video_decoding_auto.
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic'**
+  String get video_decoding_auto;
+
+  /// No description provided for @video_decoding_hw.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct hardware'**
+  String get video_decoding_hw;
+
+  /// No description provided for @video_decoding_software.
+  ///
+  /// In en, this message translates to:
+  /// **'Software'**
+  String get video_decoding_software;
 }
 
 class _AppLocalizationsDelegate

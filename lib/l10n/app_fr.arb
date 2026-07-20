@@ -212,6 +212,39 @@
   "clear_old": "Effacer anciens",
   "clear_all_history": "Effacer tout l'historique",
   "clear_all_history_confirmation": "Êtes-vous sûr de vouloir supprimer tout l'historique de lecture ?",
+  "resume_failed": "Ce titre n'est plus disponible dans cette liste",
+  "home_empty_title": "Aucun film ni série dans cette liste pour l'instant.",
+  "home_empty_hint": "Utilisez “En direct” dans le menu pour regarder des chaînes, ou lancez une recherche.",
+  "loading": "Chargement...",
+  "greeting_morning": "Bonjour",
+  "greeting_afternoon": "Bon après-midi",
+  "greeting_evening": "Bonsoir",
+  "featured_today": "À LA UNE",
+  "search_catalog_hint": "Cherchez dans tout votre catalogue",
+  "search_placeholder": "Rechercher films, séries, chaînes…",
+  "no_channels": "Aucune chaîne",
+  "no_results_filter": "Aucun résultat pour ce filtre",
+  "preferred_audio": "Audio préféré",
+  "preferred_subtitles": "Sous-titres préférés",
+  "decoder_applies_next_video": "S'appliquera à la prochaine vidéo ouverte",
+  "no_results_for": "Aucun résultat pour \"{query}\"",
+  "@no_results_for": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "saved_titles_count": "{count} titres enregistrés",
+  "@saved_titles_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "history_cleared": "Historique de lecture effacé",
+  "history_clear_failed": "Impossible d'effacer l'historique de lecture",
   "appearance": "Apparence",
   "theme": "Thème",
   "standard": "Défaut",
@@ -489,6 +522,9 @@
   "empty_list_title": "Votre liste est vide",
   "empty_list_body": "Ajoutez des titres à votre liste et retrouvez-les ici.",
   "action_browse_catalogue": "Parcourir le catalogue",
-  "empty_history_title": "Rien de visionné pour l’instant",
-  "empty_history_body": "Ce que vous regardez apparaîtra ici pour reprendre plus tard."
+  "video_decoding_label": "Décodage vidéo",
+  "video_decoding_description": "Automatique fonctionne sur presque tous les appareils. Ne le changez que si une chaîne ne s'affiche pas.",
+  "video_decoding_auto": "Automatique",
+  "video_decoding_hw": "Matériel direct",
+  "video_decoding_software": "Logiciel"
 }

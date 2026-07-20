@@ -713,6 +713,70 @@ class AppLocalizationsEn extends AppLocalizations {
       'Are you sure you want to delete all watch history?';
 
   @override
+  String get resume_failed =>
+      'This title is no longer available in this playlist';
+
+  @override
+  String get home_empty_title => 'No films or series in this playlist yet.';
+
+  @override
+  String get home_empty_hint =>
+      'Use “Live” in the menu to watch channels, or search for content.';
+
+  @override
+  String get loading => 'Loading...';
+
+  @override
+  String get greeting_morning => 'Good morning';
+
+  @override
+  String get greeting_afternoon => 'Good afternoon';
+
+  @override
+  String get greeting_evening => 'Good evening';
+
+  @override
+  String get featured_today => 'FEATURED TODAY';
+
+  @override
+  String get search_catalog_hint => 'Search your whole catalogue';
+
+  @override
+  String get search_placeholder => 'Search films, series, channels…';
+
+  @override
+  String get no_channels => 'No channels';
+
+  @override
+  String get no_results_filter => 'No results for this filter';
+
+  @override
+  String get preferred_audio => 'Preferred audio';
+
+  @override
+  String get preferred_subtitles => 'Preferred subtitles';
+
+  @override
+  String get decoder_applies_next_video =>
+      'Applies the next time you open a video';
+
+  @override
+  String no_results_for(String query) {
+    return 'No results for \"$query\"';
+  }
+
+  @override
+  String saved_titles_count(int count) {
+    return '$count saved titles';
+  }
+
+  @override
+  String get history_cleared => 'Watch history cleared';
+
+  @override
+  String get history_clear_failed => 'Could not clear watch history';
+
+  @override
   String get appearance => 'Appearence';
 
   @override
@@ -1242,9 +1306,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get action_browse_catalogue => 'Browse catalogue';
 
   @override
-  String get empty_history_title => 'Nothing watched yet';
+  String get video_decoding_label => 'Video decoding';
 
   @override
-  String get empty_history_body =>
-      'What you watch will show up here so you can pick it back up.';
+  String get video_decoding_description =>
+      'Automatic works on almost every device. Change it only if a channel will not play.';
+
+  @override
+  String get video_decoding_auto => 'Automatic';
+
+  @override
+  String get video_decoding_hw => 'Direct hardware';
+
+  @override
+  String get video_decoding_software => 'Software';
 }

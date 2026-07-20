@@ -212,6 +212,39 @@
   "clear_old": "مسح القديم",
   "clear_all_history": "مسح كل السجل",
   "clear_all_history_confirmation": "هل أنت متأكد من أنك تريد حذف كل سجل المشاهدة؟",
+  "resume_failed": "لم يعد هذا العنوان متاحًا في هذه القائمة",
+  "home_empty_title": "لا توجد أفلام أو مسلسلات في هذه القائمة بعد.",
+  "home_empty_hint": "استخدم “مباشر” من القائمة لمشاهدة القنوات، أو ابحث عن محتوى.",
+  "loading": "جارٍ التحميل...",
+  "greeting_morning": "صباح الخير",
+  "greeting_afternoon": "مساء الخير",
+  "greeting_evening": "مساء الخير",
+  "featured_today": "المميز اليوم",
+  "search_catalog_hint": "ابحث في كامل الكتالوج",
+  "search_placeholder": "ابحث عن أفلام ومسلسلات وقنوات…",
+  "no_channels": "لا توجد قنوات",
+  "no_results_filter": "لا نتائج لهذا المرشّح",
+  "preferred_audio": "الصوت المفضّل",
+  "preferred_subtitles": "الترجمات المفضّلة",
+  "decoder_applies_next_video": "يُطبَّق عند فتح الفيديو التالي",
+  "no_results_for": "لا نتائج لـ \"{query}\"",
+  "@no_results_for": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "saved_titles_count": "{count} عنوانًا محفوظًا",
+  "@saved_titles_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "history_cleared": "تم مسح سجل المشاهدة",
+  "history_clear_failed": "تعذّر مسح سجل المشاهدة",
   "appearance": "المظهر",
   "theme": "سمة",
   "standard": "قياسي",
@@ -489,6 +522,9 @@
   "empty_list_title": "قائمتك فارغة",
   "empty_list_body": "أضف عناوين إلى قائمتك وستجدها هنا.",
   "action_browse_catalogue": "تصفح الكتالوج",
-  "empty_history_title": "لم تشاهد شيئًا بعد",
-  "empty_history_body": "ما تشاهده سيظهر هنا لتتابعه لاحقًا."
+  "video_decoding_label": "فك ترميز الفيديو",
+  "video_decoding_description": "يعمل الوضع التلقائي على معظم الأجهزة. غيّره فقط إذا تعذّر تشغيل قناة.",
+  "video_decoding_auto": "تلقائي",
+  "video_decoding_hw": "عتاد مباشر",
+  "video_decoding_software": "برمجي"
 }

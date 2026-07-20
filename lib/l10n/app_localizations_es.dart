@@ -721,6 +721,71 @@ class AppLocalizationsEs extends AppLocalizations {
       '¿Estás seguro de que quieres eliminar todo el historial de reproducción?';
 
   @override
+  String get resume_failed => 'Este título ya no está disponible en esta lista';
+
+  @override
+  String get home_empty_title =>
+      'No hay películas ni series en esta lista todavía.';
+
+  @override
+  String get home_empty_hint =>
+      'Usa “En Vivo” en el menú para ver canales, o busca contenido.';
+
+  @override
+  String get loading => 'Cargando...';
+
+  @override
+  String get greeting_morning => 'Buenos días';
+
+  @override
+  String get greeting_afternoon => 'Buenas tardes';
+
+  @override
+  String get greeting_evening => 'Buenas noches';
+
+  @override
+  String get featured_today => 'DESTACADO HOY';
+
+  @override
+  String get search_catalog_hint => 'Busca en todo tu catálogo';
+
+  @override
+  String get search_placeholder => 'Buscar películas, series, canales…';
+
+  @override
+  String get no_channels => 'Sin canales';
+
+  @override
+  String get no_results_filter => 'Sin resultados para este filtro';
+
+  @override
+  String get preferred_audio => 'Audio preferido';
+
+  @override
+  String get preferred_subtitles => 'Subtítulos preferidos';
+
+  @override
+  String get decoder_applies_next_video =>
+      'Se aplicará al abrir el próximo video';
+
+  @override
+  String no_results_for(String query) {
+    return 'Sin resultados para \"$query\"';
+  }
+
+  @override
+  String saved_titles_count(int count) {
+    return '$count títulos guardados';
+  }
+
+  @override
+  String get history_cleared => 'Historial de reproducción borrado';
+
+  @override
+  String get history_clear_failed =>
+      'No se pudo borrar el historial de reproducción';
+
+  @override
   String get appearance => 'Apariencia';
 
   @override
@@ -1255,9 +1320,18 @@ class AppLocalizationsEs extends AppLocalizations {
   String get action_browse_catalogue => 'Explorar catálogo';
 
   @override
-  String get empty_history_title => 'Aún no has visto nada';
+  String get video_decoding_label => 'Decodificación de video';
 
   @override
-  String get empty_history_body =>
-      'Lo que veas aparecerá aquí para que puedas retomarlo.';
+  String get video_decoding_description =>
+      'Automático funciona en casi todos los equipos. Cambia solo si un canal no se ve.';
+
+  @override
+  String get video_decoding_auto => 'Automático';
+
+  @override
+  String get video_decoding_hw => 'Hardware directo';
+
+  @override
+  String get video_decoding_software => 'Software';
 }

@@ -239,11 +239,16 @@ class _SeriesScreenState extends State<SeriesScreen> {
                                     seriesInfo?.name ?? widget.contentItem.name,
                                     style: TextStyle(
                                       color: Colors.white,
-                                      // 10-foot: bigger title on TV.
-                                      fontSize: ResponsiveHelper.isDesktopOrTV(
-                                              context)
-                                          ? 44
-                                          : 24,
+                                      // 10-foot: bigger title on TV — and
+                                      // isTenFoot is what "on TV" means for
+                                      // type. isDesktopOrTV also says yes to a
+                                      // 1010dp handset in landscape, which was
+                                      // getting a 44dp series title held at
+                                      // 30 cm.
+                                      fontSize:
+                                          ResponsiveHelper.isTenFoot(context)
+                                              ? 44
+                                              : 24,
                                       fontWeight: FontWeight.bold,
                                       shadows: [
                                         Shadow(
@@ -436,7 +441,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 label,
                 style: TextStyle(
                   color: contentColor,
-                  fontSize: 15,
+                  fontSize: AppThemes.tenFoot(context, 15),
                   fontWeight: FontWeight.w900,
                 ),
                 overflow: TextOverflow.ellipsis,
@@ -615,7 +620,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                     const SizedBox(height: 4),
                     Text(
                       season.airDate!,
-                      style: TextStyle(fontSize: 12, color: Colors.white60),
+                      style: TextStyle(fontSize: AppThemes.tenFoot(context, 12), color: Colors.white60),
                     ),
                   ],
                 ],
@@ -948,7 +953,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                               context.loc.new_ep,
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 10,
+                                fontSize: AppThemes.tenFoot(context, 10),
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -961,7 +966,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                       Text(
                         context.loc.duration(episode.duration!),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: AppThemes.tenFoot(context, 12),
                           color: Colors.white70,
                         ),
                       ),
@@ -973,7 +978,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: AppThemes.tenFoot(context, 12),
                           color: Colors.white70,
                         ),
                       ),
@@ -1003,7 +1008,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                           Text(
                             episode.rating!.toStringAsFixed(1),
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: AppThemes.tenFoot(context, 10),
                               fontWeight: FontWeight.w600,
                               color: Colors.amber.shade700,
                             ),
@@ -1169,8 +1174,8 @@ class _SeriesScreenState extends State<SeriesScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: AppThemes.tenFoot(context, 12),
                     color: Colors.grey,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1178,8 +1183,8 @@ class _SeriesScreenState extends State<SeriesScreen> {
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 15,
+                  style: TextStyle(
+                    fontSize: AppThemes.tenFoot(context, 15),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1236,8 +1241,8 @@ class _SeriesScreenState extends State<SeriesScreen> {
             const SizedBox(width: 16),
             Text(
               context.loc.trailer,
-              style: const TextStyle(
-                fontSize: 15,
+              style: TextStyle(
+                fontSize: AppThemes.tenFoot(context, 15),
                 fontWeight: FontWeight.w600,
               ),
             ),

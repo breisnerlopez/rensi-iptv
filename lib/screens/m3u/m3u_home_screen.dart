@@ -1,6 +1,7 @@
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/watch_history.dart';
+import 'package:rensi_iptv/controllers/watch_history_controller.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
-import 'package:rensi_iptv/screens/global_search_screen.dart';
-import 'package:rensi_iptv/screens/m3u/m3u_items_screen.dart';
 import 'package:rensi_iptv/screens/m3u/m3u_playlist_settings_screen.dart';
 import 'package:rensi_iptv/widgets/confirm_exit_scope.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +11,6 @@ import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/repositories/m3u_repository.dart';
 import 'package:rensi_iptv/screens/category_detail_screen.dart';
-import 'package:rensi_iptv/widgets/category_section.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
@@ -22,7 +22,6 @@ import 'package:rensi_iptv/redesign/list_redesign.dart';
 import 'package:rensi_iptv/redesign/search_redesign.dart';
 
 import '../../services/app_state.dart';
-import '../watch_history_screen.dart';
 import 'package:rensi_iptv/widgets/tv/navigation_models.dart';
 
 class M3UHomeScreen extends StatefulWidget {
@@ -41,6 +40,11 @@ class M3UHomeScreen extends StatefulWidget {
 
 class _M3UHomeScreenState extends State<M3UHomeScreen> {
   late M3UHomeController _controller;
+
+  /// Continue-watching. M3U playlists record history the same way Xtream ones
+  /// do, so leaving the rail wired on only one of them would have made the
+  /// feature depend on which kind of list you happened to add.
+  final WatchHistoryController _history = WatchHistoryController();
 
   /// Drives the rail's dimming: full strength only while it holds the focus.
   bool _railHasFocus = false;
@@ -87,10 +91,33 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
   void initState() {
     super.initState();
     _initializeController();
+    _history.addListener(_onHistoryChanged);
+    _history.loadWatchHistory();
+  }
+
+
+  void _onHistoryChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Reloads continue-watching whenever Inicio comes back to the front.
+  ///
+  /// Settings is page 4 of this same IndexedStack, so "clear all history" runs
+  /// a few centimetres away from this rail and never told it. Without this the
+  /// viewer wipes their history, returns to Inicio, sees the same cards, and
+  /// every one of them fails silently on tap because its row is gone.
+  int _lastIndex = 0;
+  void _onTabChanged() {
+    final i = _controller.currentIndex;
+    if (i == 0 && _lastIndex != 0) _history.loadWatchHistory();
+    _lastIndex = i;
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_onTabChanged);
+    _history.removeListener(_onHistoryChanged);
+    _history.dispose();
     for (final n in _railNodes.values) {
       n.dispose();
     }
@@ -102,6 +129,9 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     AppState.currentPlaylist = widget.playlist;
     AppState.m3uRepository = M3uRepository();
     _controller = M3UHomeController(initialIndex: widget.initialIndex);
+    // After the controller exists: reloads the rail when Inicio returns to the
+    // front, which is how clearing history from the settings tab reaches it.
+    _controller.addListener(_onTabChanged);
   }
 
   @override
@@ -243,6 +273,26 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
         onSearch: _openSearch,
         onSettings: () => controller.onNavigationTap(4),
         onSeeAll: _navigateToCategoryDetail,
+        continueWatching: resumableFrom(_history.continueWatching),
+        onResume: (h) async {
+          final started = await _history.playContent(context, h);
+          if (!mounted) return;
+          if (!started) {
+            // Ver la nota en xtream_code_home_screen.dart: la retirada es
+            // ofrecida, no automática.
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(context.loc.resume_failed),
+                action: SnackBarAction(
+                  label: context.loc.remove,
+                  onPressed: () => _history.removeHistory(h),
+                ),
+              ),
+            );
+          }
+          await _history.loadWatchHistory();
+        },
+        onRemove: (h) => _history.removeHistory(h),
         playlistSwitcher: PlaylistSwitcherButton(
           currentPlaylist: widget.playlist,
           currentIndex: controller.currentIndex,
@@ -264,89 +314,6 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       ),
       M3uPlaylistSettingsScreen(playlist: widget.playlist),
     ];
-  }
-
-  Widget _buildContentPage(
-    List<CategoryViewModel> categories,
-    M3UHomeController controller,
-  ) {
-    return NestedScrollView(
-      headerSliverBuilder: (context, innerBoxIsScrolled) => [
-        _buildSliverAppBar(context, controller),
-      ],
-      body: _buildCategoryList(categories),
-    );
-  }
-
-  SliverAppBar _buildSliverAppBar(
-    BuildContext context,
-    M3UHomeController controller,
-  ) {
-    if (ResponsiveHelper.isDesktopOrTV(context)) {
-      return _buildDesktopSliverAppBar(context, controller);
-    }
-
-    return _buildMobileSliverAppBar(context, controller);
-  }
-
-  SliverAppBar _buildDesktopSliverAppBar(
-    BuildContext context,
-    M3UHomeController controller,
-  ) {
-    return SliverAppBar(
-      title: SelectableText(
-        context.loc.live_streams,
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
-      floating: true,
-      snap: true,
-      elevation: 0,
-      actions: [
-        PlaylistSwitcherButton(
-          currentPlaylist: widget.playlist,
-          currentIndex: controller.currentIndex,
-        ),
-      ],
-    );
-  }
-
-  SliverAppBar _buildMobileSliverAppBar(
-    BuildContext context,
-    M3UHomeController controller,
-  ) {
-    return SliverAppBar(
-      title: SelectableText(
-        controller.getPageTitle(context),
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
-      floating: true,
-      snap: true,
-      elevation: 0,
-      actions: [
-        PlaylistSwitcherButton(
-          currentPlaylist: widget.playlist,
-          currentIndex: controller.currentIndex,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryList(List<CategoryViewModel> categories) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: categories.length,
-      itemBuilder: (context, index) => _buildCategorySection(categories[index]),
-    );
-  }
-
-  Widget _buildCategorySection(CategoryViewModel category) {
-    return CategorySection(
-      category: category,
-      cardWidth: ResponsiveHelper.getCardWidth(context),
-      cardHeight: ResponsiveHelper.getCardHeight(context),
-      onSeeAllTap: () => _navigateToCategoryDetail(category),
-      onContentTap: (content) => navigateByContentType(context, content),
-    );
   }
 
   void _navigateToCategoryDetail(CategoryViewModel category) {

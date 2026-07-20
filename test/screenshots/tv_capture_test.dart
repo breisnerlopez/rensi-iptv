@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rensi_iptv/l10n/app_localizations.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
@@ -20,7 +21,7 @@ import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
-import 'package:rensi_iptv/widgets/watch_history/watch_history_card.dart';
+import 'package:rensi_iptv/redesign/home_redesign.dart';
 
 final GlobalKey _boundaryKey = GlobalKey();
 
@@ -88,31 +89,30 @@ Widget _phoneRail() => Center(
       ),
     );
 
-Widget _historyCard() => SizedBox(
-      height: 360,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.all(24),
-        children: [
-          WatchHistoryCard(
-            history: WatchHistory(
-              playlistId: 'p',
-              contentType: ContentType.vod,
-              streamId: 's',
-              title: 'Duna: Parte Dos',
-              imagePath: '',
-              lastWatched: DateTime(2026, 1, 1),
-              watchDuration: const Duration(minutes: 40),
-              totalDuration: const Duration(minutes: 120),
-            ),
-            width: 500,
-            height: 300,
-            showProgress: true,
-            onTap: () {},
-            onRemove: () {},
-          ),
-        ],
-      ),
+/// The continue-watching rail, via the home screen that now feeds it.
+///
+/// This used to shoot a standalone WatchHistoryCard from a screen no navigation
+/// path in the app could reach. The card and its screen are gone; what a viewer
+/// can actually get to is this rail, so that is what gets photographed.
+Widget _historyCard() => RedesignHome(
+      movieCategories: const [],
+      seriesCategories: const [],
+      onOpen: (_) {},
+      onPlay: (_) {},
+      continueWatching: [
+        WatchHistory(
+          playlistId: 'p',
+          contentType: ContentType.vod,
+          streamId: 's',
+          title: 'Duna: Parte Dos',
+          imagePath: '',
+          lastWatched: DateTime(2026, 1, 1),
+          watchDuration: const Duration(minutes: 40),
+          totalDuration: const Duration(minutes: 120),
+        ),
+      ],
+      onResume: (_) {},
+      onRemove: (_) {},
     );
 
 Future<void> _shoot(
@@ -127,6 +127,12 @@ Future<void> _shoot(
     MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppThemes.darkTheme,
+      // Localisations, because the fixtures now include a real screen rather
+      // than isolated widgets: `context.loc` is null without them, and the
+      // failure surfaces as a null-check deep inside the widget under test.
+      locale: const Locale('es'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         backgroundColor: const Color(0xFF0B0B0D),
         body: RepaintBoundary(key: _boundaryKey, child: child),
@@ -178,9 +184,15 @@ void main() {
     await _shoot(tester, const Size(430, 320), _phoneRail(), 'phone_rail.png');
   });
 
-  testWidgets('TV history card — foco + botón quitar focusable', (tester) async {
+  // Renamed with the widget. The old name promised "botón quitar focusable" —
+  // the remove button on the deleted history card — and the rail that replaced
+  // it has no such control, so the name was asserting something that no longer
+  // exists. focusFirst is off for the same reason: the first focusable in this
+  // fixture is the home's top bar, not the card, so the Tab documented a focus
+  // ring landing somewhere other than the subject.
+  testWidgets('TV continue-watching rail', (tester) async {
     await _shoot(tester, const Size(1000, 380), _historyCard(),
-        'tv_history_card_focused.png', focusFirst: true);
+        'tv_continue_watching.png');
   });
 
   // Emula el mando de Android TV: inyecta eventos de teclas reales (Tab para
@@ -193,6 +205,9 @@ void main() {
     await tester.pumpWidget(MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppThemes.darkTheme,
+      locale: const Locale('es'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(
         backgroundColor: const Color(0xFF0B0B0D),
         body: RepaintBoundary(key: _boundaryKey, child: _rail()),

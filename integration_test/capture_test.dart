@@ -14,6 +14,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/category.dart';
 import 'package:rensi_iptv/models/category_type.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
@@ -21,22 +22,34 @@ import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/redesign/browse_redesign.dart';
+import 'package:rensi_iptv/models/watch_history.dart';
+import 'package:rensi_iptv/redesign/home_redesign.dart';
 import 'package:rensi_iptv/redesign/list_redesign.dart';
 import 'package:rensi_iptv/redesign/live_redesign.dart';
 import 'package:rensi_iptv/redesign/search_redesign.dart';
 import 'package:rensi_iptv/screens/app_initializer_screen.dart';
 import 'package:rensi_iptv/screens/playlist_type_screen.dart';
-import 'package:rensi_iptv/screens/watch_history_screen.dart';
 import 'package:rensi_iptv/screens/m3u/new_m3u_playlist_screen.dart';
 import 'package:rensi_iptv/screens/xtream-codes/new_xtream_code_playlist_screen.dart';
 import 'package:rensi_iptv/screens/xtream-codes/xtream_code_home_screen.dart';
+import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/services/epg_service.dart';
 
 import '../test/integration/harness.dart';
 import '../test/integration/seed.dart';
 
 const String prefix =
     String.fromEnvironment('CAPTURE_PREFIX', defaultValue: 'dev');
+
+/// Where `scripts/fake_panel.py` is listening, as seen from the device.
+/// 10.0.2.2 is the emulator's alias for the host loopback; the panel binds
+/// loopback, which the emulator reaches this way; for a real device run the
+/// panel with --host 0.0.0.0 and point this at the host's LAN address.
+const String epgPanelUrl = String.fromEnvironment(
+  'EPG_PANEL_URL',
+  defaultValue: 'http://10.0.2.2:8799',
+);
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -186,6 +199,55 @@ void main() {
     await capture(tester, '09_live');
   });
 
+  // The EPG line was shipped, unit-tested and wired into production, and still
+  // nobody had ever seen it paint: capture 09 omits `epgService`, so every
+  // screenshot of Live in the campaign showed the channel list WITHOUT a guide
+  // and looked correct. This capture closes that hole by running the real
+  // repository, the real HTTP client and the real parser against a local panel
+  // (scripts/fake_panel.py) — only the provider is faked.
+  testWidgets('09b live — with EPG', (tester) async {
+    setActivePlaylist();
+    final service = EpgService(
+      IptvRepository(
+        const ApiConfig(
+          baseUrl: epgPanelUrl,
+          username: 'qa',
+          password: 'qa',
+        ),
+        'test-playlist-1',
+      ).getShortEpg,
+    );
+    await pumpScreen(
+      tester,
+      LiveRedesign(
+        liveCategories: [
+          cat('l1', 'Deportes', CategoryType.live, 14),
+          cat('l2', 'Noticias', CategoryType.live, 14),
+        ],
+        onPlay: (_) {},
+        epgService: service,
+      ),
+      size: null,
+    );
+    // runAsync so the real socket work actually progresses: pumpAndSettle runs
+    // in fake-async time, where an outstanding HTTP request never completes.
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(seconds: 3)));
+    await settle(tester);
+    // Skip, don't fail, when the panel is not up: this capture needs a helper
+    // process the rest of the campaign does not, and taking the whole run down
+    // over an optional dependency punishes everyone who just wanted the other
+    // twelve screenshots. But do NOT capture instead — photographing an empty
+    // guide and filing it as evidence is the exact mistake this test exists to
+    // correct.
+    if (find.textContaining('Premier League').evaluate().isEmpty) {
+      markTestSkipped('no programme painted: start scripts/fake_panel.py and '
+          'make sure it is reachable at $epgPanelUrl');
+      return;
+    }
+    await capture(tester, '09b_live_epg');
+  });
+
   testWidgets('10 my list — empty state', (tester) async {
     setActivePlaylist();
     await pumpScreen(tester, ListRedesign(onOpen: (_) {}), size: null);
@@ -200,11 +262,67 @@ void main() {
     await capture(tester, '11_search');
   });
 
-  testWidgets('12 watch history', (tester) async {
-    setActivePlaylist();
-    await pumpScreen(tester,
-        const WatchHistoryScreen(playlistId: 'p1'), size: null);
+  // The settings tab is assembled from pre-redesign tile widgets that were
+  // written at phone sizes and never photographed, because the campaign stopped
+  // at the five redesigned tabs. It is tab 4 of the TV home, so a remote reaches
+  // it in two presses — and it was rendering 12dp secondary text on a panel.
+  testWidgets('13 settings', (tester) async {
+    late Playlist p;
+    await tester.runAsync(() async => p = await seedXtreamHome(harnessDb));
+    await pumpScreen(
+      tester,
+      XtreamCodeHomeScreen(playlist: p, initialIndex: 4),
+      size: null,
+    );
     await settle(tester);
-    await capture(tester, '12_history');
+    await capture(tester, '13_settings');
+  });
+
+  // Continue-watching, on the home screen where the app actually shows it.
+  //
+  // This capture used to photograph a standalone history screen that no
+  // navigation path in the app could reach — so the campaign documented a
+  // screen nobody could open while the real rail, which had never been passed
+  // any data, went unphotographed and unnoticed. The screen is gone; the rail
+  // works; this is the picture of it.
+  testWidgets('12 continue watching', (tester) async {
+    late Playlist p;
+    await tester.runAsync(() async => p = await seedXtreamHome(harnessDb));
+    await pumpScreen(
+      tester,
+      RedesignHome(
+        movieCategories: const [],
+        seriesCategories: const [],
+        onOpen: (_) {},
+        onPlay: (_) {},
+        continueWatching: [
+          WatchHistory(
+            playlistId: p.id,
+            contentType: ContentType.vod,
+            streamId: 'vod_1_movie_0',
+            title: 'Mad Max: Fury Road',
+            imagePath: '',
+            lastWatched: DateTime(2026, 7, 1),
+            watchDuration: const Duration(minutes: 41),
+            totalDuration: const Duration(minutes: 120),
+          ),
+          WatchHistory(
+            playlistId: p.id,
+            contentType: ContentType.series,
+            streamId: 'series_1_series_0',
+            title: 'Breaking Bad',
+            imagePath: '',
+            lastWatched: DateTime(2026, 6, 28),
+            watchDuration: const Duration(minutes: 12),
+            totalDuration: const Duration(minutes: 47),
+          ),
+        ],
+        onResume: (_) {},
+        onRemove: (_) {},
+      ),
+      size: null,
+    );
+    await settle(tester);
+    await capture(tester, '12_continue_watching');
   });
 }

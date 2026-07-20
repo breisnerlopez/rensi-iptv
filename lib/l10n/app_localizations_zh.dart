@@ -693,6 +693,67 @@ class AppLocalizationsZh extends AppLocalizations {
   String get clear_all_history_confirmation => '您確定要刪除所有觀看歷史嗎？';
 
   @override
+  String get resume_failed => '此内容已不在此播放列表中';
+
+  @override
+  String get home_empty_title => '此播放列表中还没有电影或剧集。';
+
+  @override
+  String get home_empty_hint => '在菜单中使用“直播”观看频道，或搜索内容。';
+
+  @override
+  String get loading => '加载中…';
+
+  @override
+  String get greeting_morning => '早上好';
+
+  @override
+  String get greeting_afternoon => '下午好';
+
+  @override
+  String get greeting_evening => '晚上好';
+
+  @override
+  String get featured_today => '今日推荐';
+
+  @override
+  String get search_catalog_hint => '搜索整个片库';
+
+  @override
+  String get search_placeholder => '搜索电影、剧集、频道…';
+
+  @override
+  String get no_channels => '无频道';
+
+  @override
+  String get no_results_filter => '此筛选无结果';
+
+  @override
+  String get preferred_audio => '首选音轨';
+
+  @override
+  String get preferred_subtitles => '首选字幕';
+
+  @override
+  String get decoder_applies_next_video => '将在下次打开视频时生效';
+
+  @override
+  String no_results_for(String query) {
+    return '没有“$query”的结果';
+  }
+
+  @override
+  String saved_titles_count(int count) {
+    return '已保存 $count 个内容';
+  }
+
+  @override
+  String get history_cleared => '观看记录已清除';
+
+  @override
+  String get history_clear_failed => '无法清除观看记录';
+
+  @override
   String get appearance => '外觀';
 
   @override
@@ -1202,8 +1263,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get action_browse_catalogue => '浏览片库';
 
   @override
-  String get empty_history_title => '还没有观看记录';
+  String get video_decoding_label => '视频解码';
 
   @override
-  String get empty_history_body => '你观看的内容会显示在这里，方便继续观看。';
+  String get video_decoding_description => '自动模式几乎适用于所有设备。仅在频道无法播放时更改。';
+
+  @override
+  String get video_decoding_auto => '自动';
+
+  @override
+  String get video_decoding_hw => '直接硬件';
+
+  @override
+  String get video_decoding_software => '软件';
 }

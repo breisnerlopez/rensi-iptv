@@ -13,27 +13,37 @@ import '../screens/series/episode_screen.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class WatchHistoryController extends ChangeNotifier {
+  /// Set once the owner is gone, so a query still in flight cannot notify a
+  /// disposed notifier. Leaving the home while the history loads used to trip
+  /// Flutter's "used after being disposed" assert, and the easiest way to do it
+  /// was the rail's own resume handler.
+  bool _disposed = false;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
+  }
+
   late WatchHistoryService _historyService;
   final _database = getIt<AppDatabase>();
 
   List<WatchHistory> _continueWatching = [];
-  List<WatchHistory> _recentlyWatched = [];
-  List<WatchHistory> _liveHistory = [];
-  List<WatchHistory> _movieHistory = [];
-  List<WatchHistory> _seriesHistory = [];
   bool _isLoading = true;
   String? _errorMessage;
 
   // Getters
   List<WatchHistory> get continueWatching => _continueWatching;
 
-  List<WatchHistory> get recentlyWatched => _recentlyWatched;
 
-  List<WatchHistory> get liveHistory => _liveHistory;
 
-  List<WatchHistory> get movieHistory => _movieHistory;
 
-  List<WatchHistory> get seriesHistory => _seriesHistory;
 
   bool get isLoading => _isLoading;
 
@@ -43,25 +53,17 @@ class WatchHistoryController extends ChangeNotifier {
     _historyService = WatchHistoryService();
   }
 
-  bool get isAllEmpty =>
-      _continueWatching.isEmpty &&
-      _recentlyWatched.isEmpty &&
-      _liveHistory.isEmpty &&
-      _movieHistory.isEmpty &&
-      _seriesHistory.isEmpty;
 
   Future<void> loadWatchHistory() async {
     debugPrint('WatchHistoryController: loadWatchHistory başladı');
     _setLoading(true);
     _clearError();
 
-    // Mevcut verileri temizle
-    _continueWatching.clear();
-    _recentlyWatched.clear();
-    _liveHistory.clear();
-    _movieHistory.clear();
-    _seriesHistory.clear();
-    notifyListeners();
+    // Deliberately NOT clearing here. Emptying the list and notifying before
+    // the query means every reload blanks the rail and repopulates it, and the
+    // reload that matters happens when the viewer returns from the player —
+    // i.e. while they are looking straight at it. The assignment below is
+    // atomic from the UI's point of view.
 
     if (AppState.currentPlaylist == null) {
       debugPrint('WatchHistoryController: Aktif playlist bulunamadı');
@@ -74,28 +76,12 @@ class WatchHistoryController extends ChangeNotifier {
     debugPrint('WatchHistoryController: Playlist ID: $playlistId');
 
     try {
-      final futures = await Future.wait([
-        _historyService.getContinueWatching(playlistId),
-        _historyService.getRecentlyWatched(limit: 20, playlistId),
-        _historyService.getWatchHistoryByContentType(
-          ContentType.liveStream,
-          playlistId,
-        ),
-        _historyService.getWatchHistoryByContentType(
-          ContentType.vod,
-          playlistId,
-        ),
-        _historyService.getWatchHistoryByContentType(
-          ContentType.series,
-          playlistId,
-        ),
-      ]);
-
-      _continueWatching = futures[0];
-      _recentlyWatched = futures[1];
-      _liveHistory = futures[2];
-      _movieHistory = futures[3];
-      _seriesHistory = futures[4];
+      // One query, not five. This used to fetch recently-watched plus a full
+      // scan per content type as well; nothing consumed those four lists, and
+      // the deletion of the history screen removed their last would-be reader.
+      // Left in place they would now run on every home start and every resume,
+      // on a TV box, for nobody.
+      _continueWatching = await _historyService.getContinueWatching(playlistId);
 
       _setLoading(false);
     } catch (e) {
@@ -104,7 +90,14 @@ class WatchHistoryController extends ChangeNotifier {
     }
   }
 
-  Future<void> playContent(BuildContext context, WatchHistory history) async {
+  /// Returns false when the resume could not be started.
+  ///
+  /// The failure has to leave through the return value: a row can outlive the
+  /// catalogue entry it points at, and the resulting StateError used to land in
+  /// `_errorMessage`, which no widget in `lib/` ever read. The card simply did
+  /// nothing on tap, with no way for the viewer to tell a dead entry from an
+  /// unresponsive one.
+  Future<bool> playContent(BuildContext context, WatchHistory history) async {
     try {
       switch (history.contentType) {
         case ContentType.liveStream:
@@ -117,8 +110,10 @@ class WatchHistoryController extends ChangeNotifier {
           await _playSeries(context, history);
           break;
       }
+      return true;
     } catch (e) {
       _setError('Video oynatılırken hata oluştu: ${scrubCredentials(e)}');
+      return false;
     }
   }
 
@@ -139,7 +134,11 @@ class WatchHistoryController extends ChangeNotifier {
       await _historyService.clearAllHistory();
       await loadWatchHistory();
     } catch (e) {
+      // Rethrow after recording: the caller shows a confirmation, and
+      // confirming a deletion that did not happen is the worst outcome on the
+      // one privacy surface this screen has.
       _setError('Hata oluştu: ${scrubCredentials(e)}');
+      rethrow;
     }
   }
 
@@ -169,7 +168,8 @@ class WatchHistoryController extends ChangeNotifier {
         AppState.currentPlaylist!.id,
       );
 
-      navigateByContentType(
+      if (!context.mounted) return;
+      await navigateByContentType(
         context,
         ContentItem(
           history.streamId,
@@ -184,15 +184,20 @@ class WatchHistoryController extends ChangeNotifier {
         AppState.currentPlaylist!.id,
         history.streamId,
       );
+      if (liveStream == null) {
+        throw StateError('watch history points at an item no longer in the '
+            'playlist: ${history.streamId}');
+      }
 
-      navigateByContentType(
+      if (!context.mounted) return;
+      await navigateByContentType(
         context,
         ContentItem(
-          liveStream!.url,
+          liveStream.url,
           history.title,
           history.imagePath ?? '',
           history.contentType,
-          m3uItem: liveStream!,
+          m3uItem: liveStream,
         ),
       );
     }
@@ -204,15 +209,23 @@ class WatchHistoryController extends ChangeNotifier {
         history.streamId,
         AppState.currentPlaylist!.id,
       );
+      // A row can outlive the catalogue entry it points at — a refresh drops
+      // titles. Force-unwrapping it threw into playContent's catch, which set
+      // an error string nobody reads, so the card simply did nothing on tap.
+      if (movie == null) {
+        throw StateError('watch history points at a title no longer in the '
+            'catalogue: ${history.streamId}');
+      }
 
-      navigateByContentType(
+      if (!context.mounted) return;
+      await playByContentType(
         context,
         ContentItem(
           history.streamId,
           history.title,
           history.imagePath ?? '',
           history.contentType,
-          containerExtension: movie!.containerExtension,
+          containerExtension: movie.containerExtension,
           vodStream: movie,
         ),
       );
@@ -221,11 +234,16 @@ class WatchHistoryController extends ChangeNotifier {
         AppState.currentPlaylist!.id,
         history.streamId,
       );
+      if (movie == null) {
+        throw StateError('watch history points at an item no longer in the '
+            'playlist: ${history.streamId}');
+      }
 
-      navigateByContentType(
+      if (!context.mounted) return;
+      await playByContentType(
         context,
         ContentItem(
-          movie!.url,
+          movie.url,
           history.title,
           history.imagePath ?? '',
           history.contentType,
@@ -242,15 +260,23 @@ class WatchHistoryController extends ChangeNotifier {
         AppState.currentPlaylist!.id,
       );
 
+      if (episode == null) {
+        throw StateError('watch history points at an episode no longer in the '
+            'catalogue: ${history.streamId}');
+      }
       final seriesResponse = await AppState.xtreamCodeRepository!.getSeriesInfo(
-        episode!.seriesId,
+        episode.seriesId,
       );
-
-      Navigator.push(
+      if (seriesResponse == null) {
+        throw StateError('the panel returned no series info for '
+            '${episode.seriesId}');
+      }
+      if (!context.mounted) return;
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => EpisodeScreen(
-            seriesInfo: seriesResponse!.seriesInfo,
+            seriesInfo: seriesResponse.seriesInfo,
             seasons: seriesResponse.seasons,
             episodes: seriesResponse.episodes,
             contentItem: ContentItem(
@@ -270,13 +296,17 @@ class WatchHistoryController extends ChangeNotifier {
         AppState.currentPlaylist!.id,
         history.streamId,
       );
-
-      Navigator.push(
+      if (m3uItem == null) {
+        throw StateError('watch history points at an item no longer in the '
+            'playlist: ${history.streamId}');
+      }
+      if (!context.mounted) return;
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => M3uPlayerScreen(
             contentItem: ContentItem(
-              m3uItem!.id,
+              m3uItem.id,
               m3uItem.name ?? '',
               m3uItem.tvgLogo ?? '',
               m3uItem.contentType,
