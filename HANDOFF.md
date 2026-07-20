@@ -1,10 +1,9 @@
-# Handoff — campaña de emulación, diseño 10-pies y poda
+# Handoff — campaña de emulación, diseño 10-pies, poda y v2.2.0
 
-**Fecha:** 2026-07-20 · **Base:** `90cb8eb` · **Estado del trabajo: SIN COMMITEAR**
+**Fecha:** 2026-07-20 · **Publicado como:** `v2.2.0+15` · **Estado: COMMITEADO Y RELEASED**
 
-No existía un handoff previo; este es el primero. Léelo entero antes de tocar el
-árbol: hay una acción de seguridad pendiente y todo el trabajo está en el
-directorio de trabajo, no en un commit.
+Léelo entero antes de tocar el árbol: **queda una acción de seguridad pendiente
+que no puede hacer quien escribe esto** (§0).
 
 ---
 
@@ -31,15 +30,32 @@ La rotación no es opcional: sin ella el riesgo residual no decae con el tiempo.
 
 ---
 
-## 1. Qué hay en el árbol de trabajo
+## 1. Qué se publicó
+
+La versión anterior de este documento avisaba de que todo era «un único conjunto
+sin commitear» que «ya causó una revisión inauditable». Eso está resuelto: son
+**4 commits temáticos sobre `90cb8eb`**, y **cada uno compila por separado**
+(verificado en un worktree aparte con `flutter analyze`, no supuesto).
 
 ```
-HEAD = 90cb8eb   ·   74 rutas modificadas/borradas/nuevas, ninguna commiteada
+a8aa386  test: run the player suite for the first time, and cut v2.2.0
+34ec437  i18n: stop shipping Spanish and Turkish to everyone
+4255935  refactor: prune ~3,400 dead lines, and reconnect the history they orphaned
+f5a069b  feat(tv): ten-foot type scale, and stop the poster printing its title twice
 ```
 
-No hay forma de aislar un cambio de otro con `git diff`: **toda la sesión es un
-único conjunto sin commitear**. Si necesitas revisar por partes, commitea por
-temas antes de seguir. Esto ya causó una revisión inauditable.
+⚠️ **Lección del primer intento de separar, que salió mal.** Agrupé las claves
+l10n en su propio commit y los intermedios dejaron de compilar: los `.arb`
+llevaban *quitadas* las claves de las pantallas podadas, que en ese punto aún
+existían. La dependencia era **mutua** — la poda necesita las claves nuevas y
+las claves quitadas necesitan la poda — así que no se resolvía reordenando: hubo
+que meter l10n dentro del commit de poda. **Separar por temas no basta; hay que
+verificar que cada commit compila, y a veces el tema honesto es más grande de lo
+que apetece.**
+
+`v2.1.0` **nunca se llegó a taguear** (el release anterior es `v2.0.9`), así que
+el enlace de comparación del CHANGELOG apunta a `v2.0.9...v2.2.0`. Si alguien
+busca qué salió en 2.1.0: nada, existió sólo en `pubspec.yaml`.
 
 ### Métricas verificadas (no estimadas)
 
@@ -67,6 +83,36 @@ sudo apt install libmpv2 ffmpeg     # sin libmpv, todo test de player muere al c
 scripts/make_testclip.sh            # genera build/testclip.mp4 (sintético, sin red)
 flutter test --dart-define=RENSI_TESTCLIP="$PWD/build/testclip.mp4"
 ```
+
+---
+
+## 1.b Empezar aquí (lo que te ahorra la primera hora)
+
+```bash
+source ~/android-lab/env.sh                      # flutter NO está en el PATH por defecto
+sudo apt install libmpv2 ffmpeg                  # sin libmpv, TODO test de player muere al cargar
+scripts/make_testclip.sh                         # genera build/testclip.mp4 (sintético, sin red)
+flutter test --dart-define=RENSI_TESTCLIP="$PWD/build/testclip.mp4"
+```
+
+Esperado: **338 pasan · 0 fallan · 1 skip**. Si ves 5 fallos, te falta libmpv;
+si ves 3 skips, te falta el clip. **Un skip no es un aprobado**: su resultado por
+defecto es «no comprobé nada».
+
+El único skip legítimo es `playback_real_test`, que exige credenciales de panel
+reales — y no deben usarse mientras §0 siga abierto.
+
+### Lo próximo que yo cogería, por orden
+
+1. **§0, la rotación de credenciales.** Es lo único cuyo riesgo no decae solo.
+2. **`errorMessage` en el camino de carga** (§7): si la consulta del historial
+   falla, el riel se queda vacío o rancio sin decir nada. El del *resume* ya se
+   cerró; éste no.
+3. **El camino que CREA huérfanos** no tiene test — sólo el síntoma al pulsar.
+   Un refresh de M3U reasigna uuids (`m3u_parser.dart` + `updateM3UItemIdsByPosition`).
+4. **`tmdb.search.history`** quedó huérfana en SharedPreferences: sin lector, sin
+   borrador y fuera de `_backupKeys`. Ningún control de privacidad la alcanza.
+5. **Los 53 warnings restantes** de `flutter analyze` (eran 64).
 
 ---
 
