@@ -5,12 +5,19 @@ import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/services/epg_service.dart';
+import 'package:rensi_iptv/widgets/live/now_playing_line.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 
-/// "En vivo" — channel rows (logo + name + category) grouped by category
-/// chips. The backend doesn't expose now/next EPG for this provider, so the
-/// rows show the channel + live badge instead of a programme guide.
+/// "En vivo" — channel rows grouped by category chips. When the panel provides
+/// a schedule, each row also shows what is on now and how far through it is
+/// (see [NowPlayingLine]); channels without a listing simply show the channel,
+/// so a gap in the provider's data looks like a gap, not like a stuck row.
 class LiveRedesign extends StatefulWidget {
   const LiveRedesign({
+    this.epgService,
     super.key,
     required this.liveCategories,
     required this.onPlay,
@@ -18,6 +25,11 @@ class LiveRedesign extends StatefulWidget {
 
   final List<CategoryViewModel> liveCategories;
   final void Function(ContentItem) onPlay;
+
+  /// When present, each row shows what is on now and how far through it is.
+  /// Optional so the screen still renders for M3U playlists, which have no
+  /// Xtream panel to ask.
+  final EpgService? epgService;
 
   @override
   State<LiveRedesign> createState() => _LiveRedesignState();
@@ -64,14 +76,19 @@ class _LiveRedesignState extends State<LiveRedesign> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              // safeInset, not a hand-written 20: this screen was left out of the overscan
+            // pass, so the focused row drew from x=0 to the panel edge and its ring
+            // was cropped on a real TV.
+            padding: EdgeInsets.fromLTRB(
+                ResponsiveHelper.safeInset(context), 8,
+                ResponsiveHelper.safeInset(context), 12),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('En vivo',
+                  Text(context.loc.live,
                       style: TextStyle(
                           fontFamily: 'Bricolage Grotesque',
-                          fontSize: 26,
+                          fontSize: AppThemes.h2Size,
                           fontWeight: FontWeight.w800)),
                   Row(
                     children: [
@@ -90,9 +107,9 @@ class _LiveRedesignState extends State<LiveRedesign> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text('EN DIRECTO',
+                      Text(context.loc.live,
                           style: TextStyle(
-                              fontSize: 12,
+                              fontSize: AppThemes.labelSize,
                               fontWeight: FontWeight.w700,
                               color: r.live)),
                     ],
@@ -101,10 +118,11 @@ class _LiveRedesignState extends State<LiveRedesign> {
               ),
             ),
             SizedBox(
-              height: 44,
+              height: 60,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveHelper.safeInset(context)),
                 itemCount: chips.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (_, i) => RensiChip(
@@ -118,13 +136,30 @@ class _LiveRedesignState extends State<LiveRedesign> {
             Expanded(
               child: channels.isEmpty
                   ? Center(
-                      child: Text('Sin canales',
+                      child: Text(context.loc.no_channels,
                           style: TextStyle(color: r.text3)))
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                  // Two columns wherever there is room. One column showed four
+                  // channels on a 960dp TV, where Plex and Google TV show 8-12;
+                  // a 200-channel playlist was 45 presses of DOWN to reach the
+                  // middle. The ~600dp of dead space in the middle of each row
+                  // is what pays for the second column.
+                  : GridView.builder(
+                      padding: EdgeInsets.fromLTRB(
+                          ResponsiveHelper.safeInset(context), 4,
+                          ResponsiveHelper.safeInset(context), 24),
+                      gridDelegate:
+                          SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent:
+                            ResponsiveHelper.useNavigationRail(context)
+                                ? 460
+                                : double.infinity,
+                        mainAxisExtent: 92,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 11,
+                      ),
                       itemCount: channels.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 11),
                       itemBuilder: (_, i) => _ChannelRow(
+                        epgService: widget.epgService,
                         item: channels[i],
                         index: i,
                         autofocus: i == 0,
@@ -145,11 +180,13 @@ class _ChannelRow extends StatelessWidget {
     required this.index,
     required this.onTap,
     this.autofocus = false,
+    this.epgService,
   });
   final ContentItem item;
   final int index;
   final VoidCallback onTap;
   final bool autofocus;
+  final EpgService? epgService;
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +236,7 @@ class _ChannelRow extends StatelessWidget {
                             child: Text(
                               'CH ${(index + 1).toString().padLeft(2, '0')}',
                               style: const TextStyle(
-                                  fontSize: 9.5,
+                                  fontSize: AppThemes.labelSize,
                                   fontWeight: FontWeight.w800,
                                   color: Colors.white),
                             ),
@@ -224,20 +261,28 @@ class _ChannelRow extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                   fontFamily: 'Bricolage Grotesque',
-                                  fontSize: 15,
+                                  fontSize: AppThemes.bodySmallSize,
                                   fontWeight: FontWeight.w700),
                             ),
                           ),
-                          Text('● EN VIVO',
-                              style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: r.live)),
+                          // The per-row "EN VIVO" badge was removed: in a list
+                          // where every item is live it discriminated nothing,
+                          // used different wording from the header, and was the
+                          // only saturated colour on screen five times over.
+                          // Its space now carries what is actually on.
                         ],
                       ),
-                      // No fake progress bar: without real EPG now/next data a
-                      // fixed 50% bar just misleads (every channel looked
-                      // half-watched). The "● EN VIVO" badge above is enough.
+                      // Real EPG now, so the progress bar means something. A
+                      // previous version rejected a fixed 50% bar for exactly
+                      // the right reason: without data it made every channel
+                      // look half-watched. NowPlayingLine renders nothing when
+                      // the panel has no usable listing, so a channel without
+                      // EPG still looks like one.
+                      if (epgService != null)
+                        NowPlayingLine(
+                          streamId: item.id,
+                          service: epgService!,
+                        ),
                     ],
                   ),
                 ),

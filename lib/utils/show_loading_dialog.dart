@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 Future<void> showLoadingDialog(BuildContext context, String message) {
   return showDialog(
@@ -35,7 +36,7 @@ Future<void> showLoadingDialog(BuildContext context, String message) {
               Text(
                 message,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: AppThemes.bodySmallSize,
                   fontWeight: FontWeight.w500,
                   color: Colors.grey[700],
                 ),

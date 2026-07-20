@@ -7,6 +7,10 @@ import 'active_playlist_controller.dart';
 import '../models/playlist_model.dart';
 import '../screens/xtream-codes/xtream_code_home_screen.dart';
 import '../services/playlist_service.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
+import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/services/service_locator.dart';
+import 'package:rensi_iptv/screens/xtream-codes/xtream_code_data_loader_screen.dart';
 
 class PlaylistController extends ChangeNotifier {
   List<Playlist> _playlists = [];
@@ -59,7 +63,7 @@ class PlaylistController extends ChangeNotifier {
       _sortPlaylists();
       _hasInitialized = true;
     } catch (e) {
-      _setError('playlist_load_failed', e.toString());
+      _setError('playlist_load_failed', scrubCredentials(e));
     } finally {
       _setLoading(false);
     }
@@ -70,13 +74,23 @@ class PlaylistController extends ChangeNotifier {
     AppState.currentPlaylist = playlist;
     context.read<ActivePlaylistController>().setInitialPlaylist(playlist);
 
+    // An imported playlist arrives with its credentials but no catalogue: the
+    // backup carries the account, not the thousands of streams behind it. Only
+    // the create flow ever ran the data loader, so restoring a backup landed the
+    // user on an empty Home with "Sin canales" and no way to understand why.
+    final needsSync = playlist.type == PlaylistType.xtream &&
+        (await getIt<AppDatabase>().getLiveStreams(playlist.id)).isEmpty;
+
     if (context.mounted) {
       switch (playlist.type) {
         case PlaylistType.xtream:
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => XtreamCodeHomeScreen(playlist: playlist),
+              builder: (context) => needsSync
+                  ? XtreamCodeDataLoaderScreen(
+                      playlist: playlist, refreshAll: true)
+                  : XtreamCodeHomeScreen(playlist: playlist),
             ),
           );
         case PlaylistType.m3u:
@@ -121,7 +135,7 @@ class PlaylistController extends ChangeNotifier {
 
       return playlist;
     } catch (e) {
-      _setError('playlist_save_failed', e.toString());
+      _setError('playlist_save_failed', scrubCredentials(e));
       return null;
     } finally {
       _setLoading(false);
@@ -135,7 +149,7 @@ class PlaylistController extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _setError('playlist_delete_failed', e.toString());
+      _setError('playlist_delete_failed', scrubCredentials(e));
       return false;
     }
   }
@@ -152,7 +166,7 @@ class PlaylistController extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _setError('playlist_delete_failed', e.toString());
+      _setError('playlist_delete_failed', scrubCredentials(e));
       return false;
     } finally {
       _setLoading(false);
@@ -179,7 +193,7 @@ class PlaylistController extends ChangeNotifier {
 
       return true;
     } catch (e) {
-      _setError('playlist_update_failed', e.toString());
+      _setError('playlist_update_failed', scrubCredentials(e));
       return false;
     } finally {
       _setLoading(false);

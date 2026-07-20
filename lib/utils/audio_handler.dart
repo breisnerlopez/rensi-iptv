@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:media_kit/media_kit.dart' hide Playlist;
+import 'package:flutter/foundation.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 Future<MyAudioHandler> initAudioService() async {
   return await AudioService.init(
@@ -80,7 +82,7 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
         _player?.pause();
       });
     } catch (e) {
-      print('Audio session configuration error: $e');
+      debugPrint('Audio session configuration error: ${scrubCredentials(e)}');
     }
   }
 

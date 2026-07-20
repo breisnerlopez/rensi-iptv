@@ -1,6 +1,7 @@
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/watch_history.dart';
+import 'package:rensi_iptv/controllers/watch_history_controller.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
-import 'package:rensi_iptv/screens/global_search_screen.dart';
-import 'package:rensi_iptv/screens/m3u/m3u_items_screen.dart';
 import 'package:rensi_iptv/screens/m3u/m3u_playlist_settings_screen.dart';
 import 'package:rensi_iptv/widgets/confirm_exit_scope.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +11,6 @@ import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/repositories/m3u_repository.dart';
 import 'package:rensi_iptv/screens/category_detail_screen.dart';
-import 'package:rensi_iptv/widgets/category_section.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
@@ -22,7 +22,7 @@ import 'package:rensi_iptv/redesign/list_redesign.dart';
 import 'package:rensi_iptv/redesign/search_redesign.dart';
 
 import '../../services/app_state.dart';
-import '../watch_history_screen.dart';
+import 'package:rensi_iptv/widgets/tv/navigation_models.dart';
 
 class M3UHomeScreen extends StatefulWidget {
   final Playlist playlist;
@@ -41,10 +41,26 @@ class M3UHomeScreen extends StatefulWidget {
 class _M3UHomeScreenState extends State<M3UHomeScreen> {
   late M3UHomeController _controller;
 
+  /// Continue-watching. M3U playlists record history the same way Xtream ones
+  /// do, so leaving the rail wired on only one of them would have made the
+  /// feature depend on which kind of list you happened to add.
+  final WatchHistoryController _history = WatchHistoryController();
+
+  /// Drives the rail's dimming: full strength only while it holds the focus.
+  bool _railHasFocus = false;
+
   static const double _desktopBreakpoint = 900.0;
   static const double _largeScreenBreakpoint = 1200.0;
   static const double _defaultNavWidth = 72.0;
   static const double _largeNavWidth = 88.0;
+  // 10-foot rail. The old _large* values were gated behind a 1200dp breakpoint
+  // that an Android TV never reaches (it reports 960dp), so the TV rail was
+  // rendering at phone scale: 72dp wide with a 10dp label, unreadable at 3m.
+  // Leanback guidance puts primary navigation at >=18sp.
+  static const double _tvNavWidth = 104.0;
+  static const double _tvItemHeight = 76.0;
+  static const double _tvIconSize = 32.0;
+  static const double _tvFontSize = 17.0;
   static const double _defaultItemHeight = 50.0;
   static const double _largeItemHeight = 56.0;
   static const double _defaultIconSize = 24.0;
@@ -75,10 +91,33 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
   void initState() {
     super.initState();
     _initializeController();
+    _history.addListener(_onHistoryChanged);
+    _history.loadWatchHistory();
+  }
+
+
+  void _onHistoryChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Reloads continue-watching whenever Inicio comes back to the front.
+  ///
+  /// Settings is page 4 of this same IndexedStack, so "clear all history" runs
+  /// a few centimetres away from this rail and never told it. Without this the
+  /// viewer wipes their history, returns to Inicio, sees the same cards, and
+  /// every one of them fails silently on tap because its row is gone.
+  int _lastIndex = 0;
+  void _onTabChanged() {
+    final i = _controller.currentIndex;
+    if (i == 0 && _lastIndex != 0) _history.loadWatchHistory();
+    _lastIndex = i;
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_onTabChanged);
+    _history.removeListener(_onHistoryChanged);
+    _history.dispose();
     for (final n in _railNodes.values) {
       n.dispose();
     }
@@ -90,6 +129,9 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     AppState.currentPlaylist = widget.playlist;
     AppState.m3uRepository = M3uRepository();
     _controller = M3UHomeController(initialIndex: widget.initialIndex);
+    // After the controller exists: reloads the rail when Inicio returns to the
+    // front, which is how clearing history from the settings tab reaches it.
+    _controller.addListener(_onTabChanged);
   }
 
   @override
@@ -111,10 +153,11 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     return ConfirmExitScope(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // Real TV/leanback always gets the side-rail layout; width is only a
-          // fallback for large tablets / desktop windows.
-          if (ResponsiveHelper.isDesktopOrTV(context) ||
-              constraints.maxWidth >= _desktopBreakpoint) {
+          // Real TV/leanback always gets the side-rail layout. Width takes over
+          // at 600dp — Material 3's breakpoint, and where every tablet
+          // streaming app switches. A 10" tablet reports 800dp and was still
+          // stretching a five-tab bottom bar across it.
+          if (ResponsiveHelper.useNavigationRail(context)) {
             return _buildDesktopLayout(context, controller, constraints);
           }
 
@@ -161,8 +204,24 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     return Scaffold(
       body: Row(
         children: [
+          // Dimmed while the focus lives in the content. With both areas at
+          // full strength the eye reads two active zones and you have to hunt
+          // for the white ring to know where you are — Netflix collapses the
+          // rail, Google TV fades it to about half.
           FocusTraversalGroup(
-            child: _buildDesktopNavigationBar(context, controller, constraints),
+            child: Focus(
+              canRequestFocus: false,
+              skipTraversal: true,
+              onFocusChange: (f) {
+                if (f != _railHasFocus) setState(() => _railHasFocus = f);
+              },
+              child: AnimatedOpacity(
+                opacity: _railHasFocus ? 1.0 : 0.45,
+                duration: const Duration(milliseconds: 200),
+                child: _buildDesktopNavigationBar(
+                    context, controller, constraints),
+              ),
+            ),
           ),
           Expanded(
             child: FocusTraversalGroup(
@@ -214,6 +273,26 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
         onSearch: _openSearch,
         onSettings: () => controller.onNavigationTap(4),
         onSeeAll: _navigateToCategoryDetail,
+        continueWatching: resumableFrom(_history.continueWatching),
+        onResume: (h) async {
+          final started = await _history.playContent(context, h);
+          if (!mounted) return;
+          if (!started) {
+            // Ver la nota en xtream_code_home_screen.dart: la retirada es
+            // ofrecida, no automática.
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(context.loc.resume_failed),
+                action: SnackBarAction(
+                  label: context.loc.remove,
+                  onPressed: () => _history.removeHistory(h),
+                ),
+              ),
+            );
+          }
+          await _history.loadWatchHistory();
+        },
+        onRemove: (h) => _history.removeHistory(h),
         playlistSwitcher: PlaylistSwitcherButton(
           currentPlaylist: widget.playlist,
           currentIndex: controller.currentIndex,
@@ -235,89 +314,6 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       ),
       M3uPlaylistSettingsScreen(playlist: widget.playlist),
     ];
-  }
-
-  Widget _buildContentPage(
-    List<CategoryViewModel> categories,
-    M3UHomeController controller,
-  ) {
-    return NestedScrollView(
-      headerSliverBuilder: (context, innerBoxIsScrolled) => [
-        _buildSliverAppBar(context, controller),
-      ],
-      body: _buildCategoryList(categories),
-    );
-  }
-
-  SliverAppBar _buildSliverAppBar(
-    BuildContext context,
-    M3UHomeController controller,
-  ) {
-    if (ResponsiveHelper.isDesktopOrTV(context)) {
-      return _buildDesktopSliverAppBar(context, controller);
-    }
-
-    return _buildMobileSliverAppBar(context, controller);
-  }
-
-  SliverAppBar _buildDesktopSliverAppBar(
-    BuildContext context,
-    M3UHomeController controller,
-  ) {
-    return SliverAppBar(
-      title: SelectableText(
-        context.loc.live_streams,
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
-      floating: true,
-      snap: true,
-      elevation: 0,
-      actions: [
-        PlaylistSwitcherButton(
-          currentPlaylist: widget.playlist,
-          currentIndex: controller.currentIndex,
-        ),
-      ],
-    );
-  }
-
-  SliverAppBar _buildMobileSliverAppBar(
-    BuildContext context,
-    M3UHomeController controller,
-  ) {
-    return SliverAppBar(
-      title: SelectableText(
-        controller.getPageTitle(context),
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
-      floating: true,
-      snap: true,
-      elevation: 0,
-      actions: [
-        PlaylistSwitcherButton(
-          currentPlaylist: widget.playlist,
-          currentIndex: controller.currentIndex,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCategoryList(List<CategoryViewModel> categories) {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: categories.length,
-      itemBuilder: (context, index) => _buildCategorySection(categories[index]),
-    );
-  }
-
-  Widget _buildCategorySection(CategoryViewModel category) {
-    return CategorySection(
-      category: category,
-      cardWidth: ResponsiveHelper.getCardWidth(context),
-      cardHeight: ResponsiveHelper.getCardHeight(context),
-      onSeeAllTap: () => _navigateToCategoryDetail(category),
-      onContentTap: (content) => navigateByContentType(context, content),
-    );
   }
 
   void _navigateToCategoryDetail(CategoryViewModel category) {
@@ -345,7 +341,13 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     BuildContext context,
   ) {
     return _getNavigationItems(context).map((item) {
-      return BottomNavigationBarItem(icon: Icon(item.icon), label: item.label);
+      // Same outline-inactive / filled-active semantics as the TV rail; the
+      // bottom bar was painting every tab filled.
+      return BottomNavigationBarItem(
+        icon: Icon(item.resolve(false)),
+        activeIcon: Icon(item.resolve(true)),
+        label: item.label,
+      );
     }).toList();
   }
 
@@ -354,7 +356,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     M3UHomeController controller,
     BoxConstraints constraints,
   ) {
-    final navWidth = _getNavigationWidth(constraints.maxWidth);
+    final navWidth = _getNavigationWidth(context, constraints.maxWidth);
 
     return Container(
       width: navWidth,
@@ -374,7 +376,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     BoxConstraints constraints,
   ) {
     final items = _getNavigationItems(context);
-    final sizes = _getNavigationSizes(constraints.maxWidth);
+    final sizes = _getNavigationSizes(context, constraints.maxWidth);
 
     return Column(
       children: items.map((item) {
@@ -384,7 +386,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
           item,
           isSelected,
           sizes,
-          () => controller.onNavigationTap(item.index),
+          item.onSelected ?? () => controller.onNavigationTap(item.index),
         );
       }).toList(),
     );
@@ -402,10 +404,22 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       child: Container(
       width: double.infinity,
       height: sizes.itemHeight,
-      margin: const EdgeInsets.symmetric(vertical: 2),
+      // The left inset is what actually moves the item off the overscan strip;
+      // reserving it in the rail's width alone did nothing, because a
+      // full-width item spanned the reservation and the ring still hit x=0.
+      margin: EdgeInsets.only(
+          left: ResponsiveHelper.isDesktopOrTV(context)
+              ? ResponsiveHelper.safeInset(context)
+              : 0,
+          top: 2,
+          bottom: 2),
       decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        // Selected = quiet tint + accent bar; the bright treatment belongs to
+        // focus alone. The old filled primaryContainer with accent text was
+        // 3.65:1 — the current section was the least legible item in the rail.
         color: isSelected
-            ? Theme.of(context).colorScheme.primaryContainer
+            ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)
             : Colors.transparent,
       ),
       child: InkWell(
@@ -418,7 +432,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              item.icon,
+              item.resolve(isSelected),
               color: _getIconColor(context, isSelected),
               size: sizes.iconSize,
             ),
@@ -457,13 +471,25 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     );
   }
 
-  double _getNavigationWidth(double screenWidth) {
-    return screenWidth >= _largeScreenBreakpoint
-        ? _largeNavWidth
-        : _defaultNavWidth;
+  double _getNavigationWidth(BuildContext context, double screenWidth) {
+    // Reserve the overscan inset on top of the rail: at x=0 the rail — and the
+    // focus ring of whatever is selected in it — sits in the strip a consumer
+    // TV crops.
+    if (ResponsiveHelper.isDesktopOrTV(context)) {
+      return _tvNavWidth + ResponsiveHelper.safeInset(context);
+    }
+    // Tablet: wide enough to read, far from the 10-foot scale.
+    return screenWidth >= _desktopBreakpoint ? _largeNavWidth : _defaultNavWidth;
   }
 
-  NavigationSizes _getNavigationSizes(double screenWidth) {
+  NavigationSizes _getNavigationSizes(BuildContext context, double screenWidth) {
+    if (ResponsiveHelper.isDesktopOrTV(context)) {
+      return NavigationSizes(
+        itemHeight: _tvItemHeight,
+        iconSize: _tvIconSize,
+        fontSize: _tvFontSize,
+      );
+    }
     final isLargeScreen = screenWidth >= _largeScreenBreakpoint;
 
     return NavigationSizes(
@@ -474,52 +500,66 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
   }
 
   Color _getIconColor(BuildContext context, bool isSelected) {
+    // Accent stays on the icon — it is a large shape, so it clears 3:1 — while
+    // the label carries the contrast.
     return isSelected
         ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurface;
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.72);
   }
 
   Color _getTextColor(BuildContext context, bool isSelected) {
-    return isSelected
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurface;
+    // The active section must be the MOST readable item, not the least. The
+    // accent-on-tint pairing it used before measured 3.65:1, below AA.
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return isSelected ? onSurface : onSurface.withValues(alpha: 0.72);
   }
 
   List<NavigationItem> _getNavigationItems(BuildContext context) {
     return [
-      NavigationItem(icon: Icons.home_filled, label: 'Inicio', index: 0),
-      NavigationItem(icon: Icons.grid_view_rounded, label: 'Explorar', index: 1),
-      NavigationItem(icon: Icons.live_tv, label: 'En vivo', index: 2),
-      NavigationItem(icon: Icons.bookmark_border, label: 'Mi lista', index: 3),
       NavigationItem(
-        icon: Icons.settings,
-        label: context.loc.settings,
+          icon: Icons.home_rounded,
+          iconOutlined: Icons.home_outlined,
+          label: context.loc.nav_home,
+          index: 0),
+      // TV only. Search sits right under Home, where Google TV puts it: it is
+      // how people reach a specific title in a catalogue of thousands, and on a
+      // remote it was reachable only from a small icon in the top bar. It is
+      // NOT added when the bottom bar is in use: BottomNavigationBar indexes by
+      // position, so an item that is an action rather than a page would shift
+      // every tab off its own page.
+      if (ResponsiveHelper.useNavigationRail(context))
+        NavigationItem(
+            icon: Icons.search_rounded,
+            iconOutlined: Icons.search_outlined,
+            label: context.loc.search,
+            index: -1,
+            onSelected: _openSearch),
+      NavigationItem(
+          icon: Icons.grid_view_rounded,
+          iconOutlined: Icons.grid_view_outlined,
+          label: context.loc.nav_browse,
+          index: 1),
+      NavigationItem(
+          icon: Icons.live_tv_rounded,
+          iconOutlined: Icons.live_tv_outlined,
+          label: context.loc.nav_live,
+          index: 2),
+      NavigationItem(
+          icon: Icons.bookmark_rounded,
+          iconOutlined: Icons.bookmark_border_rounded,
+          label: context.loc.nav_my_list,
+          index: 3),
+      NavigationItem(
+        icon: Icons.settings_rounded,
+        iconOutlined: Icons.settings_outlined,
+        // nav_settings, not `settings`: the long form clipped against the right
+        // edge of the bottom bar on a 360dp phone, and "Ajustes" is the standard
+        // Android term in es-ES anyway.
+        label: context.loc.nav_settings,
         index: 4,
       ),
     ];
   }
 }
 
-class NavigationItem {
-  final IconData icon;
-  final String label;
-  final int index;
 
-  const NavigationItem({
-    required this.icon,
-    required this.label,
-    required this.index,
-  });
-}
-
-class NavigationSizes {
-  final double itemHeight;
-  final double iconSize;
-  final double fontSize;
-
-  const NavigationSizes({
-    required this.itemHeight,
-    required this.iconSize,
-    required this.fontSize,
-  });
-}

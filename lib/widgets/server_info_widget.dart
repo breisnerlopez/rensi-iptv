@@ -3,6 +3,7 @@ import 'package:rensi_iptv/models/api_response.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'info_tile_widget.dart';
 import 'section_title_widget.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class ServerInfoWidget extends StatelessWidget {
   final ApiResponse serverInfo;
@@ -21,7 +22,8 @@ class ServerInfoWidget extends StatelessWidget {
               InfoTileWidget(
                 icon: Icons.public,
                 label: context.loc.server_url,
-                value: serverInfo.serverInfo.url,
+                value: scrubUrlForDisplay(serverInfo.serverInfo.url),
+                copyValue: serverInfo.serverInfo.url,
               ),
               InfoTileWidget(
                 icon: Icons.access_time,

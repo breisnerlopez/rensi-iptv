@@ -1,9 +1,11 @@
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:flutter/material.dart';
 import '../../../../models/playlist_model.dart';
 import '../../utils/playlist_utils.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class PlaylistCard extends StatelessWidget {
   final Playlist playlist;
@@ -92,7 +94,7 @@ class _PlaylistInfo extends StatelessWidget {
           playlist.name,
           style: const TextStyle(
             fontFamily: 'Bricolage Grotesque',
-            fontSize: 18,
+            fontSize: AppThemes.bodySize,
             fontWeight: FontWeight.w700,
             color: Colors.white,
           ),
@@ -106,15 +108,16 @@ class _PlaylistInfo extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               PlaylistUtils.formatDate(playlist.createdAt),
-              style: TextStyle(fontSize: 12, color: r.text3),
+              style: TextStyle(fontSize: AppThemes.tenFoot(context, 12), color: r.text3),
             ),
           ],
         ),
         if (playlist.url != null) ...[
           const SizedBox(height: 4),
           Text(
-            playlist.url!,
-            style: TextStyle(fontSize: 12, color: r.text3),
+            // M3U playlists carry user+password in this URL — never render it raw.
+            scrubUrlForDisplay(playlist.url),
+            style: TextStyle(fontSize: AppThemes.tenFoot(context, 12), color: r.text3),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -142,7 +145,7 @@ class _TypeChip extends StatelessWidget {
       child: Text(
         type.toString().split('.').last.toUpperCase(),
         style: TextStyle(
-          fontSize: 12,
+          fontSize: AppThemes.tenFoot(context, 12),
           fontWeight: FontWeight.bold,
           color: r.accent,
         ),

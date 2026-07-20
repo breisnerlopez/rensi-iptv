@@ -8,6 +8,10 @@ import '../../../../controllers/playlist_controller.dart';
 import '../../../../models/api_configuration_model.dart';
 import '../../../../models/playlist_model.dart';
 import '../../../../repositories/iptv_repository.dart';
+import 'package:rensi_iptv/widgets/tv/tv_field_traversal.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class NewXtreamCodePlaylistScreen extends StatefulWidget {
   const NewXtreamCodePlaylistScreen({super.key});
@@ -92,8 +96,25 @@ class NewXtreamCodePlaylistScreenState
       body: Consumer<PlaylistController>(
         builder: (context, controller, child) {
           return SingleChildScrollView(
-            padding: EdgeInsets.all(24),
-            child: Form(
+            // Room to scroll the active field clear of the on-screen keyboard.
+            // Without it the IME simply covers the middle of the form: the TV
+            // keyboard is a large overlay and the fields ran the full width, so
+            // the user could not read what they were typing.
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(context).bottom),
+            // RensiSafeColumn instead of a flat 24dp: on TV that margin sat
+            // inside the 5% overscan crop, so the form's own focus rings were
+            // partly off the picture.
+            child: RensiSafeColumn(
+              child: ConstrainedBox(
+                // A 910dp-wide field is unreadable next to a centred keyboard.
+                // Capping the measure keeps the text beside the caret visible.
+                constraints: BoxConstraints(
+                  maxWidth: ResponsiveHelper.isDesktopOrTV(context)
+                      ? 620
+                      : double.infinity,
+                ),
+                child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -118,6 +139,8 @@ class NewXtreamCodePlaylistScreenState
                 ],
               ),
             ),
+            ),
+            ),
           );
         },
       ),
@@ -141,7 +164,9 @@ class NewXtreamCodePlaylistScreenState
         Text(
           'XStream Code Playlist',
           style: TextStyle(
-            fontSize: 26,
+            fontFamily: 'Bricolage Grotesque',
+            letterSpacing: -0.7,
+            fontSize: AppThemes.h1Size,
             fontWeight: FontWeight.bold,
             color: colorScheme.onSurface,
           ),
@@ -150,7 +175,7 @@ class NewXtreamCodePlaylistScreenState
         Text(
           context.loc.xtream_code_description,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             color: colorScheme.onSurface.withOpacity(0.7),
           ),
         ),
@@ -165,15 +190,21 @@ class NewXtreamCodePlaylistScreenState
         Text(
           context.loc.playlist_name,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
         ),
         SizedBox(height: 8),
-        TextFormField(
+        TvFieldTraversal(child: TextFormField(
           controller: _nameController,
           focusNode: _nameNode,
+          // Focus the first field on every platform. On TV the IME does pop
+          // up with it, which is not ideal, but the alternative shipped worse:
+          // no autofocus left the screen with NOTHING focused, and the submit
+          // button starts disabled so it cannot take focus either — a remote
+          // user was stranded. TvFieldTraversal below is what lets the D-pad
+          // leave the field once the keyboard is dismissed.
           autofocus: true,
           textInputAction: TextInputAction.next,
           onFieldSubmitted: (_) => _urlNode.requestFocus(),
@@ -184,10 +215,10 @@ class NewXtreamCodePlaylistScreenState
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: colorScheme.outline),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
+            // No local focusedBorder: the theme owns the focus ring, and this
+            // override painted it orange while every other screen used the
+            // white one — the single convention a remote user has to learn.
+            
             filled: true,
             fillColor: colorScheme.surface,
           ),
@@ -200,7 +231,7 @@ class NewXtreamCodePlaylistScreenState
             }
             return null;
           },
-        ),
+        )),
       ],
     );
   }
@@ -212,16 +243,22 @@ class NewXtreamCodePlaylistScreenState
         Text(
           context.loc.api_url,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
         ),
         SizedBox(height: 8),
-        TextFormField(
+        TvFieldTraversal(child: TextFormField(
           controller: _urlController,
           focusNode: _urlNode,
           keyboardType: TextInputType.url,
+          // An M3U URL carries username= and password=. Without these the IME
+          // learns the credential into its dictionary and then offers it as a
+          // suggestion pill above the keyboard — on a screen the whole room
+          // can see.
+          autocorrect: false,
+          enableSuggestions: false,
           textInputAction: TextInputAction.next,
           onFieldSubmitted: (_) => _usernameNode.requestFocus(),
           decoration: InputDecoration(
@@ -239,10 +276,10 @@ class NewXtreamCodePlaylistScreenState
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: colorScheme.outline),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
+            // No local focusedBorder: the theme owns the focus ring, and this
+            // override painted it orange while every other screen used the
+            // white one — the single convention a remote user has to learn.
+            
             filled: true,
             fillColor: colorScheme.surface,
           ),
@@ -262,7 +299,7 @@ class NewXtreamCodePlaylistScreenState
 
             return null;
           },
-        ),
+        )),
       ],
     );
   }
@@ -274,15 +311,17 @@ class NewXtreamCodePlaylistScreenState
         Text(
           context.loc.username,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
         ),
         SizedBox(height: 8),
-        TextFormField(
+        TvFieldTraversal(child: TextFormField(
           controller: _usernameController,
           focusNode: _usernameNode,
+          autocorrect: false,
+          enableSuggestions: false,
           textInputAction: TextInputAction.next,
           onFieldSubmitted: (_) => _passwordNode.requestFocus(),
           decoration: InputDecoration(
@@ -300,10 +339,10 @@ class NewXtreamCodePlaylistScreenState
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: colorScheme.outline),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
+            // No local focusedBorder: the theme owns the focus ring, and this
+            // override painted it orange while every other screen used the
+            // white one — the single convention a remote user has to learn.
+            
             filled: true,
             fillColor: colorScheme.surface,
           ),
@@ -316,7 +355,7 @@ class NewXtreamCodePlaylistScreenState
             }
             return null;
           },
-        ),
+        )),
       ],
     );
   }
@@ -328,15 +367,17 @@ class NewXtreamCodePlaylistScreenState
         Text(
           context.loc.password,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
         ),
         SizedBox(height: 8),
-        TextFormField(
+        TvFieldTraversal(child: TextFormField(
           controller: _passwordController,
           focusNode: _passwordNode,
+          autocorrect: false,
+          enableSuggestions: false,
           obscureText: _obscurePassword,
           textInputAction: TextInputAction.done,
           onFieldSubmitted: (_) {
@@ -374,10 +415,10 @@ class NewXtreamCodePlaylistScreenState
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: colorScheme.outline),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
+            // No local focusedBorder: the theme owns the focus ring, and this
+            // override painted it orange while every other screen used the
+            // white one — the single convention a remote user has to learn.
+            
             filled: true,
             fillColor: colorScheme.surface,
           ),
@@ -390,7 +431,7 @@ class NewXtreamCodePlaylistScreenState
             }
             return null;
           },
-        ),
+        )),
       ],
     );
   }
@@ -432,7 +473,7 @@ class NewXtreamCodePlaylistScreenState
                   SizedBox(width: 12),
                   Text(
                     context.loc.submitting,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: AppThemes.bodySmallSize, fontWeight: FontWeight.w600),
                   ),
                 ],
               )
@@ -443,7 +484,7 @@ class NewXtreamCodePlaylistScreenState
                   SizedBox(width: 8),
                   Text(
                     context.loc.submit_create_playlist,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: AppThemes.bodySmallSize, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -479,7 +520,7 @@ class NewXtreamCodePlaylistScreenState
                   error,
                   style: TextStyle(
                     color: colorScheme.onErrorContainer,
-                    fontSize: 14,
+                    fontSize: AppThemes.labelSize,
                   ),
                 ),
               ],

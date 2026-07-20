@@ -42,7 +42,12 @@ class _PlaylistScreenBody extends StatelessWidget {
           builder: (context, controller, child) =>
               _buildBodyFromState(context, controller),
         ),
-        floatingActionButton: _buildFloatingActionButton(context),
+        // No FAB on a 10-foot screen: it is a touch affordance, it duplicates
+        // the primary action already on screen, and it sits in the bottom-right
+        // corner — the first thing a TV's overscan crops.
+        floatingActionButton: ResponsiveHelper.isDesktopOrTV(context)
+            ? null
+            : _buildFloatingActionButton(context),
       ),
     );
   }
@@ -62,6 +67,19 @@ class _PlaylistScreenBody extends StatelessWidget {
         context.loc.my_playlists,
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
+      // TV has no FAB (a touch affordance sitting in the overscan corner), and
+      // the "create" call to action only exists in the empty state. Without
+      // this, a TV user with one playlist already saved has no way left to add
+      // a second one.
+      actions: ResponsiveHelper.isDesktopOrTV(context)
+          ? [
+              IconButton(
+                icon: const Icon(Icons.add),
+                tooltip: context.loc.create_new_playlist,
+                onPressed: () => _navigateToCreatePlaylist(context),
+              ),
+            ]
+          : null,
     );
   }
 

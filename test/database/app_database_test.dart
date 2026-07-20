@@ -67,11 +67,98 @@ void main() {
         ),
       ]);
 
+      // Watch history has no foreign key onto playlists, so nothing reaps it
+      // implicitly. Deleting a playlist used to leave these rows behind for
+      // good, and a later playlist reusing the id resurrected them in the
+      // "Continue watching" rail.
+      await database
+          .into(database.watchHistories)
+          .insertOnConflictUpdate(WatchHistory(
+            playlistId: 'playlist-1',
+            contentType: ContentType.vod,
+            streamId: 'watched-1',
+            watchDuration: const Duration(minutes: 5),
+            totalDuration: const Duration(hours: 1),
+            lastWatched: DateTime(2026),
+            title: 'Watched',
+          ).toDriftCompanion());
+
+      // Favourites carry the user's own picks, names included, keyed the same
+      // way as history and with no foreign key either. The cascade looked
+      // closed while this sibling table kept everything.
+      await database.insertFavorite(Favorite(
+        id: 'fav-1',
+        playlistId: 'playlist-1',
+        contentType: ContentType.vod,
+        streamId: 'watched-1',
+        name: 'A Very Private Title',
+        createdAt: DateTime(2026),
+        updatedAt: DateTime(2026),
+      ));
+
       await database.deletePlaylistById('playlist-1');
 
       expect(await database.getPlaylistById('playlist-1'), isNull);
       expect(await database.getCategoriesByPlaylist('playlist-1'), isEmpty);
       expect(await database.getM3uItemsByPlaylist('playlist-1'), isEmpty);
+      expect(
+        await (database.select(database.watchHistories)
+              ..where((tbl) => tbl.playlistId.equals('playlist-1')))
+            .get(),
+        isEmpty,
+      );
+      expect(
+        await (database.select(database.favorites)
+              ..where((tbl) => tbl.playlistId.equals('playlist-1')))
+            .get(),
+        isEmpty,
+        reason: 'deleting a playlist must not leave the titles the user '
+            'favourited behind',
+      );
+    });
+
+    test('deletePlaylistById leaves another playlist\'s history alone',
+        () async {
+      await database.insertPlaylist(
+        Playlist(
+          id: 'playlist-1',
+          name: 'Doomed',
+          type: PlaylistType.m3u,
+          createdAt: DateTime(2026),
+        ),
+      );
+      for (final playlistId in ['playlist-1', 'playlist-2']) {
+        await database
+            .into(database.watchHistories)
+            .insertOnConflictUpdate(WatchHistory(
+              playlistId: playlistId,
+              contentType: ContentType.vod,
+              streamId: 'stream-$playlistId',
+              watchDuration: const Duration(minutes: 5),
+              totalDuration: const Duration(hours: 1),
+              lastWatched: DateTime(2026),
+              title: 'Movie',
+            ).toDriftCompanion());
+        await database.insertFavorite(Favorite(
+          id: 'fav-$playlistId',
+          playlistId: playlistId,
+          contentType: ContentType.vod,
+          streamId: 'stream-$playlistId',
+          name: 'Fav $playlistId',
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+        ));
+      }
+
+      await database.deletePlaylistById('playlist-1');
+
+      // The cascade must be scoped by playlistId, not a blanket wipe: this is
+      // the mutation that a "delete everything" implementation would survive
+      // if only the assertion above existed.
+      final survivors = await database.select(database.watchHistories).get();
+      expect(survivors.map((row) => row.playlistId), ['playlist-2']);
+      final favSurvivors = await database.select(database.favorites).get();
+      expect(favSurvivors.map((row) => row.playlistId), ['playlist-2']);
     });
   });
 

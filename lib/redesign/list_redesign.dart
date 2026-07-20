@@ -3,11 +3,16 @@ import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 
 /// "Mi lista" — saved favourites in a poster grid, with an empty state.
 class ListRedesign extends StatefulWidget {
-  const ListRedesign({super.key, required this.onOpen});
+  const ListRedesign({super.key, required this.onOpen, this.onBrowse});
   final void Function(ContentItem) onOpen;
+
+  /// Where the empty state's primary action goes.
+  final VoidCallback? onBrowse;
 
   @override
   State<ListRedesign> createState() => _ListRedesignState();
@@ -37,7 +42,10 @@ class _ListRedesignState extends State<ListRedesign> {
   Widget build(BuildContext context) {
     final r = rensi(context);
     final cross = ResponsiveHelper.getCrossAxisCount(context);
-    final sidePad = ResponsiveHelper.isDesktopOrTV(context) ? 48.0 : 20.0;
+    // safeInset, not a duplicated 48/20: the hand-written pair gave 20dp on
+    // phones where every other screen uses 24, and did not scale with wider
+    // surfaces the way the overscan margin has to.
+    final sidePad = ResponsiveHelper.safeInset(context);
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -54,14 +62,14 @@ class _ListRedesignState extends State<ListRedesign> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Mi lista',
+                      Text(context.loc.nav_my_list,
                           style: TextStyle(
                               fontFamily: 'Bricolage Grotesque',
-                              fontSize: 26,
+                              fontSize: AppThemes.h2Size,
                               fontWeight: FontWeight.w800)),
                       const SizedBox(height: 3),
-                      Text('${items.length} títulos guardados',
-                          style: TextStyle(fontSize: 13, color: r.text3)),
+                      Text(context.loc.saved_titles_count(items.length),
+                          style: TextStyle(fontSize: AppThemes.bodySmallSize, color: r.text3)),
                     ],
                   ),
                 ),
@@ -96,38 +104,13 @@ class _ListRedesignState extends State<ListRedesign> {
     );
   }
 
-  Widget _empty(BuildContext context) {
-    final r = rensi(context);
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: r.surface2,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(Icons.add, size: 30, color: r.text3),
-          ),
-          const SizedBox(height: 16),
-          const Text('Tu lista está vacía',
-              style: TextStyle(
-                  fontFamily: 'Bricolage Grotesque',
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          SizedBox(
-            width: 250,
-            child: Text(
-              'Selecciona un título y agrégalo a favoritos para verlo aquí.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13.5, color: r.text3),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _empty(BuildContext context) => RensiEmptyState(
+        icon: Icons.bookmark_border_rounded,
+        title: context.loc.empty_list_title,
+        body: context.loc.empty_list_body,
+        actionLabel: context.loc.action_browse_catalogue,
+        // Without an action this screen had no focusable element at all: on a
+        // remote the user arrived and had nothing to press.
+        onAction: widget.onBrowse ?? () {},
+      );
 }

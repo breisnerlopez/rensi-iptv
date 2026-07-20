@@ -85,7 +85,7 @@ void main() {
     await tester.runAsync(() async => p = await seedXtreamHome(harnessDb));
     await pumpScreen(tester, XtreamCodeHomeScreen(playlist: p), size: phone);
     await settle(tester);
-    final cfg = find.textContaining('Configura');
+    final cfg = find.textContaining('Ajustes');
     if (tester.any(cfg)) {
       await tester.tap(cfg.first, warnIfMissed: false);
       await settle(tester);

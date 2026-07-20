@@ -9,6 +9,7 @@ import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:provider/provider.dart';
 import '../playlist_screen.dart';
 import 'm3u_home_screen.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class M3uDataLoaderScreen extends StatefulWidget {
   final Playlist playlist;
@@ -213,19 +214,24 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                           SizedBox(height: 24),
                           Text(
                             'Rensi IPTV',
+                            // One wordmark, one typeface. This used to be
+                            // BabaPro at +1.5 tracking while the home rendered
+                            // the same brand in Bricolage at -0.4: two fonts and
+                            // two trackings for one name. BabaPro appeared in
+                            // exactly these two files.
                             style: TextStyle(
-                              fontFamily: 'BabaPro',
-                              fontSize: 36,
-                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Bricolage Grotesque',
+                              fontSize: AppThemes.h1Size,
+                              fontWeight: FontWeight.w800,
                               color: Colors.white,
-                              letterSpacing: 1.5,
+                              letterSpacing: -1.1,
                             ),
                           ),
                           SizedBox(height: 8),
                           Text(
                             context.loc.slogan,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: AppThemes.labelSize,
                               color: Colors.white.withOpacity(0.7),
                               letterSpacing: 1,
                             ),
@@ -299,7 +305,7 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                           Text(
                             stepTitles[controller.currentStep]!,
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: AppThemes.bodySize,
                               fontWeight: FontWeight.w400,
                               color: Colors.white,
                             ),
@@ -370,7 +376,7 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                                   Text(
                                     '${(_progressAnimation.value * 100).toInt()}%',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: AppThemes.bodySmallSize,
                                       fontWeight: FontWeight.w500,
                                       color: Color(0xFFC75F41),
                                     ),
@@ -403,7 +409,7 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                                   Text(
                                     context.loc.error_occurred,
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: AppThemes.bodySmallSize,
                                       fontWeight: FontWeight.w600,
                                       color: Colors.red,
                                     ),
@@ -415,7 +421,7 @@ class M3uDataLoaderScreenState extends State<M3uDataLoaderScreen>
                                       controller.errorMessage!,
                                     ),
                                     style: TextStyle(
-                                      fontSize: 14,
+                                      fontSize: AppThemes.labelSize,
                                       color: Colors.white.withOpacity(0.8),
                                     ),
                                     textAlign: TextAlign.center,

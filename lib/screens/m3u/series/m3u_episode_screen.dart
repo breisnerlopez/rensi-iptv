@@ -106,7 +106,7 @@ class _M3uEpisodeScreenState extends State<M3uEpisodeScreen> {
   @override
   Widget build(BuildContext context) {
     if (!allContentsLoaded) {
-      return buildFullScreenLoadingWidget();
+      return buildFullScreenLoadingWidget(context);
     } else {
       return Scaffold(
         backgroundColor: Colors.black,

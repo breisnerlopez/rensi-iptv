@@ -571,6 +571,25 @@ class AppDatabase extends _$AppDatabase {
       await deleteSeriesStreamsByPlaylistId(id);
       await deleteUserInfoByPlaylistId(id);
       await deleteServerInfoByPlaylistId(id);
+      // Watch history is keyed by playlistId, not by a foreign key, so nothing
+      // reaps it when the playlist goes. Left behind it is both retention of
+      // viewing data the user asked to delete and a correctness bug: ids are
+      // not globally unique, and a later playlist reusing this one's id
+      // resurrects the old rows in the "Continue watching" rail.
+      await deleteWatchHistoryByPlaylistId(id);
+      // Favourites are the other table holding the user's own choices — names
+      // included — keyed the same way, and "Mi lista" reads them by playlistId.
+      // Everything the comment above says about watch history applies here
+      // verbatim; leaving it out made the cascade look closed while the same
+      // hole stayed open in the sibling table.
+      await deleteFavoritesByPlaylistId(id);
+      // Catalogue leftovers: not privacy, but they are dead weight forever and
+      // would surface as stale content under a reused playlist id.
+      await deleteSeriesInfosByPlaylistId(id);
+      await deleteSeasonsByPlaylistId(id);
+      await deleteEpisodesByPlaylistId(id);
+      await deleteM3uSeriesByPlaylistId(id);
+      await deleteM3uEpisodesByPlaylistId(id);
       await (delete(playlists)..where((p) => p.id.equals(id))).go();
     });
   }
@@ -1045,6 +1064,48 @@ class AppDatabase extends _$AppDatabase {
     final rows = await query.get();
 
     return rows.map((row) => LiveStream.fromDriftLiveStream(row)).toList();
+  }
+
+  Future<void> deleteWatchHistoryByPlaylistId(String playlistId) async {
+    await (delete(
+      watchHistories,
+    )..where((tbl) => tbl.playlistId.equals(playlistId))).go();
+  }
+
+  Future<void> deleteFavoritesByPlaylistId(String playlistId) async {
+    await (delete(
+      favorites,
+    )..where((tbl) => tbl.playlistId.equals(playlistId))).go();
+  }
+
+  Future<void> deleteSeriesInfosByPlaylistId(String playlistId) async {
+    await (delete(
+      seriesInfos,
+    )..where((tbl) => tbl.playlistId.equals(playlistId))).go();
+  }
+
+  Future<void> deleteSeasonsByPlaylistId(String playlistId) async {
+    await (delete(
+      seasons,
+    )..where((tbl) => tbl.playlistId.equals(playlistId))).go();
+  }
+
+  Future<void> deleteEpisodesByPlaylistId(String playlistId) async {
+    await (delete(
+      episodes,
+    )..where((tbl) => tbl.playlistId.equals(playlistId))).go();
+  }
+
+  Future<void> deleteM3uSeriesByPlaylistId(String playlistId) async {
+    await (delete(
+      m3uSeries,
+    )..where((tbl) => tbl.playlistId.equals(playlistId))).go();
+  }
+
+  Future<void> deleteM3uEpisodesByPlaylistId(String playlistId) async {
+    await (delete(
+      m3uEpisodes,
+    )..where((tbl) => tbl.playlistId.equals(playlistId))).go();
   }
 
   Future<void> deleteLiveStreamsByPlaylistId(String playlistId) async {

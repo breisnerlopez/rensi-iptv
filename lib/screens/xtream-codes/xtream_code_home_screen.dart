@@ -5,16 +5,15 @@ import 'package:rensi_iptv/controllers/xtream_code_home_controller.dart';
 import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/controllers/watch_history_controller.dart';
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/screens/category_detail_screen.dart';
-import 'package:rensi_iptv/screens/global_search_screen.dart';
-import 'package:rensi_iptv/screens/search_screen.dart';
 import 'package:rensi_iptv/screens/xtream-codes/xtream_code_playlist_settings_screen.dart';
-import 'package:rensi_iptv/screens/watch_history_screen.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
-import 'package:rensi_iptv/widgets/category_section.dart';
 import 'package:rensi_iptv/widgets/confirm_exit_scope.dart';
 import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
@@ -23,7 +22,8 @@ import 'package:rensi_iptv/redesign/browse_redesign.dart';
 import 'package:rensi_iptv/redesign/list_redesign.dart';
 import 'package:rensi_iptv/redesign/live_redesign.dart';
 import 'package:rensi_iptv/redesign/search_redesign.dart';
-import '../../models/content_type.dart';
+import 'package:rensi_iptv/widgets/tv/navigation_models.dart';
+import 'package:rensi_iptv/services/epg_service.dart';
 
 class XtreamCodeHomeScreen extends StatefulWidget {
   final Playlist playlist;
@@ -41,17 +41,34 @@ class XtreamCodeHomeScreen extends StatefulWidget {
 
 class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   late XtreamCodeHomeController _controller;
+  late EpgService _epgService;
+
+  /// Continue-watching, loaded here because the home screen is the only place
+  /// that shows it. The rail has existed since the redesign landed and has
+  /// never once appeared: `continueWatching` defaulted to an empty list and no
+  /// caller ever passed anything, so the feature shipped inert.
+  final WatchHistoryController _history = WatchHistoryController();
+
+  /// Drives the rail's dimming: full strength only while it holds the focus.
+  bool _railHasFocus = false;
   static const double _desktopBreakpoint = 900.0;
   static const double _largeScreenBreakpoint = 1200.0;
   static const double _defaultNavWidth = 72.0;
   static const double _largeNavWidth = 88.0;
+  // 10-foot rail. The old _large* values were gated behind a 1200dp breakpoint
+  // that an Android TV never reaches (it reports 960dp), so the TV rail was
+  // rendering at phone scale: 72dp wide with a 10dp label, unreadable at 3m.
+  // Leanback guidance puts primary navigation at >=18sp.
+  static const double _tvNavWidth = 104.0;
+  static const double _tvItemHeight = 76.0;
+  static const double _tvIconSize = 32.0;
+  static const double _tvFontSize = 17.0;
   static const double _defaultItemHeight = 50.0;
   static const double _largeItemHeight = 56.0;
   static const double _defaultIconSize = 24.0;
   static const double _largeIconSize = 28.0;
   static const double _defaultFontSize = 10.0;
   static const double _largeFontSize = 11.0;
-  final ScrollController _scrollController = ScrollController();
   // One focus node per rail item, so a tab change (incl. programmatic ones like
   // the avatar → settings shortcut) can move focus to the target rail item
   // instead of losing it when the previous page gets ExcludeFocus'd.
@@ -67,8 +84,28 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     _initializeController();
   }
 
+  void _onHistoryChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Reloads continue-watching whenever Inicio comes back to the front.
+  ///
+  /// Settings is page 4 of this same IndexedStack, so "clear all history" runs
+  /// a few centimetres away from this rail and never told it. Without this the
+  /// viewer wipes their history, returns to Inicio, sees the same cards, and
+  /// every one of them fails silently on tap because its row is gone.
+  int _lastIndex = 0;
+  void _onTabChanged() {
+    final i = _controller.currentIndex;
+    if (i == 0 && _lastIndex != 0) _history.loadWatchHistory();
+    _lastIndex = i;
+  }
+
   @override
   void dispose() {
+    _controller.removeListener(_onTabChanged);
+    _history.removeListener(_onHistoryChanged);
+    _history.dispose();
     for (final n in _railNodes.values) {
       n.dispose();
     }
@@ -100,10 +137,27 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       widget.playlist.id,
     );
     AppState.xtreamCodeRepository = repository;
+    // One service per playlist, and rebuilt here so switching playlists cannot
+    // serve the previous panel's schedule: stream ids are only unique within a
+    // provider, so a shared cache would show the wrong programme.
+    // Rebuilt per playlist AND explicitly emptied: stream ids are only unique
+    // within a provider, so carrying entries across would show one panel's
+    // schedule on another's channels. A test asserted this guarantee while
+    // production never exercised it.
+    _epgService = EpgService(repository.getShortEpg)..invalidate();
+    // After the playlist is in AppState: the controller reads it to scope the
+    // query, and reading it earlier returns the previous playlist's history.
+    // The load is async and the rail is built from a plain getter, so without
+    // a listener the home paints once with an empty list and never again.
+    _history.addListener(_onHistoryChanged);
+    _history.loadWatchHistory();
     _controller = XtreamCodeHomeController(
       false,
       initialIndex: widget.initialIndex,
     );
+    // After the controller exists: the tab listener is what reloads the rail
+    // when Inicio comes back to the front.
+    _controller.addListener(_onTabChanged);
   }
 
   @override
@@ -127,10 +181,11 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     return ConfirmExitScope(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          // Real TV/leanback always gets the side-rail layout; width is only a
-          // fallback for large tablets / desktop windows.
-          if (ResponsiveHelper.isDesktopOrTV(context) ||
-              constraints.maxWidth >= _desktopBreakpoint) {
+          // Real TV/leanback always gets the side-rail layout. Width takes over
+          // at 600dp — Material 3's breakpoint, and where every tablet
+          // streaming app switches. A 10" tablet reports 800dp and was still
+          // stretching a five-tab bottom bar across it.
+          if (ResponsiveHelper.useNavigationRail(context)) {
             return _buildDesktopLayout(context, controller, constraints);
           }
           return _buildMobileLayout(context, controller);
@@ -176,8 +231,24 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     return Scaffold(
       body: Row(
         children: [
+          // Dimmed while the focus lives in the content. With both areas at
+          // full strength the eye reads two active zones and you have to hunt
+          // for the white ring to know where you are — Netflix collapses the
+          // rail, Google TV fades it to about half.
           FocusTraversalGroup(
-            child: _buildDesktopNavigationBar(context, controller, constraints),
+            child: Focus(
+              canRequestFocus: false,
+              skipTraversal: true,
+              onFocusChange: (f) {
+                if (f != _railHasFocus) setState(() => _railHasFocus = f);
+              },
+              child: AnimatedOpacity(
+                opacity: _railHasFocus ? 1.0 : 0.45,
+                duration: const Duration(milliseconds: 200),
+                child: _buildDesktopNavigationBar(
+                    context, controller, constraints),
+              ),
+            ),
           ),
           Expanded(
             child: FocusTraversalGroup(
@@ -220,6 +291,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     );
   }
 
+
   List<Widget> _buildPages(XtreamCodeHomeController controller) {
     return [
       RedesignHome(
@@ -231,6 +303,32 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
         onSearch: _openSearch,
         onSettings: () => controller.onNavigationTap(4),
         onSeeAll: _navigateToCategoryDetail,
+        continueWatching: resumableFrom(_history.continueWatching),
+        // Reload on the way back: the viewer has just moved the position of
+        // whatever they resumed, and a rail still showing the old progress —
+        // or still showing a title they have now finished — is worse than one
+        // that was never there.
+        onResume: (h) async {
+          final started = await _history.playContent(context, h);
+          if (!mounted) return;
+          if (!started) {
+            // La acción va aquí a propósito: éste es el momento exacto en que
+            // el usuario descubre que la entrada está muerta. Retirarla
+            // automáticamente sería peor — un refresh del catálogo a medias
+            // haría desaparecer historial válido.
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(context.loc.resume_failed),
+                action: SnackBarAction(
+                  label: context.loc.remove,
+                  onPressed: () => _history.removeHistory(h),
+                ),
+              ),
+            );
+          }
+          await _history.loadWatchHistory();
+        },
+        onRemove: (h) => _history.removeHistory(h),
         playlistSwitcher: PlaylistSwitcherButton(
           currentPlaylist: widget.playlist,
           currentIndex: controller.currentIndex,
@@ -245,6 +343,9 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       LiveRedesign(
         liveCategories: controller.liveCategories ?? const [],
         onPlay: (it) => navigateByContentType(context, it),
+        // Xtream only: M3U playlists have no panel to ask for a schedule, and
+        // their item ids are not stream ids.
+        epgService: _epgService,
       ),
       ListRedesign(
         key: ValueKey('milista_${controller.currentIndex == 3}'),
@@ -252,127 +353,6 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       ),
       XtreamCodePlaylistSettingsScreen(playlist: widget.playlist),
     ];
-  }
-
-  Widget _buildContentPage(
-    List<CategoryViewModel> categories,
-    ContentType contentType,
-    XtreamCodeHomeController controller,
-  ) {
-    return Scaffold(
-      appBar: _buildAppBar(context, controller, contentType),
-      body: _buildCategoryList(categories, contentType),
-    );
-  }
-
-  AppBar _buildAppBar(
-    BuildContext context,
-    XtreamCodeHomeController controller,
-    ContentType contentType,
-  ) {
-    if (ResponsiveHelper.isDesktopOrTV(context)) {
-      return _buildDesktopAppBar(context, controller, contentType);
-    }
-    return _buildMobileAppBar(context, controller, contentType);
-  }
-
-  AppBar _buildDesktopAppBar(
-    BuildContext context,
-    XtreamCodeHomeController controller,
-    ContentType contentType,
-  ) {
-    return AppBar(
-      title: SelectableText(
-        _getDesktopTitle(context, contentType),
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
-      elevation: 0,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: () => _navigateToSearch(context, contentType),
-        ),
-        PlaylistSwitcherButton(
-          currentPlaylist: widget.playlist,
-          currentIndex: controller.currentIndex,
-        ),
-      ],
-    );
-  }
-
-  String _getDesktopTitle(BuildContext context, ContentType contentType) {
-    switch (contentType) {
-      case ContentType.liveStream:
-        return context.loc.live_streams;
-      case ContentType.vod:
-        return context.loc.movies;
-      case ContentType.series:
-        return context.loc.series_plural;
-    }
-  }
-
-  AppBar _buildMobileAppBar(
-    BuildContext context,
-    XtreamCodeHomeController controller,
-    ContentType contentType,
-  ) {
-    return AppBar(
-      title: SelectableText(
-        controller.getPageTitle(context),
-        style: const TextStyle(fontWeight: FontWeight.bold),
-      ),
-      elevation: 0,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: () => _navigateToSearch(context, contentType),
-        ),
-        PlaylistSwitcherButton(
-          currentPlaylist: widget.playlist,
-          currentIndex: controller.currentIndex,
-        ),
-      ],
-    );
-  }
-
-  void _navigateToSearch(BuildContext context, ContentType contentType) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SearchScreen(contentType: contentType),
-      ),
-    );
-  }
-
-  Widget _buildCategoryList(
-    List<CategoryViewModel> categories,
-    ContentType contentType,
-  ) {
-    return Scrollbar(
-      controller: _scrollController,
-      interactive: true,
-      child: ListView.builder(
-        controller: _scrollController,
-        shrinkWrap: true,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: categories.length,
-        itemBuilder: (context, index) =>
-            _buildCategorySection(categories[index], contentType),
-      ),
-    );
-  }
-
-  Widget _buildCategorySection(
-    CategoryViewModel category,
-    ContentType contentType,
-  ) {
-    return CategorySection(
-      category: category,
-      cardWidth: ResponsiveHelper.getCardWidth(context),
-      cardHeight: ResponsiveHelper.getCardHeight(context),
-      onSeeAllTap: () => _navigateToCategoryDetail(category),
-      onContentTap: (content) => navigateByContentType(context, content),
-    );
   }
 
   void _navigateToCategoryDetail(CategoryViewModel category) {
@@ -400,7 +380,13 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     BuildContext context,
   ) {
     return _getNavigationItems(context).map((item) {
-      return BottomNavigationBarItem(icon: Icon(item.icon), label: item.label);
+      // Same outline-inactive / filled-active semantics as the TV rail; the
+      // bottom bar was painting every tab filled.
+      return BottomNavigationBarItem(
+        icon: Icon(item.resolve(false)),
+        activeIcon: Icon(item.resolve(true)),
+        label: item.label,
+      );
     }).toList();
   }
 
@@ -409,7 +395,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     XtreamCodeHomeController controller,
     BoxConstraints constraints,
   ) {
-    final navWidth = _getNavigationWidth(constraints.maxWidth);
+    final navWidth = _getNavigationWidth(context, constraints.maxWidth);
     return Container(
       width: navWidth,
       decoration: _getNavigationBarDecoration(context),
@@ -428,7 +414,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     BoxConstraints constraints,
   ) {
     final items = _getNavigationItems(context);
-    final sizes = _getNavigationSizes(constraints.maxWidth);
+    final sizes = _getNavigationSizes(context, constraints.maxWidth);
     return Column(
       children: items.map((item) {
         final isSelected = controller.currentIndex == item.index;
@@ -437,7 +423,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
           item,
           isSelected,
           sizes,
-          () => controller.onNavigationTap(item.index),
+          item.onSelected ?? () => controller.onNavigationTap(item.index),
         );
       }).toList(),
     );
@@ -457,10 +443,26 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
       child: Container(
         width: double.infinity,
         height: sizes.itemHeight,
-        margin: const EdgeInsets.symmetric(vertical: 2),
+        // The left inset is what actually moves the item off the overscan
+        // strip. _getNavigationWidth reserves it in the rail's width, but a
+        // full-width item spanned the reservation too, so the focus ring still
+        // started at x=0: we paid the width and bought nothing.
+        margin: EdgeInsets.only(
+            left: ResponsiveHelper.isDesktopOrTV(context)
+                ? ResponsiveHelper.safeInset(context)
+                : 0,
+            top: 2,
+            bottom: 2),
         decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          // Selected = a quiet tint; the accent bar is drawn as a child, not as
+          // a Border, because BoxDecoration asserts on a non-uniform border
+          // combined with a borderRadius. It used to be a filled
+          // primaryContainer with accent-coloured text (3.65:1), which made the
+          // CURRENT section the least legible item in the rail — hierarchy
+          // upside down. The bright treatment now belongs to focus alone.
           color: isSelected
-              ? Theme.of(context).colorScheme.primaryContainer
+              ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)
               : Colors.transparent,
         ),
         child: InkWell(
@@ -474,7 +476,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                item.icon,
+                item.resolve(isSelected),
                 color: _getIconColor(context, isSelected),
                 size: sizes.iconSize,
               ),
@@ -514,13 +516,25 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     );
   }
 
-  double _getNavigationWidth(double screenWidth) {
-    return screenWidth >= _largeScreenBreakpoint
-        ? _largeNavWidth
-        : _defaultNavWidth;
+  double _getNavigationWidth(BuildContext context, double screenWidth) {
+    // Reserve the overscan inset on top of the rail: at x=0 the rail — and the
+    // focus ring of whatever is selected in it — sits in the strip a consumer
+    // TV crops.
+    if (ResponsiveHelper.isDesktopOrTV(context)) {
+      return _tvNavWidth + ResponsiveHelper.safeInset(context);
+    }
+    // Tablet: wide enough to read, far from the 10-foot scale.
+    return screenWidth >= _desktopBreakpoint ? _largeNavWidth : _defaultNavWidth;
   }
 
-  NavigationSizes _getNavigationSizes(double screenWidth) {
+  NavigationSizes _getNavigationSizes(BuildContext context, double screenWidth) {
+    if (ResponsiveHelper.isDesktopOrTV(context)) {
+      return NavigationSizes(
+        itemHeight: _tvItemHeight,
+        iconSize: _tvIconSize,
+        fontSize: _tvFontSize,
+      );
+    }
     final isLargeScreen = screenWidth >= _largeScreenBreakpoint;
     return NavigationSizes(
       itemHeight: isLargeScreen ? _largeItemHeight : _defaultItemHeight,
@@ -530,52 +544,66 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   }
 
   Color _getIconColor(BuildContext context, bool isSelected) {
+    // Accent stays on the icon — it is a large shape, so it clears 3:1 — while
+    // the label carries the contrast.
     return isSelected
         ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurface;
+        : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.72);
   }
 
   Color _getTextColor(BuildContext context, bool isSelected) {
-    return isSelected
-        ? Theme.of(context).colorScheme.primary
-        : Theme.of(context).colorScheme.onSurface;
+    // The active section must be the MOST readable item, not the least. The
+    // accent-on-tint pairing it used before measured 3.65:1, below AA.
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return isSelected ? onSurface : onSurface.withValues(alpha: 0.72);
   }
 
   List<NavigationItem> _getNavigationItems(BuildContext context) {
     return [
-      NavigationItem(icon: Icons.home_filled, label: 'Inicio', index: 0),
-      NavigationItem(icon: Icons.grid_view_rounded, label: 'Explorar', index: 1),
-      NavigationItem(icon: Icons.live_tv, label: 'En vivo', index: 2),
-      NavigationItem(icon: Icons.bookmark_border, label: 'Mi lista', index: 3),
       NavigationItem(
-        icon: Icons.settings,
-        label: context.loc.settings,
+          icon: Icons.home_rounded,
+          iconOutlined: Icons.home_outlined,
+          label: context.loc.nav_home,
+          index: 0),
+      // TV only. Search sits right under Home, where Google TV puts it: it is
+      // how people reach a specific title in a catalogue of thousands, and on a
+      // remote it was reachable only from a small icon in the top bar. It is
+      // NOT added when the bottom bar is in use: BottomNavigationBar indexes by
+      // position, so an item that is an action rather than a page would shift
+      // every tab off its own page.
+      if (ResponsiveHelper.useNavigationRail(context))
+        NavigationItem(
+            icon: Icons.search_rounded,
+            iconOutlined: Icons.search_outlined,
+            label: context.loc.search,
+            index: -1,
+            onSelected: _openSearch),
+      NavigationItem(
+          icon: Icons.grid_view_rounded,
+          iconOutlined: Icons.grid_view_outlined,
+          label: context.loc.nav_browse,
+          index: 1),
+      NavigationItem(
+          icon: Icons.live_tv_rounded,
+          iconOutlined: Icons.live_tv_outlined,
+          label: context.loc.nav_live,
+          index: 2),
+      NavigationItem(
+          icon: Icons.bookmark_rounded,
+          iconOutlined: Icons.bookmark_border_rounded,
+          label: context.loc.nav_my_list,
+          index: 3),
+      NavigationItem(
+        icon: Icons.settings_rounded,
+        iconOutlined: Icons.settings_outlined,
+        // nav_settings, not `settings`: the long form clipped against the right
+        // edge of the bottom bar on a 360dp phone, and "Ajustes" is the standard
+        // Android term in es-ES anyway.
+        label: context.loc.nav_settings,
         index: 4,
       ),
     ];
   }
 }
 
-class NavigationItem {
-  final IconData icon;
-  final String label;
-  final int index;
 
-  const NavigationItem({
-    required this.icon,
-    required this.label,
-    required this.index,
-  });
-}
-
-class NavigationSizes {
-  final double itemHeight;
-  final double iconSize;
-  final double fontSize;
-
-  const NavigationSizes({
-    required this.itemHeight,
-    required this.iconSize,
-    required this.fontSize,
-  });
-}

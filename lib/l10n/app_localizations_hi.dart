@@ -713,6 +713,69 @@ class AppLocalizationsHi extends AppLocalizations {
       'क्या आप सभी देखने का इतिहास हटाना चाहते हैं?';
 
   @override
+  String get resume_failed => 'यह शीर्षक अब इस प्लेलिस्ट में उपलब्ध नहीं है';
+
+  @override
+  String get home_empty_title =>
+      'इस प्लेलिस्ट में अभी कोई फ़िल्म या सीरीज़ नहीं है।';
+
+  @override
+  String get home_empty_hint =>
+      'चैनल देखने के लिए मेन्यू में “लाइव” चुनें, या सामग्री खोजें।';
+
+  @override
+  String get loading => 'लोड हो रहा है...';
+
+  @override
+  String get greeting_morning => 'सुप्रभात';
+
+  @override
+  String get greeting_afternoon => 'नमस्कार';
+
+  @override
+  String get greeting_evening => 'शुभ संध्या';
+
+  @override
+  String get featured_today => 'आज का चयन';
+
+  @override
+  String get search_catalog_hint => 'अपने पूरे कैटलॉग में खोजें';
+
+  @override
+  String get search_placeholder => 'फ़िल्में, सीरीज़, चैनल खोजें…';
+
+  @override
+  String get no_channels => 'कोई चैनल नहीं';
+
+  @override
+  String get no_results_filter => 'इस फ़िल्टर के लिए कोई परिणाम नहीं';
+
+  @override
+  String get preferred_audio => 'पसंदीदा ऑडियो';
+
+  @override
+  String get preferred_subtitles => 'पसंदीदा उपशीर्षक';
+
+  @override
+  String get decoder_applies_next_video => 'अगली बार वीडियो खोलने पर लागू होगा';
+
+  @override
+  String no_results_for(String query) {
+    return '\"$query\" के लिए कोई परिणाम नहीं';
+  }
+
+  @override
+  String saved_titles_count(int count) {
+    return '$count सहेजे गए शीर्षक';
+  }
+
+  @override
+  String get history_cleared => 'देखने का इतिहास साफ़ कर दिया गया';
+
+  @override
+  String get history_clear_failed => 'देखने का इतिहास साफ़ नहीं किया जा सका';
+
+  @override
   String get appearance => 'दिखावट';
 
   @override
@@ -1214,4 +1277,48 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'बाहर जाएँ';
+
+  @override
+  String get nav_home => 'होम';
+
+  @override
+  String get nav_browse => 'ब्राउज़';
+
+  @override
+  String get nav_live => 'लाइव';
+
+  @override
+  String get nav_my_list => 'मेरी सूची';
+
+  @override
+  String get onboarding_requirements_hint =>
+      'आपको अपने IPTV प्रदाता का URL या लॉगिन विवरण चाहिए होगा';
+
+  @override
+  String get nav_settings => 'सेटिंग';
+
+  @override
+  String get empty_list_title => 'आपकी सूची खाली है';
+
+  @override
+  String get empty_list_body => 'सूची में शीर्षक जोड़ें और उन्हें यहाँ पाएँ।';
+
+  @override
+  String get action_browse_catalogue => 'कैटलॉग ब्राउज़ करें';
+
+  @override
+  String get video_decoding_label => 'वीडियो डिकोडिंग';
+
+  @override
+  String get video_decoding_description =>
+      'स्वचालित लगभग सभी डिवाइस पर काम करता है। केवल तभी बदलें जब कोई चैनल न चले।';
+
+  @override
+  String get video_decoding_auto => 'स्वचालित';
+
+  @override
+  String get video_decoding_hw => 'प्रत्यक्ष हार्डवेयर';
+
+  @override
+  String get video_decoding_software => 'सॉफ़्टवेयर';
 }

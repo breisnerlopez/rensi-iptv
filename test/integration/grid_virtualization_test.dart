@@ -78,7 +78,13 @@ void main() {
         reason: 'sigue habiendo celdas renderizadas tras el scroll');
 
     // 3) Interacción con mando: OK sobre una celda enfocada dispara el tap.
-    await tester.tap(find.byType(RensiPoster).first);
+    // ensureVisible primero: el número de columnas depende del ancho, así que
+    // "el primer póster del árbol" puede estar parcialmente fuera del viewport
+    // y el toque caería fuera de él.
+    final cell = find.byType(RensiPoster).first;
+    await tester.ensureVisible(cell);
+    await settle(tester);
+    await tester.tap(cell);
     await settle(tester);
     expect(tapped, isNotEmpty, reason: 'tocar una celda debe invocar onItemTap');
   }, timeout: const Timeout(Duration(seconds: 90)));

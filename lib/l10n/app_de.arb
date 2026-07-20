@@ -212,6 +212,39 @@
   "clear_old": "Alte löschen",
   "clear_all_history": "Gesamten Verlauf löschen",
   "clear_all_history_confirmation": "Sind Sie sicher, dass Sie den gesamten Wiedergabeverlauf löschen möchten?",
+  "resume_failed": "Dieser Titel ist in dieser Playlist nicht mehr verfügbar",
+  "home_empty_title": "Noch keine Filme oder Serien in dieser Playlist.",
+  "home_empty_hint": "Nutze „Live“ im Menü, um Sender zu sehen, oder suche nach Inhalten.",
+  "loading": "Wird geladen...",
+  "greeting_morning": "Guten Morgen",
+  "greeting_afternoon": "Guten Tag",
+  "greeting_evening": "Guten Abend",
+  "featured_today": "HEUTE EMPFOHLEN",
+  "search_catalog_hint": "Durchsuche deinen gesamten Katalog",
+  "search_placeholder": "Filme, Serien, Sender suchen…",
+  "no_channels": "Keine Sender",
+  "no_results_filter": "Keine Ergebnisse für diesen Filter",
+  "preferred_audio": "Bevorzugter Ton",
+  "preferred_subtitles": "Bevorzugte Untertitel",
+  "decoder_applies_next_video": "Gilt ab dem nächsten geöffneten Video",
+  "no_results_for": "Keine Ergebnisse für \"{query}\"",
+  "@no_results_for": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "saved_titles_count": "{count} gespeicherte Titel",
+  "@saved_titles_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "history_cleared": "Wiedergabeverlauf gelöscht",
+  "history_clear_failed": "Wiedergabeverlauf konnte nicht gelöscht werden",
   "appearance": "Aussehen",
   "theme": "Design",
   "standard": "Standard",
@@ -479,5 +512,19 @@
   "file_browser_empty": "Keine passenden Dateien in diesem Ordner.",
   "exit_confirm_title": "App beenden?",
   "exit_confirm_message": "Du verlässt Rensi IPTV.",
-  "exit_confirm_action": "Beenden"
+  "exit_confirm_action": "Beenden",
+  "nav_home": "Start",
+  "nav_browse": "Entdecken",
+  "nav_live": "Live",
+  "nav_my_list": "Meine Liste",
+  "onboarding_requirements_hint": "Du brauchst die URL oder die Zugangsdaten deines IPTV-Anbieters",
+  "nav_settings": "Einstellungen",
+  "empty_list_title": "Deine Liste ist leer",
+  "empty_list_body": "Füge Titel hinzu und finde sie hier wieder.",
+  "action_browse_catalogue": "Katalog durchsuchen",
+  "video_decoding_label": "Video-Dekodierung",
+  "video_decoding_description": "Automatisch funktioniert auf fast allen Geräten. Ändere es nur, wenn ein Sender nicht abspielt.",
+  "video_decoding_auto": "Automatisch",
+  "video_decoding_hw": "Direkte Hardware",
+  "video_decoding_software": "Software"
 }

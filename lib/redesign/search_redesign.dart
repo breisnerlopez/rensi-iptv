@@ -8,6 +8,9 @@ import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/service_locator.dart';
+import 'package:rensi_iptv/widgets/tv/tv_keyboard.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 
 /// Full-screen global search (redesign). Queries the local catalogue in the
 /// database across live + movies + series — not just the loaded categories —
@@ -101,7 +104,10 @@ class _SearchRedesignState extends State<SearchRedesign> {
   Widget build(BuildContext context) {
     final r = rensi(context);
     final cross = ResponsiveHelper.getCrossAxisCount(context);
-    final sidePad = ResponsiveHelper.isDesktopOrTV(context) ? 48.0 : 20.0;
+    // safeInset, not a duplicated 48/20: the hand-written pair gave 20dp on
+    // phones where every other screen uses 24, and did not scale with wider
+    // surfaces the way the overscan margin has to.
+    final sidePad = ResponsiveHelper.safeInset(context);
     final q = _query.trim();
 
     Widget body;
@@ -112,8 +118,8 @@ class _SearchRedesignState extends State<SearchRedesign> {
           children: [
             Icon(Icons.search, size: 56, color: r.surface3),
             const SizedBox(height: 12),
-            Text('Busca en todo tu catálogo',
-                style: TextStyle(color: r.text3, fontSize: 14)),
+            Text(context.loc.search_catalog_hint,
+                style: TextStyle(color: r.text3, fontSize: AppThemes.labelSize)),
           ],
         ),
       );
@@ -121,7 +127,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
       body = const Center(child: CircularProgressIndicator());
     } else if (_results.isEmpty) {
       body = Center(
-        child: Text('Sin resultados para "$q"',
+        child: Text(context.loc.no_results_for(q),
             style: TextStyle(color: r.text3)),
       );
     } else {
@@ -141,6 +147,38 @@ class _SearchRedesignState extends State<SearchRedesign> {
           autofocus: i == 0 && ResponsiveHelper.isDesktopOrTV(context),
           onTap: () => widget.onOpen(_results[i]),
         ),
+      );
+    }
+
+    final tv = ResponsiveHelper.isDesktopOrTV(context);
+    if (tv) {
+      // Keyboard on the left, results on the right — the layout every TV
+      // streaming app converges on, because leanback's system IME covers the
+      // results you are typing to find.
+      body = Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(sidePad, 4, 24, 24),
+            child: TvKeyboard(
+              onKey: (c) {
+                _controller.text = _controller.text + c.toLowerCase();
+                _onChanged(_controller.text);
+              },
+              onBackspace: () {
+                final t = _controller.text;
+                if (t.isEmpty) return;
+                _controller.text = t.substring(0, t.length - 1);
+                _onChanged(_controller.text);
+              },
+              onClear: () {
+                _controller.clear();
+                _onChanged('');
+              },
+            ),
+          ),
+          Expanded(child: body),
+        ],
       );
     }
 
@@ -173,13 +211,18 @@ class _SearchRedesignState extends State<SearchRedesign> {
                             child: TextField(
                               controller: _controller,
                               focusNode: _focus,
+                              // On TV the on-screen keyboard feeds this field,
+                              // so it is a display of the query rather than a
+                              // focus target — focusing it would summon the
+                              // very system IME we are replacing.
+                              readOnly: ResponsiveHelper.isDesktopOrTV(context),
                               autofocus: !ResponsiveHelper.isDesktopOrTV(context),
                               textInputAction: TextInputAction.search,
                               onChanged: _onChanged,
-                              decoration: const InputDecoration(
+                              decoration: InputDecoration(
                                 border: InputBorder.none,
                                 isCollapsed: true,
-                                hintText: 'Buscar películas, series, canales…',
+                                hintText: context.loc.search_placeholder,
                               ),
                             ),
                           ),

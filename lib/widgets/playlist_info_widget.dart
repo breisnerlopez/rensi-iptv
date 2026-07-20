@@ -1,8 +1,10 @@
+import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 import 'section_title_widget.dart';
 import 'info_tile_widget.dart';
 
@@ -16,14 +18,34 @@ class PlaylistInfoWidget extends StatefulWidget {
 }
 
 class _PlaylistInfoWidgetState extends State<PlaylistInfoWidget> {
-  bool _passwordVisible = false;
+  // One switch for every credential on this card. The server URL counts: for an
+  // M3U playlist it is the `get.php?username=…&password=…` link, so revealing
+  // it reveals the account. Hidden by default so the screen is safe to show,
+  // screenshot or cast without leaking the subscription.
+  bool _secretsVisible = false;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionTitleWidget(title: context.loc.playlist_information),
+        Row(
+          children: [
+            Expanded(
+              child: SectionTitleWidget(title: context.loc.playlist_information),
+            ),
+            // Lives here, not inside the password tile: an M3U playlist has no
+            // password row, and hiding the switch there left M3U users unable
+            // to ever reveal their own server URL.
+            IconButton(
+              icon: Icon(
+                _secretsVisible ? Icons.visibility_off : Icons.visibility,
+                size: 20,
+              ),
+              onPressed: () => setState(() => _secretsVisible = !_secretsVisible),
+            ),
+          ],
+        ),
         Card(
           child: Column(
             children: [
@@ -37,7 +59,13 @@ class _PlaylistInfoWidgetState extends State<PlaylistInfoWidget> {
               InfoTileWidget(
                 icon: Icons.link,
                 label: context.loc.server_url,
-                value: widget.playlist.url ?? context.loc.not_found_in_category,
+                value: widget.playlist.url == null
+                    ? context.loc.not_found_in_category
+                    : _secretsVisible
+                        ? widget.playlist.url!
+                        : scrubUrlForDisplay(widget.playlist.url),
+                // Copy always yields the real URL — a masked one is useless.
+                copyValue: widget.playlist.url,
                 copyOnTap: true,
               ),
               if (isXtreamCode) ...[
@@ -45,7 +73,12 @@ class _PlaylistInfoWidgetState extends State<PlaylistInfoWidget> {
                 InfoTileWidget(
                   icon: Icons.person,
                   label: context.loc.username,
-                  value: widget.playlist.username ?? context.loc.not_found_in_category,
+                  value: _secretsVisible
+                      ? (widget.playlist.username ?? context.loc.not_found_in_category)
+                      // Fixed length: a bullet-per-character leaks how long the
+                      // username is.
+                      : '•' * 8,
+                  copyValue: widget.playlist.username,
                   copyOnTap: true,
                 ),
               ],
@@ -53,22 +86,22 @@ class _PlaylistInfoWidgetState extends State<PlaylistInfoWidget> {
                 const Divider(height: 1),
                 ListTile(
                   leading: Icon(Icons.lock_outline, color: Colors.grey[700]),
-                  title: Text(context.loc.password, style: const TextStyle(fontSize: 13)),
+                  title: Text(context.loc.password, style: TextStyle(fontSize: AppThemes.tenFoot(context, 13))),
                   subtitle: Text(
-                    _passwordVisible
+                    _secretsVisible
                         ? widget.playlist.password!
-                        : '•' * (widget.playlist.password!.length),
+                        : '•' * 8,
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                   dense: true,
                   trailing: IconButton(
                     icon: Icon(
-                      _passwordVisible ? Icons.visibility_off : Icons.visibility,
+                      _secretsVisible ? Icons.visibility_off : Icons.visibility,
                       size: 20,
                     ),
                     onPressed: () {
                       setState(() {
-                        _passwordVisible = !_passwordVisible;
+                        _secretsVisible = !_secretsVisible;
                       });
                     },
                   ),

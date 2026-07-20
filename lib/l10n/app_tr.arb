@@ -212,6 +212,39 @@
   "clear_old": "Temizle",
   "clear_all_history": "Tümünü Temizle",
   "clear_all_history_confirmation": "Tüm izleme geçmişini silmek istediğinizden emin misiniz?",
+  "resume_failed": "Bu içerik artık bu oynatma listesinde yok",
+  "home_empty_title": "Bu listede henüz film veya dizi yok.",
+  "home_empty_hint": "Kanalları izlemek için menüdeki “Canlı” bölümünü kullan veya içerik ara.",
+  "loading": "Yükleniyor...",
+  "greeting_morning": "Günaydın",
+  "greeting_afternoon": "İyi günler",
+  "greeting_evening": "İyi akşamlar",
+  "featured_today": "BUGÜN ÖNE ÇIKAN",
+  "search_catalog_hint": "Tüm kataloğunda ara",
+  "search_placeholder": "Film, dizi, kanal ara…",
+  "no_channels": "Kanal yok",
+  "no_results_filter": "Bu filtre için sonuç yok",
+  "preferred_audio": "Tercih edilen ses",
+  "preferred_subtitles": "Tercih edilen altyazı",
+  "decoder_applies_next_video": "Bir sonraki videoyu açtığında uygulanır",
+  "no_results_for": "\"{query}\" için sonuç yok",
+  "@no_results_for": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "saved_titles_count": "{count} kayıtlı içerik",
+  "@saved_titles_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "history_cleared": "İzleme geçmişi temizlendi",
+  "history_clear_failed": "İzleme geçmişi temizlenemedi",
   "appearance": "Görünüm",
   "theme": "Tema",
   "standard": "Varsayılan",
@@ -479,5 +512,19 @@
   "file_browser_empty": "Bu klasörde uyumlu dosya yok.",
   "exit_confirm_title": "Uygulamadan çıkılsın mı?",
   "exit_confirm_message": "Rensi IPTV'den çıkmak üzeresiniz.",
-  "exit_confirm_action": "Çık"
+  "exit_confirm_action": "Çık",
+  "nav_home": "Ana Sayfa",
+  "nav_browse": "Keşfet",
+  "nav_live": "Canlı",
+  "nav_my_list": "Listem",
+  "onboarding_requirements_hint": "IPTV sağlayıcınızın URL'sine veya giriş bilgilerine ihtiyacınız olacak",
+  "nav_settings": "Ayarlar",
+  "empty_list_title": "Listeniz boş",
+  "empty_list_body": "Listenize başlık ekleyin, burada bulun.",
+  "action_browse_catalogue": "Kataloğa göz at",
+  "video_decoding_label": "Video kod çözme",
+  "video_decoding_description": "Otomatik neredeyse tüm cihazlarda çalışır. Yalnızca bir kanal açılmıyorsa değiştirin.",
+  "video_decoding_auto": "Otomatik",
+  "video_decoding_hw": "Doğrudan donanım",
+  "video_decoding_software": "Yazılım"
 }

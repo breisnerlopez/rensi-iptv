@@ -718,6 +718,69 @@ class AppLocalizationsPt extends AppLocalizations {
       'Tem certeza de que deseja excluir todo o histórico de reprodução?';
 
   @override
+  String get resume_failed => 'Este título já não está disponível nesta lista';
+
+  @override
+  String get home_empty_title => 'Ainda não há filmes nem séries nesta lista.';
+
+  @override
+  String get home_empty_hint =>
+      'Usa “Em Direto” no menu para ver canais, ou pesquisa conteúdo.';
+
+  @override
+  String get loading => 'A carregar...';
+
+  @override
+  String get greeting_morning => 'Bom dia';
+
+  @override
+  String get greeting_afternoon => 'Boa tarde';
+
+  @override
+  String get greeting_evening => 'Boa noite';
+
+  @override
+  String get featured_today => 'DESTAQUE DE HOJE';
+
+  @override
+  String get search_catalog_hint => 'Pesquisa em todo o teu catálogo';
+
+  @override
+  String get search_placeholder => 'Pesquisar filmes, séries, canais…';
+
+  @override
+  String get no_channels => 'Sem canais';
+
+  @override
+  String get no_results_filter => 'Sem resultados para este filtro';
+
+  @override
+  String get preferred_audio => 'Áudio preferido';
+
+  @override
+  String get preferred_subtitles => 'Legendas preferidas';
+
+  @override
+  String get decoder_applies_next_video => 'Aplica-se ao abrir o próximo vídeo';
+
+  @override
+  String no_results_for(String query) {
+    return 'Sem resultados para \"$query\"';
+  }
+
+  @override
+  String saved_titles_count(int count) {
+    return '$count títulos guardados';
+  }
+
+  @override
+  String get history_cleared => 'Histórico de reprodução apagado';
+
+  @override
+  String get history_clear_failed =>
+      'Não foi possível apagar o histórico de reprodução';
+
+  @override
   String get appearance => 'Aparência';
 
   @override
@@ -1222,4 +1285,49 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'Sair';
+
+  @override
+  String get nav_home => 'Início';
+
+  @override
+  String get nav_browse => 'Explorar';
+
+  @override
+  String get nav_live => 'Ao vivo';
+
+  @override
+  String get nav_my_list => 'Minha lista';
+
+  @override
+  String get onboarding_requirements_hint =>
+      'Você vai precisar da URL ou dos dados de acesso do seu provedor IPTV';
+
+  @override
+  String get nav_settings => 'Ajustes';
+
+  @override
+  String get empty_list_title => 'Sua lista está vazia';
+
+  @override
+  String get empty_list_body =>
+      'Adicione títulos à sua lista e encontre-os aqui.';
+
+  @override
+  String get action_browse_catalogue => 'Explorar catálogo';
+
+  @override
+  String get video_decoding_label => 'Decodificação de vídeo';
+
+  @override
+  String get video_decoding_description =>
+      'Automático funciona em quase todos os aparelhos. Mude apenas se um canal não reproduzir.';
+
+  @override
+  String get video_decoding_auto => 'Automático';
+
+  @override
+  String get video_decoding_hw => 'Hardware direto';
+
+  @override
+  String get video_decoding_software => 'Software';
 }

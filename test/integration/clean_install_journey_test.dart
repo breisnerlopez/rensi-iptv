@@ -102,7 +102,7 @@ void main() {
           reason: 'el foco inicial debe caer en el hero, no en el rail');
       // El rail lateral se alcanza con LEFT.
       await left(tester);
-      bool onRail() => ['Inicio', 'Explorar', 'vivo', 'lista', 'Configuración']
+      bool onRail() => ['Inicio', 'Explorar', 'vivo', 'lista', 'Ajustes']
           .any((s) => focusedInfo().contains(s));
       expect(onRail(), isTrue, reason: 'el rail debe alcanzarse con LEFT');
       // Ir a "En vivo" y conmutar la pestaña; deben aparecer canales sembrados.

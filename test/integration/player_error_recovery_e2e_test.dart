@@ -70,9 +70,16 @@ void main() {
       // ignore: avoid_dynamic_calls
       expect(state.hasError, isTrue,
           reason: 'una URL muerta debe terminar en la pantalla de error');
-      expect(find.text('Retry'), findsOneWidget,
-          reason: 'la pantalla de error debe ofrecer Reintentar (enfocable)');
-      final retryBtn = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+      // Ambas aserciones estaban mal y nadie lo supo: este fichero moría en
+      // setUpAll por falta de libmpv, así que jamás llegó a ejecutarse.
+      //   - el botón decía 'Retry' en inglés fijo con la app en español;
+      //   - ElevatedButton.icon construye una subclase privada, y find.byType
+      //     casa por runtimeType exacto, así que nunca la habría encontrado.
+      expect(find.text('Intentar de Nuevo'), findsOneWidget,
+          reason: 'la pantalla de error debe ofrecer Reintentar, traducido');
+      final retryBtn = tester.widget<ElevatedButton>(
+        find.byWidgetPredicate((w) => w is ElevatedButton),
+      );
       expect(retryBtn.autofocus, isTrue,
           reason: 'el botón Reintentar debe tomar el foco del mando');
 

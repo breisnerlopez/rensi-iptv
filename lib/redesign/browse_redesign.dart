@@ -4,6 +4,8 @@ import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 
 /// "Explorar" — type tabs (Todo / Películas / Series) + genre chips over a
 /// 3-column poster grid, fed by the real catalogue.
@@ -136,7 +138,10 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
     });
 
     final cross = ResponsiveHelper.getCrossAxisCount(context);
-    final sidePad = ResponsiveHelper.isDesktopOrTV(context) ? 48.0 : 20.0;
+    // safeInset, not a duplicated 48/20: the hand-written pair gave 20dp on
+    // phones where every other screen uses 24, and did not scale with wider
+    // surfaces the way the overscan margin has to.
+    final sidePad = ResponsiveHelper.safeInset(context);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -150,10 +155,10 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Explorar',
+                  Text(context.loc.nav_browse,
                       style: TextStyle(
                           fontFamily: 'Bricolage Grotesque',
-                          fontSize: 26,
+                          fontSize: AppThemes.h2Size,
                           fontWeight: FontWeight.w800)),
                   FocusHighlight(
                     borderRadius: BorderRadius.circular(12),
@@ -200,7 +205,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
             ),
             // Genre chips
             SizedBox(
-              height: 44,
+              height: 60,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 0),
@@ -217,7 +222,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
             Expanded(
               child: items.isEmpty
                   ? Center(
-                      child: Text('Sin resultados para este filtro',
+                      child: Text(context.loc.no_results_filter,
                           style: TextStyle(color: r.text3)))
                   : GridView.builder(
                       padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 24),

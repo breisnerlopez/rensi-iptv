@@ -52,6 +52,8 @@ void main() {
     await pumpScreen(
       tester,
       RedesignHome(
+        onResume: (_) {},
+        onRemove: (_) {},
         movieCategories: movieCats,
         seriesCategories: const [],
         onOpen: (_) {},

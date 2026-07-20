@@ -20,6 +20,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../widgets/player_widget.dart';
 import '../../../widgets/tv/focus_highlight.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class MovieScreen extends StatefulWidget {
   final ContentItem contentItem;
@@ -124,7 +126,7 @@ class _MovieScreenState extends State<MovieScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error loading category movies: $e');
+      debugPrint('Error loading category movies: ${scrubCredentials(e)}');
     }
   }
 
@@ -549,7 +551,13 @@ class _MovieScreenState extends State<MovieScreen> {
                   style: TextStyle(
                     fontFamily: 'Bricolage Grotesque',
                     fontWeight: FontWeight.w700,
-                    fontSize: 14,
+                    // Through tenFoot like everything around it. Left as a bare
+                    // labelSize, this title stayed at 14 on TV while the info
+                    // chips below it were promoted from 13 to 16 — so the
+                    // heading rendered SMALLER than its own metadata. Promoting
+                    // the constant keeps the phone at 14 and restores the order
+                    // at three metres.
+                    fontSize: AppThemes.tenFoot(context, AppThemes.labelSize),
                     color: Colors.white.withOpacity(0.92),
                   ),
                 ),
@@ -565,7 +573,12 @@ class _MovieScreenState extends State<MovieScreen> {
       style: TextStyle(
         fontFamily: 'Bricolage Grotesque',
         // 10-foot: larger title on TV so it reads at 3 m.
-        fontSize: ResponsiveHelper.isDesktopOrTV(context) ? 46 : 32,
+        // isTenFoot, not isDesktopOrTV. Two deliberate sizes are fine — this is
+        // a display title, not something the type ramp should snap — but the
+        // choice between them is a viewing-distance question, and isDesktopOrTV
+        // also answers yes to a 1010dp phone in landscape. That handset was
+        // getting a 46dp film title surrounded by metadata at hand-held sizes.
+        fontSize: ResponsiveHelper.isTenFoot(context) ? 46 : 32,
         fontWeight: FontWeight.w800,
         height: 1.05,
         color: Colors.white,
@@ -991,10 +1004,10 @@ class _InfoChip extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w500,
-              fontSize: 13,
+              fontSize: AppThemes.tenFoot(context, 13),
             ),
           ),
         ],
@@ -1034,18 +1047,18 @@ class _DetailCard extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white54,
-                  fontSize: 11,
+                  fontSize: AppThemes.tenFoot(context, 11),
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
-                  fontSize: 13,
+                  fontSize: AppThemes.tenFoot(context, 13),
                 ),
               ),
             ],
@@ -1162,7 +1175,7 @@ class _MovieActionsRowState extends State<_MovieActionsRow> {
                   const SizedBox(height: 6),
                   Text(label,
                       style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: AppThemes.tenFoot(context, 11.5),
                           fontWeight: FontWeight.w600,
                           color: active ? scheme.primary : scheme.onSurfaceVariant)),
                 ],

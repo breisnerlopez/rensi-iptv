@@ -10,6 +10,7 @@ import 'package:rensi_iptv/services/sleep_timer_service.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
 import 'package:rensi_iptv/utils/channel_order.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 import 'package:rensi_iptv/widgets/channel_number_overlay.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_info_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_settings_widget.dart';
@@ -32,6 +33,7 @@ import '../../services/player_state.dart';
 import '../../services/service_locator.dart';
 import '../../utils/audio_handler.dart';
 import '../utils/player_error_handler.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class PlayerWidget extends StatefulWidget {
   final ContentItem contentItem;
@@ -333,7 +335,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     } catch (e) {
       // Silently handle database errors to prevent crashes
       // The next save attempt will retry
-      debugPrint('Error saving watch history: $e');
+      debugPrint('Error saving watch history: ${scrubCredentials(e)}');
     }
   }
 
@@ -563,7 +565,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             // the last saved position.
             await _reopenCurrent();
           } catch (e) {
-            debugPrint('Error reopening media after reconnect: $e');
+            debugPrint('Error reopening media after reconnect: ${scrubCredentials(e)}');
           }
         }
         _wasDisconnected = false;
@@ -686,7 +688,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     });
 
     _player.stream.error.listen((error) async {
-      debugPrint('PLAYER ERROR -> $error');
+      debugPrint('PLAYER ERROR -> ${scrubCredentials(error)}');
       _errorHandler.handleError(
         error,
         () async {
@@ -699,7 +701,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
           if (!mounted) return;
           setState(() {
             hasError = true;
-            errorMessage = message;
+            // Belt-and-braces: PlayerErrorHandler already scrubs, but this
+            // string goes straight to a full-screen Text().
+            errorMessage = scrubCredentials(message);
           });
         },
       );
@@ -930,7 +934,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
           child: Row(
             children: [
               Text(_fmtDur(pos),
-                  style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  style: TextStyle(color: Colors.white, fontSize: AppThemes.tenFoot(context, 12))),
               const SizedBox(width: 10),
               Expanded(
                 child: ClipRRect(
@@ -946,7 +950,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
               ),
               const SizedBox(width: 10),
               Text(_fmtDur(dur),
-                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  style: TextStyle(color: Colors.white70, fontSize: AppThemes.tenFoot(context, 12))),
             ],
           ),
         ),
@@ -1309,7 +1313,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                             child: Text(
                               overlayTitle,
                               style: const TextStyle(
-                                fontSize: 18,
+                                fontSize: AppThemes.bodySize,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
@@ -1318,7 +1322,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                           Text(
                             '${selectedIndex + 1} / ${items.length}',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: AppThemes.tenFoot(context, 12),
                               color: Colors.grey[400],
                             ),
                           ),
@@ -1403,13 +1407,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(context.loc.last_channel,
-                        style: const TextStyle(
-                            fontSize: 11, color: Colors.white54)),
+                        style: TextStyle(
+                            fontSize: AppThemes.tenFoot(context, 11), color: Colors.white54)),
                     Text(item.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 13,
+                        style: TextStyle(
+                            fontSize: AppThemes.tenFoot(context, 13),
                             color: Colors.white,
                             fontWeight: FontWeight.w600)),
                   ],
@@ -1501,7 +1505,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   Text(
                     item.name,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: AppThemes.tenFoot(context, 13),
                       fontWeight: isSelected
                           ? FontWeight.bold
                           : FontWeight.normal,
@@ -1523,7 +1527,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
                         child: Text(
                           _getContentTypeDisplayNameForItem(item.contentType),
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: AppThemes.tenFoot(context, 11),
                             color: Colors.grey[500],
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -1711,7 +1715,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 errorMessage,
-                style: const TextStyle(color: Colors.white, fontSize: 12),
+                style: TextStyle(color: Colors.white, fontSize: AppThemes.tenFoot(context, 12)),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -1721,7 +1725,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
               autofocus: true,
               onPressed: _retryPlayback,
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry'),
+              label: Text(context.loc.try_again),
             ),
             const SizedBox(height: 8),
           ],
@@ -1837,9 +1841,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   const SizedBox(width: 10),
                   Text(
                     context.loc.hold_ok_for_options,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: Colors.white,
-                        fontSize: 14,
+                        // Same reason as movie_screen's poster title: a raw
+                        // labelSize stayed at 14 on TV while the error message
+                        // above it went 12 -> 16, leaving the remote hint
+                        // smaller than the body it belongs to.
+                        fontSize: AppThemes.tenFoot(context, AppThemes.labelSize),
                         fontWeight: FontWeight.w600),
                   ),
                 ],

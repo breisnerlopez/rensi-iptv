@@ -712,6 +712,69 @@ class AppLocalizationsTr extends AppLocalizations {
       'Tüm izleme geçmişini silmek istediğinizden emin misiniz?';
 
   @override
+  String get resume_failed => 'Bu içerik artık bu oynatma listesinde yok';
+
+  @override
+  String get home_empty_title => 'Bu listede henüz film veya dizi yok.';
+
+  @override
+  String get home_empty_hint =>
+      'Kanalları izlemek için menüdeki “Canlı” bölümünü kullan veya içerik ara.';
+
+  @override
+  String get loading => 'Yükleniyor...';
+
+  @override
+  String get greeting_morning => 'Günaydın';
+
+  @override
+  String get greeting_afternoon => 'İyi günler';
+
+  @override
+  String get greeting_evening => 'İyi akşamlar';
+
+  @override
+  String get featured_today => 'BUGÜN ÖNE ÇIKAN';
+
+  @override
+  String get search_catalog_hint => 'Tüm kataloğunda ara';
+
+  @override
+  String get search_placeholder => 'Film, dizi, kanal ara…';
+
+  @override
+  String get no_channels => 'Kanal yok';
+
+  @override
+  String get no_results_filter => 'Bu filtre için sonuç yok';
+
+  @override
+  String get preferred_audio => 'Tercih edilen ses';
+
+  @override
+  String get preferred_subtitles => 'Tercih edilen altyazı';
+
+  @override
+  String get decoder_applies_next_video =>
+      'Bir sonraki videoyu açtığında uygulanır';
+
+  @override
+  String no_results_for(String query) {
+    return '\"$query\" için sonuç yok';
+  }
+
+  @override
+  String saved_titles_count(int count) {
+    return '$count kayıtlı içerik';
+  }
+
+  @override
+  String get history_cleared => 'İzleme geçmişi temizlendi';
+
+  @override
+  String get history_clear_failed => 'İzleme geçmişi temizlenemedi';
+
+  @override
   String get appearance => 'Görünüm';
 
   @override
@@ -1214,4 +1277,48 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'Çık';
+
+  @override
+  String get nav_home => 'Ana Sayfa';
+
+  @override
+  String get nav_browse => 'Keşfet';
+
+  @override
+  String get nav_live => 'Canlı';
+
+  @override
+  String get nav_my_list => 'Listem';
+
+  @override
+  String get onboarding_requirements_hint =>
+      'IPTV sağlayıcınızın URL\'sine veya giriş bilgilerine ihtiyacınız olacak';
+
+  @override
+  String get nav_settings => 'Ayarlar';
+
+  @override
+  String get empty_list_title => 'Listeniz boş';
+
+  @override
+  String get empty_list_body => 'Listenize başlık ekleyin, burada bulun.';
+
+  @override
+  String get action_browse_catalogue => 'Kataloğa göz at';
+
+  @override
+  String get video_decoding_label => 'Video kod çözme';
+
+  @override
+  String get video_decoding_description =>
+      'Otomatik neredeyse tüm cihazlarda çalışır. Yalnızca bir kanal açılmıyorsa değiştirin.';
+
+  @override
+  String get video_decoding_auto => 'Otomatik';
+
+  @override
+  String get video_decoding_hw => 'Doğrudan donanım';
+
+  @override
+  String get video_decoding_software => 'Yazılım';
 }

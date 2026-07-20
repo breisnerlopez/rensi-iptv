@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
+
 class PlayerErrorHandler {
   Timer? _errorTimer;
   int _retryCount = 0;
@@ -18,7 +20,10 @@ class PlayerErrorHandler {
         onRetry();
       });
     } else {
-      showSnackBar(error);
+      // libmpv reports the failing URL verbatim ("Failed to open http://…"),
+      // which for Xtream contains the account. Scrub at this boundary so every
+      // present and future caller is covered.
+      showSnackBar(scrubCredentials(error));
     }
   }
 

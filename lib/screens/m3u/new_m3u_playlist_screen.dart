@@ -12,6 +12,10 @@ import 'package:provider/provider.dart';
 import '../../../../controllers/playlist_controller.dart';
 import '../../models/m3u_item.dart';
 import '../../utils/show_loading_dialog.dart';
+import 'package:rensi_iptv/widgets/tv/tv_field_traversal.dart';
+import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class NewM3uPlaylistScreen extends StatefulWidget {
   const NewM3uPlaylistScreen({super.key});
@@ -111,8 +115,25 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
       body: Consumer<PlaylistController>(
         builder: (context, controller, child) {
           return SingleChildScrollView(
-            padding: EdgeInsets.all(24),
-            child: Form(
+            // Room to scroll the active field clear of the on-screen keyboard.
+            // Without it the IME simply covers the middle of the form: the TV
+            // keyboard is a large overlay and the fields ran the full width, so
+            // the user could not read what they were typing.
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(context).bottom),
+            // RensiSafeColumn instead of a flat 24dp: on TV that margin sat
+            // inside the 5% overscan crop, so the form's own focus rings were
+            // partly off the picture.
+            child: RensiSafeColumn(
+              child: ConstrainedBox(
+                // A 910dp-wide field is unreadable next to a centred keyboard.
+                // Capping the measure keeps the text beside the caret visible.
+                constraints: BoxConstraints(
+                  maxWidth: ResponsiveHelper.isDesktopOrTV(context)
+                      ? 620
+                      : double.infinity,
+                ),
+                child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -142,6 +163,8 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                 ],
               ),
             ),
+            ),
+            ),
           );
         },
       ),
@@ -169,7 +192,9 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         Text(
           context.loc.m3u_playlist,
           style: TextStyle(
-            fontSize: 26,
+            fontFamily: 'Bricolage Grotesque',
+            letterSpacing: -0.7,
+            fontSize: AppThemes.h1Size,
             fontWeight: FontWeight.bold,
             color: colorScheme.onSurface,
           ),
@@ -178,7 +203,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         Text(
           context.loc.m3u_playlist_load_description,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             color: colorScheme.onSurface.withOpacity(0.7),
           ),
         ),
@@ -193,15 +218,21 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         Text(
           context.loc.playlist_name,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
         ),
         SizedBox(height: 8),
-        TextFormField(
+        TvFieldTraversal(child: TextFormField(
           controller: _nameController,
           focusNode: _nameNode,
+          // Focus the first field on every platform. On TV the IME does pop
+          // up with it, which is not ideal, but the alternative shipped worse:
+          // no autofocus left the screen with NOTHING focused, and the submit
+          // button starts disabled so it cannot take focus either — a remote
+          // user was stranded. TvFieldTraversal below is what lets the D-pad
+          // leave the field once the keyboard is dismissed.
           autofocus: true,
           textInputAction: TextInputAction.next,
           onFieldSubmitted: (_) {
@@ -218,10 +249,10 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: colorScheme.outline),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
+            // No local focusedBorder: the theme owns the focus ring, and this
+            // override painted it orange while every other screen used the
+            // white one — the single convention a remote user has to learn.
+            
             filled: true,
             fillColor: colorScheme.surface,
           ),
@@ -234,7 +265,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
             }
             return null;
           },
-        ),
+        )),
       ],
     );
   }
@@ -246,7 +277,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         Text(
           context.loc.source_type,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
@@ -288,13 +319,19 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                               : colorScheme.onSurface,
                         ),
                         SizedBox(width: 8),
-                        Text(
-                          context.loc.url,
-                          style: TextStyle(
-                            color: _isUrlSource
-                                ? colorScheme.onPrimary
-                                : colorScheme.onSurface,
-                            fontWeight: FontWeight.w600,
+                        // Flexible + ellipsis: the localised label overflowed
+                        // this segment by 17px on a 360dp phone.
+                        Flexible(
+                          child: Text(
+                            context.loc.url,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _isUrlSource
+                                  ? colorScheme.onPrimary
+                                  : colorScheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -325,6 +362,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           Icons.folder,
@@ -333,13 +371,19 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                               : colorScheme.onSurface,
                         ),
                         SizedBox(width: 8),
-                        Text(
-                          context.loc.file,
-                          style: TextStyle(
-                            color: !_isUrlSource
-                                ? colorScheme.onPrimary
-                                : colorScheme.onSurface,
-                            fontWeight: FontWeight.w600,
+                        // Flexible + ellipsis: the localised label overflowed
+                        // this segment by 17px on a 360dp phone.
+                        Flexible(
+                          child: Text(
+                            context.loc.file,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: !_isUrlSource
+                                  ? colorScheme.onPrimary
+                                  : colorScheme.onSurface,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -362,16 +406,22 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         Text(
           context.loc.m3u_url,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
         ),
         SizedBox(height: 8),
-        TextFormField(
+        TvFieldTraversal(child: TextFormField(
           controller: _urlController,
           focusNode: _urlNode,
           keyboardType: TextInputType.url,
+          // An M3U URL carries username= and password=. Without these the IME
+          // learns the credential into its dictionary and then offers it as a
+          // suggestion pill above the keyboard — on a screen the whole room
+          // can see.
+          autocorrect: false,
+          enableSuggestions: false,
           textInputAction: TextInputAction.done,
           onFieldSubmitted: (_) {
             _urlNode.unfocus();
@@ -384,10 +434,10 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: colorScheme.outline),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: colorScheme.primary, width: 2),
-            ),
+            // No local focusedBorder: the theme owns the focus ring, and this
+            // override painted it orange while every other screen used the
+            // white one — the single convention a remote user has to learn.
+            
             filled: true,
             fillColor: colorScheme.surface,
           ),
@@ -407,7 +457,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
 
             return null;
           },
-        ),
+        )),
       ],
     );
   }
@@ -419,7 +469,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
         Text(
           context.loc.m3u_file,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: AppThemes.bodySmallSize,
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
           ),
@@ -474,7 +524,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
             padding: EdgeInsets.only(top: 8),
             child: Text(
               context.loc.please_select_m3u_file,
-              style: TextStyle(color: colorScheme.error, fontSize: 12),
+              style: TextStyle(color: colorScheme.error, fontSize: AppThemes.tenFoot(context, 12)),
             ),
           ),
       ],
@@ -518,18 +568,27 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                   SizedBox(width: 12),
                   Text(
                     context.loc.processing,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: AppThemes.bodySmallSize, fontWeight: FontWeight.w600),
                   ),
                 ],
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.save, size: 20),
                   SizedBox(width: 8),
-                  Text(
-                    context.loc.create_playlist,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  // Flexible: the label is localised, and on a 360dp phone the
+                  // Spanish string overflowed the button by 199px — a hard
+                  // layout error, invisible in a profile build.
+                  Flexible(
+                    child: Text(
+                      context.loc.create_playlist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          TextStyle(fontSize: AppThemes.bodySmallSize, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ],
               ),
@@ -565,7 +624,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                   error,
                   style: TextStyle(
                     color: colorScheme.onErrorContainer,
-                    fontSize: 14,
+                    fontSize: AppThemes.labelSize,
                   ),
                 ),
               ],
@@ -605,7 +664,7 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
             context.loc.m3u_info_message,
             style: TextStyle(
               color: colorScheme.onPrimaryContainer,
-              fontSize: 13,
+              fontSize: AppThemes.tenFoot(context, 13),
               height: 1.4,
             ),
           ),

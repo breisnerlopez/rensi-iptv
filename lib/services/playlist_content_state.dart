@@ -3,6 +3,10 @@ import 'package:rensi_iptv/models/category_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import '../models/content_type.dart';
+// `show` is required: foundation also exports a `Category` annotation that
+// collides with our own Category model.
+import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class PlaylistContentState {
   // Kategori bazlı canlı yayınlar
@@ -75,7 +79,7 @@ class PlaylistContentState {
         allLiveStreams.addAll(items);
       }
     } catch (e) {
-      print('Error loading live streams: $e');
+      debugPrint('Error loading live streams: ${scrubCredentials(e)}');
     }
   }
 
@@ -107,7 +111,7 @@ class PlaylistContentState {
         allMovies.addAll(items);
       }
     } catch (e) {
-      print('Error loading movies: $e');
+      debugPrint('Error loading movies: ${scrubCredentials(e)}');
     }
   }
 
@@ -138,7 +142,7 @@ class PlaylistContentState {
         allSeries.addAll(items);
       }
     } catch (e) {
-      print('Error loading series: $e');
+      debugPrint('Error loading series: ${scrubCredentials(e)}');
     }
   }
 

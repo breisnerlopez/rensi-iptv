@@ -2,7 +2,7 @@ name: rensi_iptv
 description: "Rensi IPTV — Reproductor IPTV para móvil y Android TV"
 publish_to: "none"
 
-version: 2.0.9+13
+version: 2.2.0+15
 
 environment:
   sdk: ^3.9.2
@@ -96,10 +96,6 @@ flutter:
     - assets/logo_full.png
     - assets/logo_foreground.png
   fonts:
-    - family: BabaPro
-      fonts:
-        - asset: assets/fonts/BabaPro-Bold.ttf
-          weight: 700
     # Redesign type system (variable fonts; fontWeight drives the wght axis).
     - family: Bricolage Grotesque
       fonts:

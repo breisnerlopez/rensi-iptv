@@ -11,6 +11,7 @@ import 'package:rensi_iptv/utils/picker_helper.dart';
 import 'package:rensi_iptv/utils/show_loading_dialog.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/controllers/watch_history_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -29,6 +30,7 @@ import '../m3u/m3u_data_loader_screen.dart';
 import '../playlist_screen.dart';
 import '../xtream-codes/xtream_code_data_loader_screen.dart';
 import 'category_settings_section.dart';
+import 'package:rensi_iptv/widgets/tv/tv_field_traversal.dart';
 
 final controller = XtreamCodeHomeController(true);
 
@@ -204,8 +206,8 @@ String _videoDecoder = 'auto';
     setState(() => _videoDecoder = value);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Se aplicará al abrir el próximo video'),
+        SnackBar(
+          content: Text(context.loc.decoder_applies_next_video),
         ),
       );
     }
@@ -222,6 +224,48 @@ String _videoDecoder = 'auto';
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(context.loc.tmdb_credential_saved)));
+  }
+
+  Future<void> _confirmClearHistory() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.loc.clear_all_history),
+        content: Text(context.loc.clear_all_history_confirmation),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(context.loc.cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(context.loc.clear_all_history),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final controller = WatchHistoryController();
+    // clearAllHistory rethrows on purpose. This is wired to onTap, which drops
+    // the future, so an uncaught failure reached the error guard and told the
+    // viewer nothing — on the one surface where silently not deleting is the
+    // worst possible outcome. Report which of the two actually happened.
+    var cleared = true;
+    try {
+      await controller.clearAllHistory();
+    } catch (_) {
+      cleared = false;
+    } finally {
+      controller.dispose();
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          cleared ? context.loc.history_cleared : context.loc.history_clear_failed,
+        ),
+      ),
+    );
   }
 
   Future<void> _exportBackup() async {
@@ -307,7 +351,7 @@ String _videoDecoder = 'auto';
                   children: [
                     Text(subtitle),
                     const SizedBox(height: 12),
-                    TextField(
+                    TvFieldTraversal(child: TextField(
                       controller: controller,
                       autofocus: true,
                       obscureText: true,
@@ -325,10 +369,10 @@ String _videoDecoder = 'auto';
                         labelText: context.loc.backup_passphrase_field,
                         errorText: errorText,
                       ),
-                    ),
+                    )),
                     if (requireConfirm) ...[
                       const SizedBox(height: 8),
-                      TextField(
+                      TvFieldTraversal(child: TextField(
                         controller: confirmController,
                         focusNode: confirmNode,
                         obscureText: true,
@@ -337,7 +381,7 @@ String _videoDecoder = 'auto';
                         decoration: InputDecoration(
                           labelText: context.loc.backup_passphrase_confirm,
                         ),
-                      ),
+                      )),
                       const SizedBox(height: 8),
                       Text(
                         context.loc.backup_plain_warning,
@@ -552,7 +596,7 @@ String _videoDecoder = 'auto';
                                 else
                                   Text(context.loc.tmdb_credential_missing),
                                 const SizedBox(height: 8),
-                                TextField(
+                                TvFieldTraversal(child: TextField(
                                   obscureText: true,
                                   textInputAction: TextInputAction.done,
                                   onChanged: (v) => _tmdbToken = v,
@@ -563,7 +607,7 @@ String _videoDecoder = 'auto';
                                     labelText:
                                         context.loc.tmdb_credential_field_label,
                                   ),
-                                ),
+                                )),
                                 const SizedBox(height: 8),
                                 Align(
                                   alignment: Alignment.centerRight,
@@ -579,6 +623,21 @@ String _videoDecoder = 'auto';
                       ),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              SectionTitleWidget(title: context.loc.history),
+              Card(
+                child: ListTile(
+                  // Restores a capability the app lost when the unreachable
+                  // history screen was deleted: that screen was the only place
+                  // clearAllHistory was ever called from, so removing it left
+                  // viewing history with no way out of the database at all — on
+                  // a TV box, which is a shared device by definition.
+                  leading: const Icon(Icons.delete_sweep_outlined),
+                  title: Text(context.loc.clear_all_history),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _confirmClearHistory,
                 ),
               ),
               const SizedBox(height: 10),
@@ -637,26 +696,42 @@ String _videoDecoder = 'auto';
                       ),
                     ],
                     const Divider(height: 1),
+                    // The option labels are values, not advice. They used to
+                    // carry their own parentheticals — "Automático
+                    // (recomendado)", "Hardware directo (experimental)" — which
+                    // made the longest one ~390dp at 10-foot type, wider than
+                    // the control can be on a 360dp handset even at full width.
+                    // The guidance did not need to be inside the closed
+                    // dropdown, where it is repeated on every glance at a
+                    // setting nobody is changing; it belongs to the row.
+                    //
+                    // Localised on the way past. The label was already hardcoded
+                    // Spanish before this change, and adding a new Spanish
+                    // sentence beside it would have left an English user reading
+                    // advice they cannot read, two rows under the language
+                    // picker that promises otherwise.
                     DropdownTileWidget<String>(
                       icon: Icons.memory,
-                      label: 'Decodificación de video',
+                      label: context.loc.video_decoding_label,
+                      description: context.loc.video_decoding_description,
                       value: _videoDecoder,
-                      items: const [
+                      items: [
                         DropdownMenuItem(
                             value: 'auto',
-                            child: Text('Automático (recomendado)')),
+                            child: Text(context.loc.video_decoding_auto)),
                         DropdownMenuItem(
                             value: 'hw_direct',
-                            child: Text('Hardware directo (experimental)')),
+                            child: Text(context.loc.video_decoding_hw)),
                         DropdownMenuItem(
-                            value: 'software', child: Text('Software')),
+                            value: 'software',
+                            child: Text(context.loc.video_decoding_software)),
                       ],
                       onChanged: _saveVideoDecoder,
                     ),
                     const Divider(height: 1),
                     DropdownTileWidget<String>(
                       icon: Icons.translate,
-                      label: 'Audio preferido',
+                      label: context.loc.preferred_audio,
                       value: _prefAudioLang,
                       items: [
                         for (final o in _audioLangOptions)
@@ -668,7 +743,7 @@ String _videoDecoder = 'auto';
                     const Divider(height: 1),
                     DropdownTileWidget<String>(
                       icon: Icons.closed_caption_outlined,
-                      label: 'Subtítulos preferidos',
+                      label: context.loc.preferred_subtitles,
                       value: _prefSubLang,
                       items: [
                         for (final o in _subLangOptions)
@@ -680,7 +755,7 @@ String _videoDecoder = 'auto';
                     const Divider(height: 1),
                     DropdownTileWidget<double>(
                       icon: Icons.speed,
-                      label: 'Velocidad',
+                      label: context.loc.speed,
                       value: _playbackSpeed,
                       items: [
                         for (final s in _speedOptions)

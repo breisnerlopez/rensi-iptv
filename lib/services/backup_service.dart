@@ -11,6 +11,7 @@ import '../models/playlist_model.dart';
 import '../repositories/user_preferences.dart';
 import 'playlist_service.dart';
 import 'tmdb_credentials_service.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 /// Public stats returned by the backup service so the UI can localize the
 /// outcome message without having to inspect internal state.
@@ -178,7 +179,7 @@ class BackupService {
     } on BackupFormatException {
       rethrow;
     } catch (e) {
-      throw BackupFormatException('backup_url_fetch_failed', e.toString());
+      throw BackupFormatException('backup_url_fetch_failed', scrubCredentials(e));
     } finally {
       client.close(force: true);
     }

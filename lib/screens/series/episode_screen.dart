@@ -109,7 +109,7 @@ class _EpisodeScreenState extends State<EpisodeScreen> {
   @override
   Widget build(BuildContext context) {
     if (!allContentsLoaded) {
-      return buildFullScreenLoadingWidget();
+      return buildFullScreenLoadingWidget(context);
     } else {
       return Scaffold(
         backgroundColor: Colors.black,

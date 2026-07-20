@@ -2,7 +2,7 @@
 /// series" pseudo-category injected at the top of the Xtream-codes home
 /// screen.
 ///
-/// When [CategoryDetailScreen] / [ContentService] / [CategorySection] see
+/// When [CategoryDetailScreen] / [ContentService] / the category rails see
 /// this id they aggregate every item of the matching content type instead
 /// of querying by `category_id`, and they substitute the title with the
 /// localised "View all …" string at render time.

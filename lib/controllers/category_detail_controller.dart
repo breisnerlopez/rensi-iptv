@@ -3,6 +3,7 @@ import 'package:rensi_iptv/models/all_category_sentinel.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import '../services/content_service.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class CategoryDetailController extends ChangeNotifier {
   final CategoryViewModel category;
@@ -50,7 +51,7 @@ class CategoryDetailController extends ChangeNotifier {
         sortItems('date_added');
       }
     } catch (error) {
-      _setError(error.toString());
+      _setError(scrubCredentials(error));
     }
   }
 

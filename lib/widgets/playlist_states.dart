@@ -3,6 +3,7 @@ import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 class PlaylistLoadingState extends StatelessWidget {
   const PlaylistLoadingState({super.key});
@@ -45,9 +46,9 @@ class PlaylistErrorState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               context.loc.error_occurred,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Bricolage Grotesque',
-                fontSize: 20,
+                fontSize: AppThemes.tenFoot(context, 20),
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
@@ -72,7 +73,7 @@ class PlaylistErrorState extends StatelessWidget {
                     horizontal: 24,
                     vertical: 14,
                   ),
-                  textStyle: const TextStyle(fontSize: 16),
+                  textStyle: const TextStyle(fontSize: AppThemes.bodySmallSize),
                 ),
               ),
             ),
@@ -119,9 +120,9 @@ class PlaylistEmptyState extends StatelessWidget {
             Text(
               context.loc.empty_playlist_title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Bricolage Grotesque',
-                fontSize: 26,
+                fontSize: AppThemes.tenFoot(context, 26),
                 fontWeight: FontWeight.w800,
                 height: 1.05,
               ),
@@ -130,11 +131,41 @@ class PlaylistEmptyState extends StatelessWidget {
             Text(
               context.loc.empty_playlist_message,
               style: TextStyle(
-                fontSize: 15,
+                fontSize: AppThemes.tenFoot(context, 15),
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            // Say what the user needs BEFORE sending them into a form where an
+            // 80-character URL has to be typed with a remote. Google TV always
+            // states the cost of the next step up front; arriving at the form
+            // and only then discovering the requirement is where people quit.
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      context.loc.onboarding_requirements_hint,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: AppThemes.bodySmallSize,
+                        height: 1.4,
+                        color:
+                            Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 32),
             // The two CTAs match in size and stack vertically so a user
@@ -157,7 +188,7 @@ class PlaylistEmptyState extends StatelessWidget {
                       label: Text(context.loc.empty_playlist_button),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        textStyle: const TextStyle(fontSize: 16),
+                        textStyle: const TextStyle(fontSize: AppThemes.bodySmallSize),
                       ),
                     ),
                   ),
@@ -165,13 +196,21 @@ class PlaylistEmptyState extends StatelessWidget {
                     const SizedBox(height: 12),
                     FocusHighlight(
                       borderRadius: BorderRadius.circular(20),
+                      // Explicit tonal colours: the app-wide filledButtonTheme
+                      // also reaches FilledButton.tonal*, which would paint this
+                      // secondary action identically to the primary button right
+                      // above it.
                       child: FilledButton.tonalIcon(
                         onPressed: onImportBackup,
                         icon: const Icon(Icons.download_outlined),
                         label: Text(context.loc.import_playlists_and_settings),
                         style: FilledButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.secondaryContainer,
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onSecondaryContainer,
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          textStyle: const TextStyle(fontSize: 16),
+                          textStyle: const TextStyle(fontSize: AppThemes.bodySmallSize),
                         ),
                       ),
                     ),

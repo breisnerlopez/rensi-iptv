@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/services/backup_service.dart';
 import 'package:rensi_iptv/utils/picker_helper.dart';
+import 'package:rensi_iptv/widgets/tv/tv_field_traversal.dart';
 
 /// Runs the full backup-import UX: file picker → passphrase prompt (if the
 /// file is encrypted) → merge strategy dialog → call into [BackupService].
@@ -148,16 +149,20 @@ Future<String?> _askForUrl(BuildContext context) async {
 
         return AlertDialog(
           title: Text(dialogContext.loc.import_from_url),
-          content: TextField(
+          content: TvFieldTraversal(child: TextField(
             controller: controller,
             autofocus: true,
             keyboardType: TextInputType.url,
+            // A backup URL can embed credentials; without these the IME learns
+            // them and offers them as a suggestion later.
+            autocorrect: false,
+            enableSuggestions: false,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => submit(),
             decoration: InputDecoration(
               labelText: dialogContext.loc.import_url_hint,
             ),
-          ),
+          )),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, null),

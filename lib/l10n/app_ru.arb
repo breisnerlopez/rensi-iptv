@@ -212,6 +212,39 @@
   "clear_old": "Очистить старые",
   "clear_all_history": "Очистить всю историю",
   "clear_all_history_confirmation": "Вы уверены, что хотите удалить всю историю просмотров?",
+  "resume_failed": "Этот материал больше недоступен в этом плейлисте",
+  "home_empty_title": "В этом плейлисте пока нет фильмов и сериалов.",
+  "home_empty_hint": "Откройте раздел «Эфир» в меню, чтобы смотреть каналы, или воспользуйтесь поиском.",
+  "loading": "Загрузка...",
+  "greeting_morning": "Доброе утро",
+  "greeting_afternoon": "Добрый день",
+  "greeting_evening": "Добрый вечер",
+  "featured_today": "РЕКОМЕНДУЕМ СЕГОДНЯ",
+  "search_catalog_hint": "Поиск по всему каталогу",
+  "search_placeholder": "Поиск фильмов, сериалов, каналов…",
+  "no_channels": "Нет каналов",
+  "no_results_filter": "Нет результатов для этого фильтра",
+  "preferred_audio": "Предпочитаемое аудио",
+  "preferred_subtitles": "Предпочитаемые субтитры",
+  "decoder_applies_next_video": "Применится при открытии следующего видео",
+  "no_results_for": "Нет результатов по запросу \"{query}\"",
+  "@no_results_for": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "saved_titles_count": "Сохранено: {count}",
+  "@saved_titles_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "history_cleared": "История просмотров очищена",
+  "history_clear_failed": "Не удалось очистить историю просмотров",
   "appearance": "Внешний вид",
   "theme": "Тема",
   "standard": "По умолчанию",
@@ -479,5 +512,19 @@
   "file_browser_empty": "В этой папке нет совместимых файлов.",
   "exit_confirm_title": "Выйти из приложения?",
   "exit_confirm_message": "Вы собираетесь выйти из Rensi IPTV.",
-  "exit_confirm_action": "Выйти"
+  "exit_confirm_action": "Выйти",
+  "nav_home": "Главная",
+  "nav_browse": "Обзор",
+  "nav_live": "Эфир",
+  "nav_my_list": "Мой список",
+  "onboarding_requirements_hint": "Понадобится URL или данные для входа от вашего IPTV-провайдера",
+  "nav_settings": "Настройки",
+  "empty_list_title": "Ваш список пуст",
+  "empty_list_body": "Добавьте названия в список — они появятся здесь.",
+  "action_browse_catalogue": "Открыть каталог",
+  "video_decoding_label": "Декодирование видео",
+  "video_decoding_description": "Автоматически работает почти на всех устройствах. Меняйте только если канал не воспроизводится.",
+  "video_decoding_auto": "Автоматически",
+  "video_decoding_hw": "Прямое аппаратное",
+  "video_decoding_software": "Программное"
 }

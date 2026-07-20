@@ -212,6 +212,39 @@
   "clear_old": "清除舊的",
   "clear_all_history": "清除所有歷史記錄",
   "clear_all_history_confirmation": "您確定要刪除所有觀看歷史嗎？",
+  "resume_failed": "此内容已不在此播放列表中",
+  "home_empty_title": "此播放列表中还没有电影或剧集。",
+  "home_empty_hint": "在菜单中使用“直播”观看频道，或搜索内容。",
+  "loading": "加载中…",
+  "greeting_morning": "早上好",
+  "greeting_afternoon": "下午好",
+  "greeting_evening": "晚上好",
+  "featured_today": "今日推荐",
+  "search_catalog_hint": "搜索整个片库",
+  "search_placeholder": "搜索电影、剧集、频道…",
+  "no_channels": "无频道",
+  "no_results_filter": "此筛选无结果",
+  "preferred_audio": "首选音轨",
+  "preferred_subtitles": "首选字幕",
+  "decoder_applies_next_video": "将在下次打开视频时生效",
+  "no_results_for": "没有“{query}”的结果",
+  "@no_results_for": {
+    "placeholders": {
+      "query": {
+        "type": "String"
+      }
+    }
+  },
+  "saved_titles_count": "已保存 {count} 个内容",
+  "@saved_titles_count": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "history_cleared": "观看记录已清除",
+  "history_clear_failed": "无法清除观看记录",
   "appearance": "外觀",
   "theme": "主題",
   "standard": "預設",
@@ -479,5 +512,19 @@
   "file_browser_empty": "此文件夹中无匹配文件。",
   "exit_confirm_title": "退出应用？",
   "exit_confirm_message": "您即将退出 Rensi IPTV。",
-  "exit_confirm_action": "退出"
+  "exit_confirm_action": "退出",
+  "nav_home": "首页",
+  "nav_browse": "浏览",
+  "nav_live": "直播",
+  "nav_my_list": "我的列表",
+  "onboarding_requirements_hint": "你需要 IPTV 供应商提供的网址或登录信息",
+  "nav_settings": "设置",
+  "empty_list_title": "你的列表是空的",
+  "empty_list_body": "把片名加入列表后可在此找到。",
+  "action_browse_catalogue": "浏览片库",
+  "video_decoding_label": "视频解码",
+  "video_decoding_description": "自动模式几乎适用于所有设备。仅在频道无法播放时更改。",
+  "video_decoding_auto": "自动",
+  "video_decoding_hw": "直接硬件",
+  "video_decoding_software": "软件"
 }

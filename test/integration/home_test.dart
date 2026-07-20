@@ -32,7 +32,7 @@ void main() {
 
     // 2) The side rail is reachable with LEFT.
     await left(tester);
-    bool onRail() => ['Inicio', 'Explorar', 'vivo', 'lista', 'Configuración']
+    bool onRail() => ['Inicio', 'Explorar', 'vivo', 'lista', 'Ajustes']
         .any((s) => focusedInfo().contains(s));
     expect(onRail(), isTrue, reason: 'el rail debe alcanzarse con LEFT');
     await shot(tester, 'home_2_rail.png');
@@ -53,8 +53,12 @@ void main() {
         reason: 'cambiar a En vivo debe mostrar canales sembrados');
   }, timeout: const Timeout(Duration(seconds: 60)));
 
-  testWidgets('Cambio de pestaña programático (avatar → Ajustes) no pierde foco',
+  testWidgets('Ajustes se alcanza desde el rail y el foco no se pierde',
       (tester) async {
+    // Antes esto se probaba tocando un avatar "A" de la barra superior. Ese
+    // avatar se eliminó: era una segunda puerta a Ajustes, que el rail ya tiene,
+    // y sugería una identidad de usuario que la app no maneja. El destino real
+    // es el rail, así que es el rail lo que hay que probar.
     late Playlist p;
     await tester.runAsync(() async {
       p = await seedXtreamHome(harnessDb);
@@ -64,11 +68,10 @@ void main() {
     expect(focusedInfo(), contains('Comenzar a ver'),
         reason: 'foco inicial en el contenido');
 
-    // El avatar "A" dispara onSettings → onNavigationTap(4) sin pasar por el rail.
-    await tester.tap(find.text('A'));
+    await tester.tap(find.text('Ajustes'), warnIfMissed: false);
     await settle(tester);
-    debugPrint('tras avatar→Ajustes focus=${focusedInfo()}');
-    expect(focusedInfo(), contains('Configuración'),
-        reason: 'tras el cambio programático el foco debe caer en el rail, no perderse');
+    debugPrint('tras rail→Ajustes focus=${focusedInfo()}');
+    expect(focusedInfo(), contains('Ajustes'),
+        reason: 'tras el cambio el foco debe quedarse en el rail, no perderse');
   }, timeout: const Timeout(Duration(seconds: 60)));
 }

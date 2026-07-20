@@ -1,3 +1,29 @@
+# [2.2.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.0.9...v2.2.0) (2026-07-20)
+
+
+### Features
+
+* reconnect the "Continue watching" rail, which shipped with the redesign and never once appeared: the parameter existed and no screen ever passed it
+* let the viewer remove a single entry from the rail (long-press / long OK), and offer it again from the snackbar when a resume fails
+* restore "Clear all watch history" in Settings — pruning had removed the only way to delete history at all
+* surface a failed resume instead of leaving the card inert on tap
+* localize the redesign layer: 21 user-facing strings across 8 files, 14 new keys in all 10 languages
+* make the home greeting time-aware instead of a fixed "good evening"
+
+
+### Bug Fixes
+
+* delete a playlist's watch history and favourites when the playlist is deleted — both survived forever and a reused playlist id resurrected them
+* stop showing a hard-coded Turkish "Yükleniyor..." to every user in every language
+* translate the player's Retry button, which was hard-coded English
+
+
+### Tests
+
+* run the player end-to-end suite for the first time: it had always died in setUpAll for want of libmpv, hiding two assertions that could never have failed
+* rebuild the backup import test as a round-trip through the real export code, dropping its dependency on a personal backup file and a dead /tmp path
+
+
 # [](https://github.com/bsogulcan/iptv-player/compare/v1.2.0...v) (2025-11-30)
 
 

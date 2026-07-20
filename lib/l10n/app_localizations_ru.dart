@@ -715,6 +715,71 @@ class AppLocalizationsRu extends AppLocalizations {
       'Вы уверены, что хотите удалить всю историю просмотров?';
 
   @override
+  String get resume_failed =>
+      'Этот материал больше недоступен в этом плейлисте';
+
+  @override
+  String get home_empty_title =>
+      'В этом плейлисте пока нет фильмов и сериалов.';
+
+  @override
+  String get home_empty_hint =>
+      'Откройте раздел «Эфир» в меню, чтобы смотреть каналы, или воспользуйтесь поиском.';
+
+  @override
+  String get loading => 'Загрузка...';
+
+  @override
+  String get greeting_morning => 'Доброе утро';
+
+  @override
+  String get greeting_afternoon => 'Добрый день';
+
+  @override
+  String get greeting_evening => 'Добрый вечер';
+
+  @override
+  String get featured_today => 'РЕКОМЕНДУЕМ СЕГОДНЯ';
+
+  @override
+  String get search_catalog_hint => 'Поиск по всему каталогу';
+
+  @override
+  String get search_placeholder => 'Поиск фильмов, сериалов, каналов…';
+
+  @override
+  String get no_channels => 'Нет каналов';
+
+  @override
+  String get no_results_filter => 'Нет результатов для этого фильтра';
+
+  @override
+  String get preferred_audio => 'Предпочитаемое аудио';
+
+  @override
+  String get preferred_subtitles => 'Предпочитаемые субтитры';
+
+  @override
+  String get decoder_applies_next_video =>
+      'Применится при открытии следующего видео';
+
+  @override
+  String no_results_for(String query) {
+    return 'Нет результатов по запросу \"$query\"';
+  }
+
+  @override
+  String saved_titles_count(int count) {
+    return 'Сохранено: $count';
+  }
+
+  @override
+  String get history_cleared => 'История просмотров очищена';
+
+  @override
+  String get history_clear_failed => 'Не удалось очистить историю просмотров';
+
+  @override
   String get appearance => 'Внешний вид';
 
   @override
@@ -1216,4 +1281,49 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get exit_confirm_action => 'Выйти';
+
+  @override
+  String get nav_home => 'Главная';
+
+  @override
+  String get nav_browse => 'Обзор';
+
+  @override
+  String get nav_live => 'Эфир';
+
+  @override
+  String get nav_my_list => 'Мой список';
+
+  @override
+  String get onboarding_requirements_hint =>
+      'Понадобится URL или данные для входа от вашего IPTV-провайдера';
+
+  @override
+  String get nav_settings => 'Настройки';
+
+  @override
+  String get empty_list_title => 'Ваш список пуст';
+
+  @override
+  String get empty_list_body =>
+      'Добавьте названия в список — они появятся здесь.';
+
+  @override
+  String get action_browse_catalogue => 'Открыть каталог';
+
+  @override
+  String get video_decoding_label => 'Декодирование видео';
+
+  @override
+  String get video_decoding_description =>
+      'Автоматически работает почти на всех устройствах. Меняйте только если канал не воспроизводится.';
+
+  @override
+  String get video_decoding_auto => 'Автоматически';
+
+  @override
+  String get video_decoding_hw => 'Прямое аппаратное';
+
+  @override
+  String get video_decoding_software => 'Программное';
 }

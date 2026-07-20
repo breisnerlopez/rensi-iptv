@@ -43,7 +43,11 @@ void main() {
       expect(history.totalDuration, const Duration(minutes: 90));
     });
 
-    test('orders recent history by last watched descending', () async {
+    // Was written against getRecentlyWatched, which had no caller in lib/ and
+    // is now gone. The ordering guarantee still matters — it decides the order
+    // of the "Continue watching" rail — so it is asserted against the query
+    // that actually feeds it.
+    test('orders continue-watching by last watched descending', () async {
       final service = WatchHistoryService();
       await service.saveWatchHistory(
         WatchHistory(
@@ -51,6 +55,8 @@ void main() {
           contentType: ContentType.vod,
           streamId: 'old',
           lastWatched: DateTime(2026),
+          watchDuration: const Duration(minutes: 10),
+          totalDuration: const Duration(minutes: 90),
           title: 'Old',
         ),
       );
@@ -60,13 +66,32 @@ void main() {
           contentType: ContentType.vod,
           streamId: 'new',
           lastWatched: DateTime(2026, 1, 2),
+          watchDuration: const Duration(minutes: 5),
+          totalDuration: const Duration(minutes: 90),
           title: 'New',
         ),
       );
 
-      final history = await service.getRecentlyWatched('playlist-1');
+      final history = await service.getContinueWatching('playlist-1');
 
       expect(history.map((item) => item.streamId), ['new', 'old']);
+    });
+
+    test('a row from another playlist is not returned', () async {
+      final service = WatchHistoryService();
+      await service.saveWatchHistory(
+        WatchHistory(
+          playlistId: 'playlist-2',
+          contentType: ContentType.vod,
+          streamId: 'foreign',
+          lastWatched: DateTime(2026, 6),
+          watchDuration: const Duration(minutes: 5),
+          totalDuration: const Duration(minutes: 90),
+          title: 'Foreign',
+        ),
+      );
+
+      expect(await service.getContinueWatching('playlist-1'), isEmpty);
     });
   });
 }

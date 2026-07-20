@@ -1,6 +1,8 @@
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/services/sleep_timer_service.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 
 /// Top-bar player button that opens a bottom sheet of sleep-timer presets
 /// and, when a timer is running, overlays the remaining time as a chip.
@@ -21,6 +23,7 @@ class SleepTimerWidget extends StatelessWidget {
     return ValueListenableBuilder<Duration?>(
       valueListenable: SleepTimerService.instance.remaining,
       builder: (context, remaining, _) {
+        final tenFoot = ResponsiveHelper.isTenFoot(context);
         return Tooltip(
           message: context.loc.sleep_timer,
           child: Stack(
@@ -28,6 +31,12 @@ class SleepTimerWidget extends StatelessWidget {
             alignment: Alignment.center,
             children: [
               IconButton(
+                // A larger target on TV, and not only for the finger: the
+                // countdown badge below is anchored to this button's box, and
+                // the badge's text grew with the 10-foot scale. Without more
+                // room underneath it, the badge spills onto the neighbouring
+                // toolbar icon — silently, because the Stack does not clip.
+                iconSize: tenFoot ? 32 : 24,
                 icon: Icon(
                   remaining != null
                       ? Icons.bedtime
@@ -38,8 +47,11 @@ class SleepTimerWidget extends StatelessWidget {
               ),
               if (remaining != null)
                 Positioned(
-                  bottom: -2,
-                  right: -4,
+                  // Flush inside the button on TV. The negative offsets were
+                  // chosen for a 9dp badge on a phone; at 14dp they push it
+                  // outside the widget's own bounds.
+                  bottom: tenFoot ? 0 : -2,
+                  right: tenFoot ? 0 : -4,
                   child: _CountdownChip(remaining: remaining),
                 ),
             ],
@@ -72,7 +84,7 @@ class SleepTimerWidget extends StatelessWidget {
                       sheetContext.loc.sleep_timer,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 18,
+                        fontSize: AppThemes.bodySize,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -149,9 +161,9 @@ class _CountdownChip extends StatelessWidget {
         ),
         child: Text(
           _formatCountdown(remaining),
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white,
-            fontSize: 9,
+            fontSize: AppThemes.tenFoot(context, 9),
             fontWeight: FontWeight.w600,
           ),
         ),

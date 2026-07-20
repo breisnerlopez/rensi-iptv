@@ -3,6 +3,7 @@ import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/favorite.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
+import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 class FavoritesController extends ChangeNotifier {
   final FavoritesRepository _repository = FavoritesRepository();
@@ -30,7 +31,7 @@ class FavoritesController extends ChangeNotifier {
   int get seriesFavoriteCount => seriesFavorites.length;
 
   Future<void> loadFavorites() async {
-    print('FavoritesController: loadFavorites başladı');
+    debugPrint('FavoritesController: loadFavorites başladı');
     try {
       _setLoading(true);
       _setError(null);
@@ -39,11 +40,11 @@ class FavoritesController extends ChangeNotifier {
       notifyListeners();
       
       _favorites = await _repository.getAllFavorites();
-      print('FavoritesController: ${_favorites.length} favori yüklendi');
+      debugPrint('FavoritesController: ${_favorites.length} favori yüklendi');
       notifyListeners();
     } catch (e) {
-      print('FavoritesController: Hata: $e');
-      _setError('Favoriler yüklenirken hata oluştu: $e');
+      debugPrint('FavoritesController: Hata: ${scrubCredentials(e)}');
+      _setError('Favoriler yüklenirken hata oluştu: ${scrubCredentials(e)}');
     } finally {
       _setLoading(false);
     }
@@ -58,7 +59,7 @@ class FavoritesController extends ChangeNotifier {
       
       return true;
     } catch (e) {
-      _setError('Favori eklenirken hata oluştu: $e');
+      _setError('Favori eklenirken hata oluştu: ${scrubCredentials(e)}');
       return false;
     }
   }
@@ -72,7 +73,7 @@ class FavoritesController extends ChangeNotifier {
       
       return true;
     } catch (e) {
-      _setError('Favori kaldırılırken hata oluştu: $e');
+      _setError('Favori kaldırılırken hata oluştu: ${scrubCredentials(e)}');
       return false;
     }
   }
@@ -86,7 +87,7 @@ class FavoritesController extends ChangeNotifier {
       
       return result;
     } catch (e) {
-      _setError('Favori işlemi sırasında hata oluştu: $e');
+      _setError('Favori işlemi sırasında hata oluştu: ${scrubCredentials(e)}');
       return false;
     }
   }
@@ -95,7 +96,7 @@ class FavoritesController extends ChangeNotifier {
     try {
       return await _repository.isFavorite(streamId, contentType, episodeId: episodeId);
     } catch (e) {
-      _setError('Favori kontrolü sırasında hata oluştu: $e');
+      _setError('Favori kontrolü sırasında hata oluştu: ${scrubCredentials(e)}');
       return false;
     }
   }
@@ -104,7 +105,7 @@ class FavoritesController extends ChangeNotifier {
     try {
       return await _repository.getFavoritesByContentType(contentType);
     } catch (e) {
-      _setError('Favoriler getirilirken hata oluştu: $e');
+      _setError('Favoriler getirilirken hata oluştu: ${scrubCredentials(e)}');
       return [];
     }
   }
@@ -113,7 +114,7 @@ class FavoritesController extends ChangeNotifier {
     try {
       return await _repository.getFavoriteCount();
     } catch (e) {
-      _setError('Favori sayısı getirilirken hata oluştu: $e');
+      _setError('Favori sayısı getirilirken hata oluştu: ${scrubCredentials(e)}');
       return 0;
     }
   }
@@ -122,7 +123,7 @@ class FavoritesController extends ChangeNotifier {
     try {
       return await _repository.getFavoriteCountByContentType(contentType);
     } catch (e) {
-      _setError('Favori sayısı getirilirken hata oluştu: $e');
+      _setError('Favori sayısı getirilirken hata oluştu: ${scrubCredentials(e)}');
       return 0;
     }
   }
@@ -136,7 +137,7 @@ class FavoritesController extends ChangeNotifier {
       
       return true;
     } catch (e) {
-      _setError('Favori güncellenirken hata oluştu: $e');
+      _setError('Favori güncellenirken hata oluştu: ${scrubCredentials(e)}');
       return false;
     }
   }
@@ -151,7 +152,7 @@ class FavoritesController extends ChangeNotifier {
       
       return true;
     } catch (e) {
-      _setError('Favoriler temizlenirken hata oluştu: $e');
+      _setError('Favoriler temizlenirken hata oluştu: ${scrubCredentials(e)}');
       return false;
     }
   }

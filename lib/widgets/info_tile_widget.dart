@@ -1,3 +1,4 @@
+import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
@@ -6,6 +7,12 @@ class InfoTileWidget extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+
+  /// What "copy" puts on the clipboard when it differs from what is shown.
+  /// Lets a tile display a masked credential while still copying the real one —
+  /// otherwise the user silently walks away with `***` believing they have
+  /// their URL.
+  final String? copyValue;
   final Color? valueColor;
   final bool copyOnTap;
 
@@ -14,6 +21,7 @@ class InfoTileWidget extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    this.copyValue,
     this.valueColor,
     this.copyOnTap = false,
   });
@@ -22,7 +30,7 @@ class InfoTileWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       leading: Icon(icon, color: Colors.grey[700]),
-      title: Text(label, style: const TextStyle(fontSize: 13)),
+      title: Text(label, style: TextStyle(fontSize: AppThemes.tenFoot(context, 13))),
       subtitle: Text(
         value,
         style: TextStyle(color: valueColor),
@@ -30,7 +38,7 @@ class InfoTileWidget extends StatelessWidget {
       dense: true,
       onTap: copyOnTap
           ? () async {
-              await Clipboard.setData(ClipboardData(text: value));
+              await Clipboard.setData(ClipboardData(text: copyValue ?? value));
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

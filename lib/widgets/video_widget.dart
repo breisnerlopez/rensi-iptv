@@ -1,3 +1,4 @@
+import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/repositories/user_preferences.dart';
 import 'package:rensi_iptv/services/player_state.dart';
@@ -10,6 +11,7 @@ import 'package:rensi_iptv/widgets/player-buttons/video_settings_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_title_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:media_kit_video/media_kit_video.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 
 class VideoWidget extends StatefulWidget {
   final VideoController controller;
@@ -219,15 +221,15 @@ class _LiveBadge extends StatelessWidget {
         color: const Color(0xE0E0563E),
         borderRadius: BorderRadius.circular(6),
       ),
-      child: const Row(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.fiber_manual_record, size: 10, color: Colors.white),
           SizedBox(width: 6),
-          Text('EN VIVO',
+          Text(context.loc.live,
               style: TextStyle(
                   color: Colors.white,
-                  fontSize: 12,
+                  fontSize: AppThemes.tenFoot(context, 12),
                   fontWeight: FontWeight.w700)),
         ],
       ),

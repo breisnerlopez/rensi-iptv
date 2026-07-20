@@ -99,6 +99,10 @@ void main() {
       expect(find.byType(PlayerWidget), findsOneWidget);
       remote!.focusNode!.requestFocus();
       await tester.pump();
+      // Sin esto, los envíos de tecla de abajo podrían estar llegando a
+      // cualquier otro nodo: el mando tiene que tener el foco de verdad.
+      expect(FocusManager.instance.primaryFocus, remote.focusNode,
+          reason: 'el player debe tener el foco del mando');
 
       // 2) Audio/subtitle panel is reachable by remote ("A" / mediaAudioTrack).
       expect(find.text('Pista de Audio'), findsNothing);
