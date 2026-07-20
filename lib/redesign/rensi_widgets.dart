@@ -15,14 +15,43 @@ RensiColors rensi(BuildContext c) => Theme.of(c).extension<RensiColors>()!;
 /// generative terracotta-tinted gradient with the title (the "key-art"
 /// fallback from the handoff).
 class RensiKeyArt extends StatelessWidget {
-  const RensiKeyArt({
+  RensiKeyArt({
     super.key,
-    required this.item,
+    required ContentItem item,
     this.fit = BoxFit.cover,
     this.preferBackdrop = false,
     this.titleScale = 1.0,
+    this.onArtUnavailable,
+  })  : seed = item.id,
+        title = item.name,
+        imagePath = item.imagePath,
+        backdrop = item.seriesStream?.backdropPath;
+
+  /// For callers that have a picture and a name but no [ContentItem].
+  ///
+  /// Building one just to draw a thumbnail meant reaching through
+  /// AppState.currentPlaylist — ContentItem's constructor asks it which kind of
+  /// playlist it belongs to — so a presentation widget could not be rendered
+  /// without the app's global state being right. The continue-watching rail hit
+  /// exactly that and crashed.
+  const RensiKeyArt.raw({
+    super.key,
+    required this.seed,
+    required this.title,
+    required this.imagePath,
+    this.backdrop,
+    this.fit = BoxFit.cover,
+    this.preferBackdrop = false,
+    this.titleScale = 1.0,
+    this.onArtUnavailable,
   });
-  final ContentItem item;
+
+  /// Stable input for the generated art's hue, so the same item always gets
+  /// the same colour.
+  final String seed;
+  final String title;
+  final String imagePath;
+  final List<String>? backdrop;
   final BoxFit fit;
 
   /// Use the 16:9 backdrop when the provider supplied one. Only worth it in a
@@ -33,22 +62,31 @@ class RensiKeyArt extends StatelessWidget {
   /// 168dp tile and absurd in an 888x520 hero.
   final double titleScale;
 
+  /// Fired with the artwork's verdict: `false` once the cover has painted,
+  /// `true` once it is known it never will.
+  ///
+  /// A caller cannot infer this from the item: a non-empty imagePath says a URL
+  /// exists, not that it resolves, and in IPTV catalogues dead poster URLs are
+  /// routine. Without this signal a tile whose cover 404s renders as an
+  /// anonymous rectangle — the title suppressed on the assumption that artwork
+  /// would cover it.
+  final ValueChanged<bool>? onArtUnavailable;
+
   String? get _backdrop {
-    final b = item.seriesStream?.backdropPath;
+    final b = backdrop;
     if (b != null && b.isNotEmpty && b.first.isNotEmpty) return b.first;
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final source = preferBackdrop ? (_backdrop ?? item.imagePath) : item.imagePath;
+    final source = preferBackdrop ? (_backdrop ?? imagePath) : imagePath;
     if (source.isNotEmpty) {
       // Decode posters at the slot's physical size, not full source resolution.
       // IPTV posters ship at ~600x900–1000x1500; decoding those full-res into a
       // ~190dp tile blows the ImageCache (100MB) on a TV box, causing re-decode
       // thrashing + GC pauses = the classic scroll stutter. memCacheWidth caps
-      // the decode to the display width (aspect preserved). Same pattern already
-      // used in global_search_screen.dart / m3u_items_screen.dart.
+      // the decode to the display width (aspect preserved)..
       return LayoutBuilder(
         builder: (context, constraints) {
           // devicePixelRatioOf (not MediaQuery.of) so a poster doesn't rebuild on
@@ -61,23 +99,45 @@ class RensiKeyArt extends StatelessWidget {
             fit: fit,
             // Guard the degenerate 0-width layout (would be an invalid decode size).
             memCacheWidth: cw > 0 ? cw : null,
+            // The placeholder deliberately reports nothing. "Not here yet" is
+            // its own state, and collapsing it into either verdict produced two
+            // separate rounds of a title that slid between anchors — once when
+            // the cover arrived, once when it failed.
             placeholder: (_, __) => _fallback(context),
-            errorWidget: (_, __, ___) => _fallback(context),
+            errorWidget: (_, __, ___) => _fallback(context, unavailable: true),
+            imageBuilder: (context, provider) {
+              _report(false);
+              // gaplessPlayback so a rebuild with a new provider does not blank
+              // the tile for a frame; the package's own fade still wraps
+              // whatever this returns.
+              return Image(image: provider, fit: fit, gaplessPlayback: true);
+            },
           );
         },
       );
     }
-    return _fallback(context);
+    return _fallback(context, unavailable: true);
   }
 
-  Widget _fallback(BuildContext context) {
+  /// Deferred to after the frame: these builders run DURING layout, and
+  /// notifying a listener that rebuilds its subtree from inside build is an
+  /// error.
+  void _report(bool unavailable) {
+    final cb = onArtUnavailable;
+    if (cb == null) return;
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => cb(unavailable));
+  }
+
+  Widget _fallback(BuildContext context, {bool unavailable = false}) {
+    if (unavailable) _report(true);
     // Sized to the slot: a flat 14dp read as a tiny ghost caption inside the
     // 888x520 hero, duplicating the 52dp title right below it.
     // Stable but BRAND-COHESIVE art: constrain the hue to a warm terracotta/
     // amber band (not a random 0-360° rainbow) and keep it dark, so a rail full
     // of missing posters reads as one curated system, like Plex/TiviMate.
-    final seed = item.id.hashCode.abs();
-    final hue = (6 + seed % 34).toDouble(); // 6°..40°, brand warm family
+    final hueSeed = seed.hashCode.abs();
+    final hue = (6 + hueSeed % 34).toDouble(); // 6°..40°, brand warm family
     final g1 = HSLColor.fromAHSL(1, hue, 0.30, 0.17).toColor();
     final g2 = HSLColor.fromAHSL(1, (hue + 10) % 360, 0.24, 0.10).toColor();
     return DecoratedBox(
@@ -97,7 +157,7 @@ class RensiKeyArt extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.all(10),
                     child: Text(
-                      item.name,
+                      title,
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
@@ -139,6 +199,7 @@ class RensiPoster extends StatefulWidget {
     this.showMeta,
     this.badge,
     this.autofocus = false,
+    this.debugArtLoaded,
   });
 
   final ContentItem item;
@@ -148,12 +209,70 @@ class RensiPoster extends StatefulWidget {
   final String? badge;
   final bool autofocus;
 
+  /// Test-only override for "the cover finished loading".
+  ///
+  /// A widget test cannot make a real cover resolve. Not because the framework
+  /// answers 400 — it does, but that would merely produce a failure — but
+  /// because CachedNetworkImage goes through flutter_cache_manager, whose store
+  /// wants sqflite, which has no channel here: the request neither completes
+  /// nor errors. Without this seed the branch where artwork IS present is
+  /// unreachable.
+  ///
+  /// It seeds only. The verdict callback is exercised for real in
+  /// test/widgets/poster_title_anchor_test.dart, which invokes the closure this
+  /// widget installs.
+  @visibleForTesting
+  final bool? debugArtLoaded;
+
+  /// Whether the bottom-left title overlay is painted.
+  ///
+  /// Extracted from build so it can be asserted directly: with no way to make a
+  /// cover load in a widget test (see [debugArtLoaded]), the reveal-on-focus
+  /// rule could be deleted outright — `showMeta ?? false` — with every rendered
+  /// assertion still green. Mutation showed that; this makes the rule itself
+  /// the thing under test.
+  @visibleForTesting
+  static bool revealTitle({
+    required bool hasArt,
+    required bool focused,
+    bool? forced,
+  }) =>
+      forced ?? (hasArt && focused);
+
   @override
   State<RensiPoster> createState() => _RensiPosterState();
 }
 
+/// What is known about a tile's cover art. See [_RensiPosterState._art].
+enum _Art { unknown, loaded, failed }
+
 class _RensiPosterState extends State<RensiPoster> {
   bool _focused = false;
+
+  /// What is known about this tile's cover art.
+  ///
+  /// Three states, not two, and that is the whole point.
+  ///
+  /// With a boolean, one of the two transitions is always a MOVE rather than an
+  /// appearance: initialise it to "unavailable" and a loading tile prints a
+  /// centred title that jumps bottom-left when the cover lands; initialise it to
+  /// "available" and a focused tile prints a bottom-left title that jumps to the
+  /// centre when the cover 404s. Both were shipped and both were caught. While
+  /// the verdict is unknown, neither anchor paints, so `unknown → loaded` and
+  /// `unknown → failed` are things appearing, not things sliding.
+  late _Art _art =
+      widget.item.imagePath.isEmpty ? _Art.failed : _Art.unknown;
+
+  @override
+  void didUpdateWidget(RensiPoster old) {
+    super.didUpdateWidget(old);
+    // Rows and rails recycle their tiles. Without this the verdict about one
+    // item's artwork outlives it: the next item to land in this slot starts out
+    // labelled by whether the PREVIOUS cover happened to 404.
+    if (old.item.imagePath != widget.item.imagePath) {
+      _art = widget.item.imagePath.isEmpty ? _Art.failed : _Art.unknown;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +280,21 @@ class _RensiPosterState extends State<RensiPoster> {
     final width = widget.width;
     final autofocus = widget.autofocus;
     final onTap = widget.onTap;
-    final showMeta = widget.showMeta ?? _focused;
+    // A tile with no cover has nothing but its title, so it prints one and
+    // keeps it there. A tile WITH a cover reveals the title on focus over the
+    // artwork (the Google TV pattern). A tile that does not yet know prints
+    // nothing.
+    //
+    // The distinction matters because the two titles are drawn by different
+    // widgets at different anchors, and any rule that lets a tile change which
+    // one owns it makes the title slide across the card. Three separate rules
+    // were tried and each moved it: keyed on focus, keyed on whether a URL
+    // existed, keyed on whether loading had finished.
+    final art = widget.debugArtLoaded == null
+        ? _art
+        : (widget.debugArtLoaded! ? _Art.loaded : _Art.failed);
+    final showMeta = RensiPoster.revealTitle(
+        hasArt: art == _Art.loaded, focused: _focused, forced: widget.showMeta);
     final r = rensi(context);
     final h = width * 1.5; // true 2:3; was 1.48, cropping the artwork 1.3%
     final tag = widget.badge ?? _tagFor(item);
@@ -189,11 +322,29 @@ class _RensiPosterState extends State<RensiPoster> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // titleScale 0 when the tile itself will print the title:
-                // otherwise the generated fallback art draws it centred in grey
-                // AND the meta overlay draws it again in white, so the focused
-                // card shows the same words twice.
-                RensiKeyArt(item: item, titleScale: showMeta ? 0 : 1),
+                // The centred title belongs to the KNOWN-FAILED state only, and
+                // only when the overlay is not already printing one. An earlier
+                // version keyed this on focus and the title slid between the two
+                // anchors on every D-pad hop; the version after that keyed it on
+                // whether a URL existed, and a focused tile whose cover 404'd
+                // slid the other way.
+                RensiKeyArt(
+                  item: item,
+                  // Only a KNOWN failure gets the centred title, and only when
+                  // the overlay is not already printing one — otherwise a caller
+                  // that forces showMeta on an art-less tile renders the name
+                  // twice, once centred and once bottom-left. `unknown` paints
+                  // neither anchor.
+                  titleScale: (art == _Art.failed && !showMeta) ? 1 : 0,
+                  onArtUnavailable: (unavailable) {
+                    // A transient failure must not condemn the tile:
+                    // CachedNetworkImage retries, and without a way back from
+                    // `failed` a Wi-Fi blip left that poster unable to reveal
+                    // its title for the rest of the session.
+                    final next = unavailable ? _Art.failed : _Art.loaded;
+                    if (next != _art && mounted) setState(() => _art = next);
+                  },
+                ),
                 if (showMeta || tag != null)
                   const DecoratedBox(decoration: BoxDecoration(gradient: _scrim)),
                 if (tag != null)
@@ -219,7 +370,8 @@ class _RensiPosterState extends State<RensiPoster> {
                             fontFamily: 'Bricolage Grotesque',
                             // Larger at a 3 m viewing distance on TV.
                             fontSize:
-                                ResponsiveHelper.isDesktopOrTV(context) ? 18 : 15,
+                                // Distance, not width: see AppThemes.tenFoot.
+                                ResponsiveHelper.isTenFoot(context) ? 18 : 15,
                             fontWeight: FontWeight.w700,
                             height: 1.06,
                             color: Colors.white,

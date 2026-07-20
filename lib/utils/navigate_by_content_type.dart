@@ -12,26 +12,30 @@ import '../screens/series/series_screen.dart';
 /// into playback (the Home hero / continue-watching row) instead of opening its
 /// detail page. Live already plays; series still open their episode list (no
 /// single episode to resume from a poster).
-void playByContentType(BuildContext context, ContentItem content) {
+/// Returns when the pushed route is popped, so a caller can refresh what the
+/// viewer just changed. It used to return void: the continue-watching rail
+/// awaited it, got control back the instant the route was pushed, and reloaded
+/// the history of a film that had not started playing yet.
+Future<void> playByContentType(BuildContext context, ContentItem content) {
   final isXtreamVod = content.contentType == ContentType.vod &&
       !(isM3u && content.m3uItem != null && content.m3uItem!.groupTitle == null);
   if (isXtreamVod) {
-    Navigator.push(
+    return Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => MovieScreen(contentItem: content, autoPlay: true),
       ),
     );
-    return;
   }
-  navigateByContentType(context, content);
+  return navigateByContentType(context, content);
 }
 
-void navigateByContentType(BuildContext context, ContentItem content) {
+/// Returns when the pushed route is popped. See [playByContentType].
+Future<void> navigateByContentType(BuildContext context, ContentItem content) {
   if (isM3u &&
       ((content.m3uItem != null && content.m3uItem!.groupTitle == null) ||
           content.contentType == ContentType.series)) {
-    Navigator.push(
+    return Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => M3uPlayerScreen(
@@ -45,20 +49,18 @@ void navigateByContentType(BuildContext context, ContentItem content) {
         ),
       ),
     );
-
-    return;
   }
 
   switch (content.contentType) {
     case ContentType.liveStream:
-      Navigator.push(
+      return Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => LiveStreamScreen(content: content),
         ),
       );
     case ContentType.vod:
-      Navigator.push(
+      return Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => MovieScreen(contentItem: content),
@@ -66,19 +68,22 @@ void navigateByContentType(BuildContext context, ContentItem content) {
       );
     case ContentType.series:
       if (isXtreamCode) {
-        Navigator.push(
+        return Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => SeriesScreen(contentItem: content),
           ),
         );
       } else if (isM3u) {
-        Navigator.push(
+        return Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => M3uSeriesScreen(contentItem: content),
           ),
         );
       }
+      // Neither playlist kind: nothing to open, and the caller's await should
+      // still complete rather than hang.
+      return Future<void>.value();
   }
 }

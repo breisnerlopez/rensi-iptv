@@ -339,6 +339,36 @@ class AppThemes {
   static const double labelSize = 14;
   static const double tvBodyMin = 14;
 
+  /// Promotes a phone-tuned size onto the 10-foot scale, leaving phones alone.
+  ///
+  /// The legacy surfaces — the player overlay and the whole settings tab — are
+  /// reachable on Android TV and were written at phone sizes: a sleep-timer
+  /// countdown at 9dp, an "EN VIVO" badge at 12, a channel position indicator at
+  /// 12. Those are correct on a handset held at 30 cm and unreadable on a panel
+  /// at three metres.
+  ///
+  /// Raising them outright would bloat the phone; a blanket multiplier would
+  /// just mint a new set of arbitrary numbers. So each phone size SNAPS to the
+  /// step of the scale that carries the same role — caption becomes label,
+  /// secondary becomes body-small — and there is one place to argue with the
+  /// mapping instead of forty-six.
+  static double tenFoot(BuildContext context, double phone) {
+    // isTenFoot, not isDesktopOrTV: the latter also says yes to any 900dp
+    // window, which includes a large phone in landscape — where the player
+    // overlay lives, and where the viewer is still 30 cm away.
+    if (!ResponsiveHelper.isTenFoot(context)) return phone;
+    if (phone <= 11) return labelSize; // captions, badges, counters
+    if (phone <= 13) return bodySmallSize; // secondary text
+    // Everything below the body step lands ON it. Written as `< bodySize`
+    // rather than `<= 16` so the mapping cannot dip: with a 16 cutoff, 16
+    // promoted to 18 while 17 stayed 17, and a function that sometimes returns
+    // LESS for a larger input silently inverts whatever hierarchy the caller
+    // wrote. Nothing in lib/ passes 17 today, which is exactly why it would
+    // have gone unnoticed.
+    if (phone < bodySize) return bodySize; // primary text
+    return phone; // already at or above the scale: leave it alone
+  }
+
   /// Single content gutter for the 10-foot UI. Five different left margins
   /// (16 / 24 / 72 / 120 / 128) across four screens was the most immediate
   /// visual tell that this was a phone layout stretched onto a TV.

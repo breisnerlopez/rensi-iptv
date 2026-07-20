@@ -1,3 +1,4 @@
+import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
@@ -29,7 +30,7 @@ class InfoTileWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       leading: Icon(icon, color: Colors.grey[700]),
-      title: Text(label, style: const TextStyle(fontSize: 13)),
+      title: Text(label, style: TextStyle(fontSize: AppThemes.tenFoot(context, 13))),
       subtitle: Text(
         value,
         style: TextStyle(color: valueColor),

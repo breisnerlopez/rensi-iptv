@@ -469,7 +469,7 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
               child: Text(
                 context.loc.no_tracks_available,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: AppThemes.tenFoot(context, 12),
                   color: secondaryTextColor,
                 ),
               ),
@@ -516,7 +516,7 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
               child: Text(
                 title,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: AppThemes.tenFoot(context, 13),
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                   color: textColor,
                 ),

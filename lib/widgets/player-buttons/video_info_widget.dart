@@ -525,7 +525,7 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
           context.loc.stream_info,
           style: TextStyle(
             color: Colors.grey[400],
-            fontSize: 13,
+            fontSize: AppThemes.tenFoot(context, 13),
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
@@ -638,7 +638,7 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
                   Text(
                     label,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: AppThemes.tenFoot(context, 12),
                       color: secondaryTextColor,
                       fontWeight: FontWeight.w500,
                     ),

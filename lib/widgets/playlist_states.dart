@@ -46,9 +46,9 @@ class PlaylistErrorState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               context.loc.error_occurred,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Bricolage Grotesque',
-                fontSize: 20,
+                fontSize: AppThemes.tenFoot(context, 20),
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
@@ -120,9 +120,9 @@ class PlaylistEmptyState extends StatelessWidget {
             Text(
               context.loc.empty_playlist_title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Bricolage Grotesque',
-                fontSize: 26,
+                fontSize: AppThemes.tenFoot(context, 26),
                 fontWeight: FontWeight.w800,
                 height: 1.05,
               ),
@@ -131,7 +131,7 @@ class PlaylistEmptyState extends StatelessWidget {
             Text(
               context.loc.empty_playlist_message,
               style: TextStyle(
-                fontSize: 15,
+                fontSize: AppThemes.tenFoot(context, 15),
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 height: 1.5,
               ),

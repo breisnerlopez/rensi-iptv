@@ -137,4 +137,27 @@ class ResponsiveHelper {
     if (nav == NavigationMode.directional) return true;
     return MediaQuery.of(context).size.width >= 900;
   }
+
+  /// "Is the viewer three metres away?" — distinct from [isDesktopOrTV], which
+  /// also answers yes to anything 900dp wide.
+  ///
+  /// Layout can and should react to width: a 900dp window has room for two
+  /// columns whoever is looking at it. Type size cannot, because it is a
+  /// function of viewing DISTANCE, and width does not imply distance. A large
+  /// phone in landscape reports ~1010dp — the player overlay lives in landscape
+  /// — and a desktop window is wider still; both are read at arm's length and
+  /// would be bloated by 10-foot type.
+  ///
+  /// Deliberately reads only `MediaQuery.maybeNavigationModeOf` and not
+  /// `MediaQuery.of`: the latter subscribes the caller to the ENTIRE
+  /// MediaQueryData, so a size that is resolved once per screen would rebuild
+  /// that screen on every viewInsets change — and in the player the system bars
+  /// appear and disappear constantly. RensiKeyArt reaches for
+  /// `devicePixelRatioOf` for the same reason
+  /// (lib/redesign/rensi_widgets.dart). The other helpers in THIS file still
+  /// use `MediaQuery.of`, which is a live instance of the same trap and not
+  /// something this doc should be read as claiming otherwise.
+  static bool isTenFoot(BuildContext context) =>
+      _isTelevisionDevice ||
+      MediaQuery.maybeNavigationModeOf(context) == NavigationMode.directional;
 }

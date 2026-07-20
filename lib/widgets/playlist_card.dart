@@ -108,7 +108,7 @@ class _PlaylistInfo extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               PlaylistUtils.formatDate(playlist.createdAt),
-              style: TextStyle(fontSize: 12, color: r.text3),
+              style: TextStyle(fontSize: AppThemes.tenFoot(context, 12), color: r.text3),
             ),
           ],
         ),
@@ -117,7 +117,7 @@ class _PlaylistInfo extends StatelessWidget {
           Text(
             // M3U playlists carry user+password in this URL — never render it raw.
             scrubUrlForDisplay(playlist.url),
-            style: TextStyle(fontSize: 12, color: r.text3),
+            style: TextStyle(fontSize: AppThemes.tenFoot(context, 12), color: r.text3),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -145,7 +145,7 @@ class _TypeChip extends StatelessWidget {
       child: Text(
         type.toString().split('.').last.toUpperCase(),
         style: TextStyle(
-          fontSize: 12,
+          fontSize: AppThemes.tenFoot(context, 12),
           fontWeight: FontWeight.bold,
           color: r.accent,
         ),

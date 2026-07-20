@@ -1,3 +1,4 @@
+import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'dart:async';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
@@ -184,7 +185,15 @@ class _VideoChannelSelectorWidgetState
     }
 
     final screenWidth = MediaQuery.of(overlayContext).size.width;
-    final panelWidth = (screenWidth / 3).clamp(200.0, 400.0);
+    // The floor and the ceiling both move on a 10-foot surface. Every string in
+    // this panel — channel names, the "n / total" counter, the content-type
+    // label — was promoted by the 10-foot type scale, but the panel that has to
+    // hold them was still being sized by a formula written for phone text: an
+    // Android TV reports 960dp, so screenWidth/3 gave 320dp of box for roughly
+    // 23% more text. The panel has to grow with what goes in it.
+    final tenFoot = ResponsiveHelper.isTenFoot(overlayContext);
+    final panelWidth = (screenWidth / (tenFoot ? 2.4 : 3))
+        .clamp(tenFoot ? 380.0 : 200.0, tenFoot ? 620.0 : 400.0);
 
     _globalOverlayEntry = OverlayEntry(
       opaque: false,
@@ -366,7 +375,7 @@ class _VideoChannelSelectorWidgetState
                         Text(
                           '${selectedIndex + 1} / ${items.length}',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: AppThemes.tenFoot(context, 12),
                             color: secondaryTextColor,
                           ),
                         ),
@@ -481,8 +490,8 @@ class _VideoChannelSelectorWidgetState
                         const SizedBox(height: 4),
                         Text(
                           context.loc.episode_count_format(episodeCount),
-                          style: const TextStyle(
-                            fontSize: 12,
+                          style: TextStyle(
+                            fontSize: AppThemes.tenFoot(context, 12),
                             color: secondaryTextColor,
                           ),
                         ),
@@ -587,8 +596,8 @@ class _VideoChannelSelectorWidgetState
                         const SizedBox(height: 4),
                         Text(
                           context.loc.channel_count_format(channelCount),
-                          style: const TextStyle(
-                            fontSize: 12,
+                          style: TextStyle(
+                            fontSize: AppThemes.tenFoot(context, 12),
                             color: secondaryTextColor,
                           ),
                         ),
@@ -725,7 +734,7 @@ class _VideoChannelSelectorWidgetState
                     Text(
                       item.name,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: AppThemes.tenFoot(context, 13),
                         fontWeight: isSelected
                             ? FontWeight.bold
                             : FontWeight.normal,
@@ -747,7 +756,7 @@ class _VideoChannelSelectorWidgetState
                           child: Text(
                             _getContentTypeDisplayName(context, item.contentType),
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: AppThemes.tenFoot(context, 11),
                               color: secondaryTextColor,
                             ),
                             overflow: TextOverflow.ellipsis,

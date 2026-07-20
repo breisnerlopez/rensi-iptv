@@ -1,3 +1,4 @@
+import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -85,7 +86,7 @@ class _PlaylistInfoWidgetState extends State<PlaylistInfoWidget> {
                 const Divider(height: 1),
                 ListTile(
                   leading: Icon(Icons.lock_outline, color: Colors.grey[700]),
-                  title: Text(context.loc.password, style: const TextStyle(fontSize: 13)),
+                  title: Text(context.loc.password, style: TextStyle(fontSize: AppThemes.tenFoot(context, 13))),
                   subtitle: Text(
                     _secretsVisible
                         ? widget.playlist.password!
