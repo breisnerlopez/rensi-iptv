@@ -11,9 +11,12 @@
 // screenshot without it hides the most failure-prone part of the interface.
 //
 // The prefix comes from CAPTURE_PREFIX so one run per AVD lands in its own set.
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:rensi_iptv/models/vod_streams.dart';
 import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/category.dart';
 import 'package:rensi_iptv/models/category_type.dart';
@@ -27,6 +30,7 @@ import 'package:rensi_iptv/redesign/home_redesign.dart';
 import 'package:rensi_iptv/redesign/list_redesign.dart';
 import 'package:rensi_iptv/redesign/live_redesign.dart';
 import 'package:rensi_iptv/redesign/search_redesign.dart';
+import 'package:rensi_iptv/widgets/tv/tv_keyboard.dart';
 import 'package:rensi_iptv/screens/app_initializer_screen.dart';
 import 'package:rensi_iptv/screens/playlist_type_screen.dart';
 import 'package:rensi_iptv/screens/m3u/new_m3u_playlist_screen.dart';
@@ -35,6 +39,7 @@ import 'package:rensi_iptv/screens/xtream-codes/xtream_code_home_screen.dart';
 import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/epg_service.dart';
+import 'package:rensi_iptv/services/playlist_service.dart';
 
 import '../test/integration/harness.dart';
 import '../test/integration/seed.dart';
@@ -92,16 +97,29 @@ void main() {
         ],
       );
 
+  final demoPlaylist = Playlist(
+    id: 'p1',
+    name: 'Demo',
+    type: PlaylistType.xtream,
+    url: 'http://demo.invalid:8080',
+    username: 'demo',
+    password: 'demo',
+    createdAt: DateTime(2026, 1, 1),
+  );
+
   void setActivePlaylist() {
-    AppState.currentPlaylist = Playlist(
-      id: 'p1',
-      name: 'Demo',
-      type: PlaylistType.xtream,
-      url: 'http://demo.invalid:8080',
-      username: 'demo',
-      password: 'demo',
-      createdAt: DateTime(2026, 1, 1),
-    );
+    AppState.currentPlaylist = demoPlaylist;
+  }
+
+  // Global search enumerates playlists via PlaylistService.getPlaylists(), so a
+  // playlist only set on AppState (not saved) means _searchAllLocal finds no
+  // catalogue — which is why the first TV capture showed only the Discover
+  // section. Save it so the "in your library" section can populate.
+  Future<void> saveActivePlaylist(WidgetTester tester) async {
+    await tester.runAsync(() async {
+      await PlaylistService.savePlaylist(demoPlaylist);
+    });
+    AppState.currentPlaylist = demoPlaylist;
   }
 
   // --- first run -----------------------------------------------------------
@@ -325,4 +343,135 @@ void main() {
     await settle(tester);
     await capture(tester, '12_continue_watching');
   });
+
+  // --- Global TMDb search (new feature) ------------------------------------
+  //
+  // TMDb has no key on this machine, so results are injected the way the app
+  // resolves them: the SharedPreferences cache TmdbService reads before any
+  // credential/network. Cache key for locale 'es' (pumpScreen's locale) is
+  // 'tmdb.search.es-ES.<foldedQuery>'.
+
+  Map<String, dynamic> tmdbItem(int id, String title, {String type = 'movie'}) =>
+      {
+        'id': id,
+        'mediaType': type,
+        'title': title,
+        'overview':
+            'Sinopsis de $title. Una historia sobre arena, poder y destino en '
+                'un futuro lejano.',
+        'posterPath': null,
+        'releaseDate': '2021-10-22',
+        'voteAverage': 8.2,
+      };
+
+  String tmdbCache(List<Map<String, dynamic>> results) => jsonEncode({
+        'cachedAt': DateTime(2026, 7, 24).toIso8601String(),
+        'results': results,
+      });
+
+  Future<void> seedMovie(String name) => harnessDb.insertVodStreams([
+        ContentItemSeed(name).stream,
+      ]);
+
+  // Drive the search's real async pipeline (mobile field): enterText schedules
+  // the 300ms debounce Timer in the test zone; pump fires it; runAsync lets the
+  // real Drift/prefs I/O behind _run() complete; then render. Without the
+  // runAsync the DB/cache futures never resolve and every capture is the empty
+  // state — which is exactly what round 0 produced.
+  Future<void> typeSearch(WidgetTester tester, String q) async {
+    // TV: the field is readOnly and fed by the on-screen TvKeyboard, and
+    // enterText is a no-op on the live integration binding anyway (round 0
+    // captured only the empty placeholder). Tapping the keyboard keys sets the
+    // controller text synchronously, so the query — and, once the async search
+    // resolves, the results — actually appear. Mobile has no on-screen keyboard,
+    // so fall back to enterText there.
+    final onTv = find.byType(TvKeyboard).evaluate().isNotEmpty;
+    if (onTv) {
+      for (final ch in q.toUpperCase().split('')) {
+        await tester.tap(find.text(ch).first, warnIfMissed: false);
+        await tester.pump(const Duration(milliseconds: 40));
+      }
+    } else {
+      await tester.tap(find.byType(TextField), warnIfMissed: false);
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.enterText(find.byType(TextField), q);
+    }
+    await tester.pump(const Duration(milliseconds: 350)); // fire the debounce
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(
+          () async => Future<void>.delayed(const Duration(milliseconds: 120)));
+      await tester.pump();
+    }
+    await tester.pumpAndSettle(const Duration(milliseconds: 300));
+  }
+
+  // GS-02 no key: the most common real path — local survives, banner shows.
+  testWidgets('14 search — no key (local + banner)', (tester) async {
+    await setUpHarness(tv: null); // no cache, no credential -> noKey
+    await saveActivePlaylist(tester);
+    await tester.runAsync(() async => seedMovie('Dune 2021'));
+    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null);
+    await typeSearch(tester, 'dune');
+    await capture(tester, '14_search_nokey');
+  });
+
+  // GS-03 three sections + the neutral "not in your lists" badge.
+  testWidgets('15 search — sections + neutral badge', (tester) async {
+    await setUpHarness(prefs: {
+      'tmdb.search.es-ES.dune': tmdbCache([
+        tmdbItem(1, 'Dune'),
+        tmdbItem(2, 'Dune: Part Two'),
+      ]),
+    }, tv: null);
+    await saveActivePlaylist(tester);
+    await tester.runAsync(() async => seedMovie('Dune 2021'));
+    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null);
+    await typeSearch(tester, 'dune');
+    await capture(tester, '15_search_sections');
+  });
+
+  // GS-04 detail sheet on a tmdbOnly card: save-only, no play.
+  testWidgets('16 search — tmdbOnly detail sheet', (tester) async {
+    await setUpHarness(prefs: {
+      'tmdb.search.es-ES.dune': tmdbCache([tmdbItem(2, 'Dune: Part Two')]),
+    }, tv: null);
+    setActivePlaylist();
+    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null);
+    await typeSearch(tester, 'dune');
+    if (find.text('Dune: Part Two').evaluate().isNotEmpty) {
+      await tester.tap(find.text('Dune: Part Two').first, warnIfMissed: false);
+      await tester.runAsync(
+          () async => Future<void>.delayed(const Duration(milliseconds: 400)));
+      await tester.pumpAndSettle(const Duration(milliseconds: 300));
+    }
+    await capture(tester, '16_search_detail');
+  });
+
+  // GS-07 two characters: local + "keep typing" hint, no spinner, no gap.
+  testWidgets('17 search — 2-char keep-typing hint', (tester) async {
+    await setUpHarness(tv: null);
+    await saveActivePlaylist(tester);
+    await tester.runAsync(() async => seedMovie('Dune 2021'));
+    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null);
+    await typeSearch(tester, 'du');
+    await capture(tester, '17_search_2char');
+  });
+}
+
+/// Minimal VodStream builder for the search captures.
+class ContentItemSeed {
+  ContentItemSeed(this.name);
+  final String name;
+  VodStream get stream => VodStream(
+        streamId: 'm-${name.hashCode}',
+        name: name,
+        streamIcon: '',
+        categoryId: 'movies',
+        rating: '',
+        rating5based: 0,
+        containerExtension: 'mp4',
+        playlistId: 'p1',
+        createdAt: DateTime(2026),
+        genre: '',
+      );
 }

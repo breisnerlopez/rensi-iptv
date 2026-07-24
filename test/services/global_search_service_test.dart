@@ -36,6 +36,21 @@ class _FakeTmdbService extends TmdbService {
   }
 }
 
+/// TMDb that always fails, to prove the local buckets survive a TMDb outage.
+class _ThrowingTmdbService extends TmdbService {
+  _ThrowingTmdbService(this.error);
+
+  final Object error;
+
+  @override
+  Future<List<TmdbSearchResult>> search(
+    String query, {
+    Locale? locale,
+  }) async {
+    throw error;
+  }
+}
+
 void main() {
   late AppDatabase database;
 
@@ -245,6 +260,117 @@ void main() {
       expect(GlobalSearchService.isFuzzyTitleMatch('Avatar', 'Dune'), isFalse);
     });
 
+    test('classifies non-Latin titles (Cyrillic/Arabic/CJK/Devanagari)', () {
+      // The normalizer used to strip every non-Latin character, so a Russian or
+      // Arabic user's own owned title matched nothing and showed up duplicated
+      // as a non-playable "discovery". This app ships those locales.
+      for (final title in ['Дюна', 'الكثيب', '沙丘', 'ड्यून']) {
+        expect(GlobalSearchService.classify(title, title), MatchStrength.exact,
+            reason: 'a title must match itself in "$title"');
+      }
+      expect(GlobalSearchService.classify('Дюна (2021)', 'Дюна'),
+          MatchStrength.exact,
+          reason: 'year/brackets stripping must still work on Cyrillic');
+      expect(GlobalSearchService.classify('Дюна', 'Аватар'), MatchStrength.none);
+    });
+
+    test('an owned stream matched by several TMDb results appears once',
+        () async {
+      // Real-TV finding: one owned "Dune 2021" showed up twice in "your
+      // library" because it fuzzy-matched both "Dune" and "Dune: Part Two".
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'pl1',
+          name: 'X',
+          type: PlaylistType.xtream,
+          url: 'https://x.com',
+          username: 'u',
+          password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await _insertMovie(database, 'Dune 2021', 'pl1');
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+              id: 1,
+              mediaType: TmdbMediaType.movie,
+              title: 'Dune',
+              voteAverage: 8),
+          const TmdbSearchResult(
+              id: 2,
+              mediaType: TmdbMediaType.movie,
+              title: 'Dune: Part Two',
+              voteAverage: 8),
+        ]),
+      );
+      final r = await service.search('dune');
+
+      expect(r.withLocal, hasLength(1),
+          reason: 'the owned stream must appear once, not once per TMDb match');
+      expect(r.withLocal.single.tmdb.title, 'Dune',
+          reason: 'kept under its strongest (exact) match');
+      expect(r.withLocal.single.localMatches.single.content.name, 'Dune 2021');
+      expect(r.tmdbOnly.map((e) => e.tmdb.title), contains('Dune: Part Two'),
+          reason: 'the unowned franchise entry drops to Discover, not vanishes');
+    });
+
+    test('an owned non-Latin title lands in withLocal, not tmdbOnly', () async {
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'pl1',
+          name: 'X',
+          type: PlaylistType.xtream,
+          url: 'https://x.com',
+          username: 'u',
+          password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await _insertMovie(database, 'Дюна', 'pl1');
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+            id: 1,
+            mediaType: TmdbMediaType.movie,
+            title: 'Дюна',
+            voteAverage: 8,
+          ),
+        ]),
+      );
+      final r = await service.search('Дюна');
+
+      expect(r.withLocal, hasLength(1),
+          reason: 'the owned Russian title must be recognised as owned');
+      expect(r.tmdbOnly, isEmpty,
+          reason: 'it must NOT appear as a non-playable discovery');
+      expect(r.localOnly, isEmpty, reason: 'and must not be duplicated');
+    });
+
+    test('lowercase Cyrillic query finds a Title-case owned title', () async {
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'pl1', name: 'X', type: PlaylistType.xtream,
+          url: 'https://x.com', username: 'u', password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await _insertMovie(database, 'Дюна', 'pl1'); // stored Title-case
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(id: 1, mediaType: TmdbMediaType.movie, title: 'Дюна', voteAverage: 8),
+        ]),
+      );
+      // User types all lowercase — SQLite LIKE alone would miss it.
+      final r = await service.search('дюна');
+      expect(r.withLocal, hasLength(1),
+          reason: 'the case-variant union must find the owned Cyrillic title');
+      expect(r.tmdbOnly, isEmpty);
+      expect(r.localOnly, isEmpty);
+    });
+
     test('classify returns exact > fuzzy > none', () {
       expect(
         GlobalSearchService.classify('Dune', 'Dune'),
@@ -370,6 +496,165 @@ void main() {
       final service = GlobalSearchService(tmdbService: fake);
       await service.search('dune', locale: const Locale('es', 'ES'));
       expect(fake.lastLanguage, 'es');
+    });
+  });
+
+  group('TMDb degrades without taking local down', () {
+    Future<void> seedAvatar() async {
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'pl1',
+          name: 'X',
+          type: PlaylistType.xtream,
+          url: 'https://x.com',
+          username: 'u',
+          password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await _insertMovie(database, 'Avatar', 'pl1');
+    }
+
+    // The whole point of the refactor: a user with no key, or a TMDb outage,
+    // must still see their own catalogue. The old bare `await tmdbFuture` threw
+    // out of search() and left them with nothing.
+    for (final entry in {
+      'no key': (const TmdbException(TmdbFailure.noKey, 'x'), TmdbFailure.noKey),
+      'rejected key':
+          (const TmdbException(TmdbFailure.rejected, 'x'), TmdbFailure.rejected),
+      'rate limited': (
+        const TmdbException(TmdbFailure.rateLimited, 'x'),
+        TmdbFailure.rateLimited
+      ),
+    }.entries) {
+      test('${entry.key}: local survives, failure is ${entry.value.$2.name}',
+          () async {
+        await seedAvatar();
+        final service =
+            GlobalSearchService(tmdbService: _ThrowingTmdbService(entry.value.$1));
+
+        final r = await service.search('avatar');
+
+        expect(r.localOnly, hasLength(1),
+            reason: 'the local catalogue must survive a TMDb failure');
+        expect(r.localOnly.single.content.name, 'Avatar');
+        expect(r.withLocal, isEmpty);
+        expect(r.tmdbOnly, isEmpty);
+        expect(r.tmdbFailure, entry.value.$2);
+      });
+    }
+
+    test('an offline/unknown error maps to network, local survives', () async {
+      await seedAvatar();
+      final service =
+          GlobalSearchService(tmdbService: _ThrowingTmdbService(StateError('offline')));
+
+      final r = await service.search('avatar');
+
+      expect(r.localOnly, hasLength(1));
+      expect(r.tmdbFailure, TmdbFailure.network);
+    });
+
+    test('a successful TMDb call leaves tmdbFailure null', () async {
+      await seedAvatar();
+      final service = GlobalSearchService(tmdbService: _FakeTmdbService([]));
+      final r = await service.search('avatar');
+      expect(r.tmdbFailure, isNull);
+    });
+  });
+
+  group('Progressive first paint', () {
+    test('searchLocalFirst returns local only, pending, without touching TMDb',
+        () async {
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'pl1',
+          name: 'X',
+          type: PlaylistType.xtream,
+          url: 'https://x.com',
+          username: 'u',
+          password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await _insertMovie(database, 'Avatar', 'pl1');
+
+      // A throwing TMDb proves the first paint never consults the network: if
+      // it did, this would throw instead of returning the local phase.
+      final service = GlobalSearchService(
+        tmdbService: _ThrowingTmdbService(const TmdbException(TmdbFailure.noKey, 'x')),
+      );
+
+      final r = await service.searchLocalFirst('avatar');
+
+      expect(r.tmdbPending, isTrue);
+      expect(r.localOnly, hasLength(1));
+      expect(r.withLocal, isEmpty);
+      expect(r.tmdbOnly, isEmpty);
+      expect(r.tmdbFailure, isNull);
+    });
+  });
+
+  group('Wishlist browse classification', () {
+    test('an owned wishlisted title is found even past the alphabetical cap',
+        () async {
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'pl1',
+          name: 'X',
+          type: PlaylistType.xtream,
+          url: 'https://x.com',
+          username: 'u',
+          password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      // 35 fillers that sort before "Zodiac". The old browse did one broad
+      // search on the empty query — LIKE '%%' capped at 30 alphabetical rows —
+      // so Zodiac (past row 30) was never in the local set and got
+      // misclassified as "not in your lists". Per-title search finds it.
+      for (var i = 0; i < 35; i++) {
+        await _insertMovie(database, 'AAA Filler ${i.toString().padLeft(2, '0')}', 'pl1');
+      }
+      await _insertMovie(database, 'Zodiac', 'pl1');
+      await TmdbWishlistService.toggle(const TmdbSearchResult(
+        id: 9,
+        mediaType: TmdbMediaType.movie,
+        title: 'Zodiac',
+        voteAverage: 7,
+      ));
+
+      final service = GlobalSearchService(tmdbService: _FakeTmdbService([]));
+      final r = await service.search('', filter: SearchFilter.wishlist);
+
+      expect(r.withLocal.map((e) => e.tmdb.title), contains('Zodiac'),
+          reason: 'the owned title must be recognised as in the user\'s lists');
+      expect(r.tmdbOnly, isEmpty);
+    });
+  });
+
+  group('Empty-query DB guard', () {
+    test('searchMovieBroad/SeriesBroad return nothing for blank queries',
+        () async {
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'pl1',
+          name: 'X',
+          type: PlaylistType.xtream,
+          url: 'https://x.com',
+          username: 'u',
+          password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await _insertMovie(database, 'Avatar', 'pl1');
+      await _insertMovie(database, 'Dune', 'pl1');
+
+      expect(await database.searchMovieBroad('pl1', ''), isEmpty);
+      expect(await database.searchMovieBroad('pl1', '   '), isEmpty);
+      expect(await database.searchSeriesBroad('pl1', ''), isEmpty);
+      // A real query still works.
+      expect(await database.searchMovieBroad('pl1', 'dune'), hasLength(1));
     });
   });
 

@@ -121,7 +121,7 @@ void _mockConnectivity() {
 // ---------------------------------------------------------------------------
 // App shell + pump
 // ---------------------------------------------------------------------------
-Widget _appShell(Widget home) {
+Widget _appShell(Widget home, {Locale locale = const Locale('es')}) {
   return MultiProvider(
     providers: [
       ChangeNotifierProvider(create: (_) => LocaleProvider()),
@@ -131,7 +131,7 @@ Widget _appShell(Widget home) {
     ],
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
-      locale: const Locale('es'),
+      locale: locale,
       supportedLocales:
           supportedLanguages.map((lang) => Locale(lang['code'])).toList(),
       localizationsDelegates: const [
@@ -177,14 +177,14 @@ Future<void> settle(WidgetTester tester,
 /// surface would render at the harness's synthetic size instead of the screen's
 /// own, and every capture would come out at the wrong resolution.
 Future<void> pumpScreen(WidgetTester tester, Widget home,
-    {Size? size = tvSize}) async {
+    {Size? size = tvSize, Locale locale = const Locale('es')}) async {
   if (size != null) {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
   }
-  await tester.pumpWidget(_appShell(home));
+  await tester.pumpWidget(_appShell(home, locale: locale));
   await settle(tester);
 }
 
