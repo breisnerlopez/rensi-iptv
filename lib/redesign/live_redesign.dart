@@ -126,7 +126,8 @@ class _LiveRedesignState extends State<LiveRedesign> {
                 itemCount: chips.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (_, i) => RensiChip(
-                  label: chips[i],
+                  // First chip is the "all categories" sentinel; localize it.
+                  label: i == 0 ? context.loc.all : chips[i],
                   active: _catIndex == i,
                   onTap: () => setState(() => _catIndex = i),
                 ),

@@ -472,6 +472,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get error_occurred => '发生错误';
 
   @override
+  String get playback_failed => '无法播放此内容';
+
+  @override
   String get connecting => '正在连接';
 
   @override
@@ -657,40 +660,40 @@ class AppLocalizationsZh extends AppLocalizations {
   String get image_not_found => '图片未找到';
 
   @override
-  String get select_all => '全選';
+  String get select_all => '全选';
 
   @override
-  String get deselect_all => '取消全選';
+  String get deselect_all => '取消全选';
 
   @override
-  String get hide_category => '隱藏類別';
+  String get hide_category => '隐藏类别';
 
   @override
   String get rating => '等級';
 
   @override
-  String get remove_from_history => '從歷史記錄中移除';
+  String get remove_from_history => '从历史记录中移除';
 
   @override
-  String get remove_from_history_confirmation => '您確定要從觀看歷史中移除此項目嗎？';
+  String get remove_from_history_confirmation => '您确定要从观看历史中移除此项目吗？';
 
   @override
   String get remove => '移除';
 
   @override
-  String get clear_old_records => '清除舊記錄';
+  String get clear_old_records => '清除旧记录';
 
   @override
-  String get clear_old_records_confirmation => '您確定要刪除30天前的觀看記錄嗎？';
+  String get clear_old_records_confirmation => '您确定要删除30天前的观看记录吗？';
 
   @override
-  String get clear_old => '清除舊的';
+  String get clear_old => '清除旧的';
 
   @override
-  String get clear_all_history => '清除所有歷史記錄';
+  String get clear_all_history => '清除所有历史记录';
 
   @override
-  String get clear_all_history_confirmation => '您確定要刪除所有觀看歷史嗎？';
+  String get clear_all_history_confirmation => '您确定要删除所有观看历史吗？';
 
   @override
   String get resume_failed => '此内容已不在此播放列表中';
@@ -730,6 +733,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get search_keep_typing_global => '继续输入以搜索 TMDb';
+
+  @override
+  String get search_saved => '已保存';
+
+  @override
+  String get search_saved_confirm => '已加入心愿单';
+
+  @override
+  String get search_removed_confirm => '已从心愿单移除';
+
+  @override
+  String get search_in_wishlist_body => '已在您的心愿单中。上线后我们会通知您。';
+
+  @override
+  String get key_space => '空格';
+
+  @override
+  String get key_backspace => '退格';
 
   @override
   String get home_empty_title => '此播放列表中还没有电影或剧集。';
@@ -790,13 +811,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get history_clear_failed => '无法清除观看记录';
 
   @override
-  String get appearance => '外觀';
+  String get appearance => '外观';
 
   @override
-  String get theme => '主題';
+  String get theme => '主题';
 
   @override
-  String get standard => '預設';
+  String get standard => '预设';
 
   @override
   String get light => '淺色';
@@ -805,7 +826,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dark => '深色';
 
   @override
-  String get trailer => '拖車';
+  String get trailer => '预告片';
 
   @override
   String get new_ep => '新的';

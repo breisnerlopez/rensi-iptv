@@ -326,7 +326,9 @@ class _SheetBodyState extends State<_SheetBody> {
         style: TextStyle(
           fontSize: AppThemes.bodySmallSize,
           fontWeight: FontWeight.w600,
-          color: r.accent2,
+          // text2, not accent2: accent2 measured 2.7:1 on the light sheet —
+          // below the 4.5:1 AA floor. text2 passes both themes.
+          color: r.text2,
           height: 1.3,
         ),
       ));
@@ -390,11 +392,15 @@ class _SheetBodyState extends State<_SheetBody> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          loc.search_not_available_body,
+          // Reflect the actual saved state: once saved, the button offers to
+          // remove, so the body must not still say "not in your lists, save it".
+          _wishlisted ? loc.search_in_wishlist_body : loc.search_not_available_body,
           style: TextStyle(
             fontSize: AppThemes.bodySize,
             height: 1.4,
-            color: r.text3,
+            // text2, not text3: at 10 feet the dim gray was hard to read, and
+            // this line justifies the save.
+            color: r.text2,
           ),
         ),
         const SizedBox(height: 18),
@@ -450,7 +456,10 @@ class _Header extends StatelessWidget {
             imagePath: t.posterUrl,
             backdrop: t.backdropPosterUrl.isEmpty ? null : [t.backdropPosterUrl],
             preferBackdrop: true,
-            titleScale: 0.9,
+            // 0, not 0.9: the title is printed once, as the H2 in the block
+            // below. Printing it on the fallback art too made it appear twice
+            // whenever TMDb supplied no backdrop.
+            titleScale: 0,
           ),
           // Fade the art into the sheet surface so the header and body read as
           // one panel rather than a pasted-in thumbnail.

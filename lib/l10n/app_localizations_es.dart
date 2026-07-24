@@ -488,6 +488,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get error_occurred => 'Ocurrió un error';
 
   @override
+  String get playback_failed => 'No se pudo reproducir el contenido';
+
+  @override
   String get connecting => 'Conectando';
 
   @override
@@ -763,6 +766,25 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get search_keep_typing_global =>
       'Sigue escribiendo para buscar en TMDb';
+
+  @override
+  String get search_saved => 'Guardado';
+
+  @override
+  String get search_saved_confirm => 'Guardado en tu lista';
+
+  @override
+  String get search_removed_confirm => 'Quitado de tu lista';
+
+  @override
+  String get search_in_wishlist_body =>
+      'En tu lista de deseos. Te avisamos cuando esté disponible para reproducir.';
+
+  @override
+  String get key_space => 'Espacio';
+
+  @override
+  String get key_backspace => 'Retroceso';
 
   @override
   String get home_empty_title =>

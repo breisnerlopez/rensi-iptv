@@ -485,6 +485,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get error_occurred => 'एक त्रुटि हुई';
 
   @override
+  String get playback_failed => 'यह सामग्री चलाई नहीं जा सकी';
+
+  @override
   String get connecting => 'कनेक्ट हो रहा है';
 
   @override
@@ -754,6 +757,25 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get search_keep_typing_global => 'TMDb पर खोजने के लिए टाइप करते रहें';
+
+  @override
+  String get search_saved => 'सहेजा गया';
+
+  @override
+  String get search_saved_confirm => 'आपकी इच्छा-सूची में सहेजा गया';
+
+  @override
+  String get search_removed_confirm => 'आपकी इच्छा-सूची से हटाया गया';
+
+  @override
+  String get search_in_wishlist_body =>
+      'आपकी इच्छा-सूची में। उपलब्ध होने पर हम आपको सूचित करेंगे।';
+
+  @override
+  String get key_space => 'स्पेस';
+
+  @override
+  String get key_backspace => 'बैकस्पेस';
 
   @override
   String get home_empty_title =>

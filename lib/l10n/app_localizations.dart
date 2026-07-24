@@ -1014,6 +1014,12 @@ abstract class AppLocalizations {
   /// **'An error occurred'**
   String get error_occurred;
 
+  /// No description provided for @playback_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'This content couldn\'t be played'**
+  String get playback_failed;
+
   /// No description provided for @connecting.
   ///
   /// In en, this message translates to:
@@ -1499,6 +1505,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep typing to search TMDb'**
   String get search_keep_typing_global;
+
+  /// No description provided for @search_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get search_saved;
+
+  /// No description provided for @search_saved_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to your wishlist'**
+  String get search_saved_confirm;
+
+  /// No description provided for @search_removed_confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from your wishlist'**
+  String get search_removed_confirm;
+
+  /// No description provided for @search_in_wishlist_body.
+  ///
+  /// In en, this message translates to:
+  /// **'In your wishlist. We\'ll let you know when it\'s available to play.'**
+  String get search_in_wishlist_body;
+
+  /// No description provided for @key_space.
+  ///
+  /// In en, this message translates to:
+  /// **'Space'**
+  String get key_space;
+
+  /// No description provided for @key_backspace.
+  ///
+  /// In en, this message translates to:
+  /// **'Backspace'**
+  String get key_backspace;
 
   /// No description provided for @home_empty_title.
   ///

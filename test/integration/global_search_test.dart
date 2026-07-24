@@ -286,6 +286,20 @@ void main() {
     expect(find.byIcon(Icons.bookmark_rounded), findsOneWidget,
         reason: 'el marcador guardado se muestra activo');
 
+    // Real-device review (blocker): the wishlist must read as YOUR list, not as
+    // discovery. Under the wishlist filter the section header is "Lista de
+    // deseos" and the card badge is "Guardado" — never "Descubrir en TMDb" /
+    // "No en tus listas", which told the user their own saved list was not in
+    // their lists.
+    expect(find.text(_kDiscover), findsNothing,
+        reason: 'la wishlist no debe titularse "Descubrir en TMDb"');
+    expect(find.text(_kNotInLists), findsNothing,
+        reason: 'un guardado no debe llevar el badge "No en tus listas"');
+    expect(find.text('Guardado'), findsWidgets,
+        reason: 'el badge de un guardado debe decir "Guardado"');
+    expect(find.text(_kWishlistChip), findsWidgets,
+        reason: 'la sección de la wishlist se titula "Lista de deseos"');
+
     // Toggle the bookmark off -> removed -> the browse re-runs empty.
     await tester.tap(find.byIcon(Icons.bookmark_rounded), warnIfMissed: false);
     await settle(tester);

@@ -484,6 +484,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get error_occurred => 'حدث خطأ';
 
   @override
+  String get playback_failed => 'تعذّر تشغيل هذا المحتوى';
+
+  @override
   String get connecting => 'جارٍ الاتصال';
 
   @override
@@ -752,6 +755,25 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get search_keep_typing_global => 'واصل الكتابة للبحث في TMDb';
+
+  @override
+  String get search_saved => 'تم الحفظ';
+
+  @override
+  String get search_saved_confirm => 'تمت الإضافة إلى قائمة رغباتك';
+
+  @override
+  String get search_removed_confirm => 'تمت الإزالة من قائمة رغباتك';
+
+  @override
+  String get search_in_wishlist_body =>
+      'في قائمة رغباتك. سنُعلمك عندما يصبح متاحًا للمشاهدة.';
+
+  @override
+  String get key_space => 'مسافة';
+
+  @override
+  String get key_backspace => 'حذف';
 
   @override
   String get home_empty_title => 'لا توجد أفلام أو مسلسلات في هذه القائمة بعد.';

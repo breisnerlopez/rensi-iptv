@@ -40,12 +40,28 @@ import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/epg_service.dart';
 import 'package:rensi_iptv/services/playlist_service.dart';
+// Player capture (round: device) — real PlayerWidget over a pushed clip.
+import 'package:get_it/get_it.dart';
+import 'package:media_kit/media_kit.dart' hide PlayerState, Playlist;
+import 'package:rensi_iptv/l10n/app_localizations.dart';
+import 'package:rensi_iptv/repositories/user_preferences.dart';
+import 'package:rensi_iptv/services/event_bus.dart';
+import 'package:rensi_iptv/services/player_state.dart';
+import 'package:rensi_iptv/utils/audio_handler.dart';
+import 'package:rensi_iptv/widgets/player_widget.dart';
 
 import '../test/integration/harness.dart';
+import '../test/integration/player_e2e_support.dart';
 import '../test/integration/seed.dart';
 
 const String prefix =
     String.fromEnvironment('CAPTURE_PREFIX', defaultValue: 'dev');
+
+/// Render the whole campaign in a given locale (CAPTURE_LOCALE=de|ar|...), so a
+/// real-device run can check long-language overflow and RTL mirroring across
+/// every screen, not just Spanish.
+final Locale _captureLocale =
+    Locale(const String.fromEnvironment('CAPTURE_LOCALE', defaultValue: 'es'));
 
 /// Where `scripts/fake_panel.py` is listening, as seen from the device.
 /// 10.0.2.2 is the emulator's alias for the host loopback; the panel binds
@@ -63,6 +79,8 @@ void main() {
     // Required on Android before takeScreenshot: swaps the render surface for
     // one that can be read back.
     await binding.convertFlutterSurfaceToImage();
+    // The player captures need libmpv up before the first PlayerWidget mounts.
+    MediaKit.ensureInitialized();
   });
 
   // null: let the device answer. Mocking this to `true` — the default — is how
@@ -125,13 +143,13 @@ void main() {
   // --- first run -----------------------------------------------------------
 
   testWidgets('01 onboarding', (tester) async {
-    await pumpScreen(tester, const AppInitializerScreen(), size: null);
+    await pumpScreen(tester, const AppInitializerScreen(), size: null, locale: _captureLocale);
     await settle(tester);
     await capture(tester, '01_onboarding');
   });
 
   testWidgets('02 playlist type', (tester) async {
-    await pumpScreen(tester, const PlaylistTypeScreen(), size: null);
+    await pumpScreen(tester, const PlaylistTypeScreen(), size: null, locale: _captureLocale);
     await settle(tester);
     await capture(tester, '02_playlist_type');
   });
@@ -139,13 +157,13 @@ void main() {
   // Fictional data only: the add-playlist screens render what is typed, so they
   // must never be captured with a real subscription in the fields.
   testWidgets('03 add xtream form', (tester) async {
-    await pumpScreen(tester, NewXtreamCodePlaylistScreen(), size: null);
+    await pumpScreen(tester, NewXtreamCodePlaylistScreen(), size: null, locale: _captureLocale);
     await settle(tester);
     await capture(tester, '03_form_xtream');
   });
 
   testWidgets('04 add m3u form', (tester) async {
-    await pumpScreen(tester, NewM3uPlaylistScreen(), size: null);
+    await pumpScreen(tester, NewM3uPlaylistScreen(), size: null, locale: _captureLocale);
     await settle(tester);
     await capture(tester, '04_form_m3u');
   });
@@ -155,7 +173,7 @@ void main() {
   testWidgets('05 home — hero focused', (tester) async {
     late Playlist p;
     await tester.runAsync(() async => p = await seedXtreamHome(harnessDb));
-    await pumpScreen(tester, XtreamCodeHomeScreen(playlist: p), size: null);
+    await pumpScreen(tester, XtreamCodeHomeScreen(playlist: p), size: null, locale: _captureLocale);
     await settle(tester);
     await capture(tester, '05_home_hero');
   });
@@ -163,7 +181,7 @@ void main() {
   testWidgets('06 home — focus in a rail', (tester) async {
     late Playlist p;
     await tester.runAsync(() async => p = await seedXtreamHome(harnessDb));
-    await pumpScreen(tester, XtreamCodeHomeScreen(playlist: p), size: null);
+    await pumpScreen(tester, XtreamCodeHomeScreen(playlist: p), size: null, locale: _captureLocale);
     await settle(tester);
     await moveFocus(tester, TraversalDirection.down, times: 2);
     await settle(tester);
@@ -173,7 +191,7 @@ void main() {
   testWidgets('07 navigation rail focused', (tester) async {
     late Playlist p;
     await tester.runAsync(() async => p = await seedXtreamHome(harnessDb));
-    await pumpScreen(tester, XtreamCodeHomeScreen(playlist: p), size: null);
+    await pumpScreen(tester, XtreamCodeHomeScreen(playlist: p), size: null, locale: _captureLocale);
     await settle(tester);
     await moveFocus(tester, TraversalDirection.left);
     await settle(tester);
@@ -193,6 +211,7 @@ void main() {
         onOpen: (_) {},
       ),
       size: null,
+      locale: _captureLocale,
     );
     await settle(tester);
     await moveFocus(tester, TraversalDirection.down, times: 2);
@@ -212,6 +231,7 @@ void main() {
         onPlay: (_) {},
       ),
       size: null,
+      locale: _captureLocale,
     );
     await settle(tester);
     await capture(tester, '09_live');
@@ -246,6 +266,7 @@ void main() {
         epgService: service,
       ),
       size: null,
+      locale: _captureLocale,
     );
     // runAsync so the real socket work actually progresses: pumpAndSettle runs
     // in fake-async time, where an outstanding HTTP request never completes.
@@ -268,14 +289,14 @@ void main() {
 
   testWidgets('10 my list — empty state', (tester) async {
     setActivePlaylist();
-    await pumpScreen(tester, ListRedesign(onOpen: (_) {}), size: null);
+    await pumpScreen(tester, ListRedesign(onOpen: (_) {}), size: null, locale: _captureLocale);
     await settle(tester);
     await capture(tester, '10_my_list');
   });
 
   testWidgets('11 search — empty state', (tester) async {
     setActivePlaylist();
-    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null);
+    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null, locale: _captureLocale);
     await settle(tester);
     await capture(tester, '11_search');
   });
@@ -291,6 +312,7 @@ void main() {
       tester,
       XtreamCodeHomeScreen(playlist: p, initialIndex: 4),
       size: null,
+      locale: _captureLocale,
     );
     await settle(tester);
     await capture(tester, '13_settings');
@@ -339,6 +361,7 @@ void main() {
         onRemove: (_) {},
       ),
       size: null,
+      locale: _captureLocale,
     );
     await settle(tester);
     await capture(tester, '12_continue_watching');
@@ -410,7 +433,7 @@ void main() {
     await setUpHarness(tv: null); // no cache, no credential -> noKey
     await saveActivePlaylist(tester);
     await tester.runAsync(() async => seedMovie('Dune 2021'));
-    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null);
+    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null, locale: _captureLocale);
     await typeSearch(tester, 'dune');
     await capture(tester, '14_search_nokey');
   });
@@ -425,7 +448,7 @@ void main() {
     }, tv: null);
     await saveActivePlaylist(tester);
     await tester.runAsync(() async => seedMovie('Dune 2021'));
-    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null);
+    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null, locale: _captureLocale);
     await typeSearch(tester, 'dune');
     await capture(tester, '15_search_sections');
   });
@@ -436,7 +459,7 @@ void main() {
       'tmdb.search.es-ES.dune': tmdbCache([tmdbItem(2, 'Dune: Part Two')]),
     }, tv: null);
     setActivePlaylist();
-    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null);
+    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null, locale: _captureLocale);
     await typeSearch(tester, 'dune');
     if (find.text('Dune: Part Two').evaluate().isNotEmpty) {
       await tester.tap(find.text('Dune: Part Two').first, warnIfMissed: false);
@@ -452,9 +475,150 @@ void main() {
     await setUpHarness(tv: null);
     await saveActivePlaylist(tester);
     await tester.runAsync(() async => seedMovie('Dune 2021'));
-    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null);
+    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null, locale: _captureLocale);
     await typeSearch(tester, 'du');
     await capture(tester, '17_search_2char');
+  });
+
+  // --- Round 2: interaction flows ------------------------------------------
+
+  // GS-06 wishlist filter, populated. No typing needed (browse mode), so it
+  // works on mobile too. Pre-seed a saved TMDb item and tap the chip.
+  testWidgets('18 search — wishlist populated', (tester) async {
+    await setUpHarness(prefs: {
+      'tmdb.wishlist':
+          jsonEncode([tmdbItem(2, 'Dune: Part Two'), tmdbItem(3, 'Arrival')]),
+    }, tv: null);
+    await saveActivePlaylist(tester);
+    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null, locale: _captureLocale);
+    await tester.tap(find.text('Lista de deseos'), warnIfMissed: false);
+    for (var i = 0; i < 8; i++) {
+      await tester.runAsync(
+          () async => Future<void>.delayed(const Duration(milliseconds: 120)));
+      await tester.pump();
+    }
+    await tester.pumpAndSettle(const Duration(milliseconds: 300));
+    await capture(tester, '18_search_wishlist');
+  });
+
+  // GS-06b wishlist filter, empty.
+  testWidgets('19 search — wishlist empty', (tester) async {
+    await setUpHarness(tv: null);
+    await saveActivePlaylist(tester);
+    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null, locale: _captureLocale);
+    await tester.tap(find.text('Lista de deseos'), warnIfMissed: false);
+    await tester.pumpAndSettle(const Duration(milliseconds: 500));
+    await capture(tester, '19_wishlist_empty');
+  });
+
+  // GS-04b end-to-end (TV only, needs typing): type -> tap discover card ->
+  // detail sheet -> tap "Guardar en lista de deseos" -> back to results with the
+  // bookmark now saved. Captures the post-save state.
+  testWidgets('20 search — save from detail sheet', (tester) async {
+    await setUpHarness(prefs: {
+      'tmdb.search.es-ES.dune': tmdbCache([tmdbItem(2, 'Dune: Part Two')]),
+    }, tv: null);
+    await saveActivePlaylist(tester);
+    await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: null, locale: _captureLocale);
+    await typeSearch(tester, 'dune');
+    final card = find.text('Dune: Part Two');
+    if (card.evaluate().isNotEmpty) {
+      await tester.tap(card.first, warnIfMissed: false);
+      await tester.pumpAndSettle(const Duration(milliseconds: 400));
+      final save = find.text('Guardar en lista de deseos');
+      if (save.evaluate().isNotEmpty) {
+        await tester.tap(save.first, warnIfMissed: false);
+        for (var i = 0; i < 6; i++) {
+          await tester.runAsync(() async =>
+              Future<void>.delayed(const Duration(milliseconds: 120)));
+          await tester.pump();
+        }
+        await tester.pumpAndSettle(const Duration(milliseconds: 400));
+      }
+    }
+    await capture(tester, '20_search_saved');
+  });
+
+  // --- player (round: device) ----------------------------------------------
+  // The real PlayerWidget over a clip PUSHED to the device (adb push … then
+  // RENSI_TESTCLIP=file:///sdcard/testclip.mp4). Only the video-texture channel
+  // is faked, so the chrome (top bar, seek/live bar, channel list, audio panel)
+  // is photographed over a deterministic black frame with a live libmpv decode
+  // behind it — exactly the surfaces a 10-foot audit cares about. Opt-in: with
+  // no clip the whole group skips, so a phone/tablet run stays green.
+  //
+  // pumpAndSettle would hang forever on libmpv's continuous frame timers, so
+  // these use pumpReal/pumpUntil and their own takeScreenshot — never capture().
+  const String playerClip = String.fromEnvironment('RENSI_TESTCLIP');
+
+  Future<void> capturePlayer(WidgetTester tester, String name) async {
+    await pumpReal(tester, cycles: 3, ms: 140);
+    await binding.takeScreenshot('${prefix}_$name');
+  }
+
+  Future<void> mountPlayer(WidgetTester tester) async {
+    // NOTE: no installPlayerPluginFakes here. That fakes the media_kit_video
+    // texture channel, which is right headless but WRONG on a device — the real
+    // Android plugin is registered and my injected VideoOutput.Resize collides
+    // with it ("Null is not int"). On device the real texture channel works;
+    // the clip is served over HTTP so libmpv needs no storage permission.
+    if (!GetIt.instance.isRegistered<MyAudioHandler>()) {
+      GetIt.instance.registerSingleton<MyAudioHandler>(MyAudioHandler());
+    }
+    PlayerState.showVideoSettings = false;
+    AppState.currentPlaylist = Playlist(
+      id: 'm',
+      name: 'M',
+      type: PlaylistType.m3u,
+      createdAt: DateTime(2026, 1, 1),
+    );
+    // Headless/emulator: the GPU output stalls open(); software decodes without
+    // a surface, and the chrome under audit is identical across decoders.
+    await UserPreferences.setVideoDecoder('software');
+    final a = liveItem(playerClip, 'Canal A');
+    final b = liveItem(playerClip, 'Canal B');
+    await tester.pumpWidget(MaterialApp(
+      locale: _captureLocale,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(body: PlayerWidget(contentItem: a, queue: [a, b])),
+    ));
+    // Leave the loading spinner (post-frame → texture create → open resolves).
+    await pumpUntil(tester, () {
+      final s = tester.state(find.byType(PlayerWidget)) as dynamic;
+      // ignore: avoid_dynamic_calls
+      return s.isLoading == false;
+    });
+  }
+
+  testWidgets('21 player — playing, chrome hidden', (tester) async {
+    if (playerClip.isEmpty) {
+      markTestSkipped('RENSI_TESTCLIP no definido — se omiten capturas de player');
+      return;
+    }
+    await mountPlayer(tester);
+    await capturePlayer(tester, '21_player_clean');
+    await disposePlayerCleanly(tester);
+  });
+
+  testWidgets('22 player — audio/subtitle panel', (tester) async {
+    if (playerClip.isEmpty) return;
+    await mountPlayer(tester);
+    // The clip carries two audio tracks, so this is the real panel with real
+    // rows to lay out — where the section titles skip tenFoot() on TV.
+    EventBus().emit('toggle_video_settings', true);
+    await pumpReal(tester, cycles: 6, ms: 150);
+    await capturePlayer(tester, '22_player_audio_panel');
+    await disposePlayerCleanly(tester);
+  });
+
+  testWidgets('23 player — channel list', (tester) async {
+    if (playerClip.isEmpty) return;
+    await mountPlayer(tester);
+    EventBus().emit('toggle_channel_list', true);
+    await pumpReal(tester, cycles: 6, ms: 150);
+    await capturePlayer(tester, '23_player_channel_list');
+    await disposePlayerCleanly(tester);
   });
 }
 

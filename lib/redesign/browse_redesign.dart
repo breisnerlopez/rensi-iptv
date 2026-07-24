@@ -184,10 +184,10 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
               padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 12),
               child: Row(
                 children: [
-                  for (final e in const [
-                    ['all', 'Todo'],
-                    ['movies', 'Películas'],
-                    ['series', 'Series'],
+                  for (final e in [
+                    ['all', context.loc.search_filter_all],
+                    ['movies', context.loc.search_filter_movies],
+                    ['series', context.loc.series_plural],
                   ])
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
@@ -212,7 +212,9 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
                 itemCount: genres.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (_, i) => RensiChip(
-                  label: genres[i],
+                  // 'Todos' is the internal "all genres" sentinel; show it
+                  // localized. Real genre names come from the panel and stay.
+                  label: genres[i] == 'Todos' ? context.loc.all : genres[i],
                   active: _genre == genres[i],
                   onTap: () => setState(() => _genre = genres[i]),
                 ),

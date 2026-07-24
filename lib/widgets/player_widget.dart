@@ -1711,14 +1711,38 @@ class _PlayerWidgetState extends State<PlayerWidget>
           children: [
             const Icon(Icons.error_outline, color: Colors.red, size: 32),
             const SizedBox(height: 8),
+            // Friendly, localized headline. The raw string is a libmpv
+            // diagnostic ("Cannot seek in this stream", "Failed to open http://…")
+            // — English, developer-facing and sometimes a leaked path/flag, so it
+            // must never be the primary message a customer reads.
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                errorMessage,
-                style: TextStyle(color: Colors.white, fontSize: AppThemes.tenFoot(context, 12)),
+                context.loc.playback_failed,
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: AppThemes.tenFoot(context, 14),
+                    fontWeight: FontWeight.w600),
                 textAlign: TextAlign.center,
               ),
             ),
+            // The scrubbed technical detail stays available (support, power
+            // users) but dimmed and small, below the headline.
+            if (errorMessage.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  errorMessage,
+                  style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: AppThemes.tenFoot(context, 10)),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             // Focusable so the D-pad can reach it on Android TV.
             ElevatedButton.icon(

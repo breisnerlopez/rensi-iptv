@@ -207,7 +207,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get auto_pip_on_home_description =>
-      'Verkleinert den Player zu einem schwebenden Fenster, wenn du die App verlässt';
+      'Verkleinert den Player zu einem schwebenden Fenster, wenn Sie die App verlassen';
 
   @override
   String get sleep_timer => 'Sleep-Timer';
@@ -489,6 +489,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get error_occurred => 'Ein Fehler ist aufgetreten';
 
   @override
+  String get playback_failed => 'Dieser Inhalt konnte nicht abgespielt werden';
+
+  @override
   String get connecting => 'Verbindung wird hergestellt';
 
   @override
@@ -724,28 +727,28 @@ class AppLocalizationsDe extends AppLocalizations {
       'Dieser Titel ist in dieser Playlist nicht mehr verfügbar';
 
   @override
-  String get search_in_your_library => 'In deiner Bibliothek';
+  String get search_in_your_library => 'In Ihrer Bibliothek';
 
   @override
   String get search_discover_tmdb => 'Auf TMDb entdecken';
 
   @override
-  String get search_not_in_lists => 'Nicht in deinen Listen';
+  String get search_not_in_lists => 'Nicht in Ihren Listen';
 
   @override
   String get search_global_disabled =>
-      'Füge deinen TMDb-Schlüssel hinzu, um Titel über deine Listen hinaus zu entdecken.';
+      'Fügen Sie Ihren TMDb-Schlüssel hinzu, um Titel über Ihre Listen hinaus zu entdecken.';
 
   @override
   String get search_enable_global => 'Globale Suche aktivieren';
 
   @override
   String get search_key_rejected =>
-      'Dein TMDb-Schlüssel wurde abgelehnt. Prüfe ihn in den Einstellungen.';
+      'Ihr TMDb-Schlüssel wurde abgelehnt. Prüfen Sie ihn in den Einstellungen.';
 
   @override
   String get search_tmdb_rate_limited =>
-      'Zu viele Suchanfragen. Versuche es gleich noch einmal.';
+      'Zu viele Suchanfragen. Versuchen Sie es gleich noch einmal.';
 
   @override
   String get search_tmdb_error => 'TMDb nicht erreichbar.';
@@ -758,10 +761,29 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get search_not_available_body =>
-      'Nicht in deinen Listen. Speichere ihn und wir prüfen, sobald er verfügbar ist.';
+      'Nicht in Ihren Listen. Speichern Sie ihn und wir prüfen, sobald er verfügbar ist.';
 
   @override
   String get search_keep_typing_global => 'Weitertippen, um auf TMDb zu suchen';
+
+  @override
+  String get search_saved => 'Gespeichert';
+
+  @override
+  String get search_saved_confirm => 'Zu Ihrer Wunschliste hinzugefügt';
+
+  @override
+  String get search_removed_confirm => 'Von Ihrer Wunschliste entfernt';
+
+  @override
+  String get search_in_wishlist_body =>
+      'Auf Ihrer Wunschliste. Wir benachrichtigen Sie, sobald es verfügbar ist.';
+
+  @override
+  String get key_space => 'Leertaste';
+
+  @override
+  String get key_backspace => 'Rücktaste';
 
   @override
   String get home_empty_title =>
@@ -769,7 +791,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get home_empty_hint =>
-      'Nutze „Live“ im Menü, um Sender zu sehen, oder suche nach Inhalten.';
+      'Nutzen Sie „Live“ im Menü, um Sender zu sehen, oder suchen Sie nach Inhalten.';
 
   @override
   String get loading => 'Wird geladen...';
@@ -787,7 +809,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get featured_today => 'HEUTE EMPFOHLEN';
 
   @override
-  String get search_catalog_hint => 'Durchsuche deinen gesamten Katalog';
+  String get search_catalog_hint => 'Durchsuchen Sie Ihren gesamten Katalog';
 
   @override
   String get search_placeholder => 'Filme, Serien, Sender suchen…';
@@ -1003,7 +1025,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get tmdb_credential_missing =>
-      'Füge deinen TMDb API-Schlüssel oder Read Access Token hinzu, um die globale Suche zu aktivieren';
+      'Fügen Sie Ihren TMDb API-Schlüssel oder Read Access Token hinzu, um die globale Suche zu aktivieren';
 
   @override
   String get tmdb_credential_label => 'TMDb API-Token';
@@ -1026,14 +1048,14 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get tmdb_search_description =>
-      'Gib mindestens 3 Zeichen ein und drücke Suchen. Ergebnisse werden 24 Stunden zwischengespeichert, um die API-Nutzung zu reduzieren.';
+      'Geben Sie mindestens 3 Zeichen ein und drücken Sie Suchen. Ergebnisse werden 24 Stunden zwischengespeichert, um die API-Nutzung zu reduzieren.';
 
   @override
   String get tmdb_exact_match => 'Exakte Übereinstimmung';
 
   @override
   String get tmdb_not_found_in_playlists =>
-      'Nicht in deinen Wiedergabelisten gefunden';
+      'Nicht in Ihren Wiedergabelisten gefunden';
 
   @override
   String tmdb_available_in(Object count) {
@@ -1149,10 +1171,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get search_no_results => 'Keine Ergebnisse gefunden';
 
   @override
-  String get search_in_your_lists => 'In deinen Listen';
+  String get search_in_your_lists => 'In Ihren Listen';
 
   @override
-  String get search_from_your_iptv => 'Aus deinem IPTV';
+  String get search_from_your_iptv => 'Aus Ihrem IPTV';
 
   @override
   String get search_tmdb_section => 'TMDb';
@@ -1226,7 +1248,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get search_wishlist_empty =>
-      'Deine Wunschliste ist leer. Tippe auf das Lesezeichen bei einem TMDb-Ergebnis, um es hier zu speichern.';
+      'Ihre Wunschliste ist leer. Tippen Sie auf das Lesezeichen bei einem TMDb-Ergebnis, um es hier zu speichern.';
 
   @override
   String get search_detail_overview => 'Übersicht';
@@ -1246,7 +1268,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get search_detail_not_in_playlists =>
-      'In keiner deiner Wiedergabelisten';
+      'In keiner Ihrer Wiedergabelisten';
 
   @override
   String get stream_info => 'Stream-Infos';
@@ -1329,7 +1351,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get exit_confirm_title => 'App beenden?';
 
   @override
-  String get exit_confirm_message => 'Du verlässt Rensi IPTV.';
+  String get exit_confirm_message => 'Sie verlassen Rensi IPTV.';
 
   @override
   String get exit_confirm_action => 'Beenden';
@@ -1348,16 +1370,17 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get onboarding_requirements_hint =>
-      'Du brauchst die URL oder die Zugangsdaten deines IPTV-Anbieters';
+      'Sie brauchen die URL oder die Zugangsdaten Ihres IPTV-Anbieters';
 
   @override
   String get nav_settings => 'Einstellungen';
 
   @override
-  String get empty_list_title => 'Deine Liste ist leer';
+  String get empty_list_title => 'Ihre Liste ist leer';
 
   @override
-  String get empty_list_body => 'Füge Titel hinzu und finde sie hier wieder.';
+  String get empty_list_body =>
+      'Fügen Sie Titel hinzu und finden Sie sie hier wieder.';
 
   @override
   String get action_browse_catalogue => 'Katalog durchsuchen';

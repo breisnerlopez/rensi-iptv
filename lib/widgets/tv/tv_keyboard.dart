@@ -1,3 +1,4 @@
+import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
@@ -48,9 +49,11 @@ class TvKeyboard extends StatelessWidget {
           // somewhere; a grid with no focused cell is unusable with a remote.
           autofocus: c == 'A',
         ),
-      _Key(label: '␣', onTap: () => onKey(' '), semantic: 'Espacio'),
-      _Key(label: '⌫', onTap: onBackspace, semantic: 'Borrar'),
-      _Key(label: '✕', onTap: onClear, semantic: 'Limpiar'),
+      // Localized: TalkBack was announcing these three keys in Spanish in
+      // every locale (incl. Arabic RTL).
+      _Key(label: '␣', onTap: () => onKey(' '), semantic: context.loc.key_space),
+      _Key(label: '⌫', onTap: onBackspace, semantic: context.loc.key_backspace),
+      _Key(label: '✕', onTap: onClear, semantic: context.loc.clear),
     ];
 
     return SizedBox(
@@ -95,13 +98,15 @@ class _Key extends StatelessWidget {
       child: Material(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onTap,
-          autofocus: autofocus,
-          borderRadius: BorderRadius.circular(12),
-          child: Center(
-            child: Semantics(
-              label: semantic ?? label,
+        child: Semantics(
+          button: true,
+          label: semantic ?? label,
+          excludeSemantics: true,
+          child: InkWell(
+            onTap: onTap,
+            autofocus: autofocus,
+            borderRadius: BorderRadius.circular(12),
+            child: Center(
               child: Text(
                 label,
                 style: const TextStyle(

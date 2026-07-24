@@ -31,9 +31,15 @@ class StatusCardWidget extends StatelessWidget {
           _getServerStatus(context),
           style: TextStyle(color: SubscriptionUtils.getStatusColor(serverInfo, context)),
         ),
-        subtitle: Text(
-          context.loc.subscription_remaining_day(SubscriptionUtils.getRemainingDays(serverInfo, context)),
-        ),
+        // Only when connected: with no server info there is no subscription to
+        // report, and pairing "No connection" with a "Subscription: …" line
+        // read as two unrelated, half-broken messages stacked together.
+        subtitle: serverInfo != null
+            ? Text(
+                context.loc.subscription_remaining_day(
+                    SubscriptionUtils.getRemainingDays(serverInfo, context)),
+              )
+            : null,
       ),
     );
   }

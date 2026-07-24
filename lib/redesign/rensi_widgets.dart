@@ -314,7 +314,15 @@ class _RensiPosterState extends State<RensiPoster> {
     final r = rensi(context);
     final h = width * 1.5; // true 2:3; was 1.48, cropping the artwork 1.3%
     final tag = widget.badge ?? _tagFor(item);
-    return FocusHighlight(
+    // Screen reader: the title is painted only on focus-with-art, so a poster
+    // was a nameless "button" to TalkBack. Give it an always-present name, with
+    // the badge ("Guardado"/"No en tus listas") spoken alongside the title.
+    final semanticName = tag == null ? item.name : '${item.name}, $tag';
+    return Semantics(
+      button: true,
+      label: semanticName,
+      excludeSemantics: true,
+      child: FocusHighlight(
       borderRadius: BorderRadius.circular(14),
       child: Focus(
         canRequestFocus: false,
@@ -411,6 +419,7 @@ class _RensiPosterState extends State<RensiPoster> {
         ),
       ),
       ),
+    ),
     );
   }
 
@@ -481,7 +490,12 @@ class RensiChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = rensi(context);
     final theme = Theme.of(context);
-    return FocusHighlight(
+    return Semantics(
+      button: true,
+      selected: active,
+      label: label,
+      excludeSemantics: true,
+      child: FocusHighlight(
       borderRadius: BorderRadius.circular(999),
       child: Material(
         color: active ? theme.colorScheme.onSurface : Colors.transparent,
@@ -491,8 +505,14 @@ class RensiChip extends StatelessWidget {
         child: InkWell(
           customBorder: const StadiumBorder(),
           onTap: onTap,
-          child: Padding(
+          child: ConstrainedBox(
+            // 48dp minimum touch target on mobile (the 46dp row is only
+            // visual spacing; the ink well was ~32dp tall).
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+            child: Center(
+            widthFactor: 1,
             child: Text(
               label,
               style: TextStyle(
@@ -501,10 +521,13 @@ class RensiChip extends StatelessWidget {
                 color: active ? theme.colorScheme.surface : r.text2,
               ),
             ),
-          ),
-        ),
-      ),
-    );
+            ), // Center
+            ), // Padding
+          ), // ConstrainedBox
+        ), // InkWell
+      ), // Material
+      ), // FocusHighlight
+    ); // Semantics
   }
 }
 
@@ -529,13 +552,16 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
+          Semantics(
+            header: true,
+            child: Text(
             title,
             style: TextStyle(
               fontFamily: 'Bricolage Grotesque',
               fontSize: big ? 24 : 19,
               fontWeight: FontWeight.w700,
             ),
+          ),
           ),
           if (actionLabel != null)
             FocusHighlight(

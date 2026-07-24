@@ -486,6 +486,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get error_occurred => 'Произошла ошибка';
 
   @override
+  String get playback_failed => 'Не удалось воспроизвести контент';
+
+  @override
   String get connecting => 'Подключение';
 
   @override
@@ -758,6 +761,25 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get search_keep_typing_global =>
       'Продолжайте вводить для поиска на TMDb';
+
+  @override
+  String get search_saved => 'Сохранено';
+
+  @override
+  String get search_saved_confirm => 'Добавлено в список желаний';
+
+  @override
+  String get search_removed_confirm => 'Удалено из списка желаний';
+
+  @override
+  String get search_in_wishlist_body =>
+      'В вашем списке желаний. Мы сообщим, когда его можно будет посмотреть.';
+
+  @override
+  String get key_space => 'Пробел';
+
+  @override
+  String get key_backspace => 'Удалить';
 
   @override
   String get home_empty_title =>

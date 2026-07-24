@@ -484,6 +484,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get error_occurred => 'An error occurred';
 
   @override
+  String get playback_failed => 'This content couldn\'t be played';
+
+  @override
   String get connecting => 'Connecting';
 
   @override
@@ -755,6 +758,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get search_keep_typing_global => 'Keep typing to search TMDb';
+
+  @override
+  String get search_saved => 'Saved';
+
+  @override
+  String get search_saved_confirm => 'Saved to your wishlist';
+
+  @override
+  String get search_removed_confirm => 'Removed from your wishlist';
+
+  @override
+  String get search_in_wishlist_body =>
+      'In your wishlist. We\'ll let you know when it\'s available to play.';
+
+  @override
+  String get key_space => 'Space';
+
+  @override
+  String get key_backspace => 'Backspace';
 
   @override
   String get home_empty_title => 'No films or series in this playlist yet.';

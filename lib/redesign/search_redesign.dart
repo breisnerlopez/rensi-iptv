@@ -49,6 +49,10 @@ class _SearchRedesignState extends State<SearchRedesign> {
   /// card instead of leaving it dangling mid-navigation.
   final FocusScopeNode _resultsScope = FocusScopeNode();
 
+  /// One per filter chip, so [_applyFilter] can scroll the active one into view.
+  final List<GlobalKey> _filterKeys =
+      List.generate(SearchFilter.values.length, (_) => GlobalKey());
+
   Timer? _debounce;
 
   /// Raw text of the field (TV: fed by the on-screen keyboard).
@@ -103,6 +107,19 @@ class _SearchRedesignState extends State<SearchRedesign> {
   void _applyFilter(SearchFilter f) {
     if (f == _filter) return;
     setState(() => _filter = f);
+    // Scroll the now-active chip fully into view. On a 360dp phone the four
+    // chips don't fit, so the selected one — the most important label on the
+    // row — was clipped at the right edge, worse in long languages.
+    final idx = SearchFilter.values.indexOf(f);
+    if (idx >= 0 && idx < _filterKeys.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final ctx = _filterKeys[idx].currentContext;
+        if (ctx != null) {
+          Scrollable.ensureVisible(ctx,
+              alignment: 0.5, duration: const Duration(milliseconds: 250));
+        }
+      });
+    }
     _debounce?.cancel();
     final q = _query.trim();
     if (f != SearchFilter.wishlist && q.length < 2) {
@@ -236,16 +253,23 @@ class _SearchRedesignState extends State<SearchRedesign> {
     }
     if (!mounted) return nowSaved;
     setState(() => _results = _results?.withWishlistKeys(keys));
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.clearSnackBars();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(nowSaved
-            ? context.loc.search_add_to_wishlist
-            : context.loc.search_remove_from_wishlist),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    // Only the search screen shows the SnackBar. When the toggle came from the
+    // detail sheet (a modal route is on top), the sheet's own button IS the
+    // feedback and a SnackBar would render mangled behind the sheet. And the
+    // copy is a past-tense confirmation ("saved"/"removed"), not the imperative
+    // button label ("save"/"remove") it used to echo.
+    if (ModalRoute.of(context)?.isCurrent ?? true) {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.clearSnackBars();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(nowSaved
+              ? context.loc.search_saved_confirm
+              : context.loc.search_removed_confirm),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
     if (_filter == SearchFilter.wishlist) _run();
     return nowSaved;
   }
@@ -314,7 +338,10 @@ class _SearchRedesignState extends State<SearchRedesign> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(screenInset, 12, 20, 24),
+          // Top uses the same overscan margin as the sides — the hard-coded 12
+          // put the first keyboard row and its focus ring into the TV overscan
+          // band, where a real set can clip it.
+          padding: EdgeInsetsDirectional.fromSTEB(screenInset, screenInset, 20, 24),
           // Scroll the keyboard on short panels so its last rows are reachable.
           child: SingleChildScrollView(child: _keyboard()),
         ),
@@ -324,7 +351,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 12),
+                SizedBox(height: screenInset),
                 _tvQueryBar(rp),
                 _filters(rp),
                 const SizedBox(height: 10),
@@ -403,7 +430,10 @@ class _SearchRedesignState extends State<SearchRedesign> {
                     IconButton(
                       iconSize: 18,
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                      // 48dp minimum: the override stripped IconButton's
+                      // default tap target down to ~18dp.
+                      constraints:
+                          const BoxConstraints(minWidth: 48, minHeight: 48),
                       tooltip: context.loc.clear,
                       onPressed: _clearQuery,
                       icon: Icon(Icons.close, size: 18, color: r.text3),
@@ -466,10 +496,12 @@ class _SearchRedesignState extends State<SearchRedesign> {
       height: 46,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: sidePad),
+        // Trailing gutter so the last chip is never flush against the edge.
+        padding: EdgeInsetsDirectional.only(start: sidePad, end: sidePad),
         itemCount: chips.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (_, i) => Center(
+          key: _filterKeys[i],
           child: RensiChip(
             label: chips[i].$2,
             active: _filter == chips[i].$1,
@@ -513,7 +545,9 @@ class _SearchRedesignState extends State<SearchRedesign> {
           icon: Icons.bookmark_border_rounded,
           title: loc.search_filter_wishlist,
           body: loc.search_wishlist_empty,
-          actionLabel: loc.search_filter_all,
+          // "Explorar catálogo", not "Todo": a primary CTA named after a filter
+          // reads as a no-op; this one clears the filter back to search.
+          actionLabel: loc.action_browse_catalogue,
           onAction: () => _applyFilter(SearchFilter.all),
         );
       }
@@ -625,9 +659,12 @@ class _SearchRedesignState extends State<SearchRedesign> {
       loc.search_from_your_iptv,
       [for (final x in res.localOnly) _localOnlyCard(x)],
     );
+    // In wishlist browse these are SAVED items, not discovery: label the section
+    // "your wishlist" and badge the cards "Saved", never "not in your lists" —
+    // otherwise your own wishlist tells you it is not in your lists.
     addSection(
-      loc.search_discover_tmdb,
-      [for (final x in res.tmdbOnly) _tmdbOnlyCard(x, tv)],
+      browse ? loc.search_filter_wishlist : loc.search_discover_tmdb,
+      [for (final x in res.tmdbOnly) _tmdbOnlyCard(x, tv, browse)],
     );
 
     // Discover zone placeholders (never on a wishlist browse).
@@ -704,12 +741,12 @@ class _SearchRedesignState extends State<SearchRedesign> {
   /// badge marks it as a discovery, not a disabled item. Opening it shows the
   /// save-only detail sheet. On mobile the card also carries a tappable
   /// bookmark; on TV the toggle lives in the sheet (one focus atom per cell).
-  Widget _tmdbOnlyCard(GlobalSearchResult res, bool tv) {
+  Widget _tmdbOnlyCard(GlobalSearchResult res, bool tv, bool browse) {
     final k = 'tm:${res.tmdb.id}|${res.tmdb.mediaType.name}';
     final poster = RensiPoster(
       item: _tmdbAsContentItem(res.tmdb),
       width: double.infinity,
-      badge: context.loc.search_not_in_lists,
+      badge: browse ? context.loc.search_saved : context.loc.search_not_in_lists,
       badgeTone: RensiBadgeTone.neutral,
       onTap: () => _openDetail(res),
     );
@@ -880,21 +917,42 @@ class _MobileBookmark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
-    return Material(
-      color: const Color(0xCC080808),
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(
-            saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-            size: 20,
-            color: saved ? r.accent : Colors.white,
+    // A 48x48 tap target (WCAG/Material minimum) around a ~32dp visible chip:
+    // "save" is the primary action here and the small circle alone was ~32dp,
+    // hard to hit with a thumb. Semantics announces name + saved/unsaved state
+    // (an icon-only button was "button" with no cue to TalkBack).
+    return Semantics(
+      button: true,
+      toggled: saved,
+      label: saved
+          ? context.loc.search_remove_from_wishlist
+          : context.loc.search_add_to_wishlist,
+      excludeSemantics: true,
+      child: SizedBox(
+      width: 48,
+      height: 48,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Center(
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Color(0xCC080808),
+                shape: BoxShape.circle,
+              ),
+              padding: const EdgeInsets.all(6),
+              child: Icon(
+                saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                size: 20,
+                color: saved ? r.accent : Colors.white,
+              ),
+            ),
           ),
         ),
       ),
+    ),
     );
   }
 }

@@ -485,6 +485,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get error_occurred => 'Hata oluştu';
 
   @override
+  String get playback_failed => 'Bu içerik oynatılamadı';
+
+  @override
   String get connecting => 'Bağlantı kuruluyor';
 
   @override
@@ -754,6 +757,25 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get search_keep_typing_global =>
       'TMDb\'de aramak için yazmaya devam edin';
+
+  @override
+  String get search_saved => 'Kaydedildi';
+
+  @override
+  String get search_saved_confirm => 'İstek listenize eklendi';
+
+  @override
+  String get search_removed_confirm => 'İstek listenizden kaldırıldı';
+
+  @override
+  String get search_in_wishlist_body =>
+      'İstek listenizde. İzlemeye hazır olduğunda sizi bilgilendireceğiz.';
+
+  @override
+  String get key_space => 'Boşluk';
+
+  @override
+  String get key_backspace => 'Geri sil';
 
   @override
   String get home_empty_title => 'Bu listede henüz film veya dizi yok.';
