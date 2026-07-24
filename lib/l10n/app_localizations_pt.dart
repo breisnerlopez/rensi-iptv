@@ -721,6 +721,47 @@ class AppLocalizationsPt extends AppLocalizations {
   String get resume_failed => 'Este título já não está disponível nesta lista';
 
   @override
+  String get search_in_your_library => 'Na sua biblioteca';
+
+  @override
+  String get search_discover_tmdb => 'Descobrir no TMDb';
+
+  @override
+  String get search_not_in_lists => 'Fora das suas listas';
+
+  @override
+  String get search_global_disabled =>
+      'Adicione a sua chave TMDb para descobrir títulos além das suas listas.';
+
+  @override
+  String get search_enable_global => 'Ativar pesquisa global';
+
+  @override
+  String get search_key_rejected =>
+      'A sua chave TMDb foi rejeitada. Verifique-a nas Definições.';
+
+  @override
+  String get search_tmdb_rate_limited =>
+      'Demasiadas pesquisas. Tente novamente daqui a pouco.';
+
+  @override
+  String get search_tmdb_error => 'Não foi possível aceder ao TMDb.';
+
+  @override
+  String get search_add_to_wishlist => 'Adicionar à lista de desejos';
+
+  @override
+  String get search_play_from => 'Reproduzir de';
+
+  @override
+  String get search_not_available_body =>
+      'Fora das suas listas. Guarde-o e verificamos quando aparecer.';
+
+  @override
+  String get search_keep_typing_global =>
+      'Continue a escrever para pesquisar no TMDb';
+
+  @override
   String get home_empty_title => 'Ainda não há filmes nem séries nesta lista.';
 
   @override

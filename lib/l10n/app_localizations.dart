@@ -1428,6 +1428,78 @@ abstract class AppLocalizations {
   /// **'This title is no longer available in this playlist'**
   String get resume_failed;
 
+  /// No description provided for @search_in_your_library.
+  ///
+  /// In en, this message translates to:
+  /// **'In your library'**
+  String get search_in_your_library;
+
+  /// No description provided for @search_discover_tmdb.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover on TMDb'**
+  String get search_discover_tmdb;
+
+  /// No description provided for @search_not_in_lists.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in your lists'**
+  String get search_not_in_lists;
+
+  /// No description provided for @search_global_disabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Add your TMDb key to discover titles beyond your lists.'**
+  String get search_global_disabled;
+
+  /// No description provided for @search_enable_global.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable global search'**
+  String get search_enable_global;
+
+  /// No description provided for @search_key_rejected.
+  ///
+  /// In en, this message translates to:
+  /// **'Your TMDb key was rejected. Check it in Settings.'**
+  String get search_key_rejected;
+
+  /// No description provided for @search_tmdb_rate_limited.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many searches. Try again in a moment.'**
+  String get search_tmdb_rate_limited;
+
+  /// No description provided for @search_tmdb_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach TMDb.'**
+  String get search_tmdb_error;
+
+  /// No description provided for @search_add_to_wishlist.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to wishlist'**
+  String get search_add_to_wishlist;
+
+  /// No description provided for @search_play_from.
+  ///
+  /// In en, this message translates to:
+  /// **'Play from'**
+  String get search_play_from;
+
+  /// No description provided for @search_not_available_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in your lists. Save it and we\'ll check when it shows up.'**
+  String get search_not_available_body;
+
+  /// No description provided for @search_keep_typing_global.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep typing to search TMDb'**
+  String get search_keep_typing_global;
+
   /// No description provided for @home_empty_title.
   ///
   /// In en, this message translates to:

@@ -696,6 +696,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resume_failed => '此内容已不在此播放列表中';
 
   @override
+  String get search_in_your_library => '在您的媒体库中';
+
+  @override
+  String get search_discover_tmdb => '在 TMDb 上发现';
+
+  @override
+  String get search_not_in_lists => '不在您的列表中';
+
+  @override
+  String get search_global_disabled => '添加 TMDb 密钥，发现列表之外的内容。';
+
+  @override
+  String get search_enable_global => '启用全局搜索';
+
+  @override
+  String get search_key_rejected => '您的 TMDb 密钥被拒绝。请在设置中检查。';
+
+  @override
+  String get search_tmdb_rate_limited => '搜索过于频繁，请稍后再试。';
+
+  @override
+  String get search_tmdb_error => '无法连接 TMDb。';
+
+  @override
+  String get search_add_to_wishlist => '添加到心愿单';
+
+  @override
+  String get search_play_from => '播放来源';
+
+  @override
+  String get search_not_available_body => '不在您的列表中。收藏后，出现时我们会为您检查。';
+
+  @override
+  String get search_keep_typing_global => '继续输入以搜索 TMDb';
+
+  @override
   String get home_empty_title => '此播放列表中还没有电影或剧集。';
 
   @override

@@ -1458,6 +1458,10 @@ class AppDatabase extends _$AppDatabase {
     String playlistId,
     String query,
   ) async {
+    // An empty query is `LIKE '%%'` — it matches everything and the limit(30)
+    // then returns 30 arbitrary alphabetical rows. No caller wants that; it
+    // silently misclassified wishlist-browse lookups. Return nothing instead.
+    if (query.trim().isEmpty) return const [];
     final movieList =
         await (select(vodStreams)
               ..where(
@@ -1477,6 +1481,8 @@ class AppDatabase extends _$AppDatabase {
     String playlistId,
     String query,
   ) async {
+    // See searchMovieBroad: an empty query would return 30 arbitrary rows.
+    if (query.trim().isEmpty) return const [];
     final seriesList =
         await (select(seriesStreams)
               ..where(

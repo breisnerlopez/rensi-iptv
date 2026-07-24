@@ -183,6 +183,14 @@ const _scrim = LinearGradient(
   stops: [0.0, 0.38, 0.75],
 );
 
+/// Visual weight of a poster badge.
+///
+/// [accent] is the brand-coloured pill and pulls a legibility scrim over the
+/// artwork. [neutral] is a muted pill with no scrim, for markers that must not
+/// make the card look disabled — e.g. "not in your lists" on a discovery
+/// result, which is still an inviting poster, not an error.
+enum RensiBadgeTone { accent, neutral }
+
 /// 2:3 poster card with optional badge + meta. Wrapped in [FocusHighlight]
 /// so it gets the TV focus ring/zoom for free.
 class RensiPoster extends StatefulWidget {
@@ -191,6 +199,7 @@ class RensiPoster extends StatefulWidget {
     required this.item,
     this.width = 138,
     this.onTap,
+    this.badgeTone = RensiBadgeTone.accent,
     // Null = reveal on focus (the Google TV pattern). The old default printed
     // the title over EVERY cover, darkening its bottom 38% at 94% opacity to
     // repeat what the artwork already says. Netflix and Prime print nothing on
@@ -207,7 +216,14 @@ class RensiPoster extends StatefulWidget {
   final VoidCallback? onTap;
   final bool? showMeta;
   final String? badge;
+  final RensiBadgeTone badgeTone;
   final bool autofocus;
+
+  /// Exposed so a widget test can assert the legibility scrim is (not) painted —
+  /// the guard that a neutral badge does NOT darken the poster, and that a
+  /// badge-less poster (every Home/Browse card) is unchanged.
+  @visibleForTesting
+  static const scrimGradient = _scrim;
 
   /// Test-only override for "the cover finished loading".
   ///
@@ -345,13 +361,22 @@ class _RensiPosterState extends State<RensiPoster> {
                     if (next != _art && mounted) setState(() => _art = next);
                   },
                 ),
-                if (showMeta || tag != null)
+                // The scrim exists for TITLE legibility (showMeta). It used to
+                // also fire whenever a badge was present, which darkened the
+                // whole poster — fine for an accent badge, wrong for the neutral
+                // "not in your lists" marker, whose card must read as a normal,
+                // reproducible-looking poster (a discovery, not a disabled item).
+                // A badge carries its own pill background, so it stays legible
+                // without the scrim.
+                if (showMeta ||
+                    (tag != null &&
+                        widget.badgeTone == RensiBadgeTone.accent))
                   const DecoratedBox(decoration: BoxDecoration(gradient: _scrim)),
                 if (tag != null)
-                  Positioned(
+                  PositionedDirectional(
                     top: 9,
-                    left: 9,
-                    child: _Badge(text: tag),
+                    start: 9,
+                    child: _Badge(text: tag, tone: widget.badgeTone),
                   ),
                 if (showMeta)
                   Positioned(
@@ -394,24 +419,31 @@ class _RensiPosterState extends State<RensiPoster> {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({required this.text});
+  const _Badge({required this.text, this.tone = RensiBadgeTone.accent});
   final String text;
+  final RensiBadgeTone tone;
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
+    final neutral = tone == RensiBadgeTone.neutral;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: r.accent,
+        // Neutral: a translucent dark chip that reads on any artwork or on the
+        // light key-art fallback, without the accent colour (reserved for
+        // "your" affordances) and without uppercasing a possibly long,
+        // translated label like "No en tus listas".
+        color: neutral ? const Color(0xCC080808) : r.accent,
         borderRadius: BorderRadius.circular(999),
+        border: neutral ? Border.all(color: r.hairline) : null,
       ),
       child: Text(
-        text.toUpperCase(),
+        neutral ? text : text.toUpperCase(),
         style: TextStyle(
           fontSize: AppThemes.labelSize,
           fontWeight: FontWeight.w700,
-          letterSpacing: 0.4,
-          color: r.onAccent,
+          letterSpacing: neutral ? 0.0 : 0.4,
+          color: neutral ? Colors.white.withValues(alpha: 0.92) : r.onAccent,
         ),
       ),
     );

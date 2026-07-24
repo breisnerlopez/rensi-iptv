@@ -1,5 +1,15 @@
 enum TmdbMediaType { movie, tv }
 
+/// Why a TMDb call did not return results. Lives in the model layer (no
+/// dependencies) so both [TmdbService] and the search results can name it
+/// without a service→results import inversion.
+///
+/// `noKey` and `rejected` are deliberately distinct: telling a user to "activate
+/// global search" right after they typed a bad token is the worst possible
+/// message. `rateLimited` (429) must not read as "check your network" either —
+/// the fix is "try later", not "reconnect".
+enum TmdbFailure { noKey, rejected, rateLimited, httpError, network }
+
 class TmdbSearchResult {
   final int id;
   final TmdbMediaType mediaType;

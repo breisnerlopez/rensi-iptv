@@ -53,7 +53,14 @@ class GlobalSearchService {
         .toLowerCase()
         .replaceAll(RegExp(r'\([^)]*\)|\[[^]]*\]'), ' ')
         .replaceAll(RegExp(r'\b(19|20)\d{2}\b'), ' ')
-        .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+        // Keep letters and digits of ANY script, not just a-z0-9. The old class
+        // stripped Cyrillic, Arabic, CJK and Devanagari to nothing, so
+        // classify() returned `none` for every non-Latin title: a Russian or
+        // Arabic user saw their OWN owned film duplicated — once playable in
+        // "your IPTV", once as a non-playable "not in your lists" discovery.
+        // This app ships those locales, and it reproduces on mobile with an IME,
+        // so it is a correctness defect, not the TV-keyboard ceiling.
+        .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
         .trim();
   }
 
@@ -68,11 +75,25 @@ class GlobalSearchService {
       return _wishlistAsResults(query);
     }
 
-    final tmdbFuture = _tmdbService.search(query, locale: locale);
     final wishlistFuture = TmdbWishlistService.getKeys();
     final localFuture = _searchAllLocal(query);
 
-    final tmdbResults = _filterTmdb(await tmdbFuture, filter);
+    // TMDb must never take the local buckets down with it. A missing/rejected
+    // key, a 429, a 5xx or an offline device now degrade to "local only" with
+    // a typed reason, instead of throwing out of the whole search — which is
+    // exactly what the bare `await tmdbFuture` used to do, leaving a user with
+    // no key seeing nothing at all, not even their own catalogue.
+    List<TmdbSearchResult> tmdbRaw = const [];
+    TmdbFailure? failure;
+    try {
+      tmdbRaw = await _tmdbService.search(query, locale: locale);
+    } on TmdbException catch (e) {
+      failure = e.reason;
+    } catch (_) {
+      failure = TmdbFailure.network;
+    }
+
+    final tmdbResults = _filterTmdb(tmdbRaw, filter);
     final wishlistKeys = await wishlistFuture;
     final localResults = _filterLocal(await localFuture, filter)
         .toList(growable: false);
@@ -111,6 +132,51 @@ class GlobalSearchService {
       }
     }
 
+    // A single owned stream can match several TMDb results — a franchise: owning
+    // "Dune" fuzzy-matches "Dune", "Dune: Part Two", "Dune: Prophecy"… Left as
+    // is, that one file appears once under each, so "your library" repeats it
+    // (caught on a real TV: two identical "Dune 2021" cards). Assign each owned
+    // stream to its STRONGEST match (exact over fuzzy); a TMDb result whose only
+    // matches were claimed by stronger ones has no owned copy, so it drops to a
+    // Discover (tmdbOnly) result instead of duplicating an owned title.
+    if (withLocal.length > 1) {
+      MatchStrength strengthFor(GlobalSearchResult e, String key) =>
+          e.localMatches.firstWhere((m) => m.dedupKey == key).strength;
+      final owner = <String, GlobalSearchResult>{};
+      for (final entry in withLocal) {
+        for (final m in entry.localMatches) {
+          final cur = owner[m.dedupKey];
+          if (cur == null ||
+              strengthFor(entry, m.dedupKey).index <
+                  strengthFor(cur, m.dedupKey).index) {
+            owner[m.dedupKey] = entry;
+          }
+        }
+      }
+      final keptWithLocal = <GlobalSearchResult>[];
+      for (final entry in withLocal) {
+        final owned = entry.localMatches
+            .where((m) => identical(owner[m.dedupKey], entry))
+            .toList(growable: false);
+        if (owned.isEmpty) {
+          tmdbOnly.add(GlobalSearchResult(
+            tmdb: entry.tmdb,
+            localMatches: const [],
+            isWishlisted: entry.isWishlisted,
+          ));
+        } else {
+          keptWithLocal.add(GlobalSearchResult(
+            tmdb: entry.tmdb,
+            localMatches: owned,
+            isWishlisted: entry.isWishlisted,
+          ));
+        }
+      }
+      withLocal
+        ..clear()
+        ..addAll(keptWithLocal);
+    }
+
     for (final result in localResults) {
       if (!matchedKeys.contains(result.dedupKey)) {
         localOnly.add(result);
@@ -121,6 +187,31 @@ class GlobalSearchService {
       withLocal: withLocal.take(15).toList(),
       tmdbOnly: tmdbOnly.take(10).toList(),
       localOnly: localOnly.take(15).toList(),
+      tmdbFailure: failure,
+    );
+  }
+
+  /// The instant, local-only first paint of a progressive search. Everything
+  /// found locally lands in `localOnly` (there is no TMDb yet to promote a row
+  /// into `withLocal`), with `tmdbPending: true` so the UI shows a discover
+  /// skeleton rather than concluding there are no TMDb results. The follow-up
+  /// [search] call returns the reshuffled, final three buckets.
+  Future<UnifiedSearchResults> searchLocalFirst(
+    String query, {
+    SearchFilter filter = SearchFilter.all,
+  }) async {
+    if (filter == SearchFilter.wishlist) {
+      // Wishlist is a browse of saved TMDb items; there is no instant local
+      // phase to show, so skip straight to the real result.
+      return _wishlistAsResults(query);
+    }
+    final localResults = _filterLocal(await _searchAllLocal(query), filter)
+        .toList(growable: false);
+    return UnifiedSearchResults(
+      withLocal: const [],
+      tmdbOnly: const [],
+      localOnly: localResults.take(15).toList(),
+      tmdbPending: true,
     );
   }
 
@@ -171,16 +262,37 @@ class GlobalSearchService {
     return out;
   }
 
+  /// Case variants of a query, to work around SQLite's LIKE folding only ASCII.
+  /// 'дюна' would not match a stored 'Дюна' or 'ДЮНА', so a Cyrillic (or
+  /// accented-Latin) user could miss their own title. Searching the query plus
+  /// its lower/UPPER/Title forms and unioning covers the shapes panels actually
+  /// use. Scripts without case (Arabic, CJK, Devanagari) collapse to one variant.
+  static Set<String> _caseVariants(String query) {
+    final q = query.trim();
+    if (q.isEmpty) return const {};
+    final title = q.substring(0, 1).toUpperCase() + q.substring(1).toLowerCase();
+    return {q, q.toLowerCase(), q.toUpperCase(), title};
+  }
+
   Future<List<LocalContentMatch>> _searchAllLocal(String query) async {
     final playlists = await PlaylistService.getPlaylists();
-    final results = await Future.wait(
-      playlists.map(
-        (playlist) => playlist.type == PlaylistType.xtream
-            ? _searchXtream(playlist, query)
-            : _searchM3u(playlist, query),
-      ),
-    );
-    return results.expand((e) => e).toList(growable: false);
+    final variants = _caseVariants(query);
+    final jobs = <Future<List<LocalContentMatch>>>[];
+    for (final playlist in playlists) {
+      for (final v in variants) {
+        jobs.add(playlist.type == PlaylistType.xtream
+            ? _searchXtream(playlist, v)
+            : _searchM3u(playlist, v));
+      }
+    }
+    final results = await Future.wait(jobs);
+    // A stream matched by more than one variant is still one row.
+    final seen = <String>{};
+    final out = <LocalContentMatch>[];
+    for (final m in results.expand((e) => e)) {
+      if (seen.add(m.dedupKey)) out.add(m);
+    }
+    return out;
   }
 
   Future<List<LocalContentMatch>> _searchXtream(
@@ -256,7 +368,6 @@ class GlobalSearchService {
   /// in-memory by normalized title prefix/contains.
   Future<UnifiedSearchResults> _wishlistAsResults(String query) async {
     final wishlist = await TmdbWishlistService.getItems();
-    final localResults = await _searchAllLocal(query.isEmpty ? '' : query);
     final filtered = query.isEmpty
         ? wishlist
         : wishlist.where(
@@ -268,7 +379,13 @@ class GlobalSearchService {
     final withLocal = <GlobalSearchResult>[];
     final tmdbOnly = <GlobalSearchResult>[];
     for (final t in filtered) {
-      final matches = _findMatchesFor(t, localResults);
+      // Search local BY THIS ITEM'S TITLE. The old code did one broad search on
+      // the (empty) browse query, which is `LIKE '%%'` capped at 30 arbitrary
+      // alphabetical rows — so a wishlisted title you DO own but that sorts past
+      // row 30 was misclassified as "not in your lists". Querying per title
+      // makes the lookup relevant instead of alphabetical.
+      final localForItem = await _searchAllLocal(t.title);
+      final matches = _findMatchesFor(t, localForItem);
       if (matches.isNotEmpty) {
         withLocal.add(
           GlobalSearchResult(

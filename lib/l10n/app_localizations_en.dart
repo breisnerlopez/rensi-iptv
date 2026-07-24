@@ -717,6 +717,46 @@ class AppLocalizationsEn extends AppLocalizations {
       'This title is no longer available in this playlist';
 
   @override
+  String get search_in_your_library => 'In your library';
+
+  @override
+  String get search_discover_tmdb => 'Discover on TMDb';
+
+  @override
+  String get search_not_in_lists => 'Not in your lists';
+
+  @override
+  String get search_global_disabled =>
+      'Add your TMDb key to discover titles beyond your lists.';
+
+  @override
+  String get search_enable_global => 'Enable global search';
+
+  @override
+  String get search_key_rejected =>
+      'Your TMDb key was rejected. Check it in Settings.';
+
+  @override
+  String get search_tmdb_rate_limited =>
+      'Too many searches. Try again in a moment.';
+
+  @override
+  String get search_tmdb_error => 'Could not reach TMDb.';
+
+  @override
+  String get search_add_to_wishlist => 'Add to wishlist';
+
+  @override
+  String get search_play_from => 'Play from';
+
+  @override
+  String get search_not_available_body =>
+      'Not in your lists. Save it and we\'ll check when it shows up.';
+
+  @override
+  String get search_keep_typing_global => 'Keep typing to search TMDb';
+
+  @override
   String get home_empty_title => 'No films or series in this playlist yet.';
 
   @override

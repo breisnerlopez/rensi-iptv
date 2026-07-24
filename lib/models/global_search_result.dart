@@ -68,10 +68,23 @@ class UnifiedSearchResults {
   final List<GlobalSearchResult> tmdbOnly;
   final List<LocalContentMatch> localOnly;
 
+  /// Why the TMDb half produced nothing, or null when it succeeded. The local
+  /// buckets are ALWAYS returned regardless — a TMDb failure must never take
+  /// the user's own catalogue down with it, which the old `await tmdbFuture`
+  /// without a catch did.
+  final TmdbFailure? tmdbFailure;
+
+  /// True for the first, local-only paint of a progressive search: the TMDb
+  /// half has not resolved yet. Lets the UI show a discover-section skeleton
+  /// instead of concluding "no TMDb results".
+  final bool tmdbPending;
+
   const UnifiedSearchResults({
     required this.withLocal,
     required this.tmdbOnly,
     required this.localOnly,
+    this.tmdbFailure,
+    this.tmdbPending = false,
   });
 
   bool get isEmpty =>
@@ -90,6 +103,10 @@ class UnifiedSearchResults {
           .map((r) => r.copyWith(isWishlisted: inWishlist(r.tmdb)))
           .toList(growable: false),
       localOnly: localOnly,
+      // Carry the failure/pending state through: a wishlist toggle must not
+      // silently clear the "TMDb was rejected" banner or the pending flag.
+      tmdbFailure: tmdbFailure,
+      tmdbPending: tmdbPending,
     );
   }
 }

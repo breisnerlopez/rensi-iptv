@@ -715,6 +715,45 @@ class AppLocalizationsAr extends AppLocalizations {
   String get resume_failed => 'لم يعد هذا العنوان متاحًا في هذه القائمة';
 
   @override
+  String get search_in_your_library => 'في مكتبتك';
+
+  @override
+  String get search_discover_tmdb => 'اكتشف على TMDb';
+
+  @override
+  String get search_not_in_lists => 'ليس في قوائمك';
+
+  @override
+  String get search_global_disabled =>
+      'أضف مفتاح TMDb لاكتشاف عناوين خارج قوائمك.';
+
+  @override
+  String get search_enable_global => 'تفعيل البحث الشامل';
+
+  @override
+  String get search_key_rejected => 'تم رفض مفتاح TMDb. تحقق منه في الإعدادات.';
+
+  @override
+  String get search_tmdb_rate_limited =>
+      'عمليات بحث كثيرة جدًا. أعد المحاولة بعد لحظة.';
+
+  @override
+  String get search_tmdb_error => 'تعذّر الوصول إلى TMDb.';
+
+  @override
+  String get search_add_to_wishlist => 'أضف إلى قائمة الرغبات';
+
+  @override
+  String get search_play_from => 'التشغيل من';
+
+  @override
+  String get search_not_available_body =>
+      'ليس في قوائمك. احفظه وسنتحقق عند توفّره.';
+
+  @override
+  String get search_keep_typing_global => 'واصل الكتابة للبحث في TMDb';
+
+  @override
   String get home_empty_title => 'لا توجد أفلام أو مسلسلات في هذه القائمة بعد.';
 
   @override

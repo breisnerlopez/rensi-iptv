@@ -1,22 +1,37 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/global_search_result.dart';
+import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/models/tmdb_search_result.dart';
+import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/redesign/search_detail_sheet.dart';
+import 'package:rensi_iptv/screens/settings/general_settings_section.dart';
+import 'package:rensi_iptv/services/global_search_service.dart';
+import 'package:rensi_iptv/services/tmdb_wishlist_service.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
-import 'package:rensi_iptv/database/database.dart';
-import 'package:rensi_iptv/models/content_type.dart';
-import 'package:rensi_iptv/models/playlist_content_model.dart';
-import 'package:rensi_iptv/redesign/rensi_widgets.dart';
-import 'package:rensi_iptv/services/app_state.dart';
-import 'package:rensi_iptv/services/service_locator.dart';
 import 'package:rensi_iptv/widgets/tv/tv_keyboard.dart';
-import 'package:rensi_iptv/utils/app_themes.dart';
-import 'package:rensi_iptv/l10n/localization_extension.dart';
 
-/// Full-screen global search (redesign). Queries the local catalogue in the
-/// database across live + movies + series — not just the loaded categories —
-/// so it returns the complete set of matches for the current playlist.
+/// Full-screen global search.
+///
+/// Unifies the user's own IPTV catalogue with TMDb discovery into three
+/// reproducible-first buckets (see [GlobalSearchService]). Two surfaces share
+/// one result body:
+///   - TV: an on-screen [TvKeyboard] on the leading edge, results on the
+///     trailing edge. Columns are derived from the RESULTS-PANEL width (after
+///     the keyboard), never the screen. D-pad crosses into the first playable
+///     poster; the keyboard keeps focus while typing (no focus theft).
+///   - Mobile: the system IME field on top, a vertical scroll of the sections.
+///
+/// The constructor is unchanged on purpose — both homes push it as
+/// `SearchRedesign(onOpen: ...)`. The screen owns its own service instance.
 class SearchRedesign extends StatefulWidget {
   const SearchRedesign({super.key, required this.onOpen});
+
   final void Function(ContentItem) onOpen;
 
   @override
@@ -24,235 +39,915 @@ class SearchRedesign extends StatefulWidget {
 }
 
 class _SearchRedesignState extends State<SearchRedesign> {
-  final _controller = TextEditingController();
-  final _focus = FocusNode();
-  final _db = getIt<AppDatabase>();
-  Timer? _debounce;
-  String _query = '';
-  bool _loading = false;
-  List<ContentItem> _results = const [];
+  final GlobalSearchService _service = GlobalSearchService();
+  final TextEditingController _controller = TextEditingController();
+  final FocusNode _focus = FocusNode();
 
-  @override
-  void initState() {
-    super.initState();
-    // On TV, don't auto-open the full-screen IME on entry — the user focuses
-    // the field with the D-pad and presses OK to bring up the keyboard.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (!ResponsiveHelper.isDesktopOrTV(context)) _focus.requestFocus();
-    });
-  }
+  /// Wraps the TV results grid so that when TMDb arrives and an owned card is
+  /// promoted from "your IPTV" to "your library" — changing its ValueKey and
+  /// section, which disposes the focused element — we can put focus back on a
+  /// card instead of leaving it dangling mid-navigation.
+  final FocusScopeNode _resultsScope = FocusScopeNode();
+
+  Timer? _debounce;
+
+  /// Raw text of the field (TV: fed by the on-screen keyboard).
+  String _query = '';
+  SearchFilter _filter = SearchFilter.all;
+
+  /// Latest result set, or null before the first query. Progressive: a
+  /// local-first paint (`tmdbPending == true`) lands here first, then the final
+  /// three buckets replace it.
+  UnifiedSearchResults? _results;
+
+  /// A search is in flight and there is nothing to show yet (drives the only
+  /// full-panel spinner — the wishlist browse / filter switch). During a text
+  /// search the discover-zone skeleton is driven by `tmdbPending` instead, so
+  /// local results are never hidden behind a spinner.
+  bool _loading = false;
+
+  /// Monotonic request id. Every async response checks it against the current
+  /// value and drops itself if a newer query has since started — the guard
+  /// against an out-of-order TMDb reply overwriting a fresher local paint.
+  int _reqToken = 0;
 
   @override
   void dispose() {
     _debounce?.cancel();
     _controller.dispose();
     _focus.dispose();
+    _resultsScope.dispose();
     super.dispose();
   }
 
+  // --- Query lifecycle -------------------------------------------------------
+
   void _onChanged(String v) {
     setState(() => _query = v);
-    _debounce?.cancel();
     final q = v.trim();
-    if (q.length < 2) {
+    _debounce?.cancel();
+    // Below the local threshold on a normal search: nothing to run, and the
+    // in-flight request (if any) is invalidated so a late reply can't repaint.
+    if (_filter != SearchFilter.wishlist && q.length < 2) {
+      _reqToken++;
       setState(() {
-        _results = const [];
+        _results = null;
         _loading = false;
       });
       return;
     }
-    setState(() => _loading = true);
-    _debounce = Timer(const Duration(milliseconds: 300), () => _run(q));
+    if (_results == null) setState(() => _loading = true);
+    _debounce = Timer(const Duration(milliseconds: 300), _run);
   }
 
-  Future<void> _run(String q) async {
-    final pid = AppState.currentPlaylist?.id;
-    if (pid == null) return;
-    try {
-      final results = await Future.wait([
-        _db.searchMovieBroad(pid, q),
-        _db.searchSeriesBroad(pid, q),
-        _db.searchLiveStreams(pid, q),
-      ]);
-      final movies = results[0] as List;
-      final series = results[1] as List;
-      final live = results[2] as List;
-      final out = <ContentItem>[
-        for (final v in movies)
-          ContentItem(v.streamId, v.name, v.streamIcon, ContentType.vod,
-              vodStream: v, containerExtension: v.containerExtension),
-        for (final s in series)
-          ContentItem(s.seriesId, s.name, s.cover ?? '', ContentType.series,
-              seriesStream: s),
-        for (final l in live)
-          ContentItem(l.streamId, l.name, l.streamIcon, ContentType.liveStream,
-              liveStream: l),
-      ];
-      if (mounted && _query.trim() == q) {
-        setState(() {
-          _results = out;
-          _loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
+  void _applyFilter(SearchFilter f) {
+    if (f == _filter) return;
+    setState(() => _filter = f);
+    _debounce?.cancel();
+    final q = _query.trim();
+    if (f != SearchFilter.wishlist && q.length < 2) {
+      _reqToken++;
+      setState(() {
+        _results = null;
+        _loading = false;
+      });
+      return;
+    }
+    // A filter switch is a deliberate act — run it now rather than after the
+    // typing debounce.
+    setState(() => _loading = true);
+    _run();
+  }
+
+  Future<void> _run() async {
+    if (!mounted) return;
+    final token = ++_reqToken;
+    final q = _query.trim();
+    final filter = _filter;
+    final locale = Localizations.localeOf(context);
+
+    // Wishlist is a browse of saved titles: no minimum length, single call.
+    if (filter == SearchFilter.wishlist) {
+      final res = await _service.search(q, filter: filter, locale: locale);
+      if (!mounted || token != _reqToken) return;
+      setState(() {
+        _results = res;
+        _loading = false;
+      });
+      return;
+    }
+
+    if (q.length < 2) {
+      setState(() {
+        _results = null;
+        _loading = false;
+      });
+      return;
+    }
+
+    // 1) Instant local-first paint so the user's own catalogue never waits on
+    //    the network. `tmdbPending` is true here.
+    final local = await _service.searchLocalFirst(q, filter: filter);
+    if (!mounted || token != _reqToken) return;
+    setState(() => _results = local);
+
+    // 2) At exactly two characters TMDb has not armed yet (its own floor is 3).
+    //    Show local + a "keep typing" hint where Discover would go — never a
+    //    spinner, never an empty look.
+    if (q.length < 3) {
+      if (mounted && token == _reqToken) setState(() => _loading = false);
+      return;
+    }
+
+    // 3) The real three-bucket result. Never throws: a TMDb failure comes back
+    //    as `tmdbFailure`, the local buckets survive.
+    final full = await _service.search(q, filter: filter, locale: locale);
+    if (!mounted || token != _reqToken) return;
+    // If the viewer had already crossed into the results on TV, this reshuffle
+    // can dispose the card they were on (an owned title promoting to "your
+    // library"). Reengage focus onto a card afterwards so it never ends up
+    // dangling mid-navigation.
+    final hadResultsFocus = _resultsScope.hasFocus;
+    setState(() {
+      _results = full;
+      _loading = false;
+    });
+    if (hadResultsFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _resultsScope.hasFocus) return;
+        // Focus the first focusable card in the (rebuilt) results, explicitly
+        // rather than by directional geometry which has no anchor once the
+        // previously-focused node is gone.
+        for (final node in _resultsScope.traversalDescendants) {
+          if (node.canRequestFocus && !node.skipTraversal) {
+            node.requestFocus();
+            break;
+          }
+        }
+      });
     }
   }
+
+  // --- Actions ---------------------------------------------------------------
+
+  /// The one path that plays a locally-owned match: point AppState at the right
+  /// repository, then navigate — in the SAME tick, per [openLocalMatch]'s
+  /// contract, so two fast taps cannot interleave. Used for `localOnly`, a
+  /// single-match `withLocal`, and the detail sheet's "play from" rows.
+  void _playLocalMatch(LocalContentMatch match) {
+    _service.openLocalMatch(match);
+    widget.onOpen(match.content);
+  }
+
+  void _openDetail(GlobalSearchResult result) {
+    // SEAM: the sheet lands in parallel. This is the exact call it must accept.
+    // See the module doc-comment at the bottom of this file.
+    SearchDetailSheet.show(
+      context,
+      result: result,
+      service: _service,
+      onPlayLocal: _playLocalMatch,
+      onToggleWishlist: () => _toggleWishlist(result),
+    );
+  }
+
+  /// Optimistic wishlist flip. Toggles the store, re-stamps the visible results
+  /// via [UnifiedSearchResults.withWishlistKeys] (which preserves the failure /
+  /// pending flags), and confirms with a SnackBar. Returns the new saved state
+  /// so the detail sheet can update its own icon. In wishlist-browse a removal
+  /// drops the row, so we re-run that view.
+  Future<bool> _toggleWishlist(GlobalSearchResult result) async {
+    final bool nowSaved;
+    final Set<String> keys;
+    try {
+      nowSaved = await TmdbWishlistService.toggle(result.tmdb);
+      keys = await TmdbWishlistService.getKeys();
+    } catch (_) {
+      // A failed write must not leave the icon lying, nor throw as an unhandled
+      // async error from the mobile card's onTap. Report and keep the old state.
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(content: Text(context.loc.search_tmdb_error)),
+          );
+      }
+      return result.isWishlisted;
+    }
+    if (!mounted) return nowSaved;
+    setState(() => _results = _results?.withWishlistKeys(keys));
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(nowSaved
+            ? context.loc.search_add_to_wishlist
+            : context.loc.search_remove_from_wishlist),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+    if (_filter == SearchFilter.wishlist) _run();
+    return nowSaved;
+  }
+
+  void _openSettings() {
+    // GeneralSettingsWidget is NOT a screen — it's a section meant to live
+    // inside a Scaffold + scrollable (see m3u_playlist_settings_screen). Pushed
+    // bare it has no app bar, no back button, and its Column overflows ~1600px.
+    // Host it properly so the "add your TMDb key" flow — the exact reason a user
+    // taps this — lands on a real, scrollable, dismissable screen.
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const _SettingsHostScreen()),
+    );
+  }
+
+  void _clearQuery() {
+    _controller.clear();
+    _onChanged('');
+  }
+
+  // --- Layout ----------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    final r = rensi(context);
-    final cross = ResponsiveHelper.getCrossAxisCount(context);
-    // safeInset, not a duplicated 48/20: the hand-written pair gave 20dp on
-    // phones where every other screen uses 24, and did not scale with wider
-    // surfaces the way the overscan margin has to.
-    final sidePad = ResponsiveHelper.safeInset(context);
-    final q = _query.trim();
-
-    Widget body;
-    if (q.length < 2) {
-      body = Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.search, size: 56, color: r.surface3),
-            const SizedBox(height: 12),
-            Text(context.loc.search_catalog_hint,
-                style: TextStyle(color: r.text3, fontSize: AppThemes.labelSize)),
-          ],
-        ),
-      );
-    } else if (_loading && _results.isEmpty) {
-      body = const Center(child: CircularProgressIndicator());
-    } else if (_results.isEmpty) {
-      body = Center(
-        child: Text(context.loc.no_results_for(q),
-            style: TextStyle(color: r.text3)),
-      );
-    } else {
-      body = GridView.builder(
-        padding: EdgeInsets.fromLTRB(sidePad, 4, sidePad, 24),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: cross,
-          childAspectRatio: 1 / 1.48,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
-        itemCount: _results.length,
-        itemBuilder: (_, i) => RensiPoster(
-          item: _results[i],
-          width: double.infinity,
-          // Land focus on the first result when results arrive on TV.
-          autofocus: i == 0 && ResponsiveHelper.isDesktopOrTV(context),
-          onTap: () => widget.onOpen(_results[i]),
-        ),
-      );
-    }
-
     final tv = ResponsiveHelper.isDesktopOrTV(context);
-    if (tv) {
-      // Keyboard on the left, results on the right — the layout every TV
-      // streaming app converges on, because leanback's system IME covers the
-      // results you are typing to find.
-      body = Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(sidePad, 4, 24, 24),
-            child: TvKeyboard(
-              onKey: (c) {
-                _controller.text = _controller.text + c.toLowerCase();
-                _onChanged(_controller.text);
-              },
-              onBackspace: () {
-                final t = _controller.text;
-                if (t.isEmpty) return;
-                _controller.text = t.substring(0, t.length - 1);
-                _onChanged(_controller.text);
-              },
-              onClear: () {
-                _controller.clear();
-                _onChanged('');
-              },
+    final inset = ResponsiveHelper.safeInset(context);
+    // PopScope: on this two-column TV layout the on-screen back arrow is not a
+    // D-pad focus target, so BACK must pop the route. `canPop: true` lets the
+    // system BACK do exactly that (an open detail sheet consumes its own BACK
+    // first). The arrow stays for mobile touch.
+    return PopScope(
+      canPop: true,
+      child: Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        body: SafeArea(child: tv ? _tvLayout(inset) : _mobileLayout(inset)),
+      ),
+    );
+  }
+
+  Widget _mobileLayout(double sidePad) {
+    return Column(
+      children: [
+        _mobileHeader(),
+        _filters(sidePad),
+        const SizedBox(height: 8),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (_, c) => _resultsBody(
+              tv: false,
+              columns: _columns(c.maxWidth, false),
+              sidePad: sidePad,
+              panelWidth: c.maxWidth,
             ),
           ),
-          Expanded(child: body),
-        ],
-      );
-    }
+        ),
+      ],
+    );
+  }
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  Expanded(
-                    child: Container(
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: r.surface2,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Row(
-                        children: [
-                          Icon(Icons.search, size: 20, color: r.text3),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: TextField(
-                              controller: _controller,
-                              focusNode: _focus,
-                              // On TV the on-screen keyboard feeds this field,
-                              // so it is a display of the query rather than a
-                              // focus target — focusing it would summon the
-                              // very system IME we are replacing.
-                              readOnly: ResponsiveHelper.isDesktopOrTV(context),
-                              autofocus: !ResponsiveHelper.isDesktopOrTV(context),
-                              textInputAction: TextInputAction.search,
-                              onChanged: _onChanged,
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                isCollapsed: true,
-                                hintText: context.loc.search_placeholder,
-                              ),
-                            ),
-                          ),
-                          if (q.isNotEmpty)
-                            FocusHighlight(
-                              borderRadius: BorderRadius.circular(20),
-                              child: IconButton(
-                                iconSize: 18,
-                                padding: const EdgeInsets.all(4),
-                                constraints: const BoxConstraints(),
-                                tooltip: 'Limpiar',
-                                onPressed: () {
-                                  _controller.clear();
-                                  _onChanged('');
-                                },
-                                icon: Icon(Icons.close,
-                                    size: 18, color: r.text3),
-                              ),
-                            ),
-                        ],
+  Widget _tvLayout(double screenInset) {
+    // Small internal padding on the right panel: the overscan margin is already
+    // reserved by the column's trailing [screenInset], and the keyboard gives
+    // the leading gutter, so the grid itself only needs breathing room.
+    const rp = 8.0;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsetsDirectional.fromSTEB(screenInset, 12, 20, 24),
+          // Scroll the keyboard on short panels so its last rows are reachable.
+          child: SingleChildScrollView(child: _keyboard()),
+        ),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsetsDirectional.only(end: screenInset),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 12),
+                _tvQueryBar(rp),
+                _filters(rp),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: FocusScope(
+                    node: _resultsScope,
+                    child: LayoutBuilder(
+                      builder: (_, c) => _resultsBody(
+                        tv: true,
+                        columns: _columns(c.maxWidth, true),
+                        sidePad: rp,
+                        panelWidth: c.maxWidth,
                       ),
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _keyboard() {
+    return TvKeyboard(
+      onKey: (c) {
+        _controller.text = _controller.text + c.toLowerCase();
+        _onChanged(_controller.text);
+      },
+      onBackspace: () {
+        final t = _controller.text;
+        if (t.isEmpty) return;
+        _controller.text = t.substring(0, t.length - 1);
+        _onChanged(_controller.text);
+      },
+      onClear: _clearQuery,
+    );
+  }
+
+  Widget _mobileHeader() {
+    final r = rensi(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 12, 8),
+      child: Row(
+        children: [
+          // Directionality-aware; points the correct way in RTL.
+          const BackButton(),
+          Expanded(
+            child: Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: r.surface2,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  Icon(Icons.search, size: 20, color: r.text3),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      focusNode: _focus,
+                      autofocus: true,
+                      textInputAction: TextInputAction.search,
+                      onChanged: _onChanged,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        isCollapsed: true,
+                        hintText: context.loc.search_placeholder,
+                      ),
+                    ),
+                  ),
+                  if (_query.isNotEmpty)
+                    IconButton(
+                      iconSize: 18,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: context.loc.clear,
+                      onPressed: _clearQuery,
+                      icon: Icon(Icons.close, size: 18, color: r.text3),
+                    ),
                 ],
               ),
             ),
-            Expanded(child: body),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// TV read-only echo of the query (the on-screen keyboard does not draw one).
+  Widget _tvQueryBar(double sidePad) {
+    final r = rensi(context);
+    final empty = _query.isEmpty;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 12),
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          color: r.surface2,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: r.hairline),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            Icon(Icons.search, color: r.text3),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                empty ? context.loc.search_placeholder : _query,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: AppThemes.bodySize,
+                  color: empty
+                      ? r.text3
+                      : Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
+
+  Widget _filters(double sidePad) {
+    final loc = context.loc;
+    final chips = <(SearchFilter, String)>[
+      (SearchFilter.all, loc.search_filter_all),
+      (SearchFilter.movies, loc.search_filter_movies),
+      (SearchFilter.tv, loc.search_filter_tv),
+      (SearchFilter.wishlist, loc.search_filter_wishlist),
+    ];
+    return SizedBox(
+      height: 46,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: sidePad),
+        itemCount: chips.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) => Center(
+          child: RensiChip(
+            label: chips[i].$2,
+            active: _filter == chips[i].$1,
+            onTap: () => _applyFilter(chips[i].$1),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- Results ---------------------------------------------------------------
+
+  int _columns(double width, bool tv) {
+    final target = tv ? 160.0 : 118.0;
+    const gutter = 12.0;
+    final n = ((width + gutter) / (target + gutter)).floor();
+    return n.clamp(tv ? 3 : 2, tv ? 7 : 6);
+  }
+
+  Widget _resultsBody({
+    required bool tv,
+    required int columns,
+    required double sidePad,
+    required double panelWidth,
+  }) {
+    final loc = context.loc;
+    final q = _query.trim();
+    final res = _results;
+    final browse = _filter == SearchFilter.wishlist;
+
+    if (res == null) {
+      if (_loading) return const Center(child: CircularProgressIndicator());
+      return _centered(Icons.search_rounded, loc.search_catalog_hint);
+    }
+
+    // Total-empty. Suppressed while a local-first paint is pending (there is
+    // still Discover to resolve, or a "keep typing" hint to show at 2 chars).
+    if (res.isEmpty && !res.tmdbPending && !_loading) {
+      if (browse) {
+        return RensiEmptyState(
+          icon: Icons.bookmark_border_rounded,
+          title: loc.search_filter_wishlist,
+          body: loc.search_wishlist_empty,
+          actionLabel: loc.search_filter_all,
+          onAction: () => _applyFilter(SearchFilter.all),
+        );
+      }
+      // With no local catalogue to fall back on, a TMDb failure must still be
+      // told honestly here, not hidden behind a generic "no results": the
+      // banner only shows when there ARE results, so this is the only place a
+      // key-less/rejected/limited user learns why Discover is empty.
+      final failure = res.tmdbFailure;
+      String body = loc.search_catalog_hint;
+      String actionLabel = loc.clear;
+      VoidCallback onAction = _clearQuery;
+      switch (failure) {
+        case TmdbFailure.noKey:
+          body = loc.search_global_disabled;
+          actionLabel = loc.search_enable_global;
+          onAction = _openSettings;
+          break;
+        case TmdbFailure.rejected:
+          body = loc.search_key_rejected;
+          actionLabel = loc.nav_settings;
+          onAction = _openSettings;
+          break;
+        case TmdbFailure.rateLimited:
+          body = loc.search_tmdb_rate_limited;
+          break;
+        case TmdbFailure.httpError:
+        case TmdbFailure.network:
+          body = loc.search_tmdb_error;
+          actionLabel = loc.try_again;
+          onAction = _run;
+          break;
+        case null:
+          break;
+      }
+      return RensiEmptyState(
+        icon: Icons.search_off_rounded,
+        title: loc.no_results_for(q),
+        body: body,
+        actionLabel: actionLabel,
+        onAction: onAction,
+      );
+    }
+
+    final tileWidth =
+        ((panelWidth - sidePad * 2 - 12 * (columns - 1)) / columns)
+            .clamp(60.0, 400.0);
+
+    final slivers = <Widget>[
+      const SliverToBoxAdapter(child: SizedBox(height: 2)),
+    ];
+
+    // Failure / no-key banner — thin, above the sections, never replacing the
+    // local results.
+    if (!browse && res.tmdbFailure != null) {
+      slivers.add(
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 14),
+            child: _banner(res.tmdbFailure!),
+          ),
+        ),
+      );
+    }
+
+    void addSection(String title, List<Widget> cards) {
+      if (cards.isEmpty) return;
+      final indexByKey = <String, int>{};
+      for (var i = 0; i < cards.length; i++) {
+        final k = cards[i].key;
+        if (k is ValueKey<String>) indexByKey[k.value] = i;
+      }
+      slivers.add(
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: SectionHeader(title: title, sidePad: sidePad),
+          ),
+        ),
+      );
+      slivers.add(
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 16),
+          sliver: SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              childAspectRatio: 1 / 1.5,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (_, i) => cards[i],
+              childCount: cards.length,
+              // Stable keys + this callback let a poster keep its element (and
+              // its focus) when TMDb arrives and reshuffles the buckets.
+              findChildIndexCallback: (key) =>
+                  indexByKey[(key as ValueKey<String>).value],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Reproducible-first: library, then owned-only, then discover.
+    addSection(
+      loc.search_in_your_library,
+      [for (final x in res.withLocal) _withLocalCard(x)],
+    );
+    addSection(
+      loc.search_from_your_iptv,
+      [for (final x in res.localOnly) _localOnlyCard(x)],
+    );
+    addSection(
+      loc.search_discover_tmdb,
+      [for (final x in res.tmdbOnly) _tmdbOnlyCard(x, tv)],
+    );
+
+    // Discover zone placeholders (never on a wishlist browse).
+    if (!browse) {
+      if (q.length == 2) {
+        slivers.add(
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(sidePad, 10, sidePad, 8),
+              child: _hintRow(
+                  Icons.travel_explore_rounded, loc.search_keep_typing_global),
+            ),
+          ),
+        );
+      } else if (q.length >= 3 && res.tmdbPending) {
+        slivers.add(
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child:
+                  SectionHeader(title: loc.search_discover_tmdb, sidePad: sidePad),
+            ),
+          ),
+        );
+        slivers.add(
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 16),
+              child: _skeletonRow(columns, tileWidth.toDouble()),
+            ),
+          ),
+        );
+      }
+    }
+
+    slivers.add(SliverToBoxAdapter(child: SizedBox(height: tv ? 24 : 32)));
+    return CustomScrollView(slivers: slivers);
+  }
+
+  // --- Cards -----------------------------------------------------------------
+
+  /// `withLocal`: a reproducible, TMDb-enriched title. Poster is identical to
+  /// Home (no badge). One match plays directly; several open the "play from"
+  /// sheet so a dead copy in one list is not chosen for the user.
+  Widget _withLocalCard(GlobalSearchResult res) {
+    final match = res.localMatches.first; // service orders exact-first
+    return RensiPoster(
+      key: ValueKey('wl:${res.tmdb.id}|${res.tmdb.mediaType.name}'),
+      item: match.content,
+      width: double.infinity,
+      onTap: () {
+        if (res.localMatches.length > 1) {
+          _openDetail(res);
+        } else {
+          _playLocalMatch(match);
+        }
+      },
+    );
+  }
+
+  /// `localOnly`: owned, no TMDb data to show, so it plays directly. We still
+  /// call [openLocalMatch] via [_playLocalMatch] because a match can come from
+  /// a playlist other than the current one, and navigation reads AppState.
+  Widget _localOnlyCard(LocalContentMatch m) {
+    return RensiPoster(
+      key: ValueKey(m.dedupKey),
+      item: m.content,
+      width: double.infinity,
+      onTap: () => _playLocalMatch(m),
+    );
+  }
+
+  /// `tmdbOnly`: not owned. NOT dimmed and with no play affordance — a neutral
+  /// badge marks it as a discovery, not a disabled item. Opening it shows the
+  /// save-only detail sheet. On mobile the card also carries a tappable
+  /// bookmark; on TV the toggle lives in the sheet (one focus atom per cell).
+  Widget _tmdbOnlyCard(GlobalSearchResult res, bool tv) {
+    final k = 'tm:${res.tmdb.id}|${res.tmdb.mediaType.name}';
+    final poster = RensiPoster(
+      item: _tmdbAsContentItem(res.tmdb),
+      width: double.infinity,
+      badge: context.loc.search_not_in_lists,
+      badgeTone: RensiBadgeTone.neutral,
+      onTap: () => _openDetail(res),
+    );
+    if (tv) return KeyedSubtree(key: ValueKey(k), child: poster);
+    return KeyedSubtree(
+      key: ValueKey(k),
+      child: Stack(
+        children: [
+          Positioned.fill(child: poster),
+          PositionedDirectional(
+            bottom: 8,
+            end: 8,
+            child: _MobileBookmark(
+              saved: res.isWishlisted,
+              onTap: () => _toggleWishlist(res),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A display-only [ContentItem] wrapping a TMDb result so it can ride in a
+  /// [RensiPoster]. It is never played (tmdbOnly has no play path), so the
+  /// baked-in `url` is inert; the poster reads only `imagePath`, `name`, `id`.
+  ContentItem _tmdbAsContentItem(TmdbSearchResult t) => ContentItem(
+        'tmdb:${t.id}',
+        t.title,
+        t.posterUrl,
+        t.mediaType == TmdbMediaType.tv ? ContentType.series : ContentType.vod,
+      );
+
+  // --- Small pieces ----------------------------------------------------------
+
+  Widget _banner(TmdbFailure failure) {
+    final r = rensi(context);
+    final loc = context.loc;
+    late final String msg;
+    Widget? action;
+    switch (failure) {
+      case TmdbFailure.noKey:
+        msg = loc.search_global_disabled;
+        action = _bannerButton(loc.search_enable_global, _openSettings);
+        break;
+      case TmdbFailure.rejected:
+        msg = loc.search_key_rejected;
+        action = _bannerButton(loc.nav_settings, _openSettings);
+        break;
+      case TmdbFailure.rateLimited:
+        msg = loc.search_tmdb_rate_limited;
+        break;
+      case TmdbFailure.httpError:
+      case TmdbFailure.network:
+        msg = loc.search_tmdb_error;
+        action = _bannerButton(loc.try_again, _run);
+        break;
+    }
+    return Container(
+      decoration: BoxDecoration(
+        color: r.surface2,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: r.hairline),
+      ),
+      padding: const EdgeInsetsDirectional.fromSTEB(14, 10, 8, 10),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, size: 20, color: r.text3),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              msg,
+              style: TextStyle(
+                color: r.text2,
+                fontSize: AppThemes.bodySmallSize,
+                height: 1.3,
+              ),
+            ),
+          ),
+          if (action != null) ...[const SizedBox(width: 8), action],
+        ],
+      ),
+    );
+  }
+
+  Widget _bannerButton(String label, VoidCallback onTap) {
+    return FocusHighlight(
+      borderRadius: BorderRadius.circular(10),
+      child: TextButton(
+        onPressed: onTap,
+        child: Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+
+  Widget _hintRow(IconData icon, String text) {
+    final r = rensi(context);
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: r.text3),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(color: r.text3, fontSize: AppThemes.bodySmallSize),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _skeletonRow(int columns, double tileWidth) {
+    final r = rensi(context);
+    final n = columns.clamp(1, 6);
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        for (var i = 0; i < n; i++)
+          SizedBox(
+            width: tileWidth,
+            height: tileWidth * 1.5,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: r.surface2,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: r.hairline),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _centered(IconData icon, String text) {
+    final r = rensi(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 56, color: r.surface3),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: r.text3, fontSize: AppThemes.labelSize),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
+/// Mobile-only save affordance drawn over a discovery poster. The dark chip
+/// reads on any artwork; the active state uses the brand accent (gold is
+/// reserved for ratings). Positioned start/end-aware for RTL.
+class _MobileBookmark extends StatelessWidget {
+  const _MobileBookmark({required this.saved, required this.onTap});
+
+  final bool saved;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = rensi(context);
+    return Material(
+      color: const Color(0xCC080808),
+      shape: const CircleBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(
+            saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+            size: 20,
+            color: saved ? r.accent : Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Hosts [GeneralSettingsWidget] as a real, scrollable, dismissable screen.
+/// The section widget is not a page on its own — bare it has no app bar and its
+/// Column overflows — so the "add your TMDb key" banner opens this instead.
+class _SettingsHostScreen extends StatelessWidget {
+  const _SettingsHostScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(context.loc.settings)),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+          children: const [GeneralSettingsWidget()],
+        ),
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// INTEGRATION SEAM — SearchDetailSheet (lib/redesign/search_detail_sheet.dart)
+//
+// This screen calls exactly:
+//
+//   SearchDetailSheet.show(
+//     context,
+//     result: <GlobalSearchResult>,
+//     service: <GlobalSearchService>,     // for service.getDetail(result.tmdb)
+//     onPlayLocal: (LocalContentMatch m) { ... },   // plays one owned copy
+//     onToggleWishlist: () async => <bool>,         // returns new saved state
+//   );
+//
+// Expected static signature on SearchDetailSheet:
+//
+//   static Future<void> show(
+//     BuildContext context, {
+//     required GlobalSearchResult result,
+//     required GlobalSearchService service,
+//     required void Function(LocalContentMatch match) onPlayLocal,
+//     required Future<bool> Function() onToggleWishlist,
+//   });
+//
+// Sheet responsibilities (per the design gate):
+//   - tmdbOnly result  -> overview / rating / genres via service.getDetail;
+//     ONE primary action = wishlist toggle (no play); show search_not_available_body.
+//   - withLocal result -> a "Reproducir desde" list (search_play_from) of
+//     result.localMatches, each row calling onPlayLocal(match).
+//   - The bookmark is the wishlist toggle on both surfaces; call
+//     onToggleWishlist() and reflect the returned bool.
+//   - Takes focus on open; BACK returns to the originating card.
+// -----------------------------------------------------------------------------

@@ -715,6 +715,47 @@ class AppLocalizationsTr extends AppLocalizations {
   String get resume_failed => 'Bu içerik artık bu oynatma listesinde yok';
 
   @override
+  String get search_in_your_library => 'Kitaplığınızda';
+
+  @override
+  String get search_discover_tmdb => 'TMDb\'de keşfet';
+
+  @override
+  String get search_not_in_lists => 'Listelerinizde yok';
+
+  @override
+  String get search_global_disabled =>
+      'Listelerinizin ötesindeki başlıkları keşfetmek için TMDb anahtarınızı ekleyin.';
+
+  @override
+  String get search_enable_global => 'Genel aramayı etkinleştir';
+
+  @override
+  String get search_key_rejected =>
+      'TMDb anahtarınız reddedildi. Ayarlar\'dan kontrol edin.';
+
+  @override
+  String get search_tmdb_rate_limited =>
+      'Çok fazla arama. Birazdan tekrar deneyin.';
+
+  @override
+  String get search_tmdb_error => 'TMDb\'ye ulaşılamadı.';
+
+  @override
+  String get search_add_to_wishlist => 'İstek listesine ekle';
+
+  @override
+  String get search_play_from => 'Şuradan oynat';
+
+  @override
+  String get search_not_available_body =>
+      'Listelerinizde yok. Kaydedin, eklendiğinde kontrol edelim.';
+
+  @override
+  String get search_keep_typing_global =>
+      'TMDb\'de aramak için yazmaya devam edin';
+
+  @override
   String get home_empty_title => 'Bu listede henüz film veya dizi yok.';
 
   @override

@@ -719,6 +719,47 @@ class AppLocalizationsRu extends AppLocalizations {
       'Этот материал больше недоступен в этом плейлисте';
 
   @override
+  String get search_in_your_library => 'В вашей библиотеке';
+
+  @override
+  String get search_discover_tmdb => 'Найти на TMDb';
+
+  @override
+  String get search_not_in_lists => 'Нет в ваших списках';
+
+  @override
+  String get search_global_disabled =>
+      'Добавьте ключ TMDb, чтобы находить фильмы за пределами ваших списков.';
+
+  @override
+  String get search_enable_global => 'Включить глобальный поиск';
+
+  @override
+  String get search_key_rejected =>
+      'Ключ TMDb отклонён. Проверьте его в настройках.';
+
+  @override
+  String get search_tmdb_rate_limited =>
+      'Слишком много запросов. Повторите через мгновение.';
+
+  @override
+  String get search_tmdb_error => 'Не удалось связаться с TMDb.';
+
+  @override
+  String get search_add_to_wishlist => 'Добавить в список желаний';
+
+  @override
+  String get search_play_from => 'Смотреть из';
+
+  @override
+  String get search_not_available_body =>
+      'Нет в ваших списках. Сохраните — мы проверим, когда он появится.';
+
+  @override
+  String get search_keep_typing_global =>
+      'Продолжайте вводить для поиска на TMDb';
+
+  @override
   String get home_empty_title =>
       'В этом плейлисте пока нет фильмов и сериалов.';
 

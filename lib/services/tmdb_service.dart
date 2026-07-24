@@ -7,6 +7,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/tmdb_search_result.dart';
 import 'tmdb_credentials_service.dart';
 
+/// Typed failure so callers can tell "no key" from "bad key" from "rate
+/// limited" without string-matching an Exception message. Generic Exceptions
+/// used to conflate all of these, which forced the search layer to either lose
+/// the reason or parse English text.
+class TmdbException implements Exception {
+  const TmdbException(this.reason, this.message);
+  final TmdbFailure reason;
+  final String message;
+  @override
+  String toString() => 'TmdbException($reason): $message';
+}
+
 class TmdbService {
   TmdbService({http.Client? client}) : _client = client ?? http.Client();
 
@@ -31,19 +43,19 @@ class TmdbService {
 
     final credential = await TmdbCredentialsService.getCredential();
     if (credential == null) {
-      throw Exception('TMDb credential is not configured');
+      throw const TmdbException(TmdbFailure.noKey, 'TMDb credential is not configured');
     }
 
     final uri = _buildSearchUri(normalizedQuery, credential, languageTag);
     final response = await _client.get(uri, headers: _buildHeaders(credential));
     if (response.statusCode == 401) {
-      throw Exception('TMDb credential was rejected');
+      throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
     }
     if (response.statusCode == 429) {
-      throw Exception('TMDb rate limit reached. Try again later.');
+      throw const TmdbException(TmdbFailure.rateLimited, 'TMDb rate limit reached. Try again later.');
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('TMDb request failed: ${response.statusCode}');
+      throw TmdbException(TmdbFailure.httpError, 'TMDb request failed: ${response.statusCode}');
     }
 
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
@@ -68,7 +80,7 @@ class TmdbService {
   }) async {
     final credential = await TmdbCredentialsService.getCredential();
     if (credential == null) {
-      throw Exception('TMDb credential is not configured');
+      throw const TmdbException(TmdbFailure.noKey, 'TMDb credential is not configured');
     }
     final segment = mediaType == TmdbMediaType.movie ? 'movie' : 'tv';
     final params = <String, String>{
@@ -82,13 +94,13 @@ class TmdbService {
     ).replace(queryParameters: params);
     final response = await _client.get(uri, headers: _buildHeaders(credential));
     if (response.statusCode == 401) {
-      throw Exception('TMDb credential was rejected');
+      throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
     }
     if (response.statusCode == 429) {
-      throw Exception('TMDb rate limit reached. Try again later.');
+      throw const TmdbException(TmdbFailure.rateLimited, 'TMDb rate limit reached. Try again later.');
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('TMDb request failed: ${response.statusCode}');
+      throw TmdbException(TmdbFailure.httpError, 'TMDb request failed: ${response.statusCode}');
     }
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
     return TmdbDetailResult.fromTmdbJson(decoded, mediaType);

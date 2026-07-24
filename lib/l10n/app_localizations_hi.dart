@@ -716,6 +716,46 @@ class AppLocalizationsHi extends AppLocalizations {
   String get resume_failed => 'यह शीर्षक अब इस प्लेलिस्ट में उपलब्ध नहीं है';
 
   @override
+  String get search_in_your_library => 'आपकी लाइब्रेरी में';
+
+  @override
+  String get search_discover_tmdb => 'TMDb पर खोजें';
+
+  @override
+  String get search_not_in_lists => 'आपकी सूचियों में नहीं';
+
+  @override
+  String get search_global_disabled =>
+      'अपनी सूचियों से परे टाइटल खोजने के लिए अपनी TMDb कुंजी जोड़ें।';
+
+  @override
+  String get search_enable_global => 'ग्लोबल सर्च चालू करें';
+
+  @override
+  String get search_key_rejected =>
+      'आपकी TMDb कुंजी अस्वीकृत हो गई। इसे सेटिंग्स में जाँचें।';
+
+  @override
+  String get search_tmdb_rate_limited =>
+      'बहुत ज़्यादा खोजें। कुछ देर बाद फिर कोशिश करें।';
+
+  @override
+  String get search_tmdb_error => 'TMDb तक नहीं पहुँच सके।';
+
+  @override
+  String get search_add_to_wishlist => 'इच्छा-सूची में जोड़ें';
+
+  @override
+  String get search_play_from => 'यहाँ से चलाएँ';
+
+  @override
+  String get search_not_available_body =>
+      'आपकी सूचियों में नहीं। इसे सहेजें, उपलब्ध होने पर हम जाँच लेंगे।';
+
+  @override
+  String get search_keep_typing_global => 'TMDb पर खोजने के लिए टाइप करते रहें';
+
+  @override
   String get home_empty_title =>
       'इस प्लेलिस्ट में अभी कोई फ़िल्म या सीरीज़ नहीं है।';
 
