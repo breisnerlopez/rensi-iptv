@@ -23,6 +23,15 @@ class XtreamCodeHomeController extends ChangeNotifier {
 
   int _currentIndex = 0;
 
+  // Background-refresh state. `_all` is captured so a refresh rebuilds the rails
+  // the same way the initial load did. A background refresh is a multi-second
+  // op that outlives the widget in some cases, so guard notifications on
+  // `_disposed` (same pattern as WatchHistoryController).
+  bool _all = false;
+  bool _disposed = false;
+  bool _isRefreshing = false;
+  bool get isRefreshing => _isRefreshing;
+
   final List<CategoryViewModel> _liveCategories = [];
   final List<CategoryViewModel> _movieCategories = [];
   final List<CategoryViewModel> _seriesCategories = [];
@@ -103,6 +112,7 @@ class XtreamCodeHomeController extends ChangeNotifier {
     bool autoLoad = true,
   }) {
     _pageController = PageController();
+    _all = all;
     _currentIndex = initialIndex.clamp(0, 4);
     if (autoLoad) {
       _loadCategories(all);
@@ -112,9 +122,55 @@ class XtreamCodeHomeController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _pageController.dispose();
     super.dispose();
   }
+
+  // Swallow notifications after dispose: a background refresh's `_loadCategories`
+  // can complete after the home screen is gone.
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  /// Refresh the catalogue quietly after a resume past the staleness threshold.
+  /// Best-effort: on any fetch failure it keeps the existing data and does NOT
+  /// advance lastSync, so the next resume retries. Reentrancy-guarded, and it
+  /// bails if the active playlist changed underneath it.
+  Future<void> refreshInBackground() async {
+    if (_isRefreshing || _disposed) return;
+    _isRefreshing = true;
+    notifyListeners(); // set synchronously before the first await
+    final pid = AppState.currentPlaylist?.id;
+    try {
+      if (pid == null) return;
+      // The repo swallows its own errors and returns null, so a transient
+      // panel 400 surfaces as null, not an exception — check each explicitly so
+      // a partial refresh is never recorded as fresh. Spacing dodges the
+      // burst-throttle.
+      if (await _repository.getLiveChannelsFromApi() == null) return;
+      await Future.delayed(const Duration(milliseconds: 1200));
+      if (await _repository.getMoviesFromApi() == null) return;
+      await Future.delayed(const Duration(milliseconds: 1200));
+      if (await _repository.getSeriesFromApi() == null) return;
+      if (_disposed || AppState.currentPlaylist?.id != pid) return;
+      // All three landed: rebuild the rails from fresh data and stamp success.
+      await _loadCategories(_all);
+      await UserPreferences.setLastSync(pid, DateTime.now());
+    } catch (_) {
+      // Silent: keep the old, perfectly usable data.
+    } finally {
+      _isRefreshing = false;
+      notifyListeners();
+    }
+  }
+
+  /// Test hook: re-run the same catalogue build that `refreshInBackground`
+  /// invokes, without the network fetches. Lets a unit test prove the rails are
+  /// rebuilt (not appended) on a second load. Not for production use.
+  @visibleForTesting
+  Future<void> debugReloadCategories() => _loadCategories(_all);
 
   void onNavigationTap(int index) {
     _currentIndex = index;
@@ -162,6 +218,16 @@ class XtreamCodeHomeController extends ChangeNotifier {
 
   Future<void> _loadCategories(bool all) async {
     try {
+      // Build into local lists and only swap them into the published fields at
+      // the very end. This keeps `_loadCategories` idempotent — it can be
+      // re-run by `refreshInBackground` without appending a second copy of
+      // every rail — and, because the swap happens after all awaits succeed, a
+      // mid-way failure leaves the previously loaded catalogue untouched
+      // instead of stranding half-built rails.
+      final tmpLive = <CategoryViewModel>[];
+      final tmpMovie = <CategoryViewModel>[];
+      final tmpSeries = <CategoryViewModel>[];
+
       var liveCategories = await _repository.getLiveCategories();
       if (liveCategories != null && liveCategories.isNotEmpty) {
         for (var liveCategory in liveCategories) {
@@ -190,10 +256,10 @@ class XtreamCodeHomeController extends ChangeNotifier {
             if (!await UserPreferences.getHiddenCategory(
               liveCategory.categoryId,
             )) {
-              _liveCategories.add(categoryViewModel);
+              tmpLive.add(categoryViewModel);
             }
           } else {
-            _liveCategories.add(categoryViewModel);
+            tmpLive.add(categoryViewModel);
           }
         }
       }
@@ -201,7 +267,7 @@ class XtreamCodeHomeController extends ChangeNotifier {
       // "View all movies" pseudo-category — sits above the real list and
       // aggregates every movie of the playlist when the user opens it.
       await _prependAllCategory(
-        list: _movieCategories,
+        list: tmpMovie,
         type: CategoryType.vod,
         previewLoader: () => _repository.getMovies(top: 10),
         toItem: (m) => ContentItem(
@@ -245,17 +311,17 @@ class XtreamCodeHomeController extends ChangeNotifier {
             if (!await UserPreferences.getHiddenCategory(
               movieCategory.categoryId,
             )) {
-              _movieCategories.add(categoryViewModel);
+              tmpMovie.add(categoryViewModel);
             }
           } else {
-            _movieCategories.add(categoryViewModel);
+            tmpMovie.add(categoryViewModel);
           }
         }
       }
 
       // "View all series" pseudo-category.
       await _prependAllCategory(
-        list: _seriesCategories,
+        list: tmpSeries,
         type: CategoryType.series,
         previewLoader: () => _repository.getSeries(top: 10),
         toItem: (s) => ContentItem(
@@ -297,13 +363,25 @@ class XtreamCodeHomeController extends ChangeNotifier {
             if (!await UserPreferences.getHiddenCategory(
               seriesCategory.categoryId,
             )) {
-              _seriesCategories.add(categoryViewModel);
+              tmpSeries.add(categoryViewModel);
             }
           } else {
-            _seriesCategories.add(categoryViewModel);
+            tmpSeries.add(categoryViewModel);
           }
         }
       }
+
+      // Atomic publish: replace the rails in one shot (same list instances the
+      // getters expose) only after every fetch above succeeded.
+      _liveCategories
+        ..clear()
+        ..addAll(tmpLive);
+      _movieCategories
+        ..clear()
+        ..addAll(tmpMovie);
+      _seriesCategories
+        ..clear()
+        ..addAll(tmpSeries);
 
       notifyListeners();
     } catch (e, st) {

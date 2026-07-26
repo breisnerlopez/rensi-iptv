@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/test_database.dart';
+import '../integration/seed.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -67,6 +68,49 @@ void main() {
     test('clamps index to valid range', () {
       controller = XtreamCodeHomeController(false, autoLoad: false, initialIndex: 99);
       expect(controller.currentIndex, 4);
+    });
+  });
+
+  // Regression: refreshInBackground re-runs _loadCategories on an already-loaded
+  // controller. Before the fix the rails only ever grew (.add / .insert, no
+  // clear), so every successful background refresh duplicated the whole
+  // catalogue on screen. A second load must REPLACE, not append.
+  group('XtreamCodeHomeController catalogue reload is idempotent', () {
+    late XtreamCodeHomeController controller;
+
+    tearDown(() {
+      controller.dispose();
+    });
+
+    test('a second reload rebuilds the rails instead of appending', () async {
+      final playlist = await seedXtreamHome(database);
+      AppState.currentPlaylist = playlist;
+      AppState.xtreamCodeRepository = IptvRepository(
+        ApiConfig(
+          baseUrl: playlist.url!,
+          username: playlist.username!,
+          password: playlist.password!,
+        ),
+        playlist.id,
+      );
+
+      controller = XtreamCodeHomeController(false, autoLoad: false);
+
+      await controller.debugReloadCategories();
+      final liveAfterFirst = controller.liveCategories?.length ?? 0;
+      final movieAfterFirst = controller.movieCategories.length;
+      final seriesAfterFirst = controller.seriesCategories.length;
+
+      // Sanity: the seed actually populated the rails.
+      expect(liveAfterFirst, greaterThan(0));
+      expect(movieAfterFirst, greaterThan(0));
+      expect(seriesAfterFirst, greaterThan(0));
+
+      await controller.debugReloadCategories();
+
+      expect(controller.liveCategories?.length ?? 0, liveAfterFirst);
+      expect(controller.movieCategories.length, movieAfterFirst);
+      expect(controller.seriesCategories.length, seriesAfterFirst);
     });
   });
 }

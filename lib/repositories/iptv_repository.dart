@@ -164,8 +164,12 @@ class IptvRepository {
             .map((json) => LiveStream.fromJson(json, _playlistId))
             .toList();
 
-        await _database.deleteLiveStreamsByPlaylistId(_playlistId);
-        await _database.insertLiveStreams(liveStreams);
+        // One transaction so no reader (watch-history resume, search,
+        // favourites) can observe the table empty between delete and insert.
+        await _database.transaction(() async {
+          await _database.deleteLiveStreamsByPlaylistId(_playlistId);
+          await _database.insertLiveStreams(liveStreams);
+        });
         return liveStreams;
       } else {
         throw Exception(
@@ -256,8 +260,10 @@ class IptvRepository {
             .map((json) => VodStream.fromJson(json, _playlistId))
             .toList();
 
-        await _database.deleteVodStreamsByPlaylistId(_playlistId);
-        await _database.insertVodStreams(vodStreams);
+        await _database.transaction(() async {
+          await _database.deleteVodStreamsByPlaylistId(_playlistId);
+          await _database.insertVodStreams(vodStreams);
+        });
 
         return vodStreams;
       } else {
@@ -327,8 +333,10 @@ class IptvRepository {
             .map((json) => SeriesStream.fromJson(json, _playlistId))
             .toList();
 
-        await _database.deleteSeriesStreamsByPlaylistId(_playlistId);
-        await _database.insertSeriesStreams(series);
+        await _database.transaction(() async {
+          await _database.deleteSeriesStreamsByPlaylistId(_playlistId);
+          await _database.insertSeriesStreams(series);
+        });
 
         return series;
       } else {

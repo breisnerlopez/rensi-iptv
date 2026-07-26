@@ -1,6 +1,11 @@
+import 'dart:async';
+
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:rensi_iptv/repositories/user_preferences.dart';
+import 'package:rensi_iptv/services/player_state.dart';
 import 'package:rensi_iptv/controllers/xtream_code_home_controller.dart';
 import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
@@ -39,8 +44,13 @@ class XtreamCodeHomeScreen extends StatefulWidget {
   State<XtreamCodeHomeScreen> createState() => _XtreamCodeHomeScreenState();
 }
 
-class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
+class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
+    with WidgetsBindingObserver {
   late XtreamCodeHomeController _controller;
+
+  /// Refresh the catalogue in the background when the user returns to a
+  /// playlist last synced more than this ago. Internal constant, not exposed.
+  static const Duration _staleAfter = Duration(hours: 4);
   late EpgService _epgService;
 
   /// Continue-watching, loaded here because the home screen is the only place
@@ -81,7 +91,46 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initializeController();
+    // Also check on first mount: a cold start into a stale last-playlist should
+    // freshen too, not only an app resume.
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _maybeBackgroundRefresh());
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_maybeBackgroundRefresh());
+    }
+  }
+
+  /// Quietly refresh the active playlist's catalogue if it's stale. Guards keep
+  /// it invisible and cheap: skip while watching (PiP resume included), while a
+  /// refresh is already running, when fresh, and — on mobile — off Wi-Fi.
+  Future<void> _maybeBackgroundRefresh() async {
+    if (!mounted) return;
+    final playlist = AppState.currentPlaylist;
+    if (playlist == null || playlist.type != PlaylistType.xtream) return;
+    if (PlayerState.isPlayerActive) return;
+    if (_controller.isRefreshing) return;
+    final last = await UserPreferences.getLastSync(playlist.id);
+    if (last != null && DateTime.now().difference(last) < _staleAfter) return;
+    // A TV is wired/plugged; a phone on cellular should not spend data silently.
+    if (!ResponsiveHelper.isTelevisionDevice) {
+      try {
+        final conn = await Connectivity().checkConnectivity();
+        final onUnmetered = conn.contains(ConnectivityResult.wifi) ||
+            conn.contains(ConnectivityResult.ethernet);
+        if (!onUnmetered) return;
+      } catch (_) {
+        // Can't tell the connection type → err on the side of not spending data.
+        return;
+      }
+    }
+    if (!mounted) return;
+    await _controller.refreshInBackground();
   }
 
   void _onHistoryChanged() {
@@ -103,6 +152,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.removeListener(_onTabChanged);
     _history.removeListener(_onHistoryChanged);
     _history.dispose();
@@ -214,7 +264,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     XtreamCodeHomeController controller,
   ) {
     return Scaffold(
-      body: _buildPageView(controller),
+      body: _withRefreshLine(_buildPageView(controller)),
       bottomNavigationBar: _buildBottomNavigationBar(context, controller),
     );
   }
@@ -229,7 +279,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
     // resolves the next focusable item in the *other* column (the
     // navigation rail or the page) without falling off the screen.
     return Scaffold(
-      body: Row(
+      body: _withRefreshLine(Row(
         children: [
           // Dimmed while the focus lives in the content. With both areas at
           // full strength the eye reads two active zones and you have to hunt
@@ -256,7 +306,23 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
             ),
           ),
         ],
-      ),
+      )),
+    );
+  }
+
+  /// Overlays a thin, delayed background-refresh line at the very top of the
+  /// shell. Invisible unless a refresh runs past ~3s (see [_RefreshLine]).
+  Widget _withRefreshLine(Widget child) {
+    return Stack(
+      children: [
+        Positioned.fill(child: child),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: _RefreshLine(_controller),
+        ),
+      ],
     );
   }
 
@@ -606,4 +672,62 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen> {
   }
 }
 
+/// A hair-thin, low-contrast line that appears at the top of the shell ONLY if
+/// a background refresh is still running after ~3s — routine fast refreshes stay
+/// completely invisible (how Netflix/Plex/Google TV behave). Deliberately NOT
+/// the accent colour (which already means content progress and TV focus), and
+/// never shown on a TV, where a 3 m hairline is both imperceptible and misplaced.
+class _RefreshLine extends StatefulWidget {
+  const _RefreshLine(this.controller);
+  final XtreamCodeHomeController controller;
+
+  @override
+  State<_RefreshLine> createState() => _RefreshLineState();
+}
+
+class _RefreshLineState extends State<_RefreshLine> {
+  Timer? _delay;
+  bool _show = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onChange);
+  }
+
+  @override
+  void dispose() {
+    _delay?.cancel();
+    widget.controller.removeListener(_onChange);
+    super.dispose();
+  }
+
+  void _onChange() {
+    if (widget.controller.isRefreshing) {
+      _delay ??= Timer(const Duration(seconds: 3), () {
+        if (mounted && widget.controller.isRefreshing) {
+          setState(() => _show = true);
+        }
+      });
+    } else {
+      _delay?.cancel();
+      _delay = null;
+      if (_show && mounted) setState(() => _show = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_show || ResponsiveHelper.isTelevisionDevice) {
+      return const SizedBox.shrink();
+    }
+    final scheme = Theme.of(context).colorScheme;
+    return LinearProgressIndicator(
+      minHeight: 2.5,
+      backgroundColor: Colors.transparent,
+      valueColor:
+          AlwaysStoppedAnimation(scheme.onSurface.withValues(alpha: 0.35)),
+    );
+  }
+}
 

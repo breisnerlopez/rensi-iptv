@@ -1133,6 +1133,17 @@ class AppDatabase extends _$AppDatabase {
     return rows.map((row) => VodStream.fromDriftVodStream(row)).toList();
   }
 
+  /// Persist a corrected container extension after the player self-healed a
+  /// stale one, so future plays of the same title don't pay the retry cost
+  /// again. Best-effort: a no-op if the row is gone.
+  Future<void> updateVodStreamContainerExtension(
+      String streamId, String playlistId, String extension) async {
+    await (update(vodStreams)
+          ..where((vs) =>
+              vs.streamId.equals(streamId) & vs.playlistId.equals(playlistId)))
+        .write(VodStreamsCompanion(containerExtension: Value(extension)));
+  }
+
   Future<List<VodStream>> getVodStreamsByCategoryAndPlaylistId({
     required String categoryId,
     required String playlistId,

@@ -1,16 +1,178 @@
-# Handoff — campaña de emulación, diseño 10-pies, poda y v2.2.0
+# Handoff — rensi-iptv
 
-**Fecha:** 2026-07-20 · **Publicado como:** `v2.2.0+15` · **Estado: COMMITEADO Y RELEASED**
-
-Léelo entero antes de tocar el árbol: **queda una acción de seguridad pendiente
-que no puede hacer quien escribe esto** (§0).
+> **Actual (§A):** v2.2.1 → **v2.2.2 en curso** — self-heal de extensión VOD + refresh
+> de catálogo en segundo plano. Trabajo **implementado, suite verde, SIN commitear**.
+>
+> **Histórico (§0 en adelante):** campaña v2.2.0 (emulación, diseño 10-pies, poda) —
+> ya commiteada y released. Las notas de laboratorio (§2) y de disciplina de test (§5)
+> siguen siendo la guía evergreen para trabajar aquí.
 
 ---
 
-## 0. Lo primero: acción de seguridad pendiente
+# §A — Estado ACTUAL (2026-07-26): v2.2.1 → v2.2.2 en curso
+
+**Rama:** `main` · **Versión publicada:** `2.2.1+16` (tag `v2.2.1`, Release GitHub con APK arm64 firmado).
+**Estado:** 2 features implementadas + **fix del bloqueante del auditor aplicado**, **suite 383 pass / 2 skip / 0 fail · `flutter analyze lib/` 0 errores**, **SIN commitear**.
+
+## A.0 Pendientes para el siguiente equipo (por prioridad)
+
+| # | Pendiente | Responsable | Bloqueante |
+|---|-----------|-------------|------------|
+| 1 | **Rotar 3 credenciales filtradas** (ver §A.5) | **USUARIO** (fuera de mi alcance) | Seguridad |
+| 2 | Verificar **Feature A** en dispositivo real con el título Jurassic (única prueba 100% válida) | Usuario/QA | No |
+| 3 | **Commit + push** (`[skip ci]`, sin firmar) cuando se apruebe | Equipo, con OK del usuario | No |
+| 4 | **Release `v2.2.2`** vía tag (acción hacia afuera → requiere OK explícito del usuario) | Usuario | Sí |
+
+**✅ Ronda de dispositivo del home post-fix — ejecutada (2026-07-26).** Target nuevo
+`integration_test/homecheck_test.dart` (siembra la BD con `seedXtreamHome`, sin red, sin
+credenciales y **sin MediaKit** — no se cuelga en las capturas del player como la campaña
+completa). Corrido en **phone_compact (393dp)** y **tv_1080p (960dp)** vía `flutter drive --profile`.
+Resultado: home móvil y 10-pies renderizan **sin overflow**, con **rails distintos y sin duplicar**
+(agregado "Todas las películas" + categoría "Acción", cada una una sola vez → confirma el fix del
+auditor en el árbol de widgets real), foco correcto, y **línea de refresh ausente** (correcto: sin
+refresh activo, y nunca en TV). Capturas en `build/screenshots/{phone_compact,tv_1080p}_home_hero.png`,
+`_home_rail.png`, `_settings.png`. NOTA: esto valida el RENDER; sigue pendiente la validación de
+Feature A (playback real) que solo el usuario puede hacer con el título Jurassic.
+
+**✅ Veredicto del auditor (data) — resuelto.** El auditor confirmó los 5 bloqueantes del retador
+como bien resueltos, PERO encontró **un defecto nuevo bloqueante**: `_loadCategories` solo hacía
+`.add()`/`.insert()` (ningún `.clear()`), así que `refreshInBackground` llamándolo por 2ª vez
+**duplicaba todo el catálogo** en Home/Explorar (ruta feliz, garantizado). **Corregido**:
+`_loadCategories` ahora construye en listas temporales y las vuelca con `..clear()..addAll()` al
+final (publish atómico; un fallo a mitad deja el catálogo viejo intacto). Menor: `isPlayerActive=true`
+movido al final de `initState` (un fallo de init ya no deja el refresh desactivado). Verificado por
+**mutación** (quitar los `.clear()` hace fallar el test nuevo) + suite 383 verde. Test de regresión:
+`test/controllers/home_controllers_test.dart` → grupo "catalogue reload is idempotent".
+
+**Trabajo sin commitear** (todo en `main`, working tree):
+```
+ M lib/controllers/xtream_code_home_controller.dart   (Feature B + fix auditor: _loadCategories idempotente, hook debugReloadCategories)
+ M lib/database/database.dart
+ M lib/repositories/iptv_repository.dart
+ M lib/repositories/user_preferences.dart
+ M lib/screens/xtream-codes/xtream_code_data_loader_screen.dart
+ M lib/screens/xtream-codes/xtream_code_home_screen.dart
+ M lib/services/player_state.dart
+ M lib/utils/build_media_url.dart
+ M lib/widgets/player_widget.dart                      (Feature A + fix auditor: isPlayerActive al final de initState)
+ M test/controllers/home_controllers_test.dart         (test de idempotencia)
+?? test/utils/build_media_url_test.dart
+?? integration_test/homecheck_test.dart                (ronda de dispositivo solo-home, sin player)
+```
+
+## A.1 Feature A — Auto-heal de extensión VOD (fix de "failed to recognize file format")
+
+**Causa raíz:** el panel Xtream a veces reporta una `container_extension` obsoleta
+(app guardó `.mkv`, panel sirve `.mp4`). Pedir el `.ext` equivocado devuelve **HTTP 200
+con una página HTML de error**, que libmpv rechaza con *"failed to recognize file format"*.
+Reproducido con *Jurassic World: El Renacer* (stream_id 1075332; panel=`mp4`, app=`mkv`;
+`.mkv`→HTML, `.mp4`→media real).
+
+**Cambios:**
+- **`lib/utils/build_media_url.dart`** — `buildMediaUrl` defensivo (nunca genera `.null`);
+  `swapUrlExtension(url, ext)` respeta query strings; `const kVodExtensionCandidates = ['mp4','mkv','avi']`.
+- **`lib/database/database.dart`** — `updateVodStreamContainerExtension(streamId, playlistId, extension)`
+  persiste la ext ganadora. PK de `VodStreams` = `{streamId, playlistId}`.
+- **`lib/widgets/player_widget.dart`** — self-heal: solo VOD+Xtream, solo si el error contiene
+  `recognize`/`format`, prueba candidatos no intentados (`_triedExtensions`), **cap 2 intentos**.
+  `_reopenCurrent()` reconstruye la `Playlist` **preservando la cola** (no rompe "siguiente").
+  Al reproducir OK, **persiste la ext en DB**. `_resetHealStateIfContentChanged()` resetea al cambiar `contentItem.id`.
+- **`test/utils/build_media_url_test.dart`** (NUEVO) — 10 tests deterministas.
+
+⚠️ El test on-device de heal se **eliminó**: el error de demux de media_kit se emite
+*después* del pump budget + teardown (que anula `AppState.currentPlaylist`), no reproducible
+en emulador. La lógica es correcta en producción (currentPlaylist siempre existe durante
+reproducción). **Única verificación 100% válida = dispositivo real con el título Jurassic** (pendiente A.0.3).
+
+## A.2 Feature B — Refresh de catálogo en 2º plano tras 4h (con indicador)
+
+Pedido: *"si un usuario entra después de 4 horas actualice en segundo plano mostrando algún
+indicador que está actualizando las listas"*. Revisado por gate adversarial completo (retador
+REFUTÓ con 5 bloqueantes → corregidos; UX pidió quitar anuncios ruidosos; **auditor de data
+cerró un 6º bloqueante** — duplicación de rails, ver §A.0).
+
+**Cambios:**
+- **`lib/repositories/iptv_repository.dart`** — los 3 fetch (live/movies/series) envuelven
+  **delete+insert en `_database.transaction(...)`** → sin ventana en que un lector
+  (historial/búsqueda/favoritos) vea la tabla vacía.
+- **`lib/repositories/user_preferences.dart`** — `setLastSync(playlistId, when)` / `getLastSync(playlistId)`.
+- **`lib/controllers/xtream_code_home_controller.dart`** — `refreshInBackground()`: guard de
+  reentrancy síncrono (`_isRefreshing`), guard `_disposed`, fetch espaciados (el panel throttlea
+  ráfagas → 400); si cualquiera devuelve null **aborta sin marcar `lastSync`** (no miente sobre
+  sync exitosa); bail si cambió la playlist (`AppState.currentPlaylist?.id != pid`). Override de
+  `notifyListeners()` con guard `_disposed` (patrón de `WatchHistoryController`).
+- **`lib/services/player_state.dart`** — `static bool isPlayerActive` (set en initState/dispose
+  del player) → no refresca durante reproducción/PiP.
+- **`lib/screens/xtream-codes/xtream_code_home_screen.dart`** — `with WidgetsBindingObserver`;
+  trigger en **arranque** (post-frame) y **resume**. `_maybeBackgroundRefresh()` guards: mounted,
+  playlist Xtream, `!isPlayerActive`, `!isRefreshing`, `lastSync > 4h`, y en **móvil solo Wi-Fi/ethernet**
+  (TV siempre), connectivity en try/catch. `_RefreshLine`: `LinearProgressIndicator` 2.5px neutro,
+  **visible solo si el refresh tarda >3s**, **nunca en TV** (`ResponsiveHelper.isTelevisionDevice`).
+- **`lib/screens/xtream-codes/xtream_code_data_loader_screen.dart`** — marca `setLastSync(...)`
+  tras la carga completa inicial exitosa. `const _staleAfter = Duration(hours: 4)`.
+
+**Fix notable:** `Connectivity().checkConnectivity()` lanzaba `_TypeError` en tests (mock del
+harness devuelve String, la API espera `List<ConnectivityResult>`). Solución: try/catch que omite
+el refresh ante error — robusto también en producción.
+
+## A.3 Test de escala real (ya commiteado)
+
+`integration_test/real_panel_scale_test.dart` — ingesta real, opt-in vía dart-defines
+`PANEL_HOST`/`PANEL_USER`/`PANEL_PASS`. Verificado: **40,025 VOD + 3,016 live + 4,671 series
+en ~4.8s**. **Nunca hardcodear credenciales** — solo `--dart-define` en runtime. El panel
+throttlea ráfagas (400 transitorio); los métodos del repo lo tragan como `null` sin reintento.
+
+## A.4 Cómo correr los tests
+
+- **Unit/widget host:** `flutter test` (esperado 382 pass / 2 skip). ⚠️ El host **bloquea HTTP real**.
+- **Red/panel reales:** SOLO como `integration_test` en dispositivo, opt-in con `--dart-define`.
+- Recordatorio de §1.b: `source ~/android-lab/env.sh` + `sudo apt install libmpv2 ffmpeg` + `scripts/make_testclip.sh`.
+
+## A.5 🔴 SEGURIDAD — 3 credenciales filtradas (acción del USUARIO)
+
+En un backup subido antes se filtraron credenciales reales. **DEBEN rotarse por el usuario**
+(fuera de mi alcance) y **NUNCA re-exponerse** en archivos versionados, commits, capturas ni logs
+(por eso este documento NO nombra hosts, cuentas ni claves):
+- **La API key de TMDb** — rotar en la consola de TMDb.
+- **Las dos cuentas Xtream** usadas durante el desarrollo — cambiar su password en cada panel.
+
+Se guardaron solo en scratch gitignored (ya purgados) y se pasaron solo por `--dart-define`.
+**Verificar que `git log -p` / archivos versionados no las contengan antes de cualquier push.**
+(Esta es la misma clase de deuda que §0 histórico; sigue viva.)
+
+## A.6 Git y release (obligatorio)
+
+- **Nunca firmar** commits/PRs (sin `Co-Authored-By`, sin "Generated with Claude Code", sin trailers).
+- **Commit/push solo cuando el usuario lo pida explícitamente.** El usuario prefiere `[skip ci]`.
+- Release se dispara por **tag `v*`** → GitHub Actions `release.yml` firma el APK desde
+  `secrets.ANDROID_KEYSTORE_BASE64` y publica assets.
+
+## A.7 Siguiente paso concreto
+
+1. ✅ Gate adversarial completo (retador + auditor de data) — bloqueante de duplicación de rails
+   corregido y verificado por mutación. Suite 383 verde, analyze 0 errores.
+2. ✅ Ronda de dispositivo del home post-fix ejecutada en phone (393dp) + TV (960dp) — render limpio,
+   sin overflow, rails sin duplicar (ver §A.0).
+3. Pedir al usuario verificación de Feature A en dispositivo real (título Jurassic) — playback, único
+   punto que el emulador no puede validar.
+4. Con OK del usuario: commit (`[skip ci]`, sin firmar) + push, luego tag `v2.2.2`.
+5. Confirmar que la rotación de credenciales (§A.5) la hizo el usuario.
+
+---
+
+# §HISTÓRICO — campaña v2.2.0 (emulación, 10-pies, poda) · COMMITEADO Y RELEASED
+
+**Fecha:** 2026-07-20 · **Publicado como:** `v2.2.0+15` · **Estado: COMMITEADO Y RELEASED**
+
+Las secciones §2 (laboratorio de emulación) y §5 (disciplina de test) siguen siendo la
+referencia evergreen para trabajar en este repo.
+
+---
+
+## 0. Nota de seguridad histórica (v2.2.0)
 
 **Hay que rotar la password de Xtream y la API key de TMDb.** No lo puede hacer
-quien escribe esto.
+quien escribe esto. *(Se solapa con §A.5; sigue vigente.)*
 
 Durante la validación se usaron credenciales reales (autorizadas por el
 propietario, declaradas como volátiles). Consecuencias que siguen vivas:

@@ -31,6 +31,8 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../../models/content_type.dart';
 import '../../services/player_state.dart';
 import '../../services/service_locator.dart';
+import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/utils/build_media_url.dart';
 import '../../utils/audio_handler.dart';
 import '../utils/player_error_handler.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
@@ -77,9 +79,20 @@ class _PlayerWidgetState extends State<PlayerWidget>
   VideoController? _videoController;
   late WatchHistoryService watchHistoryService;
   final MyAudioHandler _audioHandler = getIt<MyAudioHandler>();
+  final AppDatabase _database = getIt<AppDatabase>();
   List<ContentItem>? _queue;
   late ContentItem contentItem;
   final PlayerErrorHandler _errorHandler = PlayerErrorHandler();
+
+  // Feature A — self-heal a stale container extension. Providers re-encode
+  // titles (e.g. mkv→mp4); the cached extension then resolves to an HTML error
+  // page and libmpv reports "failed to recognize file format". Try alternate
+  // extensions, capped, and persist the winner so the cost is paid once.
+  final Set<String> _triedExtensions = {};
+  int _extHealAttempts = 0;
+  static const int _maxExtHealAttempts = 2;
+  String? _pendingHealExtension; // the extension a trial is currently testing
+  String? _healContentId; // id whose heal state _tried/_attempts belong to
 
   bool isLoading = true;
   bool hasError = false;
@@ -196,11 +209,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
           await UserPreferences.setPlaybackSpeed(rate);
         });
 
+    // Set only after all synchronous init succeeded: if the Player constructor
+    // (or anything above) threw, the State never mounts and dispose never runs,
+    // so leaving this false keeps the background refresh from being wedged off
+    // for the rest of the session. dispose() always clears it.
+    PlayerState.isPlayerActive = true;
+
     _initializePlayer();
   }
 
   @override
   void dispose() {
+    PlayerState.isPlayerActive = false;
     // Cancel timer and save watch history one last time before disposing
     _watchHistoryTimer?.cancel();
     _stallTimer?.cancel();
@@ -347,7 +367,86 @@ class _PlayerWidgetState extends State<PlayerWidget>
     final start = contentItem.contentType == ContentType.liveStream
         ? Duration.zero
         : (_pendingWatchDuration ?? Duration.zero);
-    await _player.open(Media(contentItem.url, start: start), play: true);
+    // Preserve a multi-item VOD queue: reopening a bare Media would collapse the
+    // native Playlist to a single item and break jump/next for the rest of the
+    // session. The current item's url is read live (it may have been healed).
+    if (_queue != null &&
+        _queue!.length > 1 &&
+        contentItem.contentType != ContentType.liveStream) {
+      final medias = [
+        for (var i = 0; i < _queue!.length; i++)
+          Media(i == _currentItemIndex ? contentItem.url : _queue![i].url,
+              start: i == _currentItemIndex ? start : Duration.zero),
+      ];
+      await _player.open(Playlist(medias, index: _currentItemIndex),
+          play: true);
+    } else {
+      await _player.open(Media(contentItem.url, start: start), play: true);
+    }
+  }
+
+  /// If a VOD failed because its cached container extension is stale, reopen
+  /// with the next candidate extension. Returns true if a retry was started, so
+  /// the normal error handler stands down. Silent and capped
+  /// ([_maxExtHealAttempts]); after that the friendly error screen shows.
+  Future<bool> _tryHealExtension(String error) async {
+    if (_playerDisposed || !mounted) return false;
+    if (contentItem.contentType != ContentType.vod || !isXtreamCode) {
+      return false;
+    }
+    // "failed to recognize file format" is what a wrong extension (HTML body)
+    // yields; a genuine network failure says "Failed to open" and belongs to
+    // the retry/backoff path, not here.
+    final e = error.toLowerCase();
+    if (!(e.contains('recognize') || e.contains('format'))) return false;
+    if (_extHealAttempts >= _maxExtHealAttempts) return false;
+
+    final current = _urlExtension(contentItem.url);
+    if (current != null) _triedExtensions.add(current);
+    String? next;
+    for (final cand in kVodExtensionCandidates) {
+      if (!_triedExtensions.contains(cand)) {
+        next = cand;
+        break;
+      }
+    }
+    if (next == null) return false;
+
+    _triedExtensions.add(next);
+    _extHealAttempts++;
+    _pendingHealExtension = next;
+    final healed = swapUrlExtension(contentItem.url, next);
+    contentItem.url = healed;
+    // Mirror onto the queue slot: the playlist listener reassigns `contentItem`
+    // from `_queue[index]` on every reopen, so the queue entry must carry the
+    // healed url too or the fix would be lost on the next reopen.
+    if (_queue != null &&
+        _currentItemIndex >= 0 &&
+        _currentItemIndex < _queue!.length) {
+      _queue![_currentItemIndex].url = healed;
+    }
+    debugPrint('EXT-HEAL -> retrying with .$next (attempt $_extHealAttempts)');
+    _errorHandler.reset();
+    await _reopenCurrent();
+    return true;
+  }
+
+  static String? _urlExtension(String url) {
+    final q = url.indexOf('?');
+    final base = q >= 0 ? url.substring(0, q) : url;
+    final dot = base.lastIndexOf('.');
+    final slash = base.lastIndexOf('/');
+    return dot > slash ? base.substring(dot + 1).toLowerCase() : null;
+  }
+
+  void _resetHealStateIfContentChanged() {
+    final id = contentItem.id.toString();
+    if (id != _healContentId) {
+      _healContentId = id;
+      _triedExtensions.clear();
+      _extHealAttempts = 0;
+      _pendingHealExtension = null;
+    }
   }
 
   /// User-triggered retry from the error screen.
@@ -665,6 +764,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _playingSubscription = _player.stream.playing.listen((playing) {
       if (playing) {
         WakelockPlus.enable();
+        // A heal that reached "playing" is confirmed good: persist the winning
+        // extension so future plays of this title skip the retry entirely.
+        final healed = _pendingHealExtension;
+        if (healed != null && isXtreamCode) {
+          _pendingHealExtension = null;
+          final pid = AppState.currentPlaylist?.id;
+          if (pid != null) {
+            unawaited(_database.updateVodStreamContainerExtension(
+                contentItem.id.toString(), pid, healed));
+          }
+        }
       } else {
         WakelockPlus.disable();
       }
@@ -689,6 +799,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
     _player.stream.error.listen((error) async {
       debugPrint('PLAYER ERROR -> ${scrubCredentials(error)}');
+      // Try to self-heal a stale container extension before surfacing anything.
+      if (await _tryHealExtension(error)) return;
       _errorHandler.handleError(
         error,
         () async {
@@ -719,6 +831,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
       _currentItemIndex = playlist.index;
       currentItemIndex = _currentItemIndex;
       contentItem = _queue?[playlist.index] ?? widget.contentItem;
+      // Fresh item → fresh extension-heal budget (no-op on a heal reopen, which
+      // keeps the same id).
+      _resetHealStateIfContentChanged();
 
       // --- INSERTION 2: QUEUE CHANGE SETTER ---
       PlayerState.currentContent = contentItem;

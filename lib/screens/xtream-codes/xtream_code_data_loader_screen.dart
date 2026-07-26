@@ -120,6 +120,9 @@ class XtreamCodeDataLoaderScreenState extends State<XtreamCodeDataLoaderScreen>
 
       AppState.currentPlaylist = widget.playlist;
       await UserPreferences.setLastPlaylist(widget.playlist.id);
+      // A full load counts as a sync; the after-4h background refresh measures
+      // from here so a fresh login/refresh doesn't immediately re-fetch.
+      await UserPreferences.setLastSync(widget.playlist.id, DateTime.now());
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(

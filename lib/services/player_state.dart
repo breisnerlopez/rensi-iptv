@@ -20,6 +20,11 @@ abstract class PlayerState {
 
   static List<ContentItem>? queue;
   static int currentIndex = 0;
+
+  /// True while a PlayerWidget is mounted. Reliable (set in initState, cleared
+  /// in dispose) — unlike [currentContent], which is never nulled. Used to skip
+  /// a background catalogue refresh while the user is watching (incl. PiP).
+  static bool isPlayerActive = false;
   static bool showChannelList = false;
   static bool showVideoInfo = false;
   static bool showVideoSettings = false;

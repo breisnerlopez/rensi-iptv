@@ -46,7 +46,7 @@ class VodStream {
       // `createdAt` (camelCase) which is never sent by any provider,
       // so every row used to land in the DB with the column default
       // (currentDateAndTime) and "Recently added" sort collapsed to
-      // import order. Verified empirically against newlatam.mx, which
+      // import order. Verified empirically against a real provider that
       // ships `added` but leaves `created_at` null on every row.
       createdAt: safeDateTime(json['added']) ??
           safeDateTime(json['created_at']),

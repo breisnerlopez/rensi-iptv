@@ -168,6 +168,20 @@ class UserPreferences {
     await prefs.remove(_keyLastPlaylist);
   }
 
+  /// When the given playlist's catalogue was last fully fetched. Drives the
+  /// after-N-hours background refresh. Per playlist so switching accounts is
+  /// tracked independently. Stamped only on a *fully successful* refresh.
+  static Future<void> setLastSync(String playlistId, DateTime when) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('lastSync_$playlistId', when.millisecondsSinceEpoch);
+  }
+
+  static Future<DateTime?> getLastSync(String playlistId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final ms = prefs.getInt('lastSync_$playlistId');
+    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+
   static Future<void> setVolume(double volume) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble(_keyVolume, volume);

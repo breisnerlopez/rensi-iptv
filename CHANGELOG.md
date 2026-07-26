@@ -1,3 +1,18 @@
+# [2.2.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.2.1...v2.2.2) (2026-07-26)
+
+
+### Features
+
+* self-heal a VOD's container extension when the panel serves a stale one: on a "failed to recognize file format" error the player retries the other known extensions and persists the one that plays
+* refresh the catalogue in the background when the app is opened or resumed after 4h idle, with a progress line that only appears if it takes over 3s and never on TV; mobile refreshes on Wi-Fi/ethernet only
+
+
+### Bug Fixes
+
+* rebuild the home rails on a background refresh instead of appending to them, which had duplicated every category on screen
+* stop building VOD URLs with a literal `.null` extension when the panel omits the container extension
+
+
 # [2.2.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.0.9...v2.2.0) (2026-07-20)
 
 
