@@ -1,3 +1,12 @@
+# [2.2.4](https://github.com/breisnerlopez/rensi-iptv/compare/v2.2.3...v2.2.4) (2026-07-26)
+
+
+### Bug Fixes
+
+* apply the TV size adaptation whenever the 10-foot layout is active (keyed on the same signal that switches on the large TV chrome), and only ever scale down — a box whose native TV flag was unset previously rendered the big sizes without adapting
+* temporarily surface a screen-metrics line in Settings → About to tune the TV scale to real hardware
+
+
 # [2.2.3](https://github.com/breisnerlopez/rensi-iptv/compare/v2.2.2...v2.2.3) (2026-07-26)
 
 

@@ -872,6 +872,31 @@ String _videoDecoder = 'auto';
                       dense: true,
                     ),
                     const Divider(height: 1),
+                    // TEMPORARY diagnostic (v2.2.4): reports what this device
+                    // says about its screen, so the TV 10-foot scale can be
+                    // tuned to the real reported logical width. Remove once set.
+                    Builder(
+                      builder: (context) {
+                        final mq = MediaQuery.of(context);
+                        final w = mq.size.width.toStringAsFixed(0);
+                        final h = mq.size.height.toStringAsFixed(0);
+                        final dpr = mq.devicePixelRatio.toStringAsFixed(2);
+                        final tv = ResponsiveHelper.isTelevisionDevice;
+                        final big = ResponsiveHelper.isDesktopOrTV(context);
+                        final scale =
+                            ResponsiveHelper.tvScale(context).toStringAsFixed(2);
+                        return ListTile(
+                          leading: const Icon(Icons.aspect_ratio),
+                          title: const Text('Pantalla (diagnóstico)'),
+                          subtitle: Text(
+                            '$w×$h dp · dpr $dpr · tv=$tv · '
+                            'desktopOrTV=$big · scale=$scale',
+                          ),
+                          dense: true,
+                        );
+                      },
+                    ),
+                    const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.code),
                       title: Text(context.loc.support_on_github),

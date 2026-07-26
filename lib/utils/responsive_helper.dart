@@ -83,14 +83,21 @@ class ResponsiveHelper {
   /// exactly), <1 on a smaller-dp box; clamped so nothing collapses or
   /// balloons. Returns 1.0 off TV so phones/tablets are untouched.
   static double tvScale(BuildContext context) {
-    if (!isTenFoot(context)) return 1.0;
+    // Gate on isDesktopOrTV — the SAME signal that switches on the large TV
+    // component sizes — not isTenFoot. A box whose native TV flag is unset and
+    // that isn't in directional-nav mode at this moment would otherwise render
+    // the big TV chrome while tvScale returned 1.0 (no adaptation), which is
+    // exactly "the scale fix didn't shrink anything".
+    if (!isDesktopOrTV(context)) return 1.0;
     final mq = MediaQuery.of(context);
     // Respect a user's accessibility font scale: if they've enlarged text we do
     // NOT shrink anything — not the text (would fight a11y) and not the
     // dimensional sizes (a shrunk item box under an un-shrunk label overflows).
-    // Keeping the whole TV UI at 1.0 in that case is the safe, consistent choice.
     if (mq.textScaler.scale(100) != 100) return 1.0;
-    return (mq.size.width / tvReferenceWidth).clamp(0.72, 1.12);
+    // Only ever shrink (cap at 1.0): a ≥960dp panel keeps the tuned look; a
+    // smaller-dp box — which is what reads as "everything too big" — scales
+    // down proportionally. Floor stops it collapsing on a tiny logical width.
+    return (mq.size.width / tvReferenceWidth).clamp(0.62, 1.0);
   }
   static const double _tvGutter = 20;
   // 150, not 200. At 200 the grid resolved to 3 columns on a 960dp TV — Netflix,
