@@ -11,17 +11,17 @@
 
 # §A — Estado ACTUAL (2026-07-26): v2.2.1 → v2.2.2 en curso
 
-**Rama:** `main` · **Versión publicada:** `2.2.1+16` (tag `v2.2.1`, Release GitHub con APK arm64 firmado).
-**Estado:** 2 features implementadas + **fix del bloqueante del auditor aplicado**, **suite 383 pass / 2 skip / 0 fail · `flutter analyze lib/` 0 errores**, **SIN commitear**.
+**Rama:** `main` · **Versión publicada:** `2.2.2+17` (tag `v2.2.2`, **Release GitHub publicado 2026-07-26**, Latest, con APKs arm64/armeabi-v7a/x86_64 + `.aab` + `linux.zip` firmados).
+**Estado:** ✅ **v2.2.2 committeada, pusheada a `main` y released.** Commits `2aa3a4b` (feat, `[skip ci]`) + `1215f05` (chore bump). Suite 383 pass / 2 skip / 0 fail · `flutter analyze lib/` 0 errores.
 
 ## A.0 Pendientes para el siguiente equipo (por prioridad)
 
 | # | Pendiente | Responsable | Bloqueante |
 |---|-----------|-------------|------------|
-| 1 | **Rotar 3 credenciales filtradas** (ver §A.5) | **USUARIO** (fuera de mi alcance) | Seguridad |
-| 2 | Verificar **Feature A** en dispositivo real con el título Jurassic (única prueba 100% válida) | Usuario/QA | No |
-| 3 | **Commit + push** (`[skip ci]`, sin firmar) cuando se apruebe | Equipo, con OK del usuario | No |
-| 4 | **Release `v2.2.2`** vía tag (acción hacia afuera → requiere OK explícito del usuario) | Usuario | Sí |
+| 1 | **Rotar 3 credenciales filtradas** (ver §A.5) — sigue vivo pase lo que pase | **USUARIO** (fuera de mi alcance) | Seguridad |
+| 2 | Verificar **Feature A** en dispositivo real con el título Jurassic (única prueba 100% válida de playback; el emulador solo valida render) | Usuario/QA | No |
+
+✅ **Commit + push + release `v2.2.2` — HECHO** (2026-07-26). El `release.yml` (tag `v*`) firmó y publicó los assets; run "Create Release" = success.
 
 **✅ Ronda de dispositivo del home post-fix — ejecutada (2026-07-26).** Target nuevo
 `integration_test/homecheck_test.dart` (siembra la BD con `seedXtreamHome`, sin red, sin
