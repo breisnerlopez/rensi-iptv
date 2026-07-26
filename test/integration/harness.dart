@@ -149,6 +149,17 @@ Widget _appShell(Widget home, {Locale locale = const Locale('es')}) {
         Widget c = child ?? const SizedBox.shrink();
         if (ResponsiveHelper.isDesktopOrTV(context)) {
           c = Theme(data: AppThemes.applyTvOverrides(Theme.of(context)), child: c);
+          // Mirror main.dart's TV text-scale wrapper so the capture harness
+          // renders type at the same density the real app does (otherwise only
+          // dimensional scaling shows and the screenshots under-represent it).
+          final scale = ResponsiveHelper.tvScale(context);
+          if (scale != 1.0) {
+            final mq = MediaQuery.of(context);
+            c = MediaQuery(
+              data: mq.copyWith(textScaler: TextScaler.linear(scale)),
+              child: c,
+            );
+          }
         }
         return RepaintBoundary(key: harnessBoundaryKey, child: c);
       },

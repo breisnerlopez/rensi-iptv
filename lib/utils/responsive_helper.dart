@@ -77,6 +77,11 @@ class ResponsiveHelper {
   /// which reads as "everything too big / low resolution".
   static const double tvReferenceWidth = 960.0;
 
+  /// How dense the 10-foot UI is at the reference width. The original design was
+  /// tuned to 1.0 but read as oversized on a real 960dp TV, so the default
+  /// compacts it. This is the single knob to make the whole TV UI bigger/smaller.
+  static const double tvBaseDensity = 0.65;
+
   /// Scale factor for TV component sizes, derived from the ACTUAL reported
   /// logical width vs [tvReferenceWidth], so chrome/type adapt to the panel
   /// instead of being fixed. 1.0 on a 960dp TV (preserves the known-good look
@@ -94,10 +99,11 @@ class ResponsiveHelper {
     // NOT shrink anything — not the text (would fight a11y) and not the
     // dimensional sizes (a shrunk item box under an un-shrunk label overflows).
     if (mq.textScaler.scale(100) != 100) return 1.0;
-    // Only ever shrink (cap at 1.0): a ≥960dp panel keeps the tuned look; a
-    // smaller-dp box — which is what reads as "everything too big" — scales
-    // down proportionally. Floor stops it collapsing on a tiny logical width.
-    return (mq.size.width / tvReferenceWidth).clamp(0.62, 1.0);
+    // Combine the design density (how big the 10-foot UI should be at the
+    // reference width) with the panel's actual width. At 960dp this is just
+    // tvBaseDensity; a smaller-dp box compacts further. Capped at 1.0 so a
+    // wider panel never inflates past the tuned look. Floor prevents collapse.
+    return (tvBaseDensity * mq.size.width / tvReferenceWidth).clamp(0.55, 1.0);
   }
   static const double _tvGutter = 20;
   // 150, not 200. At 200 the grid resolved to 3 columns on a 960dp TV — Netflix,
@@ -108,8 +114,9 @@ class ResponsiveHelper {
   static double getCardWidth(BuildContext context) {
     final w = MediaQuery.of(context).size.width;
     if (isDesktopOrTV(context)) {
-      // Larger, legible rail posters (~200dp on 1080p).
-      return (w * 0.155).clamp(190.0, 240.0);
+      // Larger, legible rail posters (~200dp on 1080p), compacted by the TV
+      // density so posters shrink together with the rest of the 10-foot UI.
+      return (w * 0.155).clamp(190.0, 240.0) * tvScale(context);
     }
     if (w >= 1200) return 160;
     if (w >= 600) return 130;

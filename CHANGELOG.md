@@ -1,3 +1,14 @@
+# [2.2.5](https://github.com/breisnerlopez/rensi-iptv/compare/v2.2.4...v2.2.5) (2026-07-26)
+
+
+### Bug Fixes
+
+* compact the Android TV UI to ~0.65 of the previous size (tuned to a real 960dp panel) so text, nav and posters stop reading as oversized
+* drop the empty margin to the left of the TV navigation rail — it now sits flush against the screen edge
+* let the D-pad / BACK leave a text field on TV: BACK (or escape) now blurs the field and moves focus to a neighbour instead of leaving the user trapped, and three previously unprotected fields (backup passphrase, external-subtitle URL, category search) are covered
+* remove the temporary screen-diagnostic line from Settings
+
+
 # [2.2.4](https://github.com/breisnerlopez/rensi-iptv/compare/v2.2.3...v2.2.4) (2026-07-26)
 
 

@@ -1,3 +1,4 @@
+import 'package:rensi_iptv/widgets/tv/tv_field_traversal.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -361,11 +362,13 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
           context: context,
           builder: (c) => AlertDialog(
             title: Text(context.loc.external_subtitle),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'https://…/subtitulo.srt',
+            content: TvFieldTraversal(
+              child: TextField(
+                controller: controller,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'https://…/subtitulo.srt',
+                ),
               ),
             ),
             actions: [

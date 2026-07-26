@@ -476,28 +476,22 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
     XtreamCodeHomeController controller,
     BoxConstraints constraints,
   ) {
-    // The TV overscan inset is applied as OUTSIDE padding, not baked into the
-    // rail's width, so the tinted panel sits flush at _tvNavWidth and the crop
-    // margin to its left is plain scaffold background — not a same-coloured
-    // empty strip beside the icons (which read as wasted pixels). Total column
-    // width (overscan + panel) is unchanged, so the content area is unaffected.
+    // The rail sits flush against the left edge — no overscan inset. It used to
+    // reserve a safe margin there, but on the modern TVs/monitors this targets
+    // that just reads as a wasted black strip beside the icons; the nav is
+    // chrome that can live at the edge (as Netflix / Google TV do).
     final isTv = ResponsiveHelper.isDesktopOrTV(context);
-    final overscan =
-        isTv ? ResponsiveHelper.safeInset(context) : 0.0;
     final panelWidth = isTv
         ? _tvNavWidth * ResponsiveHelper.tvScale(context)
         : _getNavigationWidth(context, constraints.maxWidth);
-    return Padding(
-      padding: EdgeInsets.only(left: overscan),
-      child: Container(
-        width: panelWidth,
-        decoration: _getNavigationBarDecoration(context),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildDesktopNavigationItems(context, controller, constraints),
-          ],
-        ),
+    return Container(
+      width: panelWidth,
+      decoration: _getNavigationBarDecoration(context),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildDesktopNavigationItems(context, controller, constraints),
+        ],
       ),
     );
   }

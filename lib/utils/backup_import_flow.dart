@@ -195,15 +195,17 @@ Future<String?> _askPassphrase(BuildContext context) async {
             children: [
               Text(dialogContext.loc.backup_passphrase_subtitle),
               const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                obscureText: true,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) =>
-                    Navigator.pop(dialogContext, controller.text),
-                decoration: InputDecoration(
-                  labelText: dialogContext.loc.backup_passphrase_field,
+              TvFieldTraversal(
+                child: TextField(
+                  controller: controller,
+                  autofocus: true,
+                  obscureText: true,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) =>
+                      Navigator.pop(dialogContext, controller.text),
+                  decoration: InputDecoration(
+                    labelText: dialogContext.loc.backup_passphrase_field,
+                  ),
                 ),
               ),
             ],

@@ -1,3 +1,4 @@
+import 'package:rensi_iptv/widgets/tv/tv_field_traversal.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:flutter/material.dart';
 
@@ -45,14 +46,16 @@ class CategoryAppBar extends StatelessWidget {
   }
 
   Widget _buildSearchField(BuildContext context) {
-    return TextField(
-      controller: searchController,
-      decoration: InputDecoration(
-        hintText: context.loc.search,
-        border: InputBorder.none,
+    return TvFieldTraversal(
+      child: TextField(
+        controller: searchController,
+        decoration: InputDecoration(
+          hintText: context.loc.search,
+          border: InputBorder.none,
+        ),
+        autofocus: true,
+        onChanged: onSearchChanged,
       ),
-      autofocus: true,
-      onChanged: onSearchChanged,
     );
   }
 }
