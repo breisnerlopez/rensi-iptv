@@ -1009,7 +1009,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
   }
 
-  void _showSeekFeedback(Duration pos, Duration dur) {
+  void _showSeekFeedback(Duration pos, Duration dur,
+      {Duration hold = const Duration(milliseconds: 1500)}) {
     _seekHideTimer?.cancel();
     if (mounted) {
       setState(() {
@@ -1017,9 +1018,24 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _seekDur = dur;
       });
     }
-    _seekHideTimer = Timer(const Duration(milliseconds: 1500), () {
+    _seekHideTimer = Timer(hold, () {
       if (mounted) setState(() => _seekPos = null);
     });
+  }
+
+  /// Short OK during playback. First press reveals the progress/time info bar
+  /// (no pause — avoids an accidental pause and gives on-screen feedback);
+  /// pressing OK again while it's showing pauses/resumes. A live stream has no
+  /// duration and thus no info bar, so OK toggles play/pause directly.
+  void _handleOkTap() {
+    final dur = _player.state.duration;
+    final isSeekable = dur.inMilliseconds > 0;
+    if (isSeekable && _seekPos == null) {
+      _showSeekFeedback(_player.state.position, dur,
+          hold: const Duration(seconds: 4));
+      return;
+    }
+    _player.playOrPause();
   }
 
   static String _fmtDur(Duration d) {
@@ -1138,8 +1154,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
         PlayerState.showVideoSettings ||
         PlayerState.showVideoInfo;
 
-    // OK/center: SHORT press = play/pause; LONG press (≈450ms) = open the player
-    // options panel (audio/subtitles). On a basic Android TV remote this is the
+    // OK/center: SHORT press = reveal the progress/time info bar first, then
+    // pause on a second press (see _handleOkTap); LONG press (≈450ms) = open the
+    // player options panel (audio/subtitles). On a basic Android TV remote this is the
     // only route to audio/subtitle selection for LIVE and queued content, where
     // the Menu key is already taken by the channel list. Skipped while an overlay
     // is open (OK acts on it) or while typing a channel number (OK commits it).
@@ -1169,7 +1186,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _okHoldFired = false;
         _okHoldTimer?.cancel();
         _okHoldTimer = null;
-        if (!wasHold) _player.playOrPause();
+        if (!wasHold) _handleOkTap();
         return KeyEventResult.handled;
       }
       // KeyRepeatEvent while holding OK: swallow so it neither pauses nor drives

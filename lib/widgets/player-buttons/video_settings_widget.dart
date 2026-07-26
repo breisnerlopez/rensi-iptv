@@ -517,53 +517,7 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    const textColor = Colors.white;
-    final dividerColor = Colors.grey[800]!;
-    const primaryColor = Colors.blue;
-    final primaryContainer = Colors.blue.withOpacity(0.2);
-    final unselectedBackground = Colors.white.withOpacity(0.03);
-
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? primaryContainer.withOpacity(0.3)
-              : unselectedBackground,
-          borderRadius: BorderRadius.circular(6),
-          border: isSelected
-              ? Border.all(
-                  color: primaryColor,
-                  width: 1.5,
-                )
-              : Border.all(
-                  color: dividerColor,
-                  width: 0.5,
-                ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: AppThemes.tenFoot(context, 13),
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: textColor,
-                ),
-              ),
-            ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: primaryColor,
-                size: 18,
-              ),
-          ],
-        ),
-      ),
-    );
+    return _TrackItem(title: title, isSelected: isSelected, onTap: onTap);
   }
 
   String _formatVideoTrack(VideoTrack track) {
@@ -650,5 +604,82 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
 
     if (parts.isEmpty) return 'Track ${track.id}';
     return parts.join(' • ');
+  }
+}
+
+/// A track row in the audio/subtitle panel with a STRONG D-pad focus highlight.
+/// The default InkWell focus tint was almost invisible on a TV, so the user
+/// couldn't tell which option the remote was on. When focused it fills a bright
+/// background and a thick white border; the blue "selected" (currently active)
+/// state is drawn independently via a check + tint.
+class _TrackItem extends StatefulWidget {
+  const _TrackItem({
+    required this.title,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String title;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  State<_TrackItem> createState() => _TrackItemState();
+}
+
+class _TrackItemState extends State<_TrackItem> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    const textColor = Colors.white;
+    final dividerColor = Colors.grey[800]!;
+    const primaryColor = Colors.blue;
+    final selectedBackground = Colors.blue.withOpacity(0.18);
+    final unselectedBackground = Colors.white.withOpacity(0.03);
+
+    final Color bg = _focused
+        ? Colors.white.withOpacity(0.22)
+        : (widget.isSelected ? selectedBackground : unselectedBackground);
+    final Color borderColor = _focused
+        ? Colors.white
+        : (widget.isSelected ? primaryColor : dividerColor);
+    final double borderWidth = _focused
+        ? 2.5
+        : (widget.isSelected ? 1.5 : 0.5);
+
+    return InkWell(
+      onTap: widget.onTap,
+      borderRadius: BorderRadius.circular(6),
+      onFocusChange: (f) {
+        if (f != _focused) setState(() => _focused = f);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: borderColor, width: borderWidth),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                widget.title,
+                style: TextStyle(
+                  fontSize: AppThemes.tenFoot(context, 13),
+                  fontWeight: (widget.isSelected || _focused)
+                      ? FontWeight.w600
+                      : FontWeight.normal,
+                  color: textColor,
+                ),
+              ),
+            ),
+            if (widget.isSelected)
+              const Icon(Icons.check_circle, color: primaryColor, size: 18),
+          ],
+        ),
+      ),
+    );
   }
 }

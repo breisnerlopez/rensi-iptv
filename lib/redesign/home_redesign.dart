@@ -291,8 +291,12 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
+    final s = ResponsiveHelper.tvScale(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(tv ? 48 : 20, tv ? 20 : 12, tv ? 48 : 20, 16),
+      // Compact the top bar on TV: scale its padding with the UI density so it
+      // stops feeling oversized, and trim the "Rensi" wordmark a touch.
+      padding: EdgeInsets.fromLTRB(
+          tv ? 48 * s : 20, tv ? 14 * s : 12, tv ? 48 * s : 20, tv ? 10 * s : 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -308,7 +312,7 @@ class _TopBar extends StatelessWidget {
               Text('Rensi',
                   style: TextStyle(
                       fontFamily: 'Bricolage Grotesque',
-                      fontSize: tv ? 28 : 22,
+                      fontSize: tv ? 24 : 22,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.4)),
             ],

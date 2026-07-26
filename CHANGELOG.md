@@ -1,3 +1,13 @@
+# [2.2.6](https://github.com/breisnerlopez/rensi-iptv/compare/v2.2.5...v2.2.6) (2026-07-26)
+
+
+### Bug Fixes
+
+* shrink the TV top bar (Rensi wordmark + playlist name) — its padding scales with the UI density and the wordmark is trimmed
+* give the audio/subtitle track options a strong D-pad focus highlight (bright fill + thick border) so it's obvious which one is selected on a TV
+* during playback, the first OK now reveals the progress/time info bar instead of pausing immediately; a second OK pauses (live streams still toggle directly)
+
+
 # [2.2.5](https://github.com/breisnerlopez/rensi-iptv/compare/v2.2.4...v2.2.5) (2026-07-26)
 
 
