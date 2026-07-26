@@ -269,7 +269,9 @@ class XtreamCodeHomeController extends ChangeNotifier {
       await _prependAllCategory(
         list: tmpMovie,
         type: CategoryType.vod,
-        previewLoader: () => _repository.getMovies(top: 10),
+        // Fetch a small SQL-limited, newest-first slice (a buffer above 10 to
+        // survive the empty-name filter) instead of the whole VOD table.
+        previewLoader: () => _repository.getRecentMovies(limit: 24),
         toItem: (m) => ContentItem(
           m.streamId,
           m.name,
@@ -445,6 +447,9 @@ class XtreamCodeHomeController extends ChangeNotifier {
       return tsB.compareTo(tsA);
     });
     final previewItems = mapped.take(10).toList();
+    // The SQL-limited preview buffer can be all junk-named rows; don't insert an
+    // empty "View all" strip (the destination still aggregates the full type).
+    if (previewItems.isEmpty) return;
 
     final playlistId = AppState.currentPlaylist?.id ?? '';
     final sentinel = Category(

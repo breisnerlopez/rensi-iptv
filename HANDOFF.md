@@ -9,17 +9,26 @@
 
 ---
 
-# §A — Estado ACTUAL (2026-07-26): v2.2.1 → v2.2.2 en curso
+# §A — Estado ACTUAL (2026-07-26): v2.2.3 (fixes de TV)
 
-**Rama:** `main` · **Versión publicada:** `2.2.2+17` (tag `v2.2.2`, **Release GitHub publicado 2026-07-26**, Latest, con APKs arm64/armeabi-v7a/x86_64 + `.aab` + `linux.zip` firmados).
-**Estado:** ✅ **v2.2.2 committeada, pusheada a `main` y released.** Commits `2aa3a4b` (feat, `[skip ci]`) + `1215f05` (chore bump). Suite 383 pass / 2 skip / 0 fail · `flutter analyze lib/` 0 errores.
+**Rama:** `main` · **Versión publicada:** `2.2.3+18` (tag `v2.2.3`). v2.2.2 salió antes el mismo día.
+**Estado:** ✅ v2.2.2 released. **v2.2.3 = lote de 4 fixes de Android TV** reportados por el usuario en TV real. Suite 383 pass / 2 skip · analyze 0 errores · gate del retador *aprobado-con-correcciones* (3 correcciones aplicadas, sin auditor — no alto riesgo).
+
+**v2.2.3 — qué se arregló (todo preexistente salvo donde se indica):**
+- **#1 Lentitud (durante el uso):** `focus_highlight.dart` — `RepaintBoundary` en cada tile + eliminada la sombra `BoxShadow(blur:18)` animada que se re-rasterizaba en cada salto de foco (causa raíz confirmada por traza). Pestañas perezosas (`IndexedStack` construye cada página al visitarla, `_visitedTabs`). Preview "Ver todo" con SQL `ORDER BY createdAt DESC LIMIT` (`getRecentVodStreamsByPlaylistId`/`getRecentMovies`) en vez de cargar+ordenar 40k filas en el hilo de UI.
+- **#2 Franja del nav rail:** overscan movido a `Padding` externo; el panel tintado mide `_tvNavWidth*tvScale` y arranca a ras (antes el overscan se pintaba dentro del rail).
+- **#3 "Todo muy grande":** `ResponsiveHelper.tvScale = (ancho/960).clamp(0.72,1.12)` — wrapper `textScaler` en `main.dart` (todo el texto) + tamaños dimensionales del nav; devuelve 1.0 en 960dp (sin cambios) y si el usuario tiene font-scale de accesibilidad (no encoge → evita overflow). Causa raíz: el tamaño de TV se ataba a un booleano, no a la resolución reportada.
+- **#4 Overlay de OK que parpadea:** `video_settings_widget.dart` — traga select/enter hasta el primer KeyUp SOLO si OK está físicamente presionado al abrir (`HardwareKeyboard.logicalKeysPressed` en initState), para no comerse el primer OK cuando el panel se abre por Menu/tecla-audio/tap.
+
+**⚠️ Validación pendiente EN TV REAL** (el emulador corre a 960dp/host rápido, no puede validarlo): que la navegación se sienta fluida (#1), que la escala quede bien y en TVs <900dp / con font de accesibilidad (#3), el primer OK del panel de subtítulos (#4), y que la tira "Ver todo" no quede corta con proveedores de nombres basura (#6). Diagnóstico completo por 5 agentes de investigación; el M3U home (`m3u_home_screen.dart`) tiene el MISMO patrón de franja del rail (#2) sin arreglar aún — el usuario está en Xtream.
 
 ## A.0 Pendientes para el siguiente equipo (por prioridad)
 
 | # | Pendiente | Responsable | Bloqueante |
 |---|-----------|-------------|------------|
 | 1 | **Rotar 3 credenciales filtradas** (ver §A.5) — sigue vivo pase lo que pase | **USUARIO** (fuera de mi alcance) | Seguridad |
-| 2 | Verificar **Feature A** en dispositivo real con el título Jurassic (única prueba 100% válida de playback; el emulador solo valida render) | Usuario/QA | No |
+| 2 | Verificar **Feature A** (playback Jurassic) + **fixes de TV v2.2.3** en dispositivo real | Usuario/QA | No |
+| 3 | Espejar el fix #2 (franja del rail) y #3 (tvScale) al **M3U home** si aplica | Equipo | No |
 
 ✅ **Commit + push + release `v2.2.2` — HECHO** (2026-07-26). El `release.yml` (tag `v*`) firmó y publicó los assets; run "Create Release" = success.
 

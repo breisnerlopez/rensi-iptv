@@ -307,6 +307,19 @@ class IptvRepository {
     return null;
   }
 
+  /// Newest movies for the "View all" preview strip, limited in SQL so the full
+  /// catalogue is never loaded and sorted on the UI isolate.
+  Future<List<VodStream>?> getRecentMovies({int limit = 10}) async {
+    try {
+      final vodStreams = await _database
+          .getRecentVodStreamsByPlaylistId(_playlistId, limit: limit);
+      return vodStreams.isNotEmpty ? vodStreams : null;
+    } catch (e) {
+      _logError('Movies', e);
+      return null;
+    }
+  }
+
   Future<List<SeriesStream>?> getSeriesFromApi({
     String? categoryId,
     bool forceRefresh = false,

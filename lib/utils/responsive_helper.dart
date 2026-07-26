@@ -70,6 +70,28 @@ class ResponsiveHelper {
     final w = MediaQuery.of(context).size.width;
     return math.max(1.0, (w - 2 * safeInset(context)) / focusZoom);
   }
+
+  /// The logical width the 10-foot layout's fixed-dp sizes were tuned for. A
+  /// 1080p (and 4K) Android TV reports ~960 logical dp; a box that reports
+  /// fewer dp makes every fixed component eat a bigger share of the panel,
+  /// which reads as "everything too big / low resolution".
+  static const double tvReferenceWidth = 960.0;
+
+  /// Scale factor for TV component sizes, derived from the ACTUAL reported
+  /// logical width vs [tvReferenceWidth], so chrome/type adapt to the panel
+  /// instead of being fixed. 1.0 on a 960dp TV (preserves the known-good look
+  /// exactly), <1 on a smaller-dp box; clamped so nothing collapses or
+  /// balloons. Returns 1.0 off TV so phones/tablets are untouched.
+  static double tvScale(BuildContext context) {
+    if (!isTenFoot(context)) return 1.0;
+    final mq = MediaQuery.of(context);
+    // Respect a user's accessibility font scale: if they've enlarged text we do
+    // NOT shrink anything — not the text (would fight a11y) and not the
+    // dimensional sizes (a shrunk item box under an un-shrunk label overflows).
+    // Keeping the whole TV UI at 1.0 in that case is the safe, consistent choice.
+    if (mq.textScaler.scale(100) != 100) return 1.0;
+    return (mq.size.width / tvReferenceWidth).clamp(0.72, 1.12);
+  }
   static const double _tvGutter = 20;
   // 150, not 200. At 200 the grid resolved to 3 columns on a 960dp TV — Netflix,
   // Prime and Google TV all show 5-6 — and it made the same RensiPoster render

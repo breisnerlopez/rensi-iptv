@@ -116,6 +116,15 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
   late StreamSubscription subscription;
   late StreamSubscription _trackChangeSubscription;
 
+  // When the panel is opened by a long-press of OK, that OK key is still
+  // physically held on open, and its trailing key-repeats would otherwise reach
+  // the auto-focused Close button and dismiss the panel the instant it appears.
+  // So we swallow OK/Enter until that opening press is released — BUT only when
+  // OK was actually held at open. The panel can also be opened by Menu / the
+  // audio-track key / a tap (no held OK); arming immediately there keeps the
+  // first deliberate OK from being eaten. Decided in initState.
+  bool _activateArmed = true;
+
   late List<VideoTrack> videoTracks;
   late List<AudioTrack> audioTracks;
   late List<SubtitleTrack> subtitleTracks;
@@ -127,6 +136,14 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
   @override
   void initState() {
     super.initState();
+    // If OK is physically held right now, the panel was opened by a long-press
+    // of OK → disarm so its trailing repeats can't dismiss it; otherwise (Menu /
+    // audio-track key / tap) arm immediately so the first OK works.
+    final pressed = HardwareKeyboard.instance.logicalKeysPressed;
+    final okHeld = pressed.contains(LogicalKeyboardKey.select) ||
+        pressed.contains(LogicalKeyboardKey.enter) ||
+        pressed.contains(LogicalKeyboardKey.numpadEnter);
+    _activateArmed = !okHeld;
     _loadTracks();
 
     subscription = EventBus().on<Tracks>('player_tracks').listen((Tracks data) {
@@ -183,11 +200,23 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
           // actionable item (the close button) autofocuses to pull focus in.
           canRequestFocus: false,
           onKeyEvent: (node, event) {
+            final key = event.logicalKey;
             if (event is KeyDownEvent &&
-                (event.logicalKey == LogicalKeyboardKey.goBack ||
-                    event.logicalKey == LogicalKeyboardKey.escape ||
-                    event.logicalKey == LogicalKeyboardKey.browserBack)) {
+                (key == LogicalKeyboardKey.goBack ||
+                    key == LogicalKeyboardKey.escape ||
+                    key == LogicalKeyboardKey.browserBack)) {
               widget.onClose();
+              return KeyEventResult.handled;
+            }
+            // Swallow the still-held opening OK press (down + repeats) until it
+            // is released, so it can't activate the auto-focused Close button
+            // and flash the panel shut. Returning `handled` stops the event
+            // bubbling to the app-level select→Activate shortcut.
+            final isActivate = key == LogicalKeyboardKey.select ||
+                key == LogicalKeyboardKey.enter ||
+                key == LogicalKeyboardKey.numpadEnter;
+            if (isActivate && !_activateArmed) {
+              if (event is KeyUpEvent) _activateArmed = true;
               return KeyEventResult.handled;
             }
             return KeyEventResult.ignored;

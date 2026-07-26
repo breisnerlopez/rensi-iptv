@@ -1133,6 +1133,20 @@ class AppDatabase extends _$AppDatabase {
     return rows.map((row) => VodStream.fromDriftVodStream(row)).toList();
   }
 
+  /// Newest [limit] VOD rows for the playlist, ordered by date-added and
+  /// limited in SQL. Lets the "View all movies" preview strip avoid loading and
+  /// sorting the entire (tens-of-thousands-row) catalogue on the UI isolate.
+  Future<List<VodStream>> getRecentVodStreamsByPlaylistId(String playlistId,
+      {int limit = 10}) async {
+    final rows = await (select(vodStreams)
+          ..where((vs) => vs.playlistId.equals(playlistId))
+          ..orderBy([(vs) => OrderingTerm.desc(vs.createdAt)])
+          ..limit(limit))
+        .get();
+
+    return rows.map((row) => VodStream.fromDriftVodStream(row)).toList();
+  }
+
   /// Persist a corrected container extension after the player self-healed a
   /// stale one, so future plays of the same title don't pay the retry cost
   /// again. Best-effort: a no-op if the row is gone.

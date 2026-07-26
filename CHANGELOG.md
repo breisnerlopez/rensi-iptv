@@ -1,3 +1,16 @@
+# [2.2.3](https://github.com/breisnerlopez/rensi-iptv/compare/v2.2.2...v2.2.3) (2026-07-26)
+
+
+### Bug Fixes
+
+* speed up the Android TV UI — isolate focus tiles with repaint boundaries and drop the per-focus blurred drop-shadow that repainted every frame, so D-pad navigation no longer lags
+* build the five home tabs lazily instead of all up front, cutting the stall when a playlist first opens
+* preview the "View all" rail with a SQL-limited query instead of loading and sorting the whole catalogue on the UI thread
+* adapt TV component and text sizes to the panel's reported resolution so smaller-dp TV boxes no longer render everything oversized (respects a user's accessibility font scale)
+* remove the empty strip to the left of the TV navigation rail (the overscan margin was painted into the rail's tint)
+* stop the audio/subtitle panel flashing shut when opened by holding OK (its key-repeats were activating the close button)
+
+
 # [2.2.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.2.1...v2.2.2) (2026-07-26)
 
 

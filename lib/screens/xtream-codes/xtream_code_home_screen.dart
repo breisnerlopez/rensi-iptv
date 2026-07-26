@@ -326,8 +326,15 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
     );
   }
 
+  // Tabs that have actually been opened at least once. Building all five pages
+  // up front (Home + Browse + Live + My-list + full Settings) at entry is a
+  // startup jank spike on a weak TV — each carries its own first viewport of
+  // deep poster tiles. We build a tab the first time it becomes current and
+  // keep it mounted thereafter, so tab-switch state still survives.
+  final Set<int> _visitedTabs = {};
+
   Widget _buildPageView(XtreamCodeHomeController controller) {
-    final pages = _buildPages(controller);
+    _visitedTabs.add(controller.currentIndex);
     // IndexedStack keeps every page mounted (so state survives tab switches),
     // but the off-screen pages stay in the focus tree — on TV the D-pad can
     // then jump focus into an invisible page and "disappear". ExcludeFocus
@@ -338,10 +345,13 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
     return IndexedStack(
       index: controller.currentIndex,
       children: [
-        for (int i = 0; i < pages.length; i++)
+        for (int i = 0; i < 5; i++)
           ExcludeFocus(
             excluding: i != controller.currentIndex,
-            child: pages[i],
+            // Not yet visited → a cheap placeholder instead of the real page.
+            child: _visitedTabs.contains(i)
+                ? _buildPage(i, controller)
+                : const SizedBox.shrink(),
           ),
       ],
     );
@@ -358,67 +368,72 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
   }
 
 
-  List<Widget> _buildPages(XtreamCodeHomeController controller) {
-    return [
-      RedesignHome(
-        key: ValueKey('inicio_${widget.playlist.id}'),
-        movieCategories: controller.movieCategories,
-        seriesCategories: controller.seriesCategories,
-        onOpen: (it) => navigateByContentType(context, it),
-        onPlay: (it) => playByContentType(context, it),
-        onSearch: _openSearch,
-        onSettings: () => controller.onNavigationTap(4),
-        onSeeAll: _navigateToCategoryDetail,
-        continueWatching: resumableFrom(_history.continueWatching),
-        // Reload on the way back: the viewer has just moved the position of
-        // whatever they resumed, and a rail still showing the old progress —
-        // or still showing a title they have now finished — is worse than one
-        // that was never there.
-        onResume: (h) async {
-          final started = await _history.playContent(context, h);
-          if (!mounted) return;
-          if (!started) {
-            // La acción va aquí a propósito: éste es el momento exacto en que
-            // el usuario descubre que la entrada está muerta. Retirarla
-            // automáticamente sería peor — un refresh del catálogo a medias
-            // haría desaparecer historial válido.
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(context.loc.resume_failed),
-                action: SnackBarAction(
-                  label: context.loc.remove,
-                  onPressed: () => _history.removeHistory(h),
+  Widget _buildPage(int i, XtreamCodeHomeController controller) {
+    switch (i) {
+      case 0:
+        return RedesignHome(
+          key: ValueKey('inicio_${widget.playlist.id}'),
+          movieCategories: controller.movieCategories,
+          seriesCategories: controller.seriesCategories,
+          onOpen: (it) => navigateByContentType(context, it),
+          onPlay: (it) => playByContentType(context, it),
+          onSearch: _openSearch,
+          onSettings: () => controller.onNavigationTap(4),
+          onSeeAll: _navigateToCategoryDetail,
+          continueWatching: resumableFrom(_history.continueWatching),
+          // Reload on the way back: the viewer has just moved the position of
+          // whatever they resumed, and a rail still showing the old progress —
+          // or still showing a title they have now finished — is worse than one
+          // that was never there.
+          onResume: (h) async {
+            final started = await _history.playContent(context, h);
+            if (!mounted) return;
+            if (!started) {
+              // La acción va aquí a propósito: éste es el momento exacto en que
+              // el usuario descubre que la entrada está muerta. Retirarla
+              // automáticamente sería peor — un refresh del catálogo a medias
+              // haría desaparecer historial válido.
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(context.loc.resume_failed),
+                  action: SnackBarAction(
+                    label: context.loc.remove,
+                    onPressed: () => _history.removeHistory(h),
+                  ),
                 ),
-              ),
-            );
-          }
-          await _history.loadWatchHistory();
-        },
-        onRemove: (h) => _history.removeHistory(h),
-        playlistSwitcher: PlaylistSwitcherButton(
-          currentPlaylist: widget.playlist,
-          currentIndex: controller.currentIndex,
-        ),
-      ),
-      BrowseRedesign(
-        movieCategories: controller.movieCategories,
-        seriesCategories: controller.seriesCategories,
-        onOpen: (it) => navigateByContentType(context, it),
-        onSearch: _openSearch,
-      ),
-      LiveRedesign(
-        liveCategories: controller.liveCategories ?? const [],
-        onPlay: (it) => navigateByContentType(context, it),
-        // Xtream only: M3U playlists have no panel to ask for a schedule, and
-        // their item ids are not stream ids.
-        epgService: _epgService,
-      ),
-      ListRedesign(
-        key: ValueKey('milista_${controller.currentIndex == 3}'),
-        onOpen: (it) => navigateByContentType(context, it),
-      ),
-      XtreamCodePlaylistSettingsScreen(playlist: widget.playlist),
-    ];
+              );
+            }
+            await _history.loadWatchHistory();
+          },
+          onRemove: (h) => _history.removeHistory(h),
+          playlistSwitcher: PlaylistSwitcherButton(
+            currentPlaylist: widget.playlist,
+            currentIndex: controller.currentIndex,
+          ),
+        );
+      case 1:
+        return BrowseRedesign(
+          movieCategories: controller.movieCategories,
+          seriesCategories: controller.seriesCategories,
+          onOpen: (it) => navigateByContentType(context, it),
+          onSearch: _openSearch,
+        );
+      case 2:
+        return LiveRedesign(
+          liveCategories: controller.liveCategories ?? const [],
+          onPlay: (it) => navigateByContentType(context, it),
+          // Xtream only: M3U playlists have no panel to ask for a schedule, and
+          // their item ids are not stream ids.
+          epgService: _epgService,
+        );
+      case 3:
+        return ListRedesign(
+          key: ValueKey('milista_${controller.currentIndex == 3}'),
+          onOpen: (it) => navigateByContentType(context, it),
+        );
+      default:
+        return XtreamCodePlaylistSettingsScreen(playlist: widget.playlist);
+    }
   }
 
   void _navigateToCategoryDetail(CategoryViewModel category) {
@@ -461,15 +476,28 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
     XtreamCodeHomeController controller,
     BoxConstraints constraints,
   ) {
-    final navWidth = _getNavigationWidth(context, constraints.maxWidth);
-    return Container(
-      width: navWidth,
-      decoration: _getNavigationBarDecoration(context),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildDesktopNavigationItems(context, controller, constraints),
-        ],
+    // The TV overscan inset is applied as OUTSIDE padding, not baked into the
+    // rail's width, so the tinted panel sits flush at _tvNavWidth and the crop
+    // margin to its left is plain scaffold background — not a same-coloured
+    // empty strip beside the icons (which read as wasted pixels). Total column
+    // width (overscan + panel) is unchanged, so the content area is unaffected.
+    final isTv = ResponsiveHelper.isDesktopOrTV(context);
+    final overscan =
+        isTv ? ResponsiveHelper.safeInset(context) : 0.0;
+    final panelWidth = isTv
+        ? _tvNavWidth * ResponsiveHelper.tvScale(context)
+        : _getNavigationWidth(context, constraints.maxWidth);
+    return Padding(
+      padding: EdgeInsets.only(left: overscan),
+      child: Container(
+        width: panelWidth,
+        decoration: _getNavigationBarDecoration(context),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildDesktopNavigationItems(context, controller, constraints),
+          ],
+        ),
       ),
     );
   }
@@ -509,16 +537,9 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
       child: Container(
         width: double.infinity,
         height: sizes.itemHeight,
-        // The left inset is what actually moves the item off the overscan
-        // strip. _getNavigationWidth reserves it in the rail's width, but a
-        // full-width item spanned the reservation too, so the focus ring still
-        // started at x=0: we paid the width and bought nothing.
-        margin: EdgeInsets.only(
-            left: ResponsiveHelper.isDesktopOrTV(context)
-                ? ResponsiveHelper.safeInset(context)
-                : 0,
-            top: 2,
-            bottom: 2),
+        // Overscan is now handled by the rail's outer padding (see
+        // _buildDesktopNavigationBar), so the item just fills the flush panel.
+        margin: const EdgeInsets.only(top: 2, bottom: 2),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           // Selected = a quiet tint; the accent bar is drawn as a child, not as
@@ -595,9 +616,13 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
 
   NavigationSizes _getNavigationSizes(BuildContext context, double screenWidth) {
     if (ResponsiveHelper.isDesktopOrTV(context)) {
+      // Scale the DIMENSIONAL sizes (item box, icon) to the panel; the label
+      // fontSize is left alone because the global TV textScaler in main.dart
+      // already scales all text — multiplying here too would double-shrink it.
+      final s = ResponsiveHelper.tvScale(context);
       return NavigationSizes(
-        itemHeight: _tvItemHeight,
-        iconSize: _tvIconSize,
+        itemHeight: _tvItemHeight * s,
+        iconSize: _tvIconSize * s,
         fontSize: _tvFontSize,
       );
     }

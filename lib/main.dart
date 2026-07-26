@@ -156,10 +156,24 @@ class MyApp extends StatelessWidget {
         if (child == null) return const SizedBox.shrink();
         if (!ResponsiveHelper.isDesktopOrTV(context)) return child;
         final base = Theme.of(context);
-        return Theme(
+        Widget themed = Theme(
           data: AppThemes.applyTvOverrides(base),
           child: child,
         );
+        // Adapt to the panel: a TV box that reports fewer logical dp than the
+        // ~960dp the 10-foot type was tuned for makes everything read as
+        // oversized. Scale ALL text down by the same factor. 1.0 on a 960dp TV
+        // → no change. tvScale already returns 1.0 when the user has an
+        // accessibility font scale, so this never stomps that preference.
+        final scale = ResponsiveHelper.tvScale(context);
+        if (scale != 1.0) {
+          final mq = MediaQuery.of(context);
+          themed = MediaQuery(
+            data: mq.copyWith(textScaler: TextScaler.linear(scale)),
+            child: themed,
+          );
+        }
+        return themed;
       },
       home: AppInitializerScreen(),
       debugShowCheckedModeBanner: false,

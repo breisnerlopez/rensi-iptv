@@ -100,34 +100,37 @@ class _FocusHighlightState extends State<FocusHighlight> {
     // Same token the theme uses, so the ring cannot drift per widget.
     final ring = AppThemes.focusRing(Theme.of(context).brightness);
 
-    return AnimatedScale(
-      scale: _focused ? widget.scale : 1.0,
-      duration: const Duration(milliseconds: 160),
-      curve: Curves.easeOutCubic,
-      child: AnimatedContainer(
+    // RepaintBoundary is load-bearing here, not decoration. The scale is a
+    // compositing transform: with the child isolated in its own layer, a focus
+    // hop re-composites a cached raster instead of re-painting the poster (and
+    // its image) every one of the 160ms animation's frames. The whole tile is
+    // also boundaried so its animation never repaints its rail neighbours —
+    // nav-rail items and hero buttons live in plain Columns, which (unlike
+    // ListView.builder) add no implicit boundary of their own.
+    return RepaintBoundary(
+      child: AnimatedScale(
+        scale: _focused ? widget.scale : 1.0,
         duration: const Duration(milliseconds: 160),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.all(3),
-        decoration: ShapeDecoration(
-          shape: (widget.shape ?? RoundedRectangleBorder(borderRadius: radius))
-              .copyWith(
-            side: BorderSide(
-              color: _focused ? ring : Colors.transparent,
-              width: 3,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.all(3),
+          decoration: ShapeDecoration(
+            shape: (widget.shape ?? RoundedRectangleBorder(borderRadius: radius))
+                .copyWith(
+              side: BorderSide(
+                color: _focused ? ring : Colors.transparent,
+                width: 3,
+              ),
             ),
+            // No shadow. An animated blurRadius:18 drop-shadow repainted on
+            // every focus frame was the single biggest source of D-pad lag on
+            // a weak TV GPU; the ring + scale carry the focus affordance on
+            // their own (Netflix / Google TV do essentially this).
           ),
-          // Neutral elevation (the tile "lifts"), NOT a saturated colour glow.
-          shadows: _focused
-              ? const [
-                  BoxShadow(
-                    color: Color(0x8C000000),
-                    blurRadius: 18,
-                    offset: Offset(0, 8),
-                  ),
-                ]
-              : null,
+          child: RepaintBoundary(child: observer),
         ),
-        child: observer,
       ),
     );
   }
