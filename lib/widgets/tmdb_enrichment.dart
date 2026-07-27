@@ -1,14 +1,11 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/models/tmdb_search_result.dart';
-import 'package:rensi_iptv/redesign/rensi_widgets.dart' show RensiRail;
 import 'package:rensi_iptv/services/global_search_service.dart';
 import 'package:rensi_iptv/services/tmdb_service.dart';
-import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
-import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
+import 'package:rensi_iptv/widgets/tmdb_cast_rail.dart';
 
 /// Weaves TMDb enrichment (cast photos, a richer overview, a trailer-key
 /// fallback) into an IPTV movie/series detail screen.
@@ -297,12 +294,12 @@ class _TmdbEnrichmentState extends State<TmdbEnrichment> {
                 ),
               ),
               const SizedBox(height: 12),
-              RensiRail(
-                height: 176,
-                sidePadding: 0,
-                children: [
-                  for (final member in cast) _CastAvatar(member: member),
-                ],
+              // Same rail, now shared with the global-search detail sheet.
+              // Explicit white keeps the exact look on this dark backdrop.
+              TmdbCastRail(
+                cast: cast,
+                nameColor: Colors.white,
+                characterColor: Colors.white54,
               ),
             ],
           ],
@@ -313,87 +310,3 @@ class _TmdbEnrichmentState extends State<TmdbEnrichment> {
   }
 }
 
-/// A single circular actor avatar with name + character. Wrapped in
-/// [FocusHighlight] so the D-pad focus ring works on TV; the [InkWell] is the
-/// real (focusable) target the highlight observes. A horizontal [RensiRail]
-/// reverses itself under RTL automatically, so no manual mirroring is needed.
-class _CastAvatar extends StatelessWidget {
-  const _CastAvatar({required this.member});
-
-  final TmdbCredit member;
-
-  @override
-  Widget build(BuildContext context) {
-    const diameter = 84.0;
-    final photo = member.profileUrl;
-    return SizedBox(
-      width: 104,
-      child: FocusHighlight(
-        borderRadius: BorderRadius.circular(12),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            // Focusable, but intentionally inert: Phase 1 has no actor page.
-            onTap: () {},
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ClipOval(
-                    child: SizedBox(
-                      width: diameter,
-                      height: diameter,
-                      child: photo == null
-                          ? _fallback(context)
-                          : CachedNetworkImage(
-                              imageUrl: photo,
-                              fit: BoxFit.cover,
-                              placeholder: (_, __) => _fallback(context),
-                              errorWidget: (_, __, ___) => _fallback(context),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    member.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: AppThemes.tenFoot(context, 12),
-                    ),
-                  ),
-                  if (member.character != null &&
-                      member.character!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      member.character!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white54,
-                        fontSize: AppThemes.tenFoot(context, 11),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _fallback(BuildContext context) {
-    return Container(
-      color: Colors.white10,
-      child: const Icon(Icons.person, color: Colors.white38, size: 40),
-    );
-  }
-}

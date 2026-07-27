@@ -6,6 +6,7 @@ import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/services/global_search_service.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/widgets/tmdb_cast_rail.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 
 /// Bottom sheet shown when a search result is tapped.
@@ -119,7 +120,9 @@ class _SheetBodyState extends State<_SheetBody> {
     _detailStarted = true;
     final locale = Localizations.localeOf(context);
     _detail = widget.service
-        .getDetail(widget.result.tmdb, locale: locale)
+        // withCredits: the sheet renders a cast rail, which needs the credits
+        // block; detail() caches the withCredits variant separately.
+        .getDetail(widget.result.tmdb, locale: locale, withCredits: true)
         .then<TmdbDetailResult?>((d) => d)
         .catchError((_) => null);
   }
@@ -204,7 +207,15 @@ class _SheetBodyState extends State<_SheetBody> {
                                   ConnectionState.done) {
                                 return _synopsisLoader(r);
                               }
-                              return _synopsisBlock(context, r, snap.data);
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _synopsisBlock(context, r, snap.data),
+                                  // Cast rail: only when the detail resolved
+                                  // with a non-empty cast; otherwise nothing.
+                                  _castSection(context, r, snap.data),
+                                ],
+                              );
                             },
                           ),
                           const SizedBox(height: 22),
@@ -361,6 +372,38 @@ class _SheetBodyState extends State<_SheetBody> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: children,
+    );
+  }
+
+  /// "Reparto" section: the shared [TmdbCastRail], shown only when the resolved
+  /// detail carries a cast. Degrades to a zero-size shrink while loading, on a
+  /// failed/absent detail, or when the cast is empty.
+  Widget _castSection(BuildContext context, RensiColors r, TmdbDetailResult? detail) {
+    final cast = detail?.cast ?? const <TmdbCredit>[];
+    if (cast.where((c) => c.name.isNotEmpty).isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.loc.cast,
+            style: TextStyle(
+              fontFamily: 'Bricolage Grotesque',
+              fontSize: AppThemes.h3Size,
+              fontWeight: FontWeight.w700,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Theme-aware colours (widget defaults) so names read on the light
+          // or dark sheet surface; RensiRail + FocusHighlight keep D-pad focus
+          // and RTL behaviour identical to the detail-screen enrichment.
+          TmdbCastRail(cast: cast),
+        ],
+      ),
     );
   }
 

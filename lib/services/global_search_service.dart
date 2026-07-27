@@ -588,8 +588,14 @@ class GlobalSearchService {
   Future<TmdbDetailResult> getDetail(
     TmdbSearchResult item, {
     Locale? locale,
+    bool withCredits = false,
   }) =>
-      _tmdbService.detail(item.id, item.mediaType, locale: locale);
+      _tmdbService.detail(
+        item.id,
+        item.mediaType,
+        locale: locale,
+        withCredits: withCredits,
+      );
 
   /// Switches the global AppState so [navigateByContentType] will use the
   /// correct repository when the caller navigates next. This is a synchronous

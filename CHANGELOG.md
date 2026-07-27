@@ -1,3 +1,11 @@
+# [2.6.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.6.1...v2.6.2) (2026-07-27)
+
+
+### Bug Fixes
+
+* the search "discover" detail sheet (a TMDb-only result, e.g. from actor search) now shows the cast — actor photos with name and character below the synopsis. It was fetching the TMDb detail without credits and never rendered a cast rail; the cast rail is now a shared widget reused by the movie/series detail screens and the sheet (verified end-to-end against the live API for both a movie and a series)
+
+
 # [2.6.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.6.0...v2.6.1) (2026-07-27)
 
 
