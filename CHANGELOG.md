@@ -1,3 +1,12 @@
+# [2.6.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.6.0...v2.6.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* resolve TMDb cast/synopsis/trailer for VOD named like a filename — a title such as "Horizonte profundo Desastre en el golfo (2016).mp4" returned nothing from TMDb; the search now strips the extension, year and quality tags and retries with the leading words when a trailing subtitle blocks the match (verified end-to-end against the live API)
+* strip the trailing file extension from the movie title shown on the detail screen
+
+
 # [2.6.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.5.1...v2.6.0) (2026-07-27)
 
 

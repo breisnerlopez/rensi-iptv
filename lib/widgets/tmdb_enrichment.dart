@@ -100,22 +100,30 @@ class _TmdbEnrichmentState extends State<TmdbEnrichment> {
           withCredits: true,
         );
       }
-      final title = widget.title.trim();
-      if (title.isEmpty) return null;
-      final results = await _tmdb.searchTitle(
-        title,
-        year: widget.year,
-        mediaType: widget.mediaType,
-        locale: widget.locale,
-      );
-      final best = _pickBest(results, title, widget.year);
-      if (best == null) return null;
-      return await _tmdb.detail(
-        best.id,
-        widget.mediaType,
-        locale: widget.locale,
-        withCredits: true,
-      );
+      final raw = widget.title.trim();
+      if (raw.isEmpty) return null;
+      // Provider VOD names are dirty — "Horizonte profundo Desastre en el golfo
+      // (2016).mp4" returns NOTHING from TMDb. Clean it, then progressively drop
+      // trailing words so an appended subtitle/junk suffix can't block the match
+      // (verified: the full string → 0 hits, "Horizonte profundo" → the film).
+      for (final query in _searchCandidates(raw)) {
+        final results = await _tmdb.searchTitle(
+          query,
+          year: widget.year,
+          mediaType: widget.mediaType,
+          locale: widget.locale,
+        );
+        final best = _pickBest(results, query, widget.year);
+        if (best != null) {
+          return await _tmdb.detail(
+            best.id,
+            widget.mediaType,
+            locale: widget.locale,
+            withCredits: true,
+          );
+        }
+      }
+      return null;
     } on TmdbException {
       // Typed failures (noKey/rejected/rateLimited/httpError/network) degrade
       // silently — this is enrichment, not a feature the user asked for.
@@ -126,6 +134,48 @@ class _TmdbEnrichmentState extends State<TmdbEnrichment> {
       debugPrint('TMDb enrichment failed: ${scrubCredentials(e)}');
       return null;
     }
+  }
+
+  /// Strips a provider VOD filename down to a searchable title: file extension,
+  /// bracketed/parenthesised tags, a bare year, and common quality/release
+  /// tokens ("4K", "1080p", "DUAL", "60 FPS", …).
+  static String _cleanTitle(String s) {
+    var t = s;
+    t = t.replaceAll(
+        RegExp(r'\.(mp4|mkv|avi|ts|m3u8|mov|flv|wmv|webm)$',
+            caseSensitive: false),
+        ' ');
+    t = t.replaceAll(RegExp(r'[\(\[\{][^\)\]\}]*[\)\]\}]'), ' ');
+    t = t.replaceAll(RegExp(r'\b(19|20)\d{2}\b'), ' ');
+    t = t.replaceAll(
+        RegExp(
+            r'\b(4k|uhd|fhd|hd|sd|2160p?|1080p?|720p?|480p?|dual|lat(ino)?|'
+            r'sub(s|titulad[oa])?|cam|hdrip|bdrip|web[\s-]?dl|x264|x265|hevc|'
+            r'\d{2,3}\s?fps)\b',
+            caseSensitive: false),
+        ' ');
+    return t.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  /// Search queries to try in order: the cleaned full title, then its first 3
+  /// and first 2 words. The real title almost always LEADS the provider name
+  /// ("Horizonte profundo" + subtitle "Desastre en el golfo"), so trying the
+  /// leading words after the full string lets an appended subtitle stop
+  /// blocking the match. Capped at 3 so a miss costs a few (cached) TMDb calls;
+  /// _pickBest's year gate keeps a short prefix from matching the wrong film.
+  static List<String> _searchCandidates(String raw) {
+    final cleaned = _cleanTitle(raw);
+    final words =
+        cleaned.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final out = <String>[];
+    void add(String q) {
+      if (q.isNotEmpty && !out.contains(q)) out.add(q);
+    }
+
+    add(cleaned);
+    if (words.length > 3) add(words.take(3).join(' '));
+    if (words.length > 2) add(words.take(2).join(' '));
+    return out.isEmpty ? [raw.trim()] : out;
   }
 
   /// Picks a confident match, or null. Accepts on EITHER of two signals, and

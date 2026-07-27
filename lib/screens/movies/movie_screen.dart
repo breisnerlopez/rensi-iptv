@@ -613,7 +613,7 @@ class _MovieScreenState extends State<MovieScreen> {
             : Padding(
                 padding: const EdgeInsets.all(10),
                 child: Text(
-                  widget.contentItem.name,
+                  _displayTitle,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
@@ -635,9 +635,19 @@ class _MovieScreenState extends State<MovieScreen> {
     );
   }
 
+  /// The provider name with a trailing file extension stripped, so a VOD named
+  /// like a filename ("… (2016).mp4") doesn't show the ".mp4" in the UI. The
+  /// TMDb search still receives the raw name (it cleans it further internally).
+  String get _displayTitle => widget.contentItem.name
+      .replaceAll(
+          RegExp(r'\.(mp4|mkv|avi|ts|m3u8|mov|flv|wmv|webm)$',
+              caseSensitive: false),
+          '')
+      .trim();
+
   Widget _buildTitle(BuildContext context, {required TextAlign textAlign}) {
     return Text(
-      widget.contentItem.name,
+      _displayTitle,
       textAlign: textAlign,
       style: TextStyle(
         fontFamily: 'Bricolage Grotesque',
