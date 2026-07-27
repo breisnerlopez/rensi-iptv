@@ -4,6 +4,8 @@ import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/models/tmdb_search_result.dart';
+import 'package:rensi_iptv/widgets/tmdb_enrichment.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/repositories/iptv_repository.dart';
@@ -45,6 +47,10 @@ class _MovieScreenState extends State<MovieScreen> {
   bool _isLoadingHistory = true;
   bool _isLoadingVodInfo = true;
   List<ContentItem> _categoryMovies = [];
+
+  // Best YouTube trailer key resolved from TMDb, used only as a FALLBACK when
+  // the Xtream panel didn't ship one. Set asynchronously by [TmdbEnrichment].
+  String? _tmdbTrailerKey;
 
   @override
   void initState() {
@@ -277,6 +283,58 @@ class _MovieScreenState extends State<MovieScreen> {
     return widget.contentItem.duration?.inSeconds;
   }
 
+  /// The TMDb id the panel persisted for this VOD, if any. Lives under
+  /// `info.tmdb_id` in the raw get_vod_info map (falls back to a flat
+  /// `tmdb_id` some panels emit). May be an int or a numeric string; 0/empty
+  /// are treated as absent.
+  int? get _tmdbId {
+    final info = _vodInfo?['info'];
+    final raw = info is Map ? info['tmdb_id'] : _vodInfo?['tmdb_id'];
+    if (raw is num) {
+      final v = raw.toInt();
+      return v > 0 ? v : null;
+    }
+    if (raw is String) {
+      final v = int.tryParse(raw.trim());
+      return (v != null && v > 0) ? v : null;
+    }
+    return null;
+  }
+
+  /// A 4-digit release year pulled from whichever date field the panel filled.
+  int? get _releaseYear {
+    final info = _vodInfo?['info'];
+    final candidates = <Object?>[
+      if (info is Map) info['releasedate'],
+      if (info is Map) info['release_date'],
+      _vodInfo?['releaseDate'],
+      _vodInfo?['release_date'],
+      _vodInfo?['year'],
+    ];
+    for (final c in candidates) {
+      if (c == null) continue;
+      final m = RegExp(r'(19|20)\d{2}').firstMatch(c.toString());
+      if (m != null) return int.tryParse(m.group(0)!);
+    }
+    return null;
+  }
+
+  Widget _buildTmdbEnrichment(BuildContext context) {
+    return TmdbEnrichment(
+      title: widget.contentItem.name,
+      mediaType: TmdbMediaType.movie,
+      locale: Localizations.localeOf(context),
+      year: _releaseYear,
+      tmdbId: _tmdbId,
+      existingOverview: _plotSummary,
+      onTrailerKey: (key) {
+        if (mounted && key != _tmdbTrailerKey) {
+          setState(() => _tmdbTrailerKey = key);
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -433,6 +491,7 @@ class _MovieScreenState extends State<MovieScreen> {
           _buildExtraDetails(context)!,
           const SizedBox(height: 24),
         ],
+        if (!_isLoadingVodInfo) _buildTmdbEnrichment(context),
         if (_buildTrailerButton(context) != null) ...[
           _buildTrailerButton(context)!,
           const SizedBox(height: 24),
@@ -471,6 +530,7 @@ class _MovieScreenState extends State<MovieScreen> {
                 _buildExtraDetails(context)!,
                 const SizedBox(height: 24),
               ],
+              if (!_isLoadingVodInfo) _buildTmdbEnrichment(context),
               if (_buildTrailerButton(context) != null) ...[
                 Align(
                   alignment: Alignment.centerLeft,
@@ -930,6 +990,9 @@ class _MovieScreenState extends State<MovieScreen> {
     final String urlString;
     if (trailerKey != null && trailerKey.isNotEmpty) {
       urlString = 'https://www.youtube.com/watch?v=$trailerKey';
+    } else if (_tmdbTrailerKey != null && _tmdbTrailerKey!.isNotEmpty) {
+      // Fallback source: the best TMDb YouTube trailer, launched identically.
+      urlString = 'https://www.youtube.com/watch?v=$_tmdbTrailerKey';
     } else {
       final query = Uri.encodeQueryComponent(
         '${widget.contentItem.name} trailer $languageCode',

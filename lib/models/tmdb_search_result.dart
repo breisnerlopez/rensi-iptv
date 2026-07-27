@@ -92,6 +92,78 @@ class TmdbSearchResult {
   }
 }
 
+/// A single cast member from the TMDb `credits.cast` list. Deliberately tiny —
+/// the detail enrichment only ever renders a photo, a name and the character.
+class TmdbCredit {
+  final int id;
+  final String name;
+  final String? character;
+  final String? profilePath;
+
+  const TmdbCredit({
+    required this.id,
+    required this.name,
+    this.character,
+    this.profilePath,
+  });
+
+  /// w185 is the smallest profile size that still looks sharp in a circular
+  /// avatar on a 10-foot screen. Null (not '') so callers can branch cleanly.
+  String? get profileUrl => profilePath == null || profilePath!.isEmpty
+      ? null
+      : 'https://image.tmdb.org/t/p/w185$profilePath';
+
+  factory TmdbCredit.fromTmdbJson(Map<String, dynamic> json) => TmdbCredit(
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        name: (json['name'] as String? ?? '').trim(),
+        character: (json['character'] as String?)?.trim(),
+        profilePath: json['profile_path'] as String?,
+      );
+}
+
+/// A single video from the TMDb `videos.results` list. Used only to recover a
+/// YouTube trailer key when the IPTV panel didn't ship one.
+class TmdbVideo {
+  final String key;
+  final String site;
+  final String type;
+  final bool official;
+
+  const TmdbVideo({
+    required this.key,
+    required this.site,
+    required this.type,
+    this.official = false,
+  });
+
+  String? get youtubeUrl =>
+      site.toLowerCase() == 'youtube' && key.isNotEmpty
+          ? 'https://www.youtube.com/watch?v=$key'
+          : null;
+
+  factory TmdbVideo.fromTmdbJson(Map<String, dynamic> json) => TmdbVideo(
+        key: json['key'] as String? ?? '',
+        site: json['site'] as String? ?? '',
+        type: json['type'] as String? ?? '',
+        official: json['official'] as bool? ?? false,
+      );
+
+  /// Picks the best playable trailer: a YouTube `Trailer`, preferring the
+  /// official one. Returns null when there is no YouTube trailer at all, so the
+  /// caller can fall back to its own source rather than launch a teaser/clip.
+  static TmdbVideo? bestTrailer(List<TmdbVideo> videos) {
+    final trailers = videos
+        .where((v) =>
+            v.site.toLowerCase() == 'youtube' &&
+            v.type.toLowerCase() == 'trailer' &&
+            v.key.isNotEmpty)
+        .toList();
+    if (trailers.isEmpty) return null;
+    trailers.sort((a, b) => (b.official ? 1 : 0) - (a.official ? 1 : 0));
+    return trailers.first;
+  }
+}
+
 /// Richer payload from the TMDb detail endpoint, used by the bottom sheet.
 class TmdbDetailResult {
   final int id;
@@ -108,6 +180,11 @@ class TmdbDetailResult {
   final List<String> genres;
   final String? homepage;
 
+  /// Populated only when the detail call was made with `withCredits: true`
+  /// (`append_to_response=credits,videos`); empty otherwise.
+  final List<TmdbCredit> cast;
+  final List<TmdbVideo> videos;
+
   const TmdbDetailResult({
     required this.id,
     required this.mediaType,
@@ -122,7 +199,12 @@ class TmdbDetailResult {
     this.runtimeMinutes,
     this.genres = const [],
     this.homepage,
+    this.cast = const [],
+    this.videos = const [],
   });
+
+  /// Best YouTube trailer from [videos], or null. See [TmdbVideo.bestTrailer].
+  TmdbVideo? get bestTrailer => TmdbVideo.bestTrailer(videos);
 
   String get posterUrl => posterPath == null || posterPath!.isEmpty
       ? ''
@@ -162,6 +244,30 @@ class TmdbDetailResult {
     } else if (json['runtime'] is num) {
       runtime = (json['runtime'] as num).toInt();
     }
+
+    // credits.cast and videos.results only exist when the caller requested
+    // append_to_response=credits,videos. Parsed defensively so a plain detail
+    // payload just yields empty lists.
+    final cast = <TmdbCredit>[];
+    final credits = json['credits'];
+    if (credits is Map && credits['cast'] is List) {
+      for (final c in credits['cast'] as List) {
+        if (c is Map) {
+          cast.add(TmdbCredit.fromTmdbJson(Map<String, dynamic>.from(c)));
+        }
+        if (cast.length >= 20) break; // rail never shows more than this
+      }
+    }
+    final videos = <TmdbVideo>[];
+    final videosJson = json['videos'];
+    if (videosJson is Map && videosJson['results'] is List) {
+      for (final v in videosJson['results'] as List) {
+        if (v is Map) {
+          videos.add(TmdbVideo.fromTmdbJson(Map<String, dynamic>.from(v)));
+        }
+      }
+    }
+
     return TmdbDetailResult(
       id: (json['id'] as num).toInt(),
       mediaType: mediaType,
@@ -178,6 +284,8 @@ class TmdbDetailResult {
       runtimeMinutes: runtime,
       genres: genres,
       homepage: json['homepage'] as String?,
+      cast: cast,
+      videos: videos,
     );
   }
 }

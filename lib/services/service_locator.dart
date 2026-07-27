@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:rensi_iptv/l10n/app_localizations.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/services/tmdb_service.dart';
 import 'package:rensi_iptv/utils/audio_handler.dart';
 import 'package:media_kit/media_kit.dart';
 
@@ -23,6 +25,11 @@ Future<void> setupServiceLocator() async {
   getIt.registerSingleton<AppDatabase>(AppDatabase());
 
   MediaKit.ensureInitialized();
+
+  // Fire-and-forget cache maintenance. The search prune existed but was never
+  // wired at startup; this now also drives the new details prune. Never awaited
+  // — a slow SharedPreferences read must not delay first paint.
+  unawaited(TmdbService.pruneCaches());
 }
 
 /// Renames the legacy Drift SQLite file from

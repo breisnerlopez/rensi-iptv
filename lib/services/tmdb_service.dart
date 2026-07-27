@@ -28,6 +28,16 @@ class TmdbService {
   static const _cacheMaxEntries = 100;
   static const _cacheIndexKey = 'tmdb.search.index.v1';
 
+  // Detail cache — a SEPARATE LRU index from the search one so a burst of
+  // detail lookups can never evict cached search results (or vice versa). A
+  // detail payload changes far less often than a search does, hence the longer
+  // TTL. The raw TMDb body is cached verbatim and re-parsed on read, so the
+  // parse path (credits/videos too) has exactly one implementation.
+  static const _detailsCachePrefix = 'tmdb.details.';
+  static const _detailsCacheTtl = Duration(days: 7);
+  static const _detailsCacheMaxEntries = 100;
+  static const _detailsCacheIndexKey = 'tmdb.details.index.v1';
+
   final http.Client _client;
 
   Future<List<TmdbSearchResult>> search(
@@ -47,7 +57,11 @@ class TmdbService {
     }
 
     final uri = _buildSearchUri(normalizedQuery, credential, languageTag);
-    final response = await _client.get(uri, headers: _buildHeaders(credential));
+    final response = await _client
+        .get(uri, headers: _buildHeaders(credential))
+        .timeout(const Duration(seconds: 8),
+            onTimeout: () => throw const TmdbException(
+                TmdbFailure.network, 'TMDb request timed out'));
     if (response.statusCode == 401) {
       throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
     }
@@ -73,26 +87,46 @@ class TmdbService {
   }
 
   /// Fetches the detail payload for a single TMDb id (movie or tv).
+  ///
+  /// [withCredits] appends `credits,videos` so the result carries the cast list
+  /// and trailer videos; leave it false for the light overview-only payload.
+  /// Cached for [_detailsCacheTtl] in a dedicated index (keyed by id, media
+  /// type, language AND the withCredits variant, so a light cached copy never
+  /// satisfies a request that needs the cast).
   Future<TmdbDetailResult> detail(
     int id,
     TmdbMediaType mediaType, {
     Locale? locale,
+    bool withCredits = false,
   }) async {
+    final segment = mediaType == TmdbMediaType.movie ? 'movie' : 'tv';
+    final languageTag = _languageTagFor(locale);
+
+    final cached =
+        await _readCachedDetail(id, segment, languageTag, withCredits, mediaType);
+    if (cached != null) return cached;
+
     final credential = await TmdbCredentialsService.getCredential();
     if (credential == null) {
       throw const TmdbException(TmdbFailure.noKey, 'TMDb credential is not configured');
     }
-    final segment = mediaType == TmdbMediaType.movie ? 'movie' : 'tv';
     final params = <String, String>{
-      'language': _languageTagFor(locale),
+      'language': languageTag,
     };
+    if (withCredits) {
+      params['append_to_response'] = 'credits,videos';
+    }
     if (!_looksLikeBearerToken(credential)) {
       params['api_key'] = credential;
     }
     final uri = Uri.parse(
       '$_baseUrl/$segment/$id',
     ).replace(queryParameters: params);
-    final response = await _client.get(uri, headers: _buildHeaders(credential));
+    final response = await _client
+        .get(uri, headers: _buildHeaders(credential))
+        .timeout(const Duration(seconds: 8),
+            onTimeout: () => throw const TmdbException(
+                TmdbFailure.network, 'TMDb request timed out'));
     if (response.statusCode == 401) {
       throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
     }
@@ -103,7 +137,72 @@ class TmdbService {
       throw TmdbException(TmdbFailure.httpError, 'TMDb request failed: ${response.statusCode}');
     }
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    await _writeCachedDetail(
+        id, segment, languageTag, withCredits, response.body);
     return TmdbDetailResult.fromTmdbJson(decoded, mediaType);
+  }
+
+  /// Title+year search against the typed endpoint (`search/movie` or
+  /// `search/tv`, NOT `search/multi`), used to resolve an IPTV title to a TMDb
+  /// id when no `tmdb_id` was persisted. Replicates the same dual auth and
+  /// error typing as [detail]. Result selection (confident-match guard) is the
+  /// caller's job.
+  Future<List<TmdbSearchResult>> searchTitle(
+    String title, {
+    int? year,
+    required TmdbMediaType mediaType,
+    Locale? locale,
+  }) async {
+    final normalizedTitle = title.trim();
+    if (normalizedTitle.isEmpty) return const [];
+
+    final credential = await TmdbCredentialsService.getCredential();
+    if (credential == null) {
+      throw const TmdbException(TmdbFailure.noKey, 'TMDb credential is not configured');
+    }
+    final segment = mediaType == TmdbMediaType.movie ? 'movie' : 'tv';
+    final params = <String, String>{
+      'query': normalizedTitle,
+      'include_adult': 'false',
+      'language': _languageTagFor(locale),
+      'page': '1',
+    };
+    if (year != null && year > 0) {
+      params[mediaType == TmdbMediaType.movie ? 'year' : 'first_air_date_year'] =
+          '$year';
+    }
+    if (!_looksLikeBearerToken(credential)) {
+      params['api_key'] = credential;
+    }
+    final uri =
+        Uri.parse('$_baseUrl/search/$segment').replace(queryParameters: params);
+    final response = await _client
+        .get(uri, headers: _buildHeaders(credential))
+        .timeout(const Duration(seconds: 8),
+            onTimeout: () => throw const TmdbException(
+                TmdbFailure.network, 'TMDb request timed out'));
+    if (response.statusCode == 401) {
+      throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
+    }
+    if (response.statusCode == 429) {
+      throw const TmdbException(TmdbFailure.rateLimited, 'TMDb rate limit reached. Try again later.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw TmdbException(TmdbFailure.httpError, 'TMDb request failed: ${response.statusCode}');
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    return (decoded['results'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map((item) {
+          // search/movie and search/tv omit media_type; inject it so
+          // fromTmdbJson reads name/first_air_date for tv and title/release_date
+          // for movie instead of defaulting everything to movie.
+          item['media_type'] = segment;
+          return TmdbSearchResult.fromTmdbJson(item);
+        })
+        .where((item) => item.title.isNotEmpty)
+        .take(20)
+        .toList();
   }
 
   /// Removes expired entries and trims the cache to [_cacheMaxEntries].
@@ -137,6 +236,52 @@ class TmdbService {
 
     if (kept.length != index.length) {
       await prefs.setStringList(_cacheIndexKey, kept);
+    }
+  }
+
+  /// Removes expired detail entries and trims the detail cache to
+  /// [_detailsCacheMaxEntries]. Its own index, separate from [pruneCache].
+  static Future<void> pruneDetailsCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final index = prefs.getStringList(_detailsCacheIndexKey) ?? const <String>[];
+    final now = DateTime.now();
+    final kept = <String>[];
+
+    for (final key in index) {
+      final raw = prefs.getString(key);
+      if (raw == null) continue;
+      try {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        final cachedAt = DateTime.tryParse(decoded['cachedAt'] as String? ?? '');
+        if (cachedAt == null || now.difference(cachedAt) > _detailsCacheTtl) {
+          await prefs.remove(key);
+        } else {
+          kept.add(key);
+        }
+      } catch (_) {
+        await prefs.remove(key);
+      }
+    }
+
+    while (kept.length > _detailsCacheMaxEntries) {
+      final oldest = kept.removeAt(0);
+      await prefs.remove(oldest);
+    }
+
+    if (kept.length != index.length) {
+      await prefs.setStringList(_detailsCacheIndexKey, kept);
+    }
+  }
+
+  /// Prunes both TMDb caches. Safe to call fire-and-forget on app startup:
+  /// swallows any storage error so a prune failure can never surface as an
+  /// unhandled async error at launch.
+  static Future<void> pruneCaches() async {
+    try {
+      await pruneCache();
+      await pruneDetailsCache();
+    } catch (_) {
+      // Best-effort housekeeping; a failed prune is harmless.
     }
   }
 
@@ -279,6 +424,84 @@ class TmdbService {
     if (index == null) return;
     if (index.remove(key)) {
       await prefs.setStringList(_cacheIndexKey, index);
+    }
+  }
+
+  // --- Detail cache --------------------------------------------------------
+
+  String _detailsCacheKey(
+    int id,
+    String segment,
+    String languageTag,
+    bool withCredits,
+  ) =>
+      '$_detailsCachePrefix$languageTag.$segment.$id.${withCredits ? 'c' : 'n'}';
+
+  Future<TmdbDetailResult?> _readCachedDetail(
+    int id,
+    String segment,
+    String languageTag,
+    bool withCredits,
+    TmdbMediaType mediaType,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _detailsCacheKey(id, segment, languageTag, withCredits);
+    final raw = prefs.getString(key);
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final cachedAt = DateTime.tryParse(decoded['cachedAt'] as String? ?? '');
+      if (cachedAt == null ||
+          DateTime.now().difference(cachedAt) > _detailsCacheTtl) {
+        await prefs.remove(key);
+        await _removeFromDetailsIndex(prefs, key);
+        return null;
+      }
+      final body = jsonDecode(decoded['body'] as String) as Map<String, dynamic>;
+      return TmdbDetailResult.fromTmdbJson(body, mediaType);
+    } catch (_) {
+      await prefs.remove(key);
+      await _removeFromDetailsIndex(prefs, key);
+      return null;
+    }
+  }
+
+  Future<void> _writeCachedDetail(
+    int id,
+    String segment,
+    String languageTag,
+    bool withCredits,
+    String body,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _detailsCacheKey(id, segment, languageTag, withCredits);
+    await prefs.setString(
+      key,
+      jsonEncode({
+        'cachedAt': DateTime.now().toIso8601String(),
+        'body': body,
+      }),
+    );
+    await _addToDetailsIndex(prefs, key);
+  }
+
+  Future<void> _addToDetailsIndex(SharedPreferences prefs, String key) async {
+    final index = prefs.getStringList(_detailsCacheIndexKey) ?? <String>[];
+    index.remove(key);
+    index.add(key);
+    while (index.length > _detailsCacheMaxEntries) {
+      final evict = index.removeAt(0);
+      await prefs.remove(evict);
+    }
+    await prefs.setStringList(_detailsCacheIndexKey, index);
+  }
+
+  Future<void> _removeFromDetailsIndex(
+      SharedPreferences prefs, String key) async {
+    final index = prefs.getStringList(_detailsCacheIndexKey);
+    if (index == null) return;
+    if (index.remove(key)) {
+      await prefs.setStringList(_detailsCacheIndexKey, index);
     }
   }
 }

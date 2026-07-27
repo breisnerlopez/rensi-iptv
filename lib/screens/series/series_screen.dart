@@ -3,6 +3,8 @@ import 'package:rensi_iptv/database/database.dart';
 import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/models/tmdb_search_result.dart';
+import 'package:rensi_iptv/widgets/tmdb_enrichment.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
@@ -38,6 +40,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
 
   // Last opened episode for this series (for Continue Watching button)
   EpisodesData? _lastOpenedEpisode;
+
+  // Best YouTube trailer key resolved from TMDb, a FALLBACK when the panel
+  // didn't ship a series-level trailer. Set asynchronously by [TmdbEnrichment].
+  String? _tmdbTrailerKey;
 
   @override
   void initState() {
@@ -382,10 +388,39 @@ class _SeriesScreenState extends State<SeriesScreen> {
           // Dizi Bilgileri
           _buildSeriesDetails(),
 
+          // TMDb enrichment (cast rail + trailer-key fallback). Series-level
+          // tmdb_id is not persisted, so this resolves by title+year search.
+          _buildTmdbEnrichment(),
+
           const SizedBox(height: 40),
         ],
       ),
     );
+  }
+
+  Widget _buildTmdbEnrichment() {
+    final plot = seriesInfo?.plot ?? widget.contentItem.seriesStream?.plot;
+    return TmdbEnrichment(
+      title: seriesInfo?.name ?? widget.contentItem.name,
+      mediaType: TmdbMediaType.tv,
+      locale: Localizations.localeOf(context),
+      year: _seriesReleaseYear(),
+      tmdbId: null,
+      existingOverview: plot,
+      onTrailerKey: (key) {
+        if (mounted && key != _tmdbTrailerKey) {
+          setState(() => _tmdbTrailerKey = key);
+        }
+      },
+    );
+  }
+
+  int? _seriesReleaseYear() {
+    final raw =
+        seriesInfo?.releaseDate ?? widget.contentItem.seriesStream?.releaseDate;
+    if (raw == null || raw.isEmpty) return null;
+    final m = RegExp(r'(19|20)\d{2}').firstMatch(raw);
+    return m != null ? int.tryParse(m.group(0)!) : null;
   }
 
   /// Builds the "Continue: S x Episode y" pill button shown on the series page.
@@ -1205,6 +1240,9 @@ class _SeriesScreenState extends State<SeriesScreen> {
         String urlString;
         if (_trailerKey != null && _trailerKey.isNotEmpty) {
           urlString = "https://www.youtube.com/watch?v=$_trailerKey";
+        } else if (_tmdbTrailerKey != null && _tmdbTrailerKey!.isNotEmpty) {
+          // Fallback source: the best TMDb YouTube trailer, launched identically.
+          urlString = "https://www.youtube.com/watch?v=$_tmdbTrailerKey";
         } else {
           final trailerText = context.loc.trailer;
           final languageCode = Localizations.localeOf(context).languageCode;

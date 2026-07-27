@@ -1,3 +1,11 @@
+# [2.3.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.2.6...v2.3.0) (2026-07-27)
+
+
+### Features
+
+* enrich movie and series detail screens with TMDb metadata — a cast rail with actor photos, a richer overview when the provider's is empty, and a TMDb trailer used as a fallback when the provider ships none. Movies match on the provider's tmdb_id; series match by title + year. The feature needs a TMDb key set in Settings and stays completely invisible (and never blocks playback) without one or when no match is found.
+
+
 # [2.2.6](https://github.com/breisnerlopez/rensi-iptv/compare/v2.2.5...v2.2.6) (2026-07-26)
 
 
