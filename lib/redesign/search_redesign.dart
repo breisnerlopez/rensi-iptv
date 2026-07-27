@@ -602,6 +602,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
       (SearchFilter.all, loc.search_filter_all),
       (SearchFilter.movies, loc.search_filter_movies),
       (SearchFilter.tv, loc.search_filter_tv),
+      (SearchFilter.live, loc.live),
       (SearchFilter.wishlist, loc.search_filter_wishlist),
       (SearchFilter.people, loc.search_filter_people),
     ];

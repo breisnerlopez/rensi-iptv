@@ -278,6 +278,11 @@ void main() {
 
     await pumpScreen(tester, SearchRedesign(onOpen: (_) {}), size: phoneSize);
     // Browse the wishlist (no local seeded -> Dune shows as a saved discovery).
+    // Scroll the chip into view first: the horizontal filter row scrolls, and
+    // as chips are added the wishlist chip can sit past the viewport edge — a
+    // bare tap would silently miss and leave the filter unchanged.
+    await tester.ensureVisible(find.text(_kWishlistChip));
+    await settle(tester);
     await tester.tap(find.text(_kWishlistChip), warnIfMissed: false);
     await settle(tester);
 

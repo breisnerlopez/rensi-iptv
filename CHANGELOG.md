@@ -1,3 +1,12 @@
+# [2.5.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.4.0...v2.5.0) (2026-07-27)
+
+
+### Features
+
+* global search now includes live TV channels (Xtream), with a new "Live" filter chip; a channel named like a film/show still lists as a channel, never in "your library"
+* the Live section gets an instant channel filter — type to narrow channels by name across every category at once, offline, with the D-pad-safe field
+
+
 # [2.4.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.3.0...v2.4.0) (2026-07-27)
 
 

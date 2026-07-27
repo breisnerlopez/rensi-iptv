@@ -5,6 +5,7 @@ import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
+import 'package:rensi_iptv/widgets/tv/tv_field_traversal.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/services/epg_service.dart';
@@ -38,6 +39,38 @@ class LiveRedesign extends StatefulWidget {
 class _LiveRedesignState extends State<LiveRedesign> {
   int _catIndex = 0;
 
+  /// Instant, offline channel filter. Everything is already in memory, so a
+  /// non-empty query filters channels by name across ALL categories, bypassing
+  /// the selected-category index.
+  final TextEditingController _filter = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _filter.dispose();
+    super.dispose();
+  }
+
+  /// All channels across the real categories, deduped by id — the same dedup as
+  /// the "Todos" chip, with the all-sentinel fallback for playlists that keep
+  /// everything on the sentinel category.
+  List<ContentItem> _allChannels(List<CategoryViewModel> realCats) {
+    final seen = <String>{};
+    final out = [
+      for (final c in realCats)
+        for (final it in c.contentItems)
+          if (seen.add(it.id)) it,
+    ];
+    if (out.isEmpty) {
+      for (final c in widget.liveCategories) {
+        for (final it in c.contentItems) {
+          if (seen.add(it.id)) out.add(it);
+        }
+      }
+    }
+    return out;
+  }
+
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
@@ -48,22 +81,17 @@ class _LiveRedesignState extends State<LiveRedesign> {
         .toList();
     final chips = ['Todos', ...realCats.map((c) => c.category.categoryName)];
 
+    final query = _query.trim();
     List<ContentItem> channels;
-    if (_catIndex == 0) {
-      final seen = <String>{};
-      channels = [
-        for (final c in realCats)
-          for (final it in c.contentItems)
-            if (seen.add(it.id)) it,
-      ];
-      if (channels.isEmpty) {
-        // fall back to whatever the all-sentinel holds
-        for (final c in widget.liveCategories) {
-          for (final it in c.contentItems) {
-            if (seen.add(it.id)) channels.add(it);
-          }
-        }
-      }
+    if (query.isNotEmpty) {
+      // Filter channels by name across every category, bypassing the selected
+      // chip. Empty result falls through to the existing no_channels state.
+      final lower = query.toLowerCase();
+      channels = _allChannels(realCats)
+          .where((it) => it.name.toLowerCase().contains(lower))
+          .toList();
+    } else if (_catIndex == 0) {
+      channels = _allChannels(realCats);
     } else {
       channels = realCats[_catIndex - 1].contentItems;
     }
@@ -115,6 +143,37 @@ class _LiveRedesignState extends State<LiveRedesign> {
                     ],
                   ),
                 ],
+              ),
+            ),
+            // Instant channel filter. Wrapped in TvFieldTraversal so the D-pad
+            // can escape the field (DOWN into the grid, BACK/escape to blur) on
+            // a 10-foot screen. autofocus:false so the screen opens on content,
+            // not the keyboard.
+            Padding(
+              padding: EdgeInsetsDirectional.fromSTEB(
+                  ResponsiveHelper.safeInset(context), 0,
+                  ResponsiveHelper.safeInset(context), 12),
+              child: TvFieldTraversal(
+                child: TextField(
+                  controller: _filter,
+                  autofocus: false,
+                  onChanged: (v) => setState(() => _query = v),
+                  decoration: InputDecoration(
+                    hintText: context.loc.search,
+                    prefixIcon: Icon(Icons.search, color: r.text3),
+                    filled: true,
+                    fillColor: r.surface2,
+                    isDense: true,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: r.hairline),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: r.hairline),
+                    ),
+                  ),
+                ),
               ),
             ),
             SizedBox(

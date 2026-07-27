@@ -85,12 +85,16 @@ class GlobalSearchService {
     // no key seeing nothing at all, not even their own catalogue.
     List<TmdbSearchResult> tmdbRaw = const [];
     TmdbFailure? failure;
-    try {
-      tmdbRaw = await _tmdbService.search(query, locale: locale);
-    } on TmdbException catch (e) {
-      failure = e.reason;
-    } catch (_) {
-      failure = TmdbFailure.network;
+    // The live filter is local-only (_filterTmdb discards TMDb for it), so skip
+    // the network call entirely rather than fetch results we would throw away.
+    if (filter != SearchFilter.live) {
+      try {
+        tmdbRaw = await _tmdbService.search(query, locale: locale);
+      } on TmdbException catch (e) {
+        failure = e.reason;
+      } catch (_) {
+        failure = TmdbFailure.network;
+      }
     }
 
     final tmdbResults =
@@ -307,6 +311,10 @@ class GlobalSearchService {
         return items.where((t) => t.mediaType == TmdbMediaType.movie);
       case SearchFilter.tv:
         return items.where((t) => t.mediaType == TmdbMediaType.tv);
+      case SearchFilter.live:
+        // Live channels have no TMDb counterpart; the live filter is
+        // local-only. Return nothing so no Discover row is built for it.
+        return const [];
       case SearchFilter.all:
       case SearchFilter.wishlist:
       case SearchFilter.people:
@@ -323,6 +331,9 @@ class GlobalSearchService {
         return items.where((m) => m.content.contentType == ContentType.vod);
       case SearchFilter.tv:
         return items.where((m) => m.content.contentType == ContentType.series);
+      case SearchFilter.live:
+        return items
+            .where((m) => m.content.contentType == ContentType.liveStream);
       case SearchFilter.all:
       case SearchFilter.wishlist:
       case SearchFilter.people:
@@ -339,6 +350,12 @@ class GlobalSearchService {
   ) {
     final out = <LocalContentMatch>[];
     for (final match in localResults) {
+      // A live channel whose name happens to look like a film/show title must
+      // never be promoted into the TMDb "in your library" (withLocal) bucket:
+      // it has no TMDb counterpart and plays through LiveStreamScreen. Skipping
+      // it here means it is never added to matchedKeys, so it falls through to
+      // the localOnly bucket in _crossReference.
+      if (match.content.contentType == ContentType.liveStream) continue;
       final strength = classify(match.content.name, tmdb.title);
       if (strength == MatchStrength.none) continue;
       out.add(match.withStrength(strength));
@@ -420,6 +437,27 @@ class GlobalSearchService {
               serie.cover ?? '',
               ContentType.series,
               seriesStream: serie,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final channels = await db.searchLiveStreams(playlist.id, query);
+    for (final channel in channels) {
+      matches.add(
+        LocalContentMatch(
+          playlist: playlist,
+          content: _contentForPlaylist(
+            playlist,
+            // liveStream: is MANDATORY — LiveStreamScreen reads
+            // content.liveStream!.categoryId on playback and crashes without it.
+            () => ContentItem(
+              channel.streamId,
+              channel.name,
+              channel.streamIcon,
+              ContentType.liveStream,
+              liveStream: channel,
             ),
           ),
         ),

@@ -66,7 +66,7 @@ class GlobalSearchResult {
 /// person and shows that person's filmography cross-referenced against the local
 /// catalogue. The service treats it like [all] for the type-narrowing switches;
 /// the UI routes it to the person picker instead of the text pipeline.
-enum SearchFilter { all, movies, tv, wishlist, people }
+enum SearchFilter { all, movies, tv, live, wishlist, people }
 
 class UnifiedSearchResults {
   final List<GlobalSearchResult> withLocal;
