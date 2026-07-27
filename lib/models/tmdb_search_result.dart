@@ -14,6 +14,12 @@ class TmdbSearchResult {
   final int id;
   final TmdbMediaType mediaType;
   final String title;
+
+  /// The title in the film/show's ORIGINAL language (`original_title` for a
+  /// movie, `original_name` for tv). A localized catalogue can carry the
+  /// English original while TMDb returns a translated `title`, or vice-versa;
+  /// matching against both lets the two reconcile.
+  final String? originalTitle;
   final String? overview;
   final String? posterPath;
   final String? releaseDate;
@@ -23,6 +29,7 @@ class TmdbSearchResult {
     required this.id,
     required this.mediaType,
     required this.title,
+    this.originalTitle,
     this.overview,
     this.posterPath,
     this.releaseDate,
@@ -49,6 +56,7 @@ class TmdbSearchResult {
     'id': id,
     'mediaType': mediaType.name,
     'title': title,
+    'originalTitle': originalTitle,
     'overview': overview,
     'posterPath': posterPath,
     'releaseDate': releaseDate,
@@ -62,6 +70,7 @@ class TmdbSearchResult {
           ? TmdbMediaType.tv
           : TmdbMediaType.movie,
       title: json['title'] as String? ?? '',
+      originalTitle: json['originalTitle'] as String?,
       overview: json['overview'] as String?,
       posterPath: json['posterPath'] as String?,
       releaseDate: json['releaseDate'] as String?,
@@ -80,6 +89,11 @@ class TmdbSearchResult {
           (mediaType == TmdbMediaType.tv ? json['name'] : json['title'])
               as String? ??
           '',
+      originalTitle:
+          (mediaType == TmdbMediaType.tv
+                  ? json['original_name']
+                  : json['original_title'])
+              as String?,
       overview: json['overview'] as String?,
       posterPath: json['poster_path'] as String?,
       releaseDate:
@@ -201,6 +215,11 @@ class TmdbDetailResult {
   final TmdbMediaType mediaType;
   final String title;
   final String? originalTitle;
+
+  /// ISO-639-1 code of the title's original language (TMDb `original_language`).
+  /// Drives the overview language fallback: when the localized overview is empty
+  /// the service re-fetches the synopsis in this language.
+  final String? originalLanguage;
   final String? overview;
   final String? posterPath;
   final String? backdropPath;
@@ -221,6 +240,7 @@ class TmdbDetailResult {
     required this.mediaType,
     required this.title,
     this.originalTitle,
+    this.originalLanguage,
     this.overview,
     this.posterPath,
     this.backdropPath,
@@ -233,6 +253,29 @@ class TmdbDetailResult {
     this.cast = const [],
     this.videos = const [],
   });
+
+  /// Returns a copy with [overview] replaced, keeping everything else (title,
+  /// genres, cast, videos) as-is. Used by the overview language fallback: when a
+  /// localized detail payload has an empty overview, the service splices in the
+  /// original-language overview without disturbing the localized fields.
+  TmdbDetailResult withOverview(String? newOverview) => TmdbDetailResult(
+        id: id,
+        mediaType: mediaType,
+        title: title,
+        originalTitle: originalTitle,
+        originalLanguage: originalLanguage,
+        overview: newOverview,
+        posterPath: posterPath,
+        backdropPath: backdropPath,
+        releaseDate: releaseDate,
+        voteAverage: voteAverage,
+        voteCount: voteCount,
+        runtimeMinutes: runtimeMinutes,
+        genres: genres,
+        homepage: homepage,
+        cast: cast,
+        videos: videos,
+      );
 
   /// Best YouTube trailer from [videos], or null. See [TmdbVideo.bestTrailer].
   TmdbVideo? get bestTrailer => TmdbVideo.bestTrailer(videos);
@@ -305,6 +348,7 @@ class TmdbDetailResult {
       title: (isTv ? json['name'] : json['title']) as String? ?? '',
       originalTitle:
           (isTv ? json['original_name'] : json['original_title']) as String?,
+      originalLanguage: json['original_language'] as String?,
       overview: json['overview'] as String?,
       posterPath: json['poster_path'] as String?,
       backdropPath: json['backdrop_path'] as String?,

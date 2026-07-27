@@ -1,3 +1,14 @@
+# [2.5.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.5.0...v2.5.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* live TV: a non-fatal mpv "force-seekable" hint and a start-of-stream seek on reopen no longer trip the full-screen error on otherwise-playable channels (scoped to live only, so a real VOD resume-seek failure still surfaces)
+* enrich a movie whose local title differs from TMDb's (e.g. a translated title like "Horizonte Profundo" → "Marea negra") by trusting TMDb's own match when the release year confirms it, so cast and synopsis finally appear
+* localize the search detail sheet's synopsis and genres to the app language, with an original-language fallback when TMDb has no localized synopsis
+* series detail uses the provider's tmdb_id when present so cast/synopsis populate reliably
+
+
 # [2.5.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.4.0...v2.5.0) (2026-07-27)
 
 

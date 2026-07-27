@@ -618,11 +618,19 @@ class IptvRepository {
           _playlistId,
         );
 
+        // Series-level tmdb id from the raw payload (mirrors how movie detail
+        // reads info.tmdb_id). Not persisted (no DB column); handed to the
+        // caller in-memory so TMDb enrichment can use the reliable id path.
+        final rawInfo = jsonData is Map ? jsonData['info'] : null;
+        final rawTmdb = rawInfo is Map ? rawInfo['tmdb_id'] : null;
+        // safeInt yields 0 for absent/unparseable; treat 0 as "no id".
+        final parsedTmdb = safeInt(rawTmdb);
         return SeriesDetailResponse(
           seriesInfo: seriesInfo!,
           seasons: seasons,
           episodes: episodes,
           playlistId: _playlistId,
+          tmdbId: parsedTmdb > 0 ? parsedTmdb : null,
         );
       } else {
         throw Exception(

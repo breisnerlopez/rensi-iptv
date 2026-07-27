@@ -364,8 +364,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
   /// error retry and the stall watchdog.
   Future<void> _reopenCurrent() async {
     if (_playerDisposed || contentItem.url.isEmpty) return;
-    final start = contentItem.contentType == ContentType.liveStream
-        ? Duration.zero
+    // Live streams are not seekable: passing start:Duration.zero makes libmpv
+    // attempt a seek-to-0 on reopen, which fires the non-fatal
+    // "Cannot seek … --force-seekable=yes" error (triggered by the 15s stall
+    // watchdog). Omit start entirely for live; VOD/series keep their resume.
+    final Duration? start = contentItem.contentType == ContentType.liveStream
+        ? null
         : (_pendingWatchDuration ?? Duration.zero);
     // Preserve a multi-item VOD queue: reopening a bare Media would collapse the
     // native Playlist to a single item and break jump/next for the rest of the
@@ -818,6 +822,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             errorMessage = scrubCredentials(message);
           });
         },
+        isLive: contentItem.contentType == ContentType.liveStream,
       );
     });
 

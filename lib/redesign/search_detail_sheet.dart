@@ -99,16 +99,29 @@ class _SheetBodyState extends State<_SheetBody> {
   late bool _wishlisted;
   bool _toggling = false;
 
+  bool _detailStarted = false;
+
   @override
   void initState() {
     super.initState();
-    // Fetch once. getDetail can throw on a TMDb failure; swallow it to null so
-    // the sheet degrades to the header-only view rather than erroring.
+    _wishlisted = widget.result.isWishlisted;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Fetch once, in didChangeDependencies so the app locale can be read from
+    // the InheritedWidget (not available in initState). Threading the locale
+    // makes getDetail() request the overview/genres in the app language instead
+    // of defaulting to en-US. getDetail can throw on a TMDb failure; swallow it
+    // to null so the sheet degrades to the header-only view rather than erroring.
+    if (_detailStarted) return;
+    _detailStarted = true;
+    final locale = Localizations.localeOf(context);
     _detail = widget.service
-        .getDetail(widget.result.tmdb)
+        .getDetail(widget.result.tmdb, locale: locale)
         .then<TmdbDetailResult?>((d) => d)
         .catchError((_) => null);
-    _wishlisted = widget.result.isWishlisted;
   }
 
   bool get _owned => widget.result.localMatches.isNotEmpty;

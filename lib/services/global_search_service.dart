@@ -40,6 +40,23 @@ class GlobalSearchService {
     return MatchStrength.none;
   }
 
+  /// The strongest classification of [local] against a TMDb result's localized
+  /// title AND its original-language title (lower [MatchStrength.index] wins).
+  static MatchStrength _bestClassify(String local, TmdbSearchResult tmdb) {
+    var best = classify(local, tmdb.title);
+    final original = tmdb.originalTitle;
+    if (original != null && original.isNotEmpty) {
+      final alt = classify(local, original);
+      // Only let the original title UPGRADE the match to EXACT. A fuzzy
+      // substring on the original ("It" ~ "It Chapter Two", "Up" ~ "7 Up")
+      // would add false positives on top of what the localized title already
+      // risks; an exact original-title match (an English-original catalogue vs
+      // a localized TMDb title) is the legitimate win.
+      if (alt == MatchStrength.exact && alt.index < best.index) best = alt;
+    }
+    return best;
+  }
+
   static bool isExactTitleMatch(String local, String tmdb) =>
       classify(local, tmdb) == MatchStrength.exact;
 
@@ -207,6 +224,11 @@ class GlobalSearchService {
         ..addAll(keptWithLocal);
     }
 
+    // TODO(tmdb-id-dedup): when a local stream persists its own tmdb_id, an
+    // owned title and its TMDb Discover card could be deduped by that id here
+    // (dropping the duplicate Discover card even when the titles don't
+    // string-match). Deferred: needs a tmdb_id column + Drift schema migration,
+    // out of scope for this change.
     for (final result in localResults) {
       if (!matchedKeys.contains(result.dedupKey)) {
         localOnly.add(result);
@@ -356,7 +378,11 @@ class GlobalSearchService {
       // it here means it is never added to matchedKeys, so it falls through to
       // the localOnly bucket in _crossReference.
       if (match.content.contentType == ContentType.liveStream) continue;
-      final strength = classify(match.content.name, tmdb.title);
+      // Compare the local title against BOTH the localized TMDb title and its
+      // original-language title, taking the STRONGER (lowest-index) result. An
+      // English-original catalogue reconciles with a localized TMDb title, and
+      // a localized catalogue reconciles with the English original.
+      final strength = _bestClassify(match.content.name, tmdb);
       if (strength == MatchStrength.none) continue;
       out.add(match.withStrength(strength));
     }

@@ -98,48 +98,92 @@ class TmdbService {
     TmdbMediaType mediaType, {
     Locale? locale,
     bool withCredits = false,
+    // Internal guard: the overview language fallback issues ONE extra detail()
+    // call in the title's original language. That inner call must never itself
+    // trigger another fallback, so it passes false to bound the recursion at a
+    // single hop. Callers should leave this at its default.
+    bool allowOriginalLanguageFallback = true,
   }) async {
     final segment = mediaType == TmdbMediaType.movie ? 'movie' : 'tv';
     final languageTag = _languageTagFor(locale);
 
     final cached =
         await _readCachedDetail(id, segment, languageTag, withCredits, mediaType);
-    if (cached != null) return cached;
 
-    final credential = await TmdbCredentialsService.getCredential();
-    if (credential == null) {
-      throw const TmdbException(TmdbFailure.noKey, 'TMDb credential is not configured');
+    final TmdbDetailResult result;
+    if (cached != null) {
+      result = cached;
+    } else {
+      final credential = await TmdbCredentialsService.getCredential();
+      if (credential == null) {
+        throw const TmdbException(TmdbFailure.noKey, 'TMDb credential is not configured');
+      }
+      final params = <String, String>{
+        'language': languageTag,
+      };
+      if (withCredits) {
+        params['append_to_response'] = 'credits,videos';
+      }
+      if (!_looksLikeBearerToken(credential)) {
+        params['api_key'] = credential;
+      }
+      final uri = Uri.parse(
+        '$_baseUrl/$segment/$id',
+      ).replace(queryParameters: params);
+      final response = await _client
+          .get(uri, headers: _buildHeaders(credential))
+          .timeout(const Duration(seconds: 8),
+              onTimeout: () => throw const TmdbException(
+                  TmdbFailure.network, 'TMDb request timed out'));
+      if (response.statusCode == 401) {
+        throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
+      }
+      if (response.statusCode == 429) {
+        throw const TmdbException(TmdbFailure.rateLimited, 'TMDb rate limit reached. Try again later.');
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw TmdbException(TmdbFailure.httpError, 'TMDb request failed: ${response.statusCode}');
+      }
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      await _writeCachedDetail(
+          id, segment, languageTag, withCredits, response.body);
+      result = TmdbDetailResult.fromTmdbJson(decoded, mediaType);
     }
-    final params = <String, String>{
-      'language': languageTag,
-    };
-    if (withCredits) {
-      params['append_to_response'] = 'credits,videos';
+
+    // Overview language fallback: TMDb frequently has no translated overview for
+    // the requested language and returns an empty string. Rather than show a
+    // blank synopsis, fetch the overview once in the title's ORIGINAL language
+    // and splice it in (localized genres/cast are kept). Applied on BOTH the
+    // cache-hit and network paths so a re-viewed title stays consistent. The
+    // fallback goes through detail() so it reuses the same LRU cache (no repeat
+    // network on re-view); a light (no-credits) variant is enough since only the
+    // overview is read. Skipped when the localized overview is already present
+    // (no double-fetch) and bounded to a single hop by the guard flag.
+    if (allowOriginalLanguageFallback &&
+        (result.overview?.trim().isEmpty ?? true)) {
+      final originalLanguage = result.originalLanguage?.trim();
+      final fallbackLocale =
+          Locale((originalLanguage == null || originalLanguage.isEmpty)
+              ? 'en'
+              : originalLanguage);
+      if (_languageTagFor(fallbackLocale) != languageTag) {
+        try {
+          final fallback = await detail(
+            id,
+            mediaType,
+            locale: fallbackLocale,
+            allowOriginalLanguageFallback: false,
+          );
+          final fallbackOverview = fallback.overview?.trim() ?? '';
+          if (fallbackOverview.isNotEmpty) {
+            return result.withOverview(fallback.overview);
+          }
+        } on TmdbException {
+          // Best-effort: keep the localized (empty-overview) result on failure.
+        }
+      }
     }
-    if (!_looksLikeBearerToken(credential)) {
-      params['api_key'] = credential;
-    }
-    final uri = Uri.parse(
-      '$_baseUrl/$segment/$id',
-    ).replace(queryParameters: params);
-    final response = await _client
-        .get(uri, headers: _buildHeaders(credential))
-        .timeout(const Duration(seconds: 8),
-            onTimeout: () => throw const TmdbException(
-                TmdbFailure.network, 'TMDb request timed out'));
-    if (response.statusCode == 401) {
-      throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
-    }
-    if (response.statusCode == 429) {
-      throw const TmdbException(TmdbFailure.rateLimited, 'TMDb rate limit reached. Try again later.');
-    }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw TmdbException(TmdbFailure.httpError, 'TMDb request failed: ${response.statusCode}');
-    }
-    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-    await _writeCachedDetail(
-        id, segment, languageTag, withCredits, response.body);
-    return TmdbDetailResult.fromTmdbJson(decoded, mediaType);
+    return result;
   }
 
   /// Title+year search against the typed endpoint (`search/movie` or

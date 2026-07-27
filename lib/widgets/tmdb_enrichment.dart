@@ -128,45 +128,64 @@ class _TmdbEnrichmentState extends State<TmdbEnrichment> {
     }
   }
 
-  /// Picks a confident match, or null. Requires at least a fuzzy title match
-  /// (so an unrelated popular film is never chosen), then ranks exact-title and
-  /// year-match higher, breaking ties by TMDb's own popularity order. A
-  /// fuzzy-only match with no year confirmation is rejected as too risky.
+  /// Picks a confident match, or null. Accepts on EITHER of two signals, and
+  /// rejects only when there is neither a title nor a year signal:
+  ///
+  ///  1. A title match (fuzzy or exact) against the TMDb result's localized
+  ///     title OR its original-language title — ranked exact-first, then
+  ///     year-confirmed, then by TMDb's own relevance order.
+  ///  2. No title match at all → trust TMDb's own search relevance for its TOP
+  ///     result, but ONLY when the release year confirms it (±1). This lets a
+  ///     localized catalogue title (e.g. "Horizonte Profundo") reconcile with a
+  ///     differently-named TMDb title ("Marea negra") that TMDb's search already
+  ///     surfaced as the best hit. Requiring the year here keeps the wrong film
+  ///     out when the title gives no signal.
   TmdbSearchResult? _pickBest(
     List<TmdbSearchResult> results,
     String title,
     int? year,
   ) {
-    final candidates = results
-        .where((r) =>
-            r.mediaType == widget.mediaType &&
-            GlobalSearchService.isFuzzyTitleMatch(title, r.title))
-        .toList();
-    if (candidates.isEmpty) return null;
+    final typed =
+        results.where((r) => r.mediaType == widget.mediaType).toList();
+    if (typed.isEmpty) return null;
 
+    bool exactMatch(TmdbSearchResult r) =>
+        GlobalSearchService.isExactTitleMatch(title, r.title) ||
+        (r.originalTitle != null &&
+            GlobalSearchService.isExactTitleMatch(title, r.originalTitle!));
+    bool fuzzyMatch(TmdbSearchResult r) =>
+        GlobalSearchService.isFuzzyTitleMatch(title, r.title) ||
+        (r.originalTitle != null &&
+            GlobalSearchService.isFuzzyTitleMatch(title, r.originalTitle!));
     bool yearMatch(TmdbSearchResult r) {
       final y = _yearOf(r);
-      return year != null && y != null && y == year;
+      return year != null && y != null && (y - year).abs() <= 1;
     }
 
-    int rank(TmdbSearchResult r) {
-      var s = 0;
-      if (GlobalSearchService.isExactTitleMatch(title, r.title)) s += 2;
-      if (yearMatch(r)) s += 1;
-      return s;
+    // 1) Title signal present: rank exact-first, then year-confirmed, then keep
+    //    TMDb's popularity/relevance order as the tie-break.
+    final titled = typed.where(fuzzyMatch).toList();
+    if (titled.isNotEmpty) {
+      int rank(TmdbSearchResult r) =>
+          (exactMatch(r) ? 2 : 0) + (yearMatch(r) ? 1 : 0);
+      titled.sort((a, b) {
+        final byRank = rank(b).compareTo(rank(a));
+        if (byRank != 0) return byRank;
+        return typed.indexOf(a).compareTo(typed.indexOf(b));
+      });
+      final best = titled.first;
+      // A FUZZY-only title with no year is too weak to enrich with — a bare
+      // substring ("Halloween" ~ "Halloween Kills") would show the wrong film's
+      // cast. Trust it only when the title is exact OR the year confirms it;
+      // otherwise fall through to the year-gated top-hit branch below.
+      if (exactMatch(best) || yearMatch(best)) return best;
     }
 
-    candidates.sort((a, b) {
-      final byRank = rank(b).compareTo(rank(a));
-      if (byRank != 0) return byRank;
-      // Preserve TMDb's popularity ordering as the tie-breaker.
-      return results.indexOf(a).compareTo(results.indexOf(b));
-    });
+    // 2) No title signal: accept TMDb's top hit only if the year confirms it.
+    final top = typed.first;
+    if (yearMatch(top)) return top;
 
-    final best = candidates.first;
-    final exact = GlobalSearchService.isExactTitleMatch(title, best.title);
-    if (!exact && !yearMatch(best)) return null;
-    return best;
+    return null;
   }
 
   int? _yearOf(TmdbSearchResult r) {

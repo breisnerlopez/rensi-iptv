@@ -34,6 +34,11 @@ class _SeriesScreenState extends State<SeriesScreen> {
   SeriesInfosData? seriesInfo;
   List<SeasonsData> seasons = [];
   List<EpisodesData> episodes = [];
+
+  /// Series-level TMDb id from the raw get_series_info payload, when the panel
+  /// shipped one. Used to enrich cast/synopsis via the reliable id path;
+  /// null → TMDb enrichment falls back to a title+year search.
+  int? _seriesTmdbId;
   bool isLoading = true;
   String? error;
   bool _isFavorite = false;
@@ -82,6 +87,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
           seriesInfo = seriesResponse.seriesInfo;
           seasons = seriesResponse.seasons;
           episodes = seriesResponse.episodes;
+          _seriesTmdbId = seriesResponse.tmdbId;
           isLoading = false;
         });
 
@@ -388,8 +394,8 @@ class _SeriesScreenState extends State<SeriesScreen> {
           // Dizi Bilgileri
           _buildSeriesDetails(),
 
-          // TMDb enrichment (cast rail + trailer-key fallback). Series-level
-          // tmdb_id is not persisted, so this resolves by title+year search.
+          // TMDb enrichment (cast rail + trailer-key fallback). Uses the
+          // panel's series-level tmdb_id when available, else a title+year search.
           _buildTmdbEnrichment(),
 
           const SizedBox(height: 40),
@@ -405,7 +411,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
       mediaType: TmdbMediaType.tv,
       locale: Localizations.localeOf(context),
       year: _seriesReleaseYear(),
-      tmdbId: null,
+      tmdbId: _seriesTmdbId,
       existingOverview: plot,
       onTrailerKey: (key) {
         if (mounted && key != _tmdbTrailerKey) {
