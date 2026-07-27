@@ -92,6 +92,37 @@ class TmdbSearchResult {
   }
 }
 
+/// A person (actor/crew) from the TMDb `search/person` list. Deliberately tiny
+/// — the person picker only renders a photo and a name, and carries the id so
+/// the caller can fetch `person/{id}/combined_credits`.
+class TmdbPerson {
+  final int id;
+  final String name;
+  final String? profilePath;
+  final String? knownForDepartment;
+
+  const TmdbPerson({
+    required this.id,
+    required this.name,
+    this.profilePath,
+    this.knownForDepartment,
+  });
+
+  /// w185 is the smallest profile size that still looks sharp in the person
+  /// grid on a 10-foot screen. Empty ('' not null) so it slots straight into a
+  /// [TmdbSearchResult]-style `posterUrl` consumer with the same empty contract.
+  String? get profileUrl => profilePath == null || profilePath!.isEmpty
+      ? null
+      : 'https://image.tmdb.org/t/p/w185$profilePath';
+
+  factory TmdbPerson.fromTmdbJson(Map<String, dynamic> json) => TmdbPerson(
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        name: (json['name'] as String? ?? '').trim(),
+        profilePath: json['profile_path'] as String?,
+        knownForDepartment: json['known_for_department'] as String?,
+      );
+}
+
 /// A single cast member from the TMDb `credits.cast` list. Deliberately tiny —
 /// the detail enrichment only ever renders a photo, a name and the character.
 class TmdbCredit {

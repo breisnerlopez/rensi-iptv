@@ -61,7 +61,12 @@ class GlobalSearchResult {
 }
 
 /// Restricts what kinds of items the search will return.
-enum SearchFilter { all, movies, tv, wishlist }
+///
+/// [people] is a distinct MODE, not a type filter: it searches TMDb for a
+/// person and shows that person's filmography cross-referenced against the local
+/// catalogue. The service treats it like [all] for the type-narrowing switches;
+/// the UI routes it to the person picker instead of the text pipeline.
+enum SearchFilter { all, movies, tv, wishlist, people }
 
 class UnifiedSearchResults {
   final List<GlobalSearchResult> withLocal;

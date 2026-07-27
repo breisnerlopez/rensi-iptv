@@ -1181,6 +1181,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get search_filter_wishlist => '愿望清单';
 
   @override
+  String get search_filter_people => '演员';
+
+  @override
+  String get search_person_hint => '搜索演员以查看其作品';
+
+  @override
+  String get search_person_no_results => '没有该演员的结果';
+
+  @override
+  String get search_back_to_actors => '返回演员';
+
+  @override
   String get search_clear_history => '清除历史';
 
   @override

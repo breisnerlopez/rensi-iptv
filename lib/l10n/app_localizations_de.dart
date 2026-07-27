@@ -1238,6 +1238,20 @@ class AppLocalizationsDe extends AppLocalizations {
   String get search_filter_wishlist => 'Wunschliste';
 
   @override
+  String get search_filter_people => 'Schauspieler';
+
+  @override
+  String get search_person_hint =>
+      'Suche nach einem Schauspieler, um seine Filmografie zu sehen';
+
+  @override
+  String get search_person_no_results =>
+      'Keine Ergebnisse für diesen Schauspieler';
+
+  @override
+  String get search_back_to_actors => 'Zurück zu Schauspielern';
+
+  @override
   String get search_clear_history => 'Verlauf löschen';
 
   @override

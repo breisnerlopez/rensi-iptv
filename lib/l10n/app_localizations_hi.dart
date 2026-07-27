@@ -1222,6 +1222,19 @@ class AppLocalizationsHi extends AppLocalizations {
   String get search_filter_wishlist => 'इच्छा सूची';
 
   @override
+  String get search_filter_people => 'कलाकार';
+
+  @override
+  String get search_person_hint =>
+      'किसी कलाकार की फ़िल्मोग्राफ़ी देखने के लिए खोजें';
+
+  @override
+  String get search_person_no_results => 'इस कलाकार के लिए कोई परिणाम नहीं';
+
+  @override
+  String get search_back_to_actors => 'कलाकारों पर वापस जाएँ';
+
+  @override
   String get search_clear_history => 'इतिहास साफ़ करें';
 
   @override

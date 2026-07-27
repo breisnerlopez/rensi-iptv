@@ -10,6 +10,7 @@ import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/redesign/search_detail_sheet.dart';
 import 'package:rensi_iptv/screens/settings/general_settings_section.dart';
 import 'package:rensi_iptv/services/global_search_service.dart';
+import 'package:rensi_iptv/services/tmdb_service.dart';
 import 'package:rensi_iptv/services/tmdb_wishlist_service.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
@@ -61,8 +62,21 @@ class _SearchRedesignState extends State<SearchRedesign> {
 
   /// Latest result set, or null before the first query. Progressive: a
   /// local-first paint (`tmdbPending == true`) lands here first, then the final
-  /// three buckets replace it.
+  /// three buckets replace it. In person mode this holds the SELECTED person's
+  /// filmography buckets.
   UnifiedSearchResults? _results;
+
+  /// People matching the current query in person mode, or null before a search.
+  /// Only meaningful while `_filter == SearchFilter.people`.
+  List<TmdbPerson>? _people;
+
+  /// The person whose filmography is being shown, or null while the person
+  /// picker (the people list) is on screen.
+  TmdbPerson? _selectedPerson;
+
+  /// Why the person LIST search failed (typed), or null. Renders the same
+  /// degradation banner/empty as a text search's `tmdbFailure`.
+  TmdbFailure? _peopleFailure;
 
   /// A search is in flight and there is nothing to show yet (drives the only
   /// full-panel spinner — the wishlist browse / filter switch). During a text
@@ -96,17 +110,36 @@ class _SearchRedesignState extends State<SearchRedesign> {
       _reqToken++;
       setState(() {
         _results = null;
+        _resetPeople();
         _loading = false;
       });
       return;
     }
-    if (_results == null) setState(() => _loading = true);
+    // Spinner only when there is nothing on screen yet. In person mode the
+    // "nothing yet" surface is the people list, not `_results`.
+    final nothingYet =
+        _filter == SearchFilter.people ? _people == null : _results == null;
+    if (nothingYet) setState(() => _loading = true);
     _debounce = Timer(const Duration(milliseconds: 300), _run);
+  }
+
+  /// Clears the person-mode state (picker list, selection, failure). Mutates
+  /// fields only — call inside an enclosing setState.
+  void _resetPeople() {
+    _people = null;
+    _selectedPerson = null;
+    _peopleFailure = null;
   }
 
   void _applyFilter(SearchFilter f) {
     if (f == _filter) return;
-    setState(() => _filter = f);
+    // Switching modes drops any person picker/selection and stale results so the
+    // new mode never flashes the previous mode's cards.
+    setState(() {
+      _filter = f;
+      _resetPeople();
+      _results = null;
+    });
     // Scroll the now-active chip fully into view. On a 360dp phone the four
     // chips don't fit, so the selected one — the most important label on the
     // row — was clipped at the right edge, worse in long languages.
@@ -149,6 +182,38 @@ class _SearchRedesignState extends State<SearchRedesign> {
       if (!mounted || token != _reqToken) return;
       setState(() {
         _results = res;
+        _loading = false;
+      });
+      return;
+    }
+
+    // Person mode: a query searches PEOPLE (the picker). Selecting a person is a
+    // separate action (_selectPerson) that fetches their filmography; a fresh
+    // query here always returns to the picker.
+    if (filter == SearchFilter.people) {
+      if (q.length < 2) {
+        setState(() {
+          _resetPeople();
+          _results = null;
+          _loading = false;
+        });
+        return;
+      }
+      List<TmdbPerson> people = const [];
+      TmdbFailure? failure;
+      try {
+        people = await _service.searchPeople(q, locale: locale);
+      } on TmdbException catch (e) {
+        failure = e.reason;
+      } catch (_) {
+        failure = TmdbFailure.network;
+      }
+      if (!mounted || token != _reqToken) return;
+      setState(() {
+        _people = people;
+        _peopleFailure = failure;
+        _selectedPerson = null;
+        _results = null;
         _loading = false;
       });
       return;
@@ -214,6 +279,53 @@ class _SearchRedesignState extends State<SearchRedesign> {
   void _playLocalMatch(LocalContentMatch match) {
     _service.openLocalMatch(match);
     widget.onOpen(match.content);
+  }
+
+  /// Loads and shows a selected person's filmography, cross-referenced against
+  /// the local catalogue. The result rides the SAME buckets/cards as a text
+  /// search; a TMDb failure degrades to `tmdbFailure` on the returned set.
+  Future<void> _selectPerson(TmdbPerson person) async {
+    final token = ++_reqToken;
+    final locale = Localizations.localeOf(context);
+    // The tapped person card lives in the results scope on TV; replacing the
+    // picker with the filmography disposes it, so remember to re-anchor focus.
+    final hadResultsFocus = _resultsScope.hasFocus;
+    setState(() {
+      _selectedPerson = person;
+      _results = null;
+      _loading = true;
+    });
+    final res = await _service.searchByPerson(person, locale: locale);
+    if (!mounted || token != _reqToken) return;
+    setState(() {
+      _results = res;
+      _loading = false;
+    });
+    // Re-engage D-pad focus onto a card in the rebuilt filmography grid so it
+    // never dangles mid-navigation (same reanchor pattern as the text search).
+    if (hadResultsFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _resultsScope.hasFocus) return;
+        for (final node in _resultsScope.traversalDescendants) {
+          if (node.canRequestFocus && !node.skipTraversal) {
+            node.requestFocus();
+            break;
+          }
+        }
+      });
+    }
+  }
+
+  /// Returns from a person's filmography to the people picker.
+  void _clearSelectedPerson() {
+    // Invalidate any in-flight filmography so a late reply can't repaint the
+    // picker we're returning to.
+    _reqToken++;
+    setState(() {
+      _selectedPerson = null;
+      _results = null;
+      _loading = false;
+    });
   }
 
   void _openDetail(GlobalSearchResult result) {
@@ -491,6 +603,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
       (SearchFilter.movies, loc.search_filter_movies),
       (SearchFilter.tv, loc.search_filter_tv),
       (SearchFilter.wishlist, loc.search_filter_wishlist),
+      (SearchFilter.people, loc.search_filter_people),
     ];
     return SizedBox(
       height: 46,
@@ -531,6 +644,15 @@ class _SearchRedesignState extends State<SearchRedesign> {
     final q = _query.trim();
     final res = _results;
     final browse = _filter == SearchFilter.wishlist;
+    final personMode =
+        _filter == SearchFilter.people && _selectedPerson != null;
+
+    // Person picker: the people list stands in for the results until a person is
+    // chosen; the selected person's filmography then falls through to the shared
+    // sections below.
+    if (_filter == SearchFilter.people && _selectedPerson == null) {
+      return _peopleBody(columns: columns, sidePad: sidePad);
+    }
 
     if (res == null) {
       if (_loading) return const Center(child: CircularProgressIndicator());
@@ -556,9 +678,14 @@ class _SearchRedesignState extends State<SearchRedesign> {
       // banner only shows when there ARE results, so this is the only place a
       // key-less/rejected/limited user learns why Discover is empty.
       final failure = res.tmdbFailure;
-      String body = loc.search_catalog_hint;
-      String actionLabel = loc.clear;
-      VoidCallback onAction = _clearQuery;
+      // Person filmography empty: name the person, offer a way back to the
+      // picker. A failure below still overrides the body/action honestly.
+      String body =
+          personMode ? loc.search_person_no_results : loc.search_catalog_hint;
+      String actionLabel =
+          personMode ? loc.search_back_to_actors : loc.clear;
+      VoidCallback onAction =
+          personMode ? _clearSelectedPerson : _clearQuery;
       switch (failure) {
         case TmdbFailure.noKey:
           body = loc.search_global_disabled;
@@ -583,8 +710,8 @@ class _SearchRedesignState extends State<SearchRedesign> {
           break;
       }
       return RensiEmptyState(
-        icon: Icons.search_off_rounded,
-        title: loc.no_results_for(q),
+        icon: personMode ? Icons.person_off_rounded : Icons.search_off_rounded,
+        title: personMode ? _selectedPerson!.name : loc.no_results_for(q),
         body: body,
         actionLabel: actionLabel,
         onAction: onAction,
@@ -598,6 +725,12 @@ class _SearchRedesignState extends State<SearchRedesign> {
     final slivers = <Widget>[
       const SliverToBoxAdapter(child: SizedBox(height: 2)),
     ];
+
+    // Person filmography: a focusable, RTL-aware back header returns to the
+    // people picker without popping the search route.
+    if (personMode) {
+      slivers.add(_personHeaderSliver(_selectedPerson!, sidePad));
+    }
 
     // Failure / no-key banner — thin, above the sections, never replacing the
     // local results.
@@ -614,11 +747,6 @@ class _SearchRedesignState extends State<SearchRedesign> {
 
     void addSection(String title, List<Widget> cards) {
       if (cards.isEmpty) return;
-      final indexByKey = <String, int>{};
-      for (var i = 0; i < cards.length; i++) {
-        final k = cards[i].key;
-        if (k is ValueKey<String>) indexByKey[k.value] = i;
-      }
       slivers.add(
         SliverToBoxAdapter(
           child: Padding(
@@ -627,27 +755,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
           ),
         ),
       );
-      slivers.add(
-        SliverPadding(
-          padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 16),
-          sliver: SliverGrid(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              childAspectRatio: 1 / 1.5,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (_, i) => cards[i],
-              childCount: cards.length,
-              // Stable keys + this callback let a poster keep its element (and
-              // its focus) when TMDb arrives and reshuffles the buckets.
-              findChildIndexCallback: (key) =>
-                  indexByKey[(key as ValueKey<String>).value],
-            ),
-          ),
-        ),
-      );
+      slivers.add(_gridSliver(cards, columns, sidePad));
     }
 
     // Reproducible-first: library, then owned-only, then discover.
@@ -702,6 +810,167 @@ class _SearchRedesignState extends State<SearchRedesign> {
 
     slivers.add(SliverToBoxAdapter(child: SizedBox(height: tv ? 24 : 32)));
     return CustomScrollView(slivers: slivers);
+  }
+
+  /// The poster grid sliver shared by [addSection] and the people picker, so the
+  /// stable-key focus preservation and column math live in one place.
+  Widget _gridSliver(List<Widget> cards, int columns, double sidePad) {
+    final indexByKey = <String, int>{};
+    for (var i = 0; i < cards.length; i++) {
+      final k = cards[i].key;
+      if (k is ValueKey<String>) indexByKey[k.value] = i;
+    }
+    return SliverPadding(
+      padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 16),
+      sliver: SliverGrid(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: columns,
+          childAspectRatio: 1 / 1.5,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (_, i) => cards[i],
+          childCount: cards.length,
+          // Stable keys + this callback let a poster keep its element (and its
+          // focus) when the buckets reshuffle.
+          findChildIndexCallback: (key) =>
+              indexByKey[(key as ValueKey<String>).value],
+        ),
+      ),
+    );
+  }
+
+  /// The person picker: a grid of people (photo + name). Reuses the same grid
+  /// and the same typed-failure/empty surfaces as a text search. Selecting a
+  /// person loads their filmography (see [_selectPerson]).
+  Widget _peopleBody({required int columns, required double sidePad}) {
+    final loc = context.loc;
+    final q = _query.trim();
+    final people = _people;
+
+    if (people == null) {
+      if (_loading) return const Center(child: CircularProgressIndicator());
+      return _centered(Icons.person_search_rounded, loc.search_person_hint);
+    }
+
+    if (people.isEmpty && !_loading) {
+      final failure = _peopleFailure;
+      String body = loc.search_person_hint;
+      String actionLabel = loc.clear;
+      VoidCallback onAction = _clearQuery;
+      switch (failure) {
+        case TmdbFailure.noKey:
+          body = loc.search_global_disabled;
+          actionLabel = loc.search_enable_global;
+          onAction = _openSettings;
+          break;
+        case TmdbFailure.rejected:
+          body = loc.search_key_rejected;
+          actionLabel = loc.nav_settings;
+          onAction = _openSettings;
+          break;
+        case TmdbFailure.rateLimited:
+          body = loc.search_tmdb_rate_limited;
+          break;
+        case TmdbFailure.httpError:
+        case TmdbFailure.network:
+          body = loc.search_tmdb_error;
+          actionLabel = loc.try_again;
+          onAction = _run;
+          break;
+        case null:
+          break;
+      }
+      return RensiEmptyState(
+        icon: Icons.person_off_rounded,
+        title: loc.no_results_for(q),
+        body: body,
+        actionLabel: actionLabel,
+        onAction: onAction,
+      );
+    }
+
+    final slivers = <Widget>[
+      const SliverToBoxAdapter(child: SizedBox(height: 2)),
+    ];
+    if (_peopleFailure != null) {
+      slivers.add(
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 14),
+            child: _banner(_peopleFailure!),
+          ),
+        ),
+      );
+    }
+    slivers.add(
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: SectionHeader(title: loc.search_filter_people, sidePad: sidePad),
+        ),
+      ),
+    );
+    slivers.add(_gridSliver(
+      [for (final p in people) _personCard(p)],
+      columns,
+      sidePad,
+    ));
+    slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 24)));
+    return CustomScrollView(slivers: slivers);
+  }
+
+  /// A person cell: reuses [RensiPoster] (photo + always-on name label) so the
+  /// picker inherits the TV focus ring/zoom and D-pad traversal for free — no
+  /// new card widget. Tapping loads that person's filmography.
+  Widget _personCard(TmdbPerson p) {
+    return RensiPoster(
+      key: ValueKey('person:${p.id}'),
+      item: ContentItem(
+        'person:${p.id}',
+        p.name,
+        p.profileUrl ?? '',
+        ContentType.vod,
+      ),
+      width: double.infinity,
+      // People need their name always visible to be picked, unlike a title
+      // poster whose art already names it.
+      showMeta: true,
+      onTap: () => _selectPerson(p),
+    );
+  }
+
+  /// Back header above a person's filmography. [BackButton] is directionality
+  /// aware (flips in RTL) and D-pad focusable; it returns to the picker instead
+  /// of popping the search route.
+  Widget _personHeaderSliver(TmdbPerson person, double sidePad) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsetsDirectional.fromSTEB(sidePad, 2, sidePad, 8),
+        child: Row(
+          children: [
+            Tooltip(
+              message: context.loc.search_back_to_actors,
+              child: BackButton(onPressed: _clearSelectedPerson),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                person.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: AppThemes.h3Size,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // --- Cards -----------------------------------------------------------------

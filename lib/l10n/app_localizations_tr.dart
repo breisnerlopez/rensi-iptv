@@ -1225,6 +1225,19 @@ class AppLocalizationsTr extends AppLocalizations {
   String get search_filter_wishlist => 'İstek listesi';
 
   @override
+  String get search_filter_people => 'Oyuncular';
+
+  @override
+  String get search_person_hint =>
+      'Filmografisini görmek için bir oyuncu arayın';
+
+  @override
+  String get search_person_no_results => 'Bu oyuncu için sonuç yok';
+
+  @override
+  String get search_back_to_actors => 'Oyunculara dön';
+
+  @override
   String get search_clear_history => 'Geçmişi temizle';
 
   @override

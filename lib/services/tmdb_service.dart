@@ -205,6 +205,115 @@ class TmdbService {
         .toList();
   }
 
+  /// Person search against `search/person`, used by "search by actor". Returns
+  /// the matching people (name + photo + id) so the caller can then pull one
+  /// person's filmography with [getPersonCredits]. Replicates the same dual
+  /// auth, 8s timeout and typed error degradation as [detail]/[searchTitle].
+  /// Not cached (person picks are one-shot and cheap; caching would need its own
+  /// index — see [pruneCaches]).
+  Future<List<TmdbPerson>> searchPerson(
+    String query, {
+    Locale? locale,
+  }) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) return const [];
+
+    final credential = await TmdbCredentialsService.getCredential();
+    if (credential == null) {
+      throw const TmdbException(TmdbFailure.noKey, 'TMDb credential is not configured');
+    }
+    final params = <String, String>{
+      'query': normalizedQuery,
+      'include_adult': 'false',
+      'language': _languageTagFor(locale),
+      'page': '1',
+    };
+    if (!_looksLikeBearerToken(credential)) {
+      params['api_key'] = credential;
+    }
+    final uri =
+        Uri.parse('$_baseUrl/search/person').replace(queryParameters: params);
+    final response = await _client
+        .get(uri, headers: _buildHeaders(credential))
+        .timeout(const Duration(seconds: 8),
+            onTimeout: () => throw const TmdbException(
+                TmdbFailure.network, 'TMDb request timed out'));
+    if (response.statusCode == 401) {
+      throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
+    }
+    if (response.statusCode == 429) {
+      throw const TmdbException(TmdbFailure.rateLimited, 'TMDb rate limit reached. Try again later.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw TmdbException(TmdbFailure.httpError, 'TMDb request failed: ${response.statusCode}');
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    return (decoded['results'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(TmdbPerson.fromTmdbJson)
+        .where((p) => p.name.isNotEmpty)
+        .take(20)
+        .toList();
+  }
+
+  /// A person's cast filmography via `person/{id}/combined_credits`, mapped into
+  /// [TmdbSearchResult] so each film/show flows through the exact same buckets,
+  /// cards and matching as a `search/multi` result — no parallel result surface.
+  /// Only the `cast` array is used (roles the person acted in). Deduped by
+  /// media-type+id and ordered most-recent-first. Same dual auth / 8s timeout /
+  /// typed errors as the other calls.
+  Future<List<TmdbSearchResult>> getPersonCredits(
+    int personId, {
+    Locale? locale,
+  }) async {
+    final credential = await TmdbCredentialsService.getCredential();
+    if (credential == null) {
+      throw const TmdbException(TmdbFailure.noKey, 'TMDb credential is not configured');
+    }
+    final params = <String, String>{
+      'language': _languageTagFor(locale),
+    };
+    if (!_looksLikeBearerToken(credential)) {
+      params['api_key'] = credential;
+    }
+    final uri = Uri.parse('$_baseUrl/person/$personId/combined_credits')
+        .replace(queryParameters: params);
+    final response = await _client
+        .get(uri, headers: _buildHeaders(credential))
+        .timeout(const Duration(seconds: 8),
+            onTimeout: () => throw const TmdbException(
+                TmdbFailure.network, 'TMDb request timed out'));
+    if (response.statusCode == 401) {
+      throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
+    }
+    if (response.statusCode == 429) {
+      throw const TmdbException(TmdbFailure.rateLimited, 'TMDb rate limit reached. Try again later.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw TmdbException(TmdbFailure.httpError, 'TMDb request failed: ${response.statusCode}');
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final seen = <String>{};
+    final out = <TmdbSearchResult>[];
+    for (final raw in (decoded['cast'] as List<dynamic>? ?? [])) {
+      if (raw is! Map<String, dynamic>) continue;
+      // combined_credits entries already carry media_type (movie|tv); anything
+      // else (rare) is skipped so fromTmdbJson never mis-defaults to movie.
+      if (raw['media_type'] != 'movie' && raw['media_type'] != 'tv') continue;
+      final item = TmdbSearchResult.fromTmdbJson(raw);
+      if (item.title.isEmpty) continue;
+      final key = '${item.mediaType.name}|${item.id}';
+      if (!seen.add(key)) continue; // a person can be cast in a show many times
+      out.add(item);
+    }
+    // Most recent first, undated last — a filmography reads newest-to-oldest.
+    out.sort((a, b) => (b.releaseDate ?? '').compareTo(a.releaseDate ?? ''));
+    // Bound a very prolific actor's credits: the cross-reference does one local
+    // catalogue search PER title, so an unbounded list would fan out into
+    // hundreds of DB queries. 60 comfortably covers the display caps.
+    return out.length > 60 ? out.sublist(0, 60) : out;
+  }
+
   /// Removes expired entries and trims the cache to [_cacheMaxEntries].
   /// Safe to call on app startup.
   static Future<void> pruneCache() async {

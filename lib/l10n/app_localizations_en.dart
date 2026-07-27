@@ -1223,6 +1223,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get search_filter_wishlist => 'Wishlist';
 
   @override
+  String get search_filter_people => 'Actors';
+
+  @override
+  String get search_person_hint =>
+      'Search for an actor to see their filmography';
+
+  @override
+  String get search_person_no_results => 'No results for this actor';
+
+  @override
+  String get search_back_to_actors => 'Back to actors';
+
+  @override
   String get search_clear_history => 'Clear history';
 
   @override

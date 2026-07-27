@@ -1220,6 +1220,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get search_filter_wishlist => 'قائمة الرغبات';
 
   @override
+  String get search_filter_people => 'الممثلون';
+
+  @override
+  String get search_person_hint => 'ابحث عن ممثل لعرض أعماله';
+
+  @override
+  String get search_person_no_results => 'لا توجد نتائج لهذا الممثل';
+
+  @override
+  String get search_back_to_actors => 'العودة إلى الممثلين';
+
+  @override
   String get search_clear_history => 'مسح السجل';
 
   @override

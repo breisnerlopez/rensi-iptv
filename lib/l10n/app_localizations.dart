@@ -2328,6 +2328,30 @@ abstract class AppLocalizations {
   /// **'Wishlist'**
   String get search_filter_wishlist;
 
+  /// No description provided for @search_filter_people.
+  ///
+  /// In en, this message translates to:
+  /// **'Actors'**
+  String get search_filter_people;
+
+  /// No description provided for @search_person_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for an actor to see their filmography'**
+  String get search_person_hint;
+
+  /// No description provided for @search_person_no_results.
+  ///
+  /// In en, this message translates to:
+  /// **'No results for this actor'**
+  String get search_person_no_results;
+
+  /// No description provided for @search_back_to_actors.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to actors'**
+  String get search_back_to_actors;
+
   /// No description provided for @search_clear_history.
   ///
   /// In en, this message translates to:

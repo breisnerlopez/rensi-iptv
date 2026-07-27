@@ -1,3 +1,11 @@
+# [2.4.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.3.0...v2.4.0) (2026-07-27)
+
+
+### Features
+
+* search by actor — a new search mode lists people from TMDb; picking one shows their filmography cross-referenced against your own catalogue (owned titles play, the rest open as TMDb discovery), reusing the existing search buckets and cards. Needs a TMDb key; degrades to the same typed banner without one.
+
+
 # [2.3.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.2.6...v2.3.0) (2026-07-27)
 
 

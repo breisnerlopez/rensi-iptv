@@ -93,11 +93,37 @@ class GlobalSearchService {
       failure = TmdbFailure.network;
     }
 
-    final tmdbResults = _filterTmdb(tmdbRaw, filter);
+    final tmdbResults =
+        _filterTmdb(tmdbRaw, filter).toList(growable: false);
     final wishlistKeys = await wishlistFuture;
     final localResults = _filterLocal(await localFuture, filter)
         .toList(growable: false);
 
+    return _crossReference(
+      tmdbResults,
+      localResults,
+      wishlistKeys,
+      failure: failure,
+    );
+  }
+
+  /// The shared cross-reference: given TMDb results, the local matches to test
+  /// them against, and the wishlist keys, produces the three reproducible-first
+  /// buckets (withLocal / tmdbOnly / localOnly) with owner-dedup. Extracted so
+  /// [search] (search/multi) and [searchByPerson] (a person's filmography) build
+  /// buckets through ONE implementation — the matching, franchise owner-dedup
+  /// and bucketing live here only. Caps default to the search/multi values so
+  /// that path is byte-identical; the filmography view raises them since a
+  /// prolific actor's credits overflow the 10/15 search caps.
+  UnifiedSearchResults _crossReference(
+    List<TmdbSearchResult> tmdbResults,
+    List<LocalContentMatch> localResults,
+    Set<String> wishlistKeys, {
+    TmdbFailure? failure,
+    int withLocalCap = 15,
+    int tmdbOnlyCap = 10,
+    int localOnlyCap = 15,
+  }) {
     final withLocal = <GlobalSearchResult>[];
     final tmdbOnly = <GlobalSearchResult>[];
     final localOnly = <LocalContentMatch>[];
@@ -184,10 +210,67 @@ class GlobalSearchService {
     }
 
     return UnifiedSearchResults(
-      withLocal: withLocal.take(15).toList(),
-      tmdbOnly: tmdbOnly.take(10).toList(),
-      localOnly: localOnly.take(15).toList(),
+      withLocal: withLocal.take(withLocalCap).toList(),
+      tmdbOnly: tmdbOnly.take(tmdbOnlyCap).toList(),
+      localOnly: localOnly.take(localOnlyCap).toList(),
       tmdbFailure: failure,
+    );
+  }
+
+  // --- Search by actor -----------------------------------------------------
+
+  /// People matching [query] (name + photo), for the person picker. Thin
+  /// pass-through to [TmdbService.searchPerson]; may throw [TmdbException] which
+  /// the UI maps to the same typed degradation banner as a text search.
+  Future<List<TmdbPerson>> searchPeople(
+    String query, {
+    Locale? locale,
+  }) =>
+      _tmdbService.searchPerson(query, locale: locale);
+
+  /// A selected person's filmography, cross-referenced against the local
+  /// catalogue. Pulls `combined_credits`, then — exactly like [_wishlistAsResults]
+  /// searches local per saved title — searches the local catalogue by EACH film
+  /// title, unions the matches (deduped), and runs the SAME [_crossReference]
+  /// buckets/owner-dedup as search/multi. TMDb failures degrade to a typed
+  /// [UnifiedSearchResults.tmdbFailure] instead of throwing, so the person view
+  /// never crashes on a missing/rejected key or offline device.
+  Future<UnifiedSearchResults> searchByPerson(
+    TmdbPerson person, {
+    Locale? locale,
+  }) async {
+    List<TmdbSearchResult> credits = const [];
+    TmdbFailure? failure;
+    try {
+      credits = await _tmdbService.getPersonCredits(person.id, locale: locale);
+    } on TmdbException catch (e) {
+      failure = e.reason;
+    } catch (_) {
+      failure = TmdbFailure.network;
+    }
+
+    // Union the local matches across every film title, deduped by dedupKey —
+    // the same shape [_searchAllLocal] returns for a single query, so
+    // [_crossReference] (and its franchise owner-dedup) works unchanged.
+    final seen = <String>{};
+    final localResults = <LocalContentMatch>[];
+    for (final film in credits) {
+      for (final m in await _searchAllLocal(film.title)) {
+        if (seen.add(m.dedupKey)) localResults.add(m);
+      }
+    }
+
+    final wishlistKeys = await TmdbWishlistService.getKeys();
+    return _crossReference(
+      credits,
+      localResults,
+      wishlistKeys,
+      failure: failure,
+      // A filmography is larger than a title search; raise the caps so a
+      // prolific actor's credits are not clipped to the search/multi 10/15.
+      withLocalCap: 40,
+      tmdbOnlyCap: 60,
+      localOnlyCap: 40,
     );
   }
 
@@ -226,6 +309,7 @@ class GlobalSearchService {
         return items.where((t) => t.mediaType == TmdbMediaType.tv);
       case SearchFilter.all:
       case SearchFilter.wishlist:
+      case SearchFilter.people:
         return items;
     }
   }
@@ -241,6 +325,7 @@ class GlobalSearchService {
         return items.where((m) => m.content.contentType == ContentType.series);
       case SearchFilter.all:
       case SearchFilter.wishlist:
+      case SearchFilter.people:
         return items;
     }
   }

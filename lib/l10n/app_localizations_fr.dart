@@ -1239,6 +1239,19 @@ class AppLocalizationsFr extends AppLocalizations {
   String get search_filter_wishlist => 'Liste de souhaits';
 
   @override
+  String get search_filter_people => 'Acteurs';
+
+  @override
+  String get search_person_hint =>
+      'Recherchez un acteur pour voir sa filmographie';
+
+  @override
+  String get search_person_no_results => 'Aucun résultat pour cet acteur';
+
+  @override
+  String get search_back_to_actors => 'Retour aux acteurs';
+
+  @override
   String get search_clear_history => 'Effacer l\'historique';
 
   @override

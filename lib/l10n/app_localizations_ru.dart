@@ -1228,6 +1228,19 @@ class AppLocalizationsRu extends AppLocalizations {
   String get search_filter_wishlist => 'Список желаний';
 
   @override
+  String get search_filter_people => 'Актёры';
+
+  @override
+  String get search_person_hint =>
+      'Найдите актёра, чтобы увидеть его фильмографию';
+
+  @override
+  String get search_person_no_results => 'Нет результатов для этого актёра';
+
+  @override
+  String get search_back_to_actors => 'Назад к актёрам';
+
+  @override
   String get search_clear_history => 'Очистить историю';
 
   @override
