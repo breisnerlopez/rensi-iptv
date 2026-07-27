@@ -22,6 +22,7 @@ class LiveRedesign extends StatefulWidget {
     super.key,
     required this.liveCategories,
     required this.onPlay,
+    this.playlistSwitcher,
   });
 
   final List<CategoryViewModel> liveCategories;
@@ -31,6 +32,12 @@ class LiveRedesign extends StatefulWidget {
   /// Optional so the screen still renders for M3U playlists, which have no
   /// Xtream panel to ask.
   final EpgService? epgService;
+
+  /// The active-playlist indicator/switcher shown in the header — the SAME
+  /// [PlaylistSwitcherButton] the Home header uses, so a user searching for a
+  /// channel can see (and change) which list they are on. Optional so the screen
+  /// still renders where it isn't threaded (e.g. the i18n widget test).
+  final Widget? playlistSwitcher;
 
   @override
   State<LiveRedesign> createState() => _LiveRedesignState();
@@ -111,15 +118,39 @@ class _LiveRedesignState extends State<LiveRedesign> {
                 ResponsiveHelper.safeInset(context), 8,
                 ResponsiveHelper.safeInset(context), 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(context.loc.live,
-                      style: TextStyle(
-                          fontFamily: 'Bricolage Grotesque',
-                          fontSize: AppThemes.h2Size,
-                          fontWeight: FontWeight.w800)),
+                  // Title + the active playlist, right next to it — parity with
+                  // the Home header — so a channel search can't leave the user
+                  // unsure which list they are on. Expanded takes the free space
+                  // and the switcher's own ellipsis keeps a long name from
+                  // overflowing on a narrow phone; the live indicator stays
+                  // pinned to the right.
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(context.loc.live,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontFamily: 'Bricolage Grotesque',
+                                  fontSize: AppThemes.h2Size,
+                                  fontWeight: FontWeight.w800)),
+                        ),
+                        if (widget.playlistSwitcher != null) ...[
+                          const SizedBox(width: 4),
+                          Flexible(child: widget.playlistSwitcher!),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      // Just the live pulse dot — the section is already titled
+                      // "En vivo" on the left, so repeating the word here (now
+                      // beside the playlist switcher) only read as clutter.
                       Container(
                         width: 8,
                         height: 8,
@@ -134,12 +165,6 @@ class _LiveRedesignState extends State<LiveRedesign> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(context.loc.live,
-                          style: TextStyle(
-                              fontSize: AppThemes.labelSize,
-                              fontWeight: FontWeight.w700,
-                              color: r.live)),
                     ],
                   ),
                 ],

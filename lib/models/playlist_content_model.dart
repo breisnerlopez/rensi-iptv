@@ -39,4 +39,10 @@ class ContentItem {
   }) {
     url = isXtreamCode ? buildMediaUrl(this) : m3uItem?.url ?? id;
   }
+
+  /// The TMDb id of the underlying owned stream, when the catalogue has one
+  /// (VOD or series). Lets global search reconcile an owned title with its TMDb
+  /// result by id — title-independent — instead of only by string match. Null
+  /// for live/M3U items and for streams whose id hasn't been learned yet.
+  int? get tmdbId => vodStream?.tmdbId ?? seriesStream?.tmdbId;
 }

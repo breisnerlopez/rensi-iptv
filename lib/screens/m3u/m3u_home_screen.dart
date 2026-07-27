@@ -307,6 +307,12 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       LiveRedesign(
         liveCategories: controller.liveCategories ?? const [],
         onPlay: (it) => navigateByContentType(context, it),
+        // Same switcher as the Home header, so the Live section shows (and can
+        // change) the active playlist.
+        playlistSwitcher: PlaylistSwitcherButton(
+          currentPlaylist: widget.playlist,
+          currentIndex: controller.currentIndex,
+        ),
       ),
       ListRedesign(
         key: ValueKey('milista_${controller.currentIndex == 3}'),

@@ -163,6 +163,12 @@ class VodStreams extends Table {
 
   TextColumn get youtubeTrailer => text().nullable()();
 
+  // The TMDb id the provider persisted for this movie, when it ships one (in
+  // the bulk list or backfilled lazily from get_vod_info). Nullable: existing
+  // rows and providers that omit it stay NULL, and search falls back to title
+  // matching for them.
+  IntColumn get tmdbId => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {streamId, playlistId};
 
@@ -208,6 +214,11 @@ class SeriesStreams extends Table {
   TextColumn get lastModified => text().nullable()();
 
   TextColumn get backdropPath => text().nullable()();
+
+  // The TMDb id the provider persisted for this series, when it ships one (in
+  // the bulk list or backfilled lazily from get_series_info). Nullable for the
+  // same reasons as VodStreams.tmdbId.
+  IntColumn get tmdbId => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {seriesId, playlistId};
@@ -529,7 +540,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   // === PLAYLIST İŞLEMLERİ ===
 
@@ -1156,6 +1167,34 @@ class AppDatabase extends _$AppDatabase {
           ..where((vs) =>
               vs.streamId.equals(streamId) & vs.playlistId.equals(playlistId)))
         .write(VodStreamsCompanion(containerExtension: Value(extension)));
+  }
+
+  /// Backfill the TMDb id on a VOD row once it is learned from get_vod_info, so
+  /// global search can reconcile an owned title with its TMDb result by id even
+  /// when the localized titles don't string-match. The WHERE clause makes this a
+  /// no-op unless the stored value is actually different (null or another id),
+  /// so opening a title repeatedly costs at most one write. Best-effort: a no-op
+  /// if the row is gone.
+  Future<void> updateVodStreamTmdbId(
+      String streamId, String playlistId, int tmdbId) async {
+    await (update(vodStreams)
+          ..where((vs) =>
+              vs.streamId.equals(streamId) &
+              vs.playlistId.equals(playlistId) &
+              (vs.tmdbId.isNull() | vs.tmdbId.equals(tmdbId).not())))
+        .write(VodStreamsCompanion(tmdbId: Value(tmdbId)));
+  }
+
+  /// Backfill the TMDb id on a series row once it is learned from
+  /// get_series_info. Same contract as [updateVodStreamTmdbId].
+  Future<void> updateSeriesStreamTmdbId(
+      String seriesId, String playlistId, int tmdbId) async {
+    await (update(seriesStreams)
+          ..where((ss) =>
+              ss.seriesId.equals(seriesId) &
+              ss.playlistId.equals(playlistId) &
+              (ss.tmdbId.isNull() | ss.tmdbId.equals(tmdbId).not())))
+        .write(SeriesStreamsCompanion(tmdbId: Value(tmdbId)));
   }
 
   Future<List<VodStream>> getVodStreamsByCategoryAndPlaylistId({
@@ -1853,6 +1892,15 @@ class AppDatabase extends _$AppDatabase {
 
       if (from <= 8) {
         await _createPerformanceIndexes();
+      }
+
+      if (from < 10) {
+        // Additive, backward compatible: a nullable tmdb_id on VOD and series.
+        // Existing rows land NULL and search falls back to title matching until
+        // each title is opened (lazy backfill) or the next catalogue sync fills
+        // it from the bulk list. No data is touched or lost.
+        await m.addColumn(vodStreams, vodStreams.tmdbId);
+        await m.addColumn(seriesStreams, seriesStreams.tmdbId);
       }
     },
     beforeOpen: (_) async {

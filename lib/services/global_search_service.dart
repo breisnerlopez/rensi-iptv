@@ -224,11 +224,13 @@ class GlobalSearchService {
         ..addAll(keptWithLocal);
     }
 
-    // TODO(tmdb-id-dedup): when a local stream persists its own tmdb_id, an
-    // owned title and its TMDb Discover card could be deduped by that id here
-    // (dropping the duplicate Discover card even when the titles don't
-    // string-match). Deferred: needs a tmdb_id column + Drift schema migration,
-    // out of scope for this change.
+    // tmdb-id dedup: the id-vs-title reconciliation is done inside
+    // [_findMatchesFor] — a local stream whose persisted tmdb_id equals a TMDb
+    // result's id is matched (MatchStrength.id, stronger than any title match)
+    // even when the localized titles don't string-match, so its dedupKey lands
+    // in matchedKeys and it is dropped from localOnly below AND never emitted as
+    // a duplicate Discover card. Streams without a stored id fall back to title
+    // matching, unchanged.
     for (final result in localResults) {
       if (!matchedKeys.contains(result.dedupKey)) {
         localOnly.add(result);
@@ -378,16 +380,36 @@ class GlobalSearchService {
       // it here means it is never added to matchedKeys, so it falls through to
       // the localOnly bucket in _crossReference.
       if (match.content.contentType == ContentType.liveStream) continue;
-      // Compare the local title against BOTH the localized TMDb title and its
-      // original-language title, taking the STRONGER (lowest-index) result. An
-      // English-original catalogue reconciles with a localized TMDb title, and
-      // a localized catalogue reconciles with the English original.
+      // ID match takes precedence over any title match: a stored tmdb_id equal
+      // to this result's id (same media type) is a title-independent, definitive
+      // reconciliation. This is what fixes a translated-title owned movie
+      // (e.g. local "Duna" vs TMDb "Dune") being duplicated as an un-owned
+      // Discover card — the title classify() would return none there.
+      if (_isIdMatch(match, tmdb)) {
+        out.add(match.withStrength(MatchStrength.id));
+        continue;
+      }
+      // Fallback for streams without a stored id: compare the local title
+      // against BOTH the localized TMDb title and its original-language title,
+      // taking the STRONGER (lowest-index) result. An English-original catalogue
+      // reconciles with a localized TMDb title, and vice-versa.
       final strength = _bestClassify(match.content.name, tmdb);
       if (strength == MatchStrength.none) continue;
       out.add(match.withStrength(strength));
     }
     out.sort((a, b) => a.strength.index.compareTo(b.strength.index));
     return out;
+  }
+
+  /// True when [match]'s persisted TMDb id equals [tmdb]'s id and the media
+  /// types line up (movie↔vod, tv↔series). Streams without a stored id (id null
+  /// or <= 0) never id-match, so they route to the title fallback.
+  static bool _isIdMatch(LocalContentMatch match, TmdbSearchResult tmdb) {
+    final localId = match.tmdbId;
+    if (localId == null || localId <= 0 || localId != tmdb.id) return false;
+    final ct = match.content.contentType;
+    return (tmdb.mediaType == TmdbMediaType.movie && ct == ContentType.vod) ||
+        (tmdb.mediaType == TmdbMediaType.tv && ct == ContentType.series);
   }
 
   /// Case variants of a query, to work around SQLite's LIKE folding only ASCII.

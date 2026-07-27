@@ -76,6 +76,7 @@ void main() {
     String genre = '',
     String cast = '',
     String director = '',
+    int? tmdbId,
   }) async {
     await db
         .into(db.vodStreams)
@@ -91,6 +92,7 @@ void main() {
             playlistId: playlistId,
             createdAt: DateTime(2026),
             genre: genre,
+            tmdbId: tmdbId,
           ).toDriftCompanion(),
         );
   }
@@ -655,6 +657,106 @@ void main() {
       expect(await database.searchSeriesBroad('pl1', ''), isEmpty);
       // A real query still works.
       expect(await database.searchMovieBroad('pl1', 'dune'), hasLength(1));
+    });
+  });
+
+  group('tmdb-id dedup', () {
+    Future<void> savePl() => PlaylistService.savePlaylist(
+          Playlist(
+            id: 'pl1',
+            name: 'X',
+            type: PlaylistType.xtream,
+            url: 'https://x.com',
+            username: 'u',
+            password: 'p',
+            createdAt: DateTime(2026),
+          ),
+        );
+
+    test('a translated-title owned movie matches by id, not a Discover card',
+        () async {
+      await savePl();
+      // The local title is the localized name and does NOT string-match the
+      // TMDb "Dune"; only the persisted tmdb_id ties them together.
+      await _insertMovie(database, 'Duna', 'pl1', tmdbId: 438631);
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+            id: 438631,
+            mediaType: TmdbMediaType.movie,
+            title: 'Dune',
+            voteAverage: 8,
+          ),
+        ]),
+      );
+      final r = await service.search('duna');
+
+      expect(r.withLocal, hasLength(1),
+          reason: 'owned by id even though the titles differ');
+      expect(r.withLocal.single.localMatches.single.content.name, 'Duna');
+      expect(r.withLocal.single.hasExactMatch, isTrue,
+          reason: 'an id match reads as owned/exact');
+      expect(r.tmdbOnly, isEmpty,
+          reason: 'the same result must NOT also be a Discover card');
+      expect(r.localOnly, isEmpty, reason: 'and must not be duplicated');
+    });
+
+    test('id match takes precedence over a title-only match on another result',
+        () async {
+      await savePl();
+      // One owned stream: its id ties it to result A; its title string-matches
+      // result B. The id match must win, so the stream is owned under A and B
+      // drops to Discover.
+      await _insertMovie(database, 'Duna', 'pl1', tmdbId: 100);
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+              id: 100,
+              mediaType: TmdbMediaType.movie,
+              title: 'Dune',
+              voteAverage: 8),
+          const TmdbSearchResult(
+              id: 999,
+              mediaType: TmdbMediaType.movie,
+              title: 'Duna',
+              voteAverage: 7),
+        ]),
+      );
+      final r = await service.search('duna');
+
+      expect(r.withLocal, hasLength(1));
+      expect(r.withLocal.single.tmdb.id, 100,
+          reason: 'kept under its id match, not the title match');
+      expect(r.tmdbOnly.map((e) => e.tmdb.id), contains(999),
+          reason: 'the title-only result drops to Discover');
+    });
+
+    test('a stored id does not match across media types', () async {
+      await savePl();
+      // A movie row whose tmdb_id collides with a TV result id must not match:
+      // ids are only unique within a media type.
+      await _insertMovie(database, 'Duna', 'pl1', tmdbId: 500);
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+            id: 500,
+            mediaType: TmdbMediaType.tv,
+            title: 'Something Else',
+            voteAverage: 8,
+          ),
+        ]),
+      );
+      final r = await service.search('duna');
+
+      expect(r.withLocal, isEmpty,
+          reason: 'a movie must not id-match a TV result of the same numeric id');
+      expect(r.localOnly, hasLength(1),
+          reason: 'the owned movie stays in its own catalogue');
+      expect(r.tmdbOnly, hasLength(1),
+          reason: 'the unrelated TV result stays a Discover card');
     });
   });
 

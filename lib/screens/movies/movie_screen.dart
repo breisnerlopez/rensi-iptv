@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:rensi_iptv/l10n/localization_extension.dart';
@@ -193,6 +194,14 @@ class _MovieScreenState extends State<MovieScreen> {
         _vodInfo = info;
         _isLoadingVodInfo = false;
       });
+
+      // Backfill the movie's TMDb id onto its DB row so global search can later
+      // reconcile this owned title with its TMDb result by id (title-
+      // independent). Fire-and-forget: it must never block or fail the screen.
+      final id = _tmdbId;
+      if (id != null && _repository != null) {
+        unawaited(_repository!.persistVodTmdbId(widget.contentItem.id, id));
+      }
     } catch (_) {
       if (!mounted) return;
       setState(() {

@@ -2886,6 +2886,15 @@ class $VodStreamsTable extends VodStreams
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _tmdbIdMeta = const VerificationMeta('tmdbId');
+  @override
+  late final GeneratedColumn<int> tmdbId = GeneratedColumn<int>(
+    'tmdb_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     streamId,
@@ -2899,6 +2908,7 @@ class $VodStreamsTable extends VodStreams
     createdAt,
     genre,
     youtubeTrailer,
+    tmdbId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3003,6 +3013,12 @@ class $VodStreamsTable extends VodStreams
         ),
       );
     }
+    if (data.containsKey('tmdb_id')) {
+      context.handle(
+        _tmdbIdMeta,
+        tmdbId.isAcceptableOrUnknown(data['tmdb_id']!, _tmdbIdMeta),
+      );
+    }
     return context;
   }
 
@@ -3056,6 +3072,10 @@ class $VodStreamsTable extends VodStreams
         DriftSqlType.string,
         data['${effectivePrefix}youtube_trailer'],
       ),
+      tmdbId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tmdb_id'],
+      ),
     );
   }
 
@@ -3077,6 +3097,7 @@ class VodStreamsData extends DataClass implements Insertable<VodStreamsData> {
   final DateTime createdAt;
   final String? genre;
   final String? youtubeTrailer;
+  final int? tmdbId;
   const VodStreamsData({
     required this.streamId,
     required this.name,
@@ -3089,6 +3110,7 @@ class VodStreamsData extends DataClass implements Insertable<VodStreamsData> {
     required this.createdAt,
     this.genre,
     this.youtubeTrailer,
+    this.tmdbId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3107,6 +3129,9 @@ class VodStreamsData extends DataClass implements Insertable<VodStreamsData> {
     }
     if (!nullToAbsent || youtubeTrailer != null) {
       map['youtube_trailer'] = Variable<String>(youtubeTrailer);
+    }
+    if (!nullToAbsent || tmdbId != null) {
+      map['tmdb_id'] = Variable<int>(tmdbId);
     }
     return map;
   }
@@ -3128,6 +3153,9 @@ class VodStreamsData extends DataClass implements Insertable<VodStreamsData> {
       youtubeTrailer: youtubeTrailer == null && nullToAbsent
           ? const Value.absent()
           : Value(youtubeTrailer),
+      tmdbId: tmdbId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tmdbId),
     );
   }
 
@@ -3150,6 +3178,7 @@ class VodStreamsData extends DataClass implements Insertable<VodStreamsData> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       genre: serializer.fromJson<String?>(json['genre']),
       youtubeTrailer: serializer.fromJson<String?>(json['youtubeTrailer']),
+      tmdbId: serializer.fromJson<int?>(json['tmdbId']),
     );
   }
   @override
@@ -3167,6 +3196,7 @@ class VodStreamsData extends DataClass implements Insertable<VodStreamsData> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'genre': serializer.toJson<String?>(genre),
       'youtubeTrailer': serializer.toJson<String?>(youtubeTrailer),
+      'tmdbId': serializer.toJson<int?>(tmdbId),
     };
   }
 
@@ -3182,6 +3212,7 @@ class VodStreamsData extends DataClass implements Insertable<VodStreamsData> {
     DateTime? createdAt,
     Value<String?> genre = const Value.absent(),
     Value<String?> youtubeTrailer = const Value.absent(),
+    Value<int?> tmdbId = const Value.absent(),
   }) => VodStreamsData(
     streamId: streamId ?? this.streamId,
     name: name ?? this.name,
@@ -3196,6 +3227,7 @@ class VodStreamsData extends DataClass implements Insertable<VodStreamsData> {
     youtubeTrailer: youtubeTrailer.present
         ? youtubeTrailer.value
         : this.youtubeTrailer,
+    tmdbId: tmdbId.present ? tmdbId.value : this.tmdbId,
   );
   VodStreamsData copyWithCompanion(VodStreamsCompanion data) {
     return VodStreamsData(
@@ -3222,6 +3254,7 @@ class VodStreamsData extends DataClass implements Insertable<VodStreamsData> {
       youtubeTrailer: data.youtubeTrailer.present
           ? data.youtubeTrailer.value
           : this.youtubeTrailer,
+      tmdbId: data.tmdbId.present ? data.tmdbId.value : this.tmdbId,
     );
   }
 
@@ -3238,7 +3271,8 @@ class VodStreamsData extends DataClass implements Insertable<VodStreamsData> {
           ..write('playlistId: $playlistId, ')
           ..write('createdAt: $createdAt, ')
           ..write('genre: $genre, ')
-          ..write('youtubeTrailer: $youtubeTrailer')
+          ..write('youtubeTrailer: $youtubeTrailer, ')
+          ..write('tmdbId: $tmdbId')
           ..write(')'))
         .toString();
   }
@@ -3256,6 +3290,7 @@ class VodStreamsData extends DataClass implements Insertable<VodStreamsData> {
     createdAt,
     genre,
     youtubeTrailer,
+    tmdbId,
   );
   @override
   bool operator ==(Object other) =>
@@ -3271,7 +3306,8 @@ class VodStreamsData extends DataClass implements Insertable<VodStreamsData> {
           other.playlistId == this.playlistId &&
           other.createdAt == this.createdAt &&
           other.genre == this.genre &&
-          other.youtubeTrailer == this.youtubeTrailer);
+          other.youtubeTrailer == this.youtubeTrailer &&
+          other.tmdbId == this.tmdbId);
 }
 
 class VodStreamsCompanion extends UpdateCompanion<VodStreamsData> {
@@ -3286,6 +3322,7 @@ class VodStreamsCompanion extends UpdateCompanion<VodStreamsData> {
   final Value<DateTime> createdAt;
   final Value<String?> genre;
   final Value<String?> youtubeTrailer;
+  final Value<int?> tmdbId;
   final Value<int> rowid;
   const VodStreamsCompanion({
     this.streamId = const Value.absent(),
@@ -3299,6 +3336,7 @@ class VodStreamsCompanion extends UpdateCompanion<VodStreamsData> {
     this.createdAt = const Value.absent(),
     this.genre = const Value.absent(),
     this.youtubeTrailer = const Value.absent(),
+    this.tmdbId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   VodStreamsCompanion.insert({
@@ -3313,6 +3351,7 @@ class VodStreamsCompanion extends UpdateCompanion<VodStreamsData> {
     this.createdAt = const Value.absent(),
     this.genre = const Value.absent(),
     this.youtubeTrailer = const Value.absent(),
+    this.tmdbId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : streamId = Value(streamId),
        name = Value(name),
@@ -3334,6 +3373,7 @@ class VodStreamsCompanion extends UpdateCompanion<VodStreamsData> {
     Expression<DateTime>? createdAt,
     Expression<String>? genre,
     Expression<String>? youtubeTrailer,
+    Expression<int>? tmdbId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3348,6 +3388,7 @@ class VodStreamsCompanion extends UpdateCompanion<VodStreamsData> {
       if (createdAt != null) 'created_at': createdAt,
       if (genre != null) 'genre': genre,
       if (youtubeTrailer != null) 'youtube_trailer': youtubeTrailer,
+      if (tmdbId != null) 'tmdb_id': tmdbId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3364,6 +3405,7 @@ class VodStreamsCompanion extends UpdateCompanion<VodStreamsData> {
     Value<DateTime>? createdAt,
     Value<String?>? genre,
     Value<String?>? youtubeTrailer,
+    Value<int?>? tmdbId,
     Value<int>? rowid,
   }) {
     return VodStreamsCompanion(
@@ -3378,6 +3420,7 @@ class VodStreamsCompanion extends UpdateCompanion<VodStreamsData> {
       createdAt: createdAt ?? this.createdAt,
       genre: genre ?? this.genre,
       youtubeTrailer: youtubeTrailer ?? this.youtubeTrailer,
+      tmdbId: tmdbId ?? this.tmdbId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3418,6 +3461,9 @@ class VodStreamsCompanion extends UpdateCompanion<VodStreamsData> {
     if (youtubeTrailer.present) {
       map['youtube_trailer'] = Variable<String>(youtubeTrailer.value);
     }
+    if (tmdbId.present) {
+      map['tmdb_id'] = Variable<int>(tmdbId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3438,6 +3484,7 @@ class VodStreamsCompanion extends UpdateCompanion<VodStreamsData> {
           ..write('createdAt: $createdAt, ')
           ..write('genre: $genre, ')
           ..write('youtubeTrailer: $youtubeTrailer, ')
+          ..write('tmdbId: $tmdbId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3626,6 +3673,15 @@ class $SeriesStreamsTable extends SeriesStreams
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _tmdbIdMeta = const VerificationMeta('tmdbId');
+  @override
+  late final GeneratedColumn<int> tmdbId = GeneratedColumn<int>(
+    'tmdb_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     seriesId,
@@ -3645,6 +3701,7 @@ class $SeriesStreamsTable extends SeriesStreams
     createdAt,
     lastModified,
     backdropPath,
+    tmdbId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3784,6 +3841,12 @@ class $SeriesStreamsTable extends SeriesStreams
         ),
       );
     }
+    if (data.containsKey('tmdb_id')) {
+      context.handle(
+        _tmdbIdMeta,
+        tmdbId.isAcceptableOrUnknown(data['tmdb_id']!, _tmdbIdMeta),
+      );
+    }
     return context;
   }
 
@@ -3861,6 +3924,10 @@ class $SeriesStreamsTable extends SeriesStreams
         DriftSqlType.string,
         data['${effectivePrefix}backdrop_path'],
       ),
+      tmdbId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tmdb_id'],
+      ),
     );
   }
 
@@ -3889,6 +3956,7 @@ class SeriesStreamsData extends DataClass
   final DateTime createdAt;
   final String? lastModified;
   final String? backdropPath;
+  final int? tmdbId;
   const SeriesStreamsData({
     required this.seriesId,
     required this.name,
@@ -3907,6 +3975,7 @@ class SeriesStreamsData extends DataClass
     required this.createdAt,
     this.lastModified,
     this.backdropPath,
+    this.tmdbId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3954,6 +4023,9 @@ class SeriesStreamsData extends DataClass
     if (!nullToAbsent || backdropPath != null) {
       map['backdrop_path'] = Variable<String>(backdropPath);
     }
+    if (!nullToAbsent || tmdbId != null) {
+      map['tmdb_id'] = Variable<int>(tmdbId);
+    }
     return map;
   }
 
@@ -3998,6 +4070,9 @@ class SeriesStreamsData extends DataClass
       backdropPath: backdropPath == null && nullToAbsent
           ? const Value.absent()
           : Value(backdropPath),
+      tmdbId: tmdbId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tmdbId),
     );
   }
 
@@ -4024,6 +4099,7 @@ class SeriesStreamsData extends DataClass
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       lastModified: serializer.fromJson<String?>(json['lastModified']),
       backdropPath: serializer.fromJson<String?>(json['backdropPath']),
+      tmdbId: serializer.fromJson<int?>(json['tmdbId']),
     );
   }
   @override
@@ -4047,6 +4123,7 @@ class SeriesStreamsData extends DataClass
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'lastModified': serializer.toJson<String?>(lastModified),
       'backdropPath': serializer.toJson<String?>(backdropPath),
+      'tmdbId': serializer.toJson<int?>(tmdbId),
     };
   }
 
@@ -4068,6 +4145,7 @@ class SeriesStreamsData extends DataClass
     DateTime? createdAt,
     Value<String?> lastModified = const Value.absent(),
     Value<String?> backdropPath = const Value.absent(),
+    Value<int?> tmdbId = const Value.absent(),
   }) => SeriesStreamsData(
     seriesId: seriesId ?? this.seriesId,
     name: name ?? this.name,
@@ -4090,6 +4168,7 @@ class SeriesStreamsData extends DataClass
     createdAt: createdAt ?? this.createdAt,
     lastModified: lastModified.present ? lastModified.value : this.lastModified,
     backdropPath: backdropPath.present ? backdropPath.value : this.backdropPath,
+    tmdbId: tmdbId.present ? tmdbId.value : this.tmdbId,
   );
   SeriesStreamsData copyWithCompanion(SeriesStreamsCompanion data) {
     return SeriesStreamsData(
@@ -4126,6 +4205,7 @@ class SeriesStreamsData extends DataClass
       backdropPath: data.backdropPath.present
           ? data.backdropPath.value
           : this.backdropPath,
+      tmdbId: data.tmdbId.present ? data.tmdbId.value : this.tmdbId,
     );
   }
 
@@ -4148,7 +4228,8 @@ class SeriesStreamsData extends DataClass
           ..write('playlistId: $playlistId, ')
           ..write('createdAt: $createdAt, ')
           ..write('lastModified: $lastModified, ')
-          ..write('backdropPath: $backdropPath')
+          ..write('backdropPath: $backdropPath, ')
+          ..write('tmdbId: $tmdbId')
           ..write(')'))
         .toString();
   }
@@ -4172,6 +4253,7 @@ class SeriesStreamsData extends DataClass
     createdAt,
     lastModified,
     backdropPath,
+    tmdbId,
   );
   @override
   bool operator ==(Object other) =>
@@ -4193,7 +4275,8 @@ class SeriesStreamsData extends DataClass
           other.playlistId == this.playlistId &&
           other.createdAt == this.createdAt &&
           other.lastModified == this.lastModified &&
-          other.backdropPath == this.backdropPath);
+          other.backdropPath == this.backdropPath &&
+          other.tmdbId == this.tmdbId);
 }
 
 class SeriesStreamsCompanion extends UpdateCompanion<SeriesStreamsData> {
@@ -4214,6 +4297,7 @@ class SeriesStreamsCompanion extends UpdateCompanion<SeriesStreamsData> {
   final Value<DateTime> createdAt;
   final Value<String?> lastModified;
   final Value<String?> backdropPath;
+  final Value<int?> tmdbId;
   final Value<int> rowid;
   const SeriesStreamsCompanion({
     this.seriesId = const Value.absent(),
@@ -4233,6 +4317,7 @@ class SeriesStreamsCompanion extends UpdateCompanion<SeriesStreamsData> {
     this.createdAt = const Value.absent(),
     this.lastModified = const Value.absent(),
     this.backdropPath = const Value.absent(),
+    this.tmdbId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SeriesStreamsCompanion.insert({
@@ -4253,6 +4338,7 @@ class SeriesStreamsCompanion extends UpdateCompanion<SeriesStreamsData> {
     this.createdAt = const Value.absent(),
     this.lastModified = const Value.absent(),
     this.backdropPath = const Value.absent(),
+    this.tmdbId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : seriesId = Value(seriesId),
        name = Value(name),
@@ -4275,6 +4361,7 @@ class SeriesStreamsCompanion extends UpdateCompanion<SeriesStreamsData> {
     Expression<DateTime>? createdAt,
     Expression<String>? lastModified,
     Expression<String>? backdropPath,
+    Expression<int>? tmdbId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4295,6 +4382,7 @@ class SeriesStreamsCompanion extends UpdateCompanion<SeriesStreamsData> {
       if (createdAt != null) 'created_at': createdAt,
       if (lastModified != null) 'last_modified': lastModified,
       if (backdropPath != null) 'backdrop_path': backdropPath,
+      if (tmdbId != null) 'tmdb_id': tmdbId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4317,6 +4405,7 @@ class SeriesStreamsCompanion extends UpdateCompanion<SeriesStreamsData> {
     Value<DateTime>? createdAt,
     Value<String?>? lastModified,
     Value<String?>? backdropPath,
+    Value<int?>? tmdbId,
     Value<int>? rowid,
   }) {
     return SeriesStreamsCompanion(
@@ -4337,6 +4426,7 @@ class SeriesStreamsCompanion extends UpdateCompanion<SeriesStreamsData> {
       createdAt: createdAt ?? this.createdAt,
       lastModified: lastModified ?? this.lastModified,
       backdropPath: backdropPath ?? this.backdropPath,
+      tmdbId: tmdbId ?? this.tmdbId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4395,6 +4485,9 @@ class SeriesStreamsCompanion extends UpdateCompanion<SeriesStreamsData> {
     if (backdropPath.present) {
       map['backdrop_path'] = Variable<String>(backdropPath.value);
     }
+    if (tmdbId.present) {
+      map['tmdb_id'] = Variable<int>(tmdbId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4421,6 +4514,7 @@ class SeriesStreamsCompanion extends UpdateCompanion<SeriesStreamsData> {
           ..write('createdAt: $createdAt, ')
           ..write('lastModified: $lastModified, ')
           ..write('backdropPath: $backdropPath, ')
+          ..write('tmdbId: $tmdbId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -11706,6 +11800,7 @@ typedef $$VodStreamsTableCreateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<String?> genre,
       Value<String?> youtubeTrailer,
+      Value<int?> tmdbId,
       Value<int> rowid,
     });
 typedef $$VodStreamsTableUpdateCompanionBuilder =
@@ -11721,6 +11816,7 @@ typedef $$VodStreamsTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<String?> genre,
       Value<String?> youtubeTrailer,
+      Value<int?> tmdbId,
       Value<int> rowid,
     });
 
@@ -11785,6 +11881,11 @@ class $$VodStreamsTableFilterComposer
 
   ColumnFilters<String> get youtubeTrailer => $composableBuilder(
     column: $table.youtubeTrailer,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tmdbId => $composableBuilder(
+    column: $table.tmdbId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -11852,6 +11953,11 @@ class $$VodStreamsTableOrderingComposer
     column: $table.youtubeTrailer,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get tmdbId => $composableBuilder(
+    column: $table.tmdbId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$VodStreamsTableAnnotationComposer
@@ -11907,6 +12013,9 @@ class $$VodStreamsTableAnnotationComposer
     column: $table.youtubeTrailer,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get tmdbId =>
+      $composableBuilder(column: $table.tmdbId, builder: (column) => column);
 }
 
 class $$VodStreamsTableTableManager
@@ -11951,6 +12060,7 @@ class $$VodStreamsTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String?> genre = const Value.absent(),
                 Value<String?> youtubeTrailer = const Value.absent(),
+                Value<int?> tmdbId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => VodStreamsCompanion(
                 streamId: streamId,
@@ -11964,6 +12074,7 @@ class $$VodStreamsTableTableManager
                 createdAt: createdAt,
                 genre: genre,
                 youtubeTrailer: youtubeTrailer,
+                tmdbId: tmdbId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -11979,6 +12090,7 @@ class $$VodStreamsTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String?> genre = const Value.absent(),
                 Value<String?> youtubeTrailer = const Value.absent(),
+                Value<int?> tmdbId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => VodStreamsCompanion.insert(
                 streamId: streamId,
@@ -11992,6 +12104,7 @@ class $$VodStreamsTableTableManager
                 createdAt: createdAt,
                 genre: genre,
                 youtubeTrailer: youtubeTrailer,
+                tmdbId: tmdbId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -12038,6 +12151,7 @@ typedef $$SeriesStreamsTableCreateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<String?> lastModified,
       Value<String?> backdropPath,
+      Value<int?> tmdbId,
       Value<int> rowid,
     });
 typedef $$SeriesStreamsTableUpdateCompanionBuilder =
@@ -12059,6 +12173,7 @@ typedef $$SeriesStreamsTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<String?> lastModified,
       Value<String?> backdropPath,
+      Value<int?> tmdbId,
       Value<int> rowid,
     });
 
@@ -12153,6 +12268,11 @@ class $$SeriesStreamsTableFilterComposer
 
   ColumnFilters<String> get backdropPath => $composableBuilder(
     column: $table.backdropPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tmdbId => $composableBuilder(
+    column: $table.tmdbId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -12250,6 +12370,11 @@ class $$SeriesStreamsTableOrderingComposer
     column: $table.backdropPath,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get tmdbId => $composableBuilder(
+    column: $table.tmdbId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SeriesStreamsTableAnnotationComposer
@@ -12327,6 +12452,9 @@ class $$SeriesStreamsTableAnnotationComposer
     column: $table.backdropPath,
     builder: (column) => column,
   );
+
+  GeneratedColumn<int> get tmdbId =>
+      $composableBuilder(column: $table.tmdbId, builder: (column) => column);
 }
 
 class $$SeriesStreamsTableTableManager
@@ -12381,6 +12509,7 @@ class $$SeriesStreamsTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String?> lastModified = const Value.absent(),
                 Value<String?> backdropPath = const Value.absent(),
+                Value<int?> tmdbId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SeriesStreamsCompanion(
                 seriesId: seriesId,
@@ -12400,6 +12529,7 @@ class $$SeriesStreamsTableTableManager
                 createdAt: createdAt,
                 lastModified: lastModified,
                 backdropPath: backdropPath,
+                tmdbId: tmdbId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -12421,6 +12551,7 @@ class $$SeriesStreamsTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<String?> lastModified = const Value.absent(),
                 Value<String?> backdropPath = const Value.absent(),
+                Value<int?> tmdbId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SeriesStreamsCompanion.insert(
                 seriesId: seriesId,
@@ -12440,6 +12571,7 @@ class $$SeriesStreamsTableTableManager
                 createdAt: createdAt,
                 lastModified: lastModified,
                 backdropPath: backdropPath,
+                tmdbId: tmdbId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

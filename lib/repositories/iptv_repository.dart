@@ -421,6 +421,19 @@ class IptvRepository {
     }
   }
 
+  /// Backfill a movie's TMDb id onto its persisted row once the movie screen has
+  /// read it from get_vod_info's `info.tmdb_id`. Lets global search reconcile an
+  /// owned (possibly translated-title) movie with its TMDb result by id. Best
+  /// effort and idempotent — the DB write is a no-op unless the value differs.
+  Future<void> persistVodTmdbId(String streamId, int tmdbId) async {
+    if (tmdbId <= 0) return;
+    try {
+      await _database.updateVodStreamTmdbId(streamId, _playlistId, tmdbId);
+    } catch (e) {
+      _logError('Persist VOD tmdb id', e);
+    }
+  }
+
   Future<List<Category>?> getLiveCategories({bool forceRefresh = false}) async {
     return _getCategories(
       CategoryType.live,
@@ -556,10 +569,15 @@ class IptvRepository {
           );
 
           bool isStale = false;
+          // The TMDb id persisted on the series row (backfilled on a previous
+          // network fetch). Captured here so the cache-hit response can carry it
+          // and enrichment no longer loses the id on a DB cache hit.
+          int? cachedTmdbId;
           try {
             final seriesItem = allSeries.firstWhere(
               (s) => s.seriesId == seriesId,
             );
+            cachedTmdbId = seriesItem.tmdbId;
 
             final cachedLast = (seriesItem.lastModified ?? '')
                 .toString()
@@ -591,6 +609,11 @@ class IptvRepository {
                 seasons: seasons,
                 episodes: episodes,
                 playlistId: _playlistId,
+                // On a cache hit the id comes from the persisted series row, so
+                // enrichment no longer loses it — the bug where the DB cache
+                // path returned a null tmdbId and fell back to a title+year
+                // search.
+                tmdbId: cachedTmdbId,
               );
             }
           }
@@ -625,6 +648,16 @@ class IptvRepository {
         final rawTmdb = rawInfo is Map ? rawInfo['tmdb_id'] : null;
         // safeInt yields 0 for absent/unparseable; treat 0 as "no id".
         final parsedTmdb = safeInt(rawTmdb);
+        // Backfill the persisted series row so this id survives to the DB cache
+        // path (enrichment) AND to global search's id-based dedup. No-op unless
+        // the stored value actually differs.
+        if (parsedTmdb > 0) {
+          await _database.updateSeriesStreamTmdbId(
+            seriesId,
+            _playlistId,
+            parsedTmdb,
+          );
+        }
         return SeriesDetailResponse(
           seriesInfo: seriesInfo!,
           seasons: seasons,

@@ -5,10 +5,13 @@ import 'tmdb_search_result.dart';
 
 /// How strongly a local content item matches a TMDb title.
 ///
-/// `exact` means the normalized titles are equal (ignoring year/brackets/
-/// punctuation). `fuzzy` is a substring match in either direction. `none`
-/// means no relationship.
-enum MatchStrength { exact, fuzzy, none }
+/// `id` means the local stream's persisted TMDb id equals the TMDb result's id
+/// (same media type) — the strongest, title-independent reconciliation. `exact`
+/// means the normalized titles are equal (ignoring year/brackets/punctuation).
+/// `fuzzy` is a substring match in either direction. `none` means no
+/// relationship. Ordered strongest-first, so `.index` compares as strength
+/// (lower wins) in the franchise owner-dedup.
+enum MatchStrength { id, exact, fuzzy, none }
 
 class LocalContentMatch {
   final Playlist playlist;
@@ -21,7 +24,15 @@ class LocalContentMatch {
     this.strength = MatchStrength.none,
   });
 
-  bool get isExactMatch => strength == MatchStrength.exact;
+  /// An id match is a definitive same-title reconciliation, so it counts as (at
+  /// least) exact for the "owned" treatment even when the localized titles read
+  /// differently.
+  bool get isExactMatch =>
+      strength == MatchStrength.id || strength == MatchStrength.exact;
+
+  /// The TMDb id of the owned stream this match points at, when known. Sourced
+  /// from the underlying VodStream/SeriesStream so search can reconcile by id.
+  int? get tmdbId => content.tmdbId;
 
   /// Stable identity used for dedup across sections. Two matches that point
   /// at the same stream inside the same playlist are considered the same row.

@@ -1,3 +1,17 @@
+# [2.6.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.5.1...v2.6.0) (2026-07-27)
+
+
+### Features
+
+* the Live (En Vivo) header now shows — and lets you switch — the active playlist, with the same switcher as Home, so you always know which list you're browsing
+* store the provider's tmdb_id per title and match search results by it, so an owned movie that TMDb lists under a different (translated) name is no longer also shown as an un-playable "discover" card. The id is filled the first time you open a title (or from the provider's bulk list when it ships one); a full catalogue refresh re-learns it.
+
+
+### Notes
+
+* database schema migrated 9 → 10 (adds a nullable tmdb_id column to VOD and series). The change is additive — existing catalogue, watch history, favourites and M3U items are preserved on upgrade.
+
+
 # [2.5.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.5.0...v2.5.1) (2026-07-27)
 
 

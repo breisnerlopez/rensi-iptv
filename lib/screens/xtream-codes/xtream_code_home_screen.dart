@@ -425,6 +425,12 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
           // Xtream only: M3U playlists have no panel to ask for a schedule, and
           // their item ids are not stream ids.
           epgService: _epgService,
+          // Same switcher as the Home header, so the Live section shows (and can
+          // change) the active playlist.
+          playlistSwitcher: PlaylistSwitcherButton(
+            currentPlaylist: widget.playlist,
+            currentIndex: controller.currentIndex,
+          ),
         );
       case 3:
         return ListRedesign(

@@ -22,6 +22,11 @@ class SeriesStream {
   final String? episodeRunTime;
   final String? categoryId;
 
+  /// The TMDb id the provider persisted for this series, when present. May come
+  /// from the bulk get_series list (some panels ship `tmdb`/`tmdb_id`) or be
+  /// backfilled lazily from get_series_info's `info.tmdb_id`. Null when unknown.
+  final int? tmdbId;
+
   SeriesStream({
     required this.playlistId,
     required this.seriesId,
@@ -39,6 +44,7 @@ class SeriesStream {
     this.youtubeTrailer,
     this.episodeRunTime,
     this.categoryId,
+    this.tmdbId,
   });
 
   factory SeriesStream.fromJson(Map<String, dynamic> json, String playlistId) {
@@ -82,7 +88,18 @@ class SeriesStream {
       episodeRunTime: safeString(json['episode_run_time']),
       categoryId: safeString(json['category_id']),
       playlistId: safeString(playlistId),
+      // Series bulk lists more often carry `tmdb` than `tmdb_id`; accept both.
+      // Most panels only expose it in get_series_info's `info.tmdb_id`, which
+      // the series screen backfills lazily. 0/unparseable → NULL, not 0.
+      // Prefer whichever field yields a real id: `??` alone would keep an empty
+      // `tmdb_id:""` and never fall through to a populated `tmdb`.
+      tmdbId: _parseTmdbId(json['tmdb_id']) ?? _parseTmdbId(json['tmdb']),
     );
+  }
+
+  static int? _parseTmdbId(dynamic raw) {
+    final v = safeInt(raw);
+    return v > 0 ? v : null;
   }
 
   factory SeriesStream.fromDriftSeriesStream(
@@ -121,6 +138,7 @@ class SeriesStream {
       episodeRunTime: driftSeriesStream.episodeRunTime,
       categoryId: driftSeriesStream.categoryId,
       playlistId: driftSeriesStream.playlistId,
+      tmdbId: driftSeriesStream.tmdbId,
     );
   }
 
@@ -147,6 +165,9 @@ class SeriesStream {
       episodeRunTime: Value(episodeRunTime),
       categoryId: Value(categoryId),
       playlistId: Value(playlistId),
+      // Absent (not Value(null)) when unknown so an upsert never overwrites a
+      // previously backfilled id with null.
+      tmdbId: tmdbId != null ? Value(tmdbId) : const Value.absent(),
     );
   }
 
