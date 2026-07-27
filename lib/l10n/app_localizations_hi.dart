@@ -36,6 +36,18 @@ class AppLocalizationsHi extends AppLocalizations {
   String get see_all => 'सभी देखें';
 
   @override
+  String get popular_section_title => 'लोकप्रिय';
+
+  @override
+  String get popular_window_month => 'इस महीने';
+
+  @override
+  String get popular_window_year => 'इस साल';
+
+  @override
+  String get popular_window_all_time => 'सर्वकालिक';
+
+  @override
   String get preview => 'पूर्वावलोकन';
 
   @override
@@ -807,6 +819,12 @@ class AppLocalizationsHi extends AppLocalizations {
   String get search_placeholder => 'फ़िल्में, सीरीज़, चैनल खोजें…';
 
   @override
+  String get search_recent => 'हाल की खोजें';
+
+  @override
+  String get search_recent_remove => 'हटाएं';
+
+  @override
   String get no_channels => 'कोई चैनल नहीं';
 
   @override
@@ -1233,6 +1251,34 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get search_back_to_actors => 'कलाकारों पर वापस जाएँ';
+
+  @override
+  String get search_filter_studios => 'स्टूडियो';
+
+  @override
+  String get search_studio_hint => 'किसी स्टूडियो के शीर्षक देखने के लिए खोजें';
+
+  @override
+  String get search_studio_no_results => 'इस स्टूडियो के लिए कोई परिणाम नहीं';
+
+  @override
+  String get search_back_to_studios => 'स्टूडियो पर वापस जाएँ';
+
+  @override
+  String get search_filter_genre => 'शैलियाँ';
+
+  @override
+  String get search_genre_hint => 'अपने टाइटल देखने के लिए एक शैली चुनें';
+
+  @override
+  String get search_genre_no_results =>
+      'इस शैली में आपके पास कोई टाइटल नहीं है';
+
+  @override
+  String get search_back_to_genres => 'शैलियों पर वापस जाएँ';
+
+  @override
+  String get search_voice => 'आवाज़ द्वारा खोज';
 
   @override
   String get search_clear_history => 'इतिहास साफ़ करें';

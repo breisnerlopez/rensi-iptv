@@ -1,3 +1,30 @@
+# [2.7.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.6.2...v2.7.0) (2026-07-27)
+
+
+### Features
+
+* filter by genre in Explorar and Buscar — pick a genre (Acción, Terror, Comedia, Drama, Ciencia ficción…) and see everything in it across your full catalogue, not just what's on screen. Matching is exact and accent-safe ("Drama" never pulls in "Melodrama"; "Acción" with the accent matches), and compound TMDb genres like "Action & Adventure" stay whole
+* search by studio or platform — type A24, HBO, Apple TV+, Netflix, Disney+… and browse its catalogue; owned titles play, the rest are shown as discover
+* tap any actor in a title's cast to open that actor's filmography. TMDb cast is now part of the IPTV detail for movies and series, in your language, with the native and TMDb cast no longer duplicated
+* recent searches on the search screen, and voice search on TV via the Android system voice overlay
+* a "Popular" rail on Home — the most popular movies of the month, the year, or all time, switchable
+* "Seguir viendo → Ver todo": a full grid of your last 20 unfinished titles, resumable at the saved position
+* Live TV category selector polish — the active category scrolls into view, and a searchable "jump to category" picker appears when a playlist has many categories
+
+
+### Bug Fixes
+
+* the trailer button is no longer covered on the detail screen, and on TV pressing down through the cast/trailer now reaches the play button (which is focused on entry)
+* de-duplicated search results (e.g. "Alien Romulus" no longer shows two dead entries) and removed the duplicated series cast
+* content info now shows in the correct language and falls back to the original language when a translation is missing
+* live playback no longer aborts on non-fatal player notices (force-seekable / cannot seek)
+
+
+### Notes
+
+* voice search uses the system voice overlay (no microphone permission required) and hides itself where no speech recognizer is installed; the Android 11+ package-visibility `<queries>` entry for the recognizer is declared so the mic is not silently hidden
+
+
 # [2.6.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.6.1...v2.6.2) (2026-07-27)
 
 

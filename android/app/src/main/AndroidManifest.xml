@@ -110,5 +110,11 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Android 11+ package visibility: without this, resolveActivity() for the
+             voice-recognition overlay returns null even when a recognizer is
+             installed, hiding the mic everywhere. See VoiceSearchService. -->
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH"/>
+        </intent>
     </queries>
 </manifest>

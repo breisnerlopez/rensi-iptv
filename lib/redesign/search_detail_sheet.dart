@@ -28,6 +28,7 @@ class SearchDetailSheet extends StatelessWidget {
     required this.service,
     required this.onPlayLocal,
     required this.onToggleWishlist,
+    this.onActorTap,
   });
 
   final GlobalSearchResult result;
@@ -41,12 +42,18 @@ class SearchDetailSheet extends StatelessWidget {
   /// sheet reflects the returned bool on its own icon.
   final Future<bool> Function() onToggleWishlist;
 
+  /// Tapping a cast member opens their filmography. The sheet pops itself first
+  /// (see [_SheetBodyState]) so search opens over the originating surface, not
+  /// stacked behind a modal sheet. Null leaves the cast avatars inert.
+  final ValueChanged<TmdbCredit>? onActorTap;
+
   static Future<void> show(
     BuildContext context, {
     required GlobalSearchResult result,
     required GlobalSearchService service,
     required void Function(LocalContentMatch) onPlayLocal,
     required Future<bool> Function() onToggleWishlist,
+    ValueChanged<TmdbCredit>? onActorTap,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -60,6 +67,7 @@ class SearchDetailSheet extends StatelessWidget {
         service: service,
         onPlayLocal: onPlayLocal,
         onToggleWishlist: onToggleWishlist,
+        onActorTap: onActorTap,
       ),
     );
   }
@@ -74,6 +82,7 @@ class SearchDetailSheet extends StatelessWidget {
       service: service,
       onPlayLocal: onPlayLocal,
       onToggleWishlist: onToggleWishlist,
+      onActorTap: onActorTap,
     );
   }
 }
@@ -84,12 +93,14 @@ class _SheetBody extends StatefulWidget {
     required this.service,
     required this.onPlayLocal,
     required this.onToggleWishlist,
+    this.onActorTap,
   });
 
   final GlobalSearchResult result;
   final GlobalSearchService service;
   final void Function(LocalContentMatch) onPlayLocal;
   final Future<bool> Function() onToggleWishlist;
+  final ValueChanged<TmdbCredit>? onActorTap;
 
   @override
   State<_SheetBody> createState() => _SheetBodyState();
@@ -401,7 +412,19 @@ class _SheetBodyState extends State<_SheetBody> {
           // Theme-aware colours (widget defaults) so names read on the light
           // or dark sheet surface; RensiRail + FocusHighlight keep D-pad focus
           // and RTL behaviour identical to the detail-screen enrichment.
-          TmdbCastRail(cast: cast),
+          TmdbCastRail(
+            cast: cast,
+            onActorTap: widget.onActorTap == null
+                ? null
+                : (credit) {
+                    // Pop the sheet FIRST, then let the host open search, so the
+                    // filmography lands over the originating surface instead of
+                    // behind this modal route.
+                    final tap = widget.onActorTap!;
+                    Navigator.of(context).maybePop();
+                    tap(credit);
+                  },
+          ),
         ],
       ),
     );

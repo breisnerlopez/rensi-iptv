@@ -32,6 +32,8 @@ class TmdbEnrichment extends StatefulWidget {
     this.tmdbId,
     this.existingOverview,
     this.onTrailerKey,
+    this.onActorTap,
+    this.onResolved,
   });
 
   final String title;
@@ -48,6 +50,16 @@ class TmdbEnrichment extends StatefulWidget {
   /// Invoked once with the best TMDb YouTube trailer key (or null) so the host's
   /// existing trailer button can use it as a fallback source.
   final ValueChanged<String?>? onTrailerKey;
+
+  /// Forwarded to the [TmdbCastRail]: tapping a cast member opens their
+  /// filmography. Null (the default) leaves the avatars inert/non-focusable.
+  final ValueChanged<TmdbCredit>? onActorTap;
+
+  /// Invoked once after the TMDb future resolves, with whether a non-empty cast
+  /// was found (`detail != null && detail.cast.isNotEmpty`). Lets the host hide
+  /// its own native cast block when this rail will render one — and keep it when
+  /// enrichment renders nothing (no key / no match).
+  final ValueChanged<bool>? onResolved;
 
   @override
   State<TmdbEnrichment> createState() => _TmdbEnrichmentState();
@@ -83,6 +95,9 @@ class _TmdbEnrichmentState extends State<TmdbEnrichment> {
     _future.then((detail) {
       if (!mounted) return;
       widget.onTrailerKey?.call(detail?.bestTrailer?.key);
+      final hasCast =
+          detail != null && detail.cast.any((c) => c.name.isNotEmpty);
+      widget.onResolved?.call(hasCast);
     });
   }
 
@@ -300,6 +315,7 @@ class _TmdbEnrichmentState extends State<TmdbEnrichment> {
                 cast: cast,
                 nameColor: Colors.white,
                 characterColor: Colors.white54,
+                onActorTap: widget.onActorTap,
               ),
             ],
           ],

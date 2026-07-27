@@ -1,8 +1,11 @@
 package info.breisner.rensi.iptv
 
+import android.app.Activity
 import android.app.PictureInPictureParams
+import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
+import android.speech.RecognizerIntent
 import android.util.Rational
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -12,6 +15,14 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : AudioServiceActivity() {
     private val pipChannel = "info.breisner.rensi.iptv/pip"
     private val pipEventsChannel = "info.breisner.rensi.iptv/pip_events"
+    private val voiceChannel = "info.breisner.rensi.iptv/voice"
+
+    // The system voice overlay is a foreign activity: we hand its result back
+    // to Dart through a saved MethodChannel.Result, completed exactly once in
+    // onActivityResult. Guarded so a second launch while one is pending can't
+    // orphan the first Result.
+    private val voiceRequestCode = 0x5645 // 'VE'
+    private var pendingVoiceResult: MethodChannel.Result? = null
 
     private var pipEventSink: EventChannel.EventSink? = null
     // Last aspect ratio requested by Dart, used by auto-PiP on user-leave.
@@ -58,6 +69,80 @@ class MainActivity : AudioServiceActivity() {
                     pipEventSink = null
                 }
             })
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, voiceChannel)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "isVoiceAvailable" -> result.success(isVoiceAvailable())
+                    "startVoiceSearch" -> startVoiceSearch(
+                        call.argument<String>("locale"),
+                        call.argument<String>("prompt"),
+                        result,
+                    )
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    // True when a recognizer that can satisfy ACTION_RECOGNIZE_SPEECH is
+    // installed. Many TV boxes have none — Dart hides the mic when this is false.
+    private fun isVoiceAvailable(): Boolean {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+        return intent.resolveActivity(packageManager) != null
+    }
+
+    // Launches the system voice overlay and stores [result] to be completed once
+    // by onActivityResult. Uses FREE_FORM (dictation, not command grammar). No
+    // RECORD_AUDIO permission is needed: the overlay owns the mic.
+    private fun startVoiceSearch(
+        locale: String?,
+        prompt: String?,
+        result: MethodChannel.Result,
+    ) {
+        // Only one session at a time. If one is already pending, decline the
+        // newcomer with null rather than drop the in-flight Result on the floor.
+        if (pendingVoiceResult != null) {
+            result.success(null)
+            return
+        }
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+            )
+            if (!prompt.isNullOrBlank()) {
+                putExtra(RecognizerIntent.EXTRA_PROMPT, prompt)
+            }
+            if (!locale.isNullOrBlank()) {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, locale)
+            }
+        }
+        if (intent.resolveActivity(packageManager) == null) {
+            result.success(null)
+            return
+        }
+        pendingVoiceResult = result
+        try {
+            startActivityForResult(intent, voiceRequestCode)
+        } catch (_: Exception) {
+            pendingVoiceResult = null
+            result.success(null)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != voiceRequestCode) return
+        val pending = pendingVoiceResult ?: return
+        pendingVoiceResult = null
+        if (resultCode == Activity.RESULT_OK && data != null) {
+            val matches =
+                data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+            pending.success(matches?.firstOrNull())
+        } else {
+            // Cancelled, no match, or error → null so Dart leaves the query be.
+            pending.success(null)
+        }
     }
 
     override fun onUserLeaveHint() {

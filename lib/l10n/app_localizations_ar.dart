@@ -36,6 +36,18 @@ class AppLocalizationsAr extends AppLocalizations {
   String get see_all => 'عرض الكل';
 
   @override
+  String get popular_section_title => 'الأكثر رواجًا';
+
+  @override
+  String get popular_window_month => 'هذا الشهر';
+
+  @override
+  String get popular_window_year => 'هذا العام';
+
+  @override
+  String get popular_window_all_time => 'كل الأوقات';
+
+  @override
   String get preview => 'معاينة';
 
   @override
@@ -804,6 +816,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get search_placeholder => 'ابحث عن أفلام ومسلسلات وقنوات…';
 
   @override
+  String get search_recent => 'عمليات البحث الأخيرة';
+
+  @override
+  String get search_recent_remove => 'إزالة';
+
+  @override
   String get no_channels => 'لا توجد قنوات';
 
   @override
@@ -1230,6 +1248,33 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get search_back_to_actors => 'العودة إلى الممثلين';
+
+  @override
+  String get search_filter_studios => 'الاستوديوهات';
+
+  @override
+  String get search_studio_hint => 'ابحث عن استوديو لعرض أعماله';
+
+  @override
+  String get search_studio_no_results => 'لا توجد نتائج لهذا الاستوديو';
+
+  @override
+  String get search_back_to_studios => 'العودة إلى الاستوديوهات';
+
+  @override
+  String get search_filter_genre => 'الأنواع';
+
+  @override
+  String get search_genre_hint => 'اختر نوعًا لعرض عناوينك';
+
+  @override
+  String get search_genre_no_results => 'لا تملك أي عناوين من هذا النوع';
+
+  @override
+  String get search_back_to_genres => 'العودة إلى الأنواع';
+
+  @override
+  String get search_voice => 'البحث الصوتي';
 
   @override
   String get search_clear_history => 'مسح السجل';

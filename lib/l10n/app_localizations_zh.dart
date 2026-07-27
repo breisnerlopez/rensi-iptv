@@ -36,6 +36,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get see_all => '查看全部';
 
   @override
+  String get popular_section_title => '热门';
+
+  @override
+  String get popular_window_month => '本月';
+
+  @override
+  String get popular_window_year => '本年';
+
+  @override
+  String get popular_window_all_time => '历史最热';
+
+  @override
   String get preview => '预览';
 
   @override
@@ -780,6 +792,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get search_placeholder => '搜索电影、剧集、频道…';
 
   @override
+  String get search_recent => '最近搜索';
+
+  @override
+  String get search_recent_remove => '移除';
+
+  @override
   String get no_channels => '无频道';
 
   @override
@@ -1191,6 +1209,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get search_back_to_actors => '返回演员';
+
+  @override
+  String get search_filter_studios => '制片厂';
+
+  @override
+  String get search_studio_hint => '搜索制片厂以查看其作品';
+
+  @override
+  String get search_studio_no_results => '没有该制片厂的结果';
+
+  @override
+  String get search_back_to_studios => '返回制片厂';
+
+  @override
+  String get search_filter_genre => '类型';
+
+  @override
+  String get search_genre_hint => '选择一个类型以查看您的片名';
+
+  @override
+  String get search_genre_no_results => '您在此类型中没有任何片名';
+
+  @override
+  String get search_back_to_genres => '返回类型';
+
+  @override
+  String get search_voice => '语音搜索';
 
   @override
   String get search_clear_history => '清除历史';

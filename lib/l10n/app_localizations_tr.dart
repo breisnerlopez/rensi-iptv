@@ -36,6 +36,18 @@ class AppLocalizationsTr extends AppLocalizations {
   String get see_all => 'Tümünü Görüntüle';
 
   @override
+  String get popular_section_title => 'Popüler';
+
+  @override
+  String get popular_window_month => 'Bu ay';
+
+  @override
+  String get popular_window_year => 'Bu yıl';
+
+  @override
+  String get popular_window_all_time => 'Tüm zamanlar';
+
+  @override
   String get preview => 'Önizleme';
 
   @override
@@ -806,6 +818,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get search_placeholder => 'Film, dizi, kanal ara…';
 
   @override
+  String get search_recent => 'Son aramalar';
+
+  @override
+  String get search_recent_remove => 'Kaldır';
+
+  @override
   String get no_channels => 'Kanal yok';
 
   @override
@@ -1236,6 +1254,33 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get search_back_to_actors => 'Oyunculara dön';
+
+  @override
+  String get search_filter_studios => 'Stüdyolar';
+
+  @override
+  String get search_studio_hint => 'Yapımlarını görmek için bir stüdyo arayın';
+
+  @override
+  String get search_studio_no_results => 'Bu stüdyo için sonuç yok';
+
+  @override
+  String get search_back_to_studios => 'Stüdyolara dön';
+
+  @override
+  String get search_filter_genre => 'Türler';
+
+  @override
+  String get search_genre_hint => 'Başlıklarınızı görmek için bir tür seçin';
+
+  @override
+  String get search_genre_no_results => 'Bu türde hiç başlığınız yok';
+
+  @override
+  String get search_back_to_genres => 'Türlere dön';
+
+  @override
+  String get search_voice => 'Sesli arama';
 
   @override
   String get search_clear_history => 'Geçmişi temizle';

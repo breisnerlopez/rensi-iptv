@@ -6,6 +6,8 @@ import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/models/tmdb_search_result.dart';
+import 'package:rensi_iptv/redesign/search_redesign.dart';
+import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/widgets/tmdb_enrichment.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
@@ -53,6 +55,17 @@ class _MovieScreenState extends State<MovieScreen> {
   // the Xtream panel didn't ship one. Set asynchronously by [TmdbEnrichment].
   String? _tmdbTrailerKey;
 
+  // Whether TMDb enrichment resolved with a non-empty cast. When true, the
+  // native (plain-text) cast entry is suppressed so cast is not shown twice.
+  bool _tmdbHasCast = false;
+
+  // Focus node for the primary Play button, which lives in a FIXED bottom band
+  // (a separate Stack subtree from the scrollable cast/trailer content). On TV,
+  // pressing D-pad DOWN from the last scroll action (the trailer button) can't
+  // reliably cross into that band by geometry, so we redirect DOWN to this node
+  // explicitly. Also the autofocus target on entry.
+  final FocusNode _playFocusNode = FocusNode(debugLabel: 'moviePlayButton');
+
   @override
   void initState() {
     super.initState();
@@ -83,6 +96,12 @@ class _MovieScreenState extends State<MovieScreen> {
         if (mounted) _openPlayer();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _playFocusNode.dispose();
+    super.dispose();
   }
 
   Future<void> _loadCategoryMovies() async {
@@ -226,6 +245,18 @@ class _MovieScreenState extends State<MovieScreen> {
     return (value.clamp(0.0, 1.0)) as double;
   }
 
+  /// Whether the CTA band shows the resume progress bar + timestamps (a taller
+  /// band). Drives both [_buildPlayButton] and the scroll's bottom inset so the
+  /// trailer button always clears the band.
+  bool get _hasResumeProgress {
+    final progress = _progress;
+    return !_isLoadingHistory &&
+        progress != null &&
+        progress > 0.01 &&
+        progress < 0.98 &&
+        _watchHistory?.totalDuration != null;
+  }
+
   String? get _posterUrl {
     if (_vodInfo != null) {
       final cover = _vodInfo!['cover_big'] ?? _vodInfo!['cover'];
@@ -341,6 +372,24 @@ class _MovieScreenState extends State<MovieScreen> {
           setState(() => _tmdbTrailerKey = key);
         }
       },
+      onResolved: (hasCast) {
+        if (mounted && hasCast != _tmdbHasCast) {
+          setState(() => _tmdbHasCast = hasCast);
+        }
+      },
+      onActorTap: (c) => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SearchRedesign(
+            onOpen: (it) => navigateByContentType(context, it),
+            initialPerson: TmdbPerson(
+              id: c.id,
+              name: c.name,
+              profilePath: c.profilePath,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -380,7 +429,13 @@ class _MovieScreenState extends State<MovieScreen> {
               return SingleChildScrollView(
                 padding: EdgeInsets.only(
                   top: isDesktop ? topPadding : topPadding + 100,
-                  bottom: 100,
+                  // Clear the fixed CTA band pinned at the bottom. The band is
+                  // taller when it shows the resume progress bar + timestamps,
+                  // so reserve more inset then — otherwise the last widget (the
+                  // trailer button) hid behind the band.
+                  bottom: 24 +
+                      MediaQuery.of(context).padding.bottom +
+                      (_hasResumeProgress ? 172 : 120),
                   left: 16,
                   right: 16,
                 ),
@@ -827,9 +882,10 @@ class _MovieScreenState extends State<MovieScreen> {
       );
     }
 
-    // Oyuncular
+    // Oyuncular — shown only when TMDb enrichment did NOT render a cast rail,
+    // so the cast never appears twice (native text + TMDb photos).
     final cast = _castInfo;
-    if (cast != null && cast.isNotEmpty) {
+    if (!_tmdbHasCast && cast != null && cast.isNotEmpty) {
       entries.add(
         _DetailEntry(
           icon: Icons.people,
@@ -889,7 +945,7 @@ class _MovieScreenState extends State<MovieScreen> {
       return null;
     }
 
-    return FilledButton.tonalIcon(
+    final button = FilledButton.tonalIcon(
       onPressed: () => _openTrailer(context),
       icon: const Icon(Icons.ondemand_video),
       label: Text(context.loc.trailer),
@@ -902,17 +958,34 @@ class _MovieScreenState extends State<MovieScreen> {
         ),
       ),
     );
+
+    if (!ResponsiveHelper.isDesktopOrTV(context)) return button;
+
+    // The trailer button is the LAST focusable item in the scroll. On TV,
+    // pressing DOWN here would otherwise dead-end (the Play button sits in a
+    // separate fixed band the directional policy can't reach by geometry), so
+    // redirect DOWN straight to Play. Non-focusable observer node: it only
+    // watches key events bubbling up from the focused button below it.
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.arrowDown) {
+          _playFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: button,
+    );
   }
 
   Widget _buildPlayButton(BuildContext context) {
     final theme = Theme.of(context);
     final r = rensi(context);
     final progress = _progress;
-    final hasProgress = !_isLoadingHistory &&
-        progress != null &&
-        progress > 0.01 &&
-        progress < 0.98 &&
-        _watchHistory?.totalDuration != null;
+    final hasProgress = _hasResumeProgress;
 
     final label = hasProgress
         ? context.loc.continue_watching
@@ -950,6 +1023,9 @@ class _MovieScreenState extends State<MovieScreen> {
     children.add(
       ElevatedButton.icon(
         onPressed: _openPlayer,
+        focusNode: _playFocusNode,
+        // Land D-pad focus on the primary action the moment the screen opens on
+        // TV, so the viewer never has to hunt for Play.
         autofocus: true,
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

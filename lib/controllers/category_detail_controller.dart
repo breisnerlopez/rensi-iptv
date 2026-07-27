@@ -4,6 +4,7 @@ import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import '../services/content_service.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
+import 'package:rensi_iptv/utils/genre_utils.dart';
 
 class CategoryDetailController extends ChangeNotifier {
   final CategoryViewModel category;
@@ -41,7 +42,7 @@ class CategoryDetailController extends ChangeNotifier {
     try {
       _setLoading(true);
       _contentItems = await _contentService.fetchContentByCategory(category);
-      _genres = _extractGenres(_contentItems);
+      _genres = enumerateGenres(_contentItems);
       _selectedGenre = null;
       _setLoading(false);
       // For the synthetic "All movies" / "All series" pseudo-category, land
@@ -55,34 +56,6 @@ class CategoryDetailController extends ChangeNotifier {
     }
   }
 
-  List<String> _extractGenres(List<ContentItem> items) {
-    final Set<String> genreSet = {};
-
-    for (final item in items) {
-      final rawGenre = _getItemGenre(item);
-      if (rawGenre != null && rawGenre.isNotEmpty) {
-        // Split on common separators (comma, slash, backslash, pipe, ampersand, semicolon, Arabic comma) (with surrounding spaces)
-        final parts = rawGenre
-            .split(RegExp(r'\s*[,/\\|&;،]+\s*'))
-            .map((g) => g.trim())
-            .where((g) => g.isNotEmpty)
-            .toSet();
-        genreSet.addAll(parts);
-      }
-    }
-
-    final sorted = genreSet.toList()..sort();
-    return sorted;
-  }
-
-  String? _getItemGenre(ContentItem item) {
-    if (item.contentType.name == "series") {
-      return item.seriesStream?.genre;
-    } else {
-      return item.vodStream?.genre;
-    }
-  }
-
   void filterByGenre(String? genre) {
     _selectedGenre = genre;
     notifyListeners();
@@ -90,20 +63,10 @@ class CategoryDetailController extends ChangeNotifier {
 
   List<ContentItem> _applyGenreFilter(List<ContentItem> items) {
     if (_selectedGenre == null || _selectedGenre!.isEmpty) return items;
-
-    // We compare lowercased versions to be safe
-    final genreLower = _selectedGenre!.toLowerCase();
-    return items.where((item) {
-      final rawGenre = _getItemGenre(item);
-      if (rawGenre == null) return false;
-
-      // Use the same splitter logic to check if the item contains the selected genre
-      final itemGenres = rawGenre
-          .split(RegExp(r'\s*[,/\\|&;،]+\s*'))
-          .map((g) => g.trim().toLowerCase());
-
-      return itemGenres.contains(genreLower);
-    }).toList();
+    // Shared, accent-safe, exact-token matcher — the single source of truth for
+    // genre parsing (see genre_utils). Never a substring match, so "Drama"
+    // won't catch "Melodrama".
+    return items.where((item) => itemHasGenre(item, _selectedGenre!)).toList();
   }
 
   void startSearch() {

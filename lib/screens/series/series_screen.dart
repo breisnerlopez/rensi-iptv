@@ -4,6 +4,8 @@ import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/models/tmdb_search_result.dart';
+import 'package:rensi_iptv/redesign/search_redesign.dart';
+import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/widgets/tmdb_enrichment.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/repositories/iptv_repository.dart';
@@ -49,6 +51,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
   // Best YouTube trailer key resolved from TMDb, a FALLBACK when the panel
   // didn't ship a series-level trailer. Set asynchronously by [TmdbEnrichment].
   String? _tmdbTrailerKey;
+
+  // Whether TMDb enrichment resolved with a non-empty cast. When true, the
+  // native (plain-text) cast row is suppressed so cast is not shown twice.
+  bool _tmdbHasCast = false;
 
   @override
   void initState() {
@@ -418,6 +424,24 @@ class _SeriesScreenState extends State<SeriesScreen> {
           setState(() => _tmdbTrailerKey = key);
         }
       },
+      onResolved: (hasCast) {
+        if (mounted && hasCast != _tmdbHasCast) {
+          setState(() => _tmdbHasCast = hasCast);
+        }
+      },
+      onActorTap: (c) => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SearchRedesign(
+            onOpen: (it) => navigateByContentType(context, it),
+            initialPerson: TmdbPerson(
+              id: c.id,
+              name: c.name,
+              profilePath: c.profilePath,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -705,9 +729,10 @@ class _SeriesScreenState extends State<SeriesScreen> {
       });
     }
 
-    // Oyuncular
+    // Oyuncular — shown only when TMDb enrichment did NOT render a cast rail,
+    // so the cast never appears twice (native text + TMDb photos).
     final cast = seriesInfo?.cast ?? widget.contentItem.seriesStream?.cast;
-    if (cast != null && cast.isNotEmpty) {
+    if (!_tmdbHasCast && cast != null && cast.isNotEmpty) {
       details.add({
         'icon': Icons.people,
         'title': context.loc.cast,

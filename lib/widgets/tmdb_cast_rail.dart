@@ -28,6 +28,7 @@ class TmdbCastRail extends StatelessWidget {
     this.maxCount = 20,
     this.nameColor,
     this.characterColor,
+    this.onActorTap,
   });
 
   final List<TmdbCredit> cast;
@@ -40,6 +41,10 @@ class TmdbCastRail extends StatelessWidget {
 
   /// Character-name colour. Null → a dimmed [ColorScheme.onSurface].
   final Color? characterColor;
+
+  /// Invoked with the tapped cast member. When null the avatars are inert and
+  /// (crucially on TV) non-focusable, so they aren't dead focus targets.
+  final ValueChanged<TmdbCredit>? onActorTap;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +66,7 @@ class TmdbCastRail extends StatelessWidget {
             member: member,
             nameColor: resolvedName,
             characterColor: resolvedChar,
+            onActorTap: onActorTap,
           ),
       ],
     );
@@ -76,11 +82,13 @@ class _CastAvatar extends StatelessWidget {
     required this.member,
     required this.nameColor,
     required this.characterColor,
+    this.onActorTap,
   });
 
   final TmdbCredit member;
   final Color nameColor;
   final Color characterColor;
+  final ValueChanged<TmdbCredit>? onActorTap;
 
   @override
   Widget build(BuildContext context) {
@@ -94,8 +102,9 @@ class _CastAvatar extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(12),
-            // Focusable, but intentionally inert: Phase 1 has no actor page.
-            onTap: () {},
+            // Wired to the actor's filmography when a handler is supplied; when
+            // null the InkWell is disabled, so it is not a dead focus target.
+            onTap: onActorTap == null ? null : () => onActorTap!(member),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Column(

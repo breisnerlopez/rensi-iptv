@@ -14,6 +14,7 @@ import 'package:rensi_iptv/services/database_service.dart';
 import 'package:rensi_iptv/services/playlist_service.dart';
 import 'package:rensi_iptv/services/tmdb_service.dart';
 import 'package:rensi_iptv/services/tmdb_wishlist_service.dart';
+import 'package:rensi_iptv/utils/genre_utils.dart';
 import 'package:rensi_iptv/utils/type_convertions.dart';
 
 class GlobalSearchService {
@@ -302,6 +303,147 @@ class GlobalSearchService {
     );
   }
 
+  // --- Search by studio ----------------------------------------------------
+
+  /// Companies/networks matching [query] (name + logo), for the studio picker.
+  /// Thin pass-through to [TmdbService.searchCompany]; may throw
+  /// [TmdbException] which the UI maps to the same typed degradation banner as a
+  /// person/text search.
+  Future<List<TmdbCompany>> searchCompanies(
+    String query, {
+    Locale? locale,
+  }) =>
+      _tmdbService.searchCompany(query, locale: locale);
+
+  /// A selected studio's filmography, cross-referenced against the local
+  /// catalogue. The exact shape of [searchByPerson]: pulls the studio's discover
+  /// page, searches the local catalogue by EACH film title, unions the matches
+  /// (deduped), and runs the SAME [_crossReference] buckets/owner-dedup as
+  /// search/multi (owned titles play, the rest become Discover). TMDb failures
+  /// degrade to a typed [UnifiedSearchResults.tmdbFailure] instead of throwing.
+  Future<UnifiedSearchResults> searchByCompany(
+    TmdbCompany company, {
+    Locale? locale,
+  }) async {
+    List<TmdbSearchResult> films = const [];
+    TmdbFailure? failure;
+    try {
+      films = await _tmdbService.discoverByCompany(company, locale: locale);
+    } on TmdbException catch (e) {
+      failure = e.reason;
+    } catch (_) {
+      failure = TmdbFailure.network;
+    }
+
+    final seen = <String>{};
+    final localResults = <LocalContentMatch>[];
+    for (final film in films) {
+      for (final m in await _searchAllLocal(film.title)) {
+        if (seen.add(m.dedupKey)) localResults.add(m);
+      }
+    }
+
+    final wishlistKeys = await TmdbWishlistService.getKeys();
+    return _crossReference(
+      films,
+      localResults,
+      wishlistKeys,
+      failure: failure,
+      // A studio's filmography is larger than a title search; raise the caps to
+      // match the person-filmography view rather than the search/multi 10/15.
+      withLocalCap: 40,
+      tmdbOnlyCap: 60,
+      localOnlyCap: 40,
+    );
+  }
+
+  // --- Search by genre -----------------------------------------------------
+
+  /// The distinct genre names present in the CURRENT playlist's VOD + series
+  /// catalogue, sorted case-insensitively via [enumerateGenres]. LOCAL-ONLY:
+  /// no TMDb call, no failure surface — this answers "what genres do I own?".
+  /// Returns an empty list (never throws) when there is no current playlist or
+  /// it carries no genre data (e.g. an M3U playlist, whose items don't carry
+  /// the packed `genre` string the helper reads).
+  Future<List<String>> enumerateLocalGenres() async {
+    return enumerateGenres(await _currentPlaylistCatalogue());
+  }
+
+  /// Every owned title in the CURRENT playlist that carries [genre] as one of
+  /// its tokens (exact, accent-safe token match via [itemHasGenre]), wrapped as
+  /// [LocalContentMatch] EXACTLY like the text-search builders in [_searchXtream]
+  /// so the UI plays them through the same owned-content path. LOCAL-ONLY;
+  /// returns an empty list (never throws) when nothing matches / no playlist.
+  Future<List<LocalContentMatch>> searchLocalByGenre(String genre) async {
+    final playlist = AppState.currentPlaylist;
+    if (playlist == null) return const [];
+    final out = <LocalContentMatch>[];
+    for (final item in await _currentPlaylistCatalogue()) {
+      if (itemHasGenre(item, genre)) {
+        out.add(LocalContentMatch(playlist: playlist, content: item));
+      }
+    }
+    return out;
+  }
+
+  // Memoized full catalogue, keyed by playlist id. Entering the genre mode
+  // enumerates genres (one full load) and every genre tap filters the catalogue;
+  // without this each tap re-read every VOD+series row on the UI isolate (jank on
+  // weak TV boxes with large catalogues). Invalidated when the playlist changes.
+  List<ContentItem>? _catalogueCache;
+  String? _catalogueCacheKey;
+
+  /// The current playlist's full VOD + series catalogue as [ContentItem]s,
+  /// wrapped exactly as [_searchXtream] does (so genre matching sees the same
+  /// `vodStream`/`seriesStream` the search path builds). Only Xtream playlists
+  /// carry the packed `genre` string; M3U items and live channels don't, so a
+  /// non-Xtream or absent current playlist yields an empty catalogue.
+  Future<List<ContentItem>> _currentPlaylistCatalogue() async {
+    final playlist = AppState.currentPlaylist;
+    if (playlist == null || playlist.type != PlaylistType.xtream) {
+      return const [];
+    }
+    if (_catalogueCacheKey == playlist.id && _catalogueCache != null) {
+      return _catalogueCache!;
+    }
+    final db = DatabaseService.database;
+    final out = <ContentItem>[];
+    final movies = await db.getVodStreamsByPlaylistId(playlist.id);
+    for (final movie in movies) {
+      out.add(
+        _contentForPlaylist(
+          playlist,
+          () => ContentItem(
+            movie.streamId,
+            movie.name,
+            movie.streamIcon,
+            ContentType.vod,
+            containerExtension: movie.containerExtension,
+            vodStream: movie,
+          ),
+        ),
+      );
+    }
+    final series = await db.getSeriesStreamsByPlaylistId(playlist.id);
+    for (final serie in series) {
+      out.add(
+        _contentForPlaylist(
+          playlist,
+          () => ContentItem(
+            serie.seriesId,
+            serie.name,
+            serie.cover ?? '',
+            ContentType.series,
+            seriesStream: serie,
+          ),
+        ),
+      );
+    }
+    _catalogueCache = out;
+    _catalogueCacheKey = playlist.id;
+    return out;
+  }
+
   /// The instant, local-only first paint of a progressive search. Everything
   /// found locally lands in `localOnly` (there is no TMDb yet to promote a row
   /// into `withLocal`), with `tmdbPending: true` so the UI shows a discover
@@ -342,6 +484,10 @@ class GlobalSearchService {
       case SearchFilter.all:
       case SearchFilter.wishlist:
       case SearchFilter.people:
+      case SearchFilter.studio:
+      // Genre is a local-only mode: it never runs the TMDb text pipeline, so
+      // whatever reaches here (it won't in practice) is passed through like all.
+      case SearchFilter.genre:
         return items;
     }
   }
@@ -361,6 +507,10 @@ class GlobalSearchService {
       case SearchFilter.all:
       case SearchFilter.wishlist:
       case SearchFilter.people:
+      case SearchFilter.studio:
+      // Genre mode filters the catalogue by genre itself (searchLocalByGenre),
+      // not by content type, so it does not narrow here — passes through.
+      case SearchFilter.genre:
         return items;
     }
   }
@@ -580,6 +730,45 @@ class GlobalSearchService {
       tmdbOnly: tmdbOnly,
       localOnly: const [],
     );
+  }
+
+  // --- Popular (Home rail) -------------------------------------------------
+
+  /// The Home "Popular" rail, cross-referenced against the local catalogue but
+  /// RANK-PRESERVING: unlike [_crossReference] (which reshuffles into three
+  /// buckets and would lose TMDb's popularity order), this walks
+  /// [TmdbService.popularMovies] in order and, for each title, cross-references
+  /// against a local search. Owned titles (localMatches non-empty) play; the
+  /// rest become Discover cards — the exact matching as search, minus the
+  /// bucketing. A TMDb failure degrades to an empty list (the rail hides) rather
+  /// than throwing, so Home never shows an error banner for this optional rail.
+  Future<List<GlobalSearchResult>> popular(
+    PopularWindow window, {
+    int? year,
+    Locale? locale,
+  }) async {
+    List<TmdbSearchResult> movies;
+    try {
+      movies =
+          await _tmdbService.popularMovies(window, year: year, locale: locale);
+    } on TmdbException {
+      return const [];
+    }
+    if (movies.isEmpty) return const [];
+
+    final wishlistKeys = await TmdbWishlistService.getKeys();
+    final out = <GlobalSearchResult>[];
+    for (final tmdb in movies) {
+      final matches = _findMatchesFor(tmdb, await _searchAllLocal(tmdb.title));
+      final isWishlisted =
+          wishlistKeys.contains('${tmdb.id}|${tmdb.mediaType.name}');
+      out.add(GlobalSearchResult(
+        tmdb: tmdb,
+        localMatches: matches,
+        isWishlisted: isWishlisted,
+      ));
+    }
+    return out;
   }
 
   Future<List<TmdbSearchResult>> getWishlist() =>

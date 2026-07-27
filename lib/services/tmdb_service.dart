@@ -19,6 +19,11 @@ class TmdbException implements Exception {
   String toString() => 'TmdbException($reason): $message';
 }
 
+/// Time window for the Home "Popular" rail. Each maps to a different TMDb
+/// endpoint (see [TmdbService.popularMovies]) so the three chips surface
+/// genuinely distinct sets rather than the same list re-sorted.
+enum PopularWindow { month, year, allTime }
+
 class TmdbService {
   TmdbService({http.Client? client}) : _client = client ?? http.Client();
 
@@ -37,6 +42,32 @@ class TmdbService {
   static const _detailsCacheTtl = Duration(days: 7);
   static const _detailsCacheMaxEntries = 100;
   static const _detailsCacheIndexKey = 'tmdb.details.index.v1';
+
+  // Discover cache — a THIRD LRU index, separate from search and details, so a
+  // studio's filmography (a discover/movie|tv page) can never evict cached
+  // searches or details. A discover page churns more than a detail but less than
+  // a live search, hence the 12h middle-ground TTL and a smaller 60-entry cap
+  // (a studio browse is narrower than free-text search).
+  static const _discoverCachePrefix = 'tmdb.discover.';
+  static const _discoverCacheTtl = Duration(hours: 12);
+  static const _discoverCacheMaxEntries = 60;
+  static const _discoverCacheIndexKey = 'tmdb.discover.index.v1';
+
+  // Curated networks merged into [searchCompany] results by case-insensitive
+  // substring: TMDb has NO network search endpoint, only company search, yet
+  // users type the streaming brands ("HBO", "Apple TV+"…) far more than the
+  // production houses. `isNetwork:true` routes discovery to
+  // discover/tv?with_networks. NOTE: these network ids should be verified
+  // on-device — TMDb network ids are not as stable as company ids.
+  static const _curatedNetworks = <TmdbCompany>[
+    TmdbCompany(id: 49, name: 'HBO', isNetwork: true),
+    TmdbCompany(id: 2552, name: 'Apple TV+', isNetwork: true),
+    TmdbCompany(id: 213, name: 'Netflix', isNetwork: true),
+    TmdbCompany(id: 2739, name: 'Disney+', isNetwork: true),
+    // TMDb network 1024 is "Prime Video"; keep both words so "amazon" and
+    // "prime" both match the substring filter below (verified id → Prime Video).
+    TmdbCompany(id: 1024, name: 'Amazon Prime Video', isNetwork: true),
+  ];
 
   final http.Client _client;
 
@@ -73,6 +104,11 @@ class TmdbService {
     }
 
     final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    // Dedupe by (id, mediaType) BEFORE taking 20: search/multi can return the
+    // same title more than once (e.g. the feature plus a same-named making-of),
+    // which produced two near-duplicate Discover cards. Keep the first (highest
+    // relevance) occurrence.
+    final seen = <String>{};
     final results = (decoded['results'] as List<dynamic>? ?? [])
         .whereType<Map<String, dynamic>>()
         .where(
@@ -80,6 +116,7 @@ class TmdbService {
         )
         .map(TmdbSearchResult.fromTmdbJson)
         .where((item) => item.title.isNotEmpty)
+        .where((item) => seen.add('${item.id}|${item.mediaType.name}'))
         .take(20)
         .toList();
     await _writeCachedSearch(normalizedQuery, languageTag, results);
@@ -358,6 +395,218 @@ class TmdbService {
     return out.length > 60 ? out.sublist(0, 60) : out;
   }
 
+  /// Company search against `search/company`, used by "search by studio".
+  /// Returns matching production companies (name + logo + id) so the caller can
+  /// then pull that studio's filmography with [discoverByCompany]. Because TMDb
+  /// has no NETWORK search, a small curated network list (HBO, Apple TV+…) is
+  /// merged in, filtered by case-insensitive substring on the query, and placed
+  /// FIRST (a user typing "hbo" wants the network, not a same-named company).
+  /// Replicates the same dual auth, 8s timeout and typed error degradation as
+  /// [searchPerson]. `search/company` has no `language` parameter, so [locale]
+  /// is accepted for signature symmetry but not sent.
+  Future<List<TmdbCompany>> searchCompany(
+    String query, {
+    Locale? locale,
+  }) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) return const [];
+
+    final credential = await TmdbCredentialsService.getCredential();
+    if (credential == null) {
+      throw const TmdbException(TmdbFailure.noKey, 'TMDb credential is not configured');
+    }
+    final params = <String, String>{
+      'query': normalizedQuery,
+      'page': '1',
+    };
+    if (!_looksLikeBearerToken(credential)) {
+      params['api_key'] = credential;
+    }
+    final uri =
+        Uri.parse('$_baseUrl/search/company').replace(queryParameters: params);
+    final response = await _client
+        .get(uri, headers: _buildHeaders(credential))
+        .timeout(const Duration(seconds: 8),
+            onTimeout: () => throw const TmdbException(
+                TmdbFailure.network, 'TMDb request timed out'));
+    if (response.statusCode == 401) {
+      throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
+    }
+    if (response.statusCode == 429) {
+      throw const TmdbException(TmdbFailure.rateLimited, 'TMDb rate limit reached. Try again later.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw TmdbException(TmdbFailure.httpError, 'TMDb request failed: ${response.statusCode}');
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final companies = (decoded['results'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map(TmdbCompany.fromTmdbJson)
+        .where((c) => c.name.isNotEmpty)
+        .take(20)
+        .toList();
+    final lowerQuery = normalizedQuery.toLowerCase();
+    final networks = _curatedNetworks
+        .where((n) => n.name.toLowerCase().contains(lowerQuery))
+        .toList();
+    return [...networks, ...companies];
+  }
+
+  /// A studio's filmography via `discover`, mapped into [TmdbSearchResult] so
+  /// each film/show flows through the exact same buckets/cards/matching as a
+  /// `search/multi` result — no parallel result surface. A network browses TV
+  /// shows (`discover/tv?with_networks=`), a company browses films
+  /// (`discover/movie?with_companies=`), both sorted by popularity. Injects
+  /// `media_type` (discover omits it) before parsing, dedupes by media-type+id
+  /// and takes 40. Cached for [_discoverCacheTtl] in its own LRU index. Same
+  /// dual auth / 8s timeout / typed errors as the other calls.
+  Future<List<TmdbSearchResult>> discoverByCompany(
+    TmdbCompany company, {
+    int page = 1,
+    Locale? locale,
+  }) async {
+    final languageTag = _languageTagFor(locale);
+    final cached = await _readCachedDiscover(company, languageTag, page);
+    if (cached != null) return cached;
+
+    final credential = await TmdbCredentialsService.getCredential();
+    if (credential == null) {
+      throw const TmdbException(TmdbFailure.noKey, 'TMDb credential is not configured');
+    }
+    final segment = company.isNetwork ? 'tv' : 'movie';
+    final params = <String, String>{
+      'language': languageTag,
+      'sort_by': 'popularity.desc',
+      'include_adult': 'false',
+      'page': '$page',
+    };
+    params[company.isNetwork ? 'with_networks' : 'with_companies'] =
+        '${company.id}';
+    if (!_looksLikeBearerToken(credential)) {
+      params['api_key'] = credential;
+    }
+    final uri =
+        Uri.parse('$_baseUrl/discover/$segment').replace(queryParameters: params);
+    final response = await _client
+        .get(uri, headers: _buildHeaders(credential))
+        .timeout(const Duration(seconds: 8),
+            onTimeout: () => throw const TmdbException(
+                TmdbFailure.network, 'TMDb request timed out'));
+    if (response.statusCode == 401) {
+      throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
+    }
+    if (response.statusCode == 429) {
+      throw const TmdbException(TmdbFailure.rateLimited, 'TMDb rate limit reached. Try again later.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw TmdbException(TmdbFailure.httpError, 'TMDb request failed: ${response.statusCode}');
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final seen = <String>{};
+    final results = (decoded['results'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map((item) {
+          // discover/movie and discover/tv omit media_type; inject it so
+          // fromTmdbJson reads name/first_air_date for tv and title/release_date
+          // for movie instead of defaulting everything to movie.
+          item['media_type'] = segment;
+          return TmdbSearchResult.fromTmdbJson(item);
+        })
+        .where((item) => item.title.isNotEmpty)
+        .where((item) => seen.add('${item.id}|${item.mediaType.name}'))
+        .take(40)
+        .toList();
+    await _writeCachedDiscover(company, languageTag, page, results);
+    return results;
+  }
+
+  /// The Home "Popular" rail's data: a ranked list of popular MOVIES for the
+  /// chosen [window], mapped into [TmdbSearchResult] so it rides the exact same
+  /// cards/matching as search. Endpoints per window:
+  ///   - [PopularWindow.month]   → `trending/movie/week` (already carries
+  ///     media_type, so nothing is injected)
+  ///   - [PopularWindow.year]    → `discover/movie?sort_by=popularity.desc`
+  ///     &primary_release_year={year ?? current}
+  ///   - [PopularWindow.allTime] → `discover/movie?sort_by=vote_count.desc`
+  ///     &vote_count.gte=5000
+  /// The two discover branches inject `media_type='movie'` before parsing (the
+  /// discover endpoints omit it). Cached in the SHARED [_discoverCacheTtl] LRU
+  /// index, keyed by window + year + language, so the three chips never evict
+  /// each other's page and a re-view is offline-instant. Same dual auth / 8s
+  /// timeout / typed [TmdbException] as the other calls. [year] defaults to the
+  /// current year for [PopularWindow.year]; pass it explicitly from tests.
+  Future<List<TmdbSearchResult>> popularMovies(
+    PopularWindow window, {
+    int? year,
+    Locale? locale,
+  }) async {
+    final languageTag = _languageTagFor(locale);
+    final resolvedYear = year ?? DateTime.now().year;
+    final cacheKey = _popularCacheKey(window, languageTag, resolvedYear);
+    final cached = await _readDiscoverCacheByKey(cacheKey);
+    if (cached != null) return cached;
+
+    final credential = await TmdbCredentialsService.getCredential();
+    if (credential == null) {
+      throw const TmdbException(TmdbFailure.noKey, 'TMDb credential is not configured');
+    }
+
+    // trending carries media_type; the discover branches do not, so those two
+    // inject it before parsing.
+    final bool isTrending = window == PopularWindow.month;
+    final String path;
+    final params = <String, String>{'language': languageTag};
+    switch (window) {
+      case PopularWindow.month:
+        path = 'trending/movie/week';
+        break;
+      case PopularWindow.year:
+        path = 'discover/movie';
+        params['sort_by'] = 'popularity.desc';
+        params['include_adult'] = 'false';
+        params['primary_release_year'] = '$resolvedYear';
+        break;
+      case PopularWindow.allTime:
+        path = 'discover/movie';
+        params['sort_by'] = 'vote_count.desc';
+        params['include_adult'] = 'false';
+        params['vote_count.gte'] = '5000';
+        break;
+    }
+    if (!_looksLikeBearerToken(credential)) {
+      params['api_key'] = credential;
+    }
+    final uri = Uri.parse('$_baseUrl/$path').replace(queryParameters: params);
+    final response = await _client
+        .get(uri, headers: _buildHeaders(credential))
+        .timeout(const Duration(seconds: 8),
+            onTimeout: () => throw const TmdbException(
+                TmdbFailure.network, 'TMDb request timed out'));
+    if (response.statusCode == 401) {
+      throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
+    }
+    if (response.statusCode == 429) {
+      throw const TmdbException(TmdbFailure.rateLimited, 'TMDb rate limit reached. Try again later.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw TmdbException(TmdbFailure.httpError, 'TMDb request failed: ${response.statusCode}');
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final seen = <String>{};
+    final results = (decoded['results'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
+        .map((item) {
+          if (!isTrending) item['media_type'] = 'movie';
+          return TmdbSearchResult.fromTmdbJson(item);
+        })
+        .where((item) => item.title.isNotEmpty)
+        .where((item) => seen.add('${item.id}|${item.mediaType.name}'))
+        .take(20)
+        .toList();
+    await _writeDiscoverCacheByKey(cacheKey, results);
+    return results;
+  }
+
   /// Removes expired entries and trims the cache to [_cacheMaxEntries].
   /// Safe to call on app startup.
   static Future<void> pruneCache() async {
@@ -426,13 +675,49 @@ class TmdbService {
     }
   }
 
-  /// Prunes both TMDb caches. Safe to call fire-and-forget on app startup:
+  /// Removes expired discover entries and trims the discover cache to
+  /// [_discoverCacheMaxEntries]. Its own index, separate from [pruneCache] and
+  /// [pruneDetailsCache].
+  static Future<void> pruneDiscoverCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    final index = prefs.getStringList(_discoverCacheIndexKey) ?? const <String>[];
+    final now = DateTime.now();
+    final kept = <String>[];
+
+    for (final key in index) {
+      final raw = prefs.getString(key);
+      if (raw == null) continue;
+      try {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        final cachedAt = DateTime.tryParse(decoded['cachedAt'] as String? ?? '');
+        if (cachedAt == null || now.difference(cachedAt) > _discoverCacheTtl) {
+          await prefs.remove(key);
+        } else {
+          kept.add(key);
+        }
+      } catch (_) {
+        await prefs.remove(key);
+      }
+    }
+
+    while (kept.length > _discoverCacheMaxEntries) {
+      final oldest = kept.removeAt(0);
+      await prefs.remove(oldest);
+    }
+
+    if (kept.length != index.length) {
+      await prefs.setStringList(_discoverCacheIndexKey, kept);
+    }
+  }
+
+  /// Prunes all three TMDb caches. Safe to call fire-and-forget on app startup:
   /// swallows any storage error so a prune failure can never surface as an
   /// unhandled async error at launch.
   static Future<void> pruneCaches() async {
     try {
       await pruneCache();
       await pruneDetailsCache();
+      await pruneDiscoverCache();
     } catch (_) {
       // Best-effort housekeeping; a failed prune is harmless.
     }
@@ -655,6 +940,103 @@ class TmdbService {
     if (index == null) return;
     if (index.remove(key)) {
       await prefs.setStringList(_detailsCacheIndexKey, index);
+    }
+  }
+
+  // --- Discover cache ------------------------------------------------------
+
+  String _discoverCacheKey(TmdbCompany company, String languageTag, int page) =>
+      '$_discoverCachePrefix$languageTag.${company.isNetwork ? 'n' : 'c'}.${company.id}.p$page';
+
+  /// Cache key for a [popularMovies] page. Keyed by window (+ year for the
+  /// year window) and language, in the SAME discover index so the three chips
+  /// and any studio browse share one LRU without a fourth cache.
+  String _popularCacheKey(PopularWindow window, String languageTag, int year) {
+    switch (window) {
+      case PopularWindow.month:
+        return '$_discoverCachePrefix$languageTag.pop.month';
+      case PopularWindow.year:
+        return '$_discoverCachePrefix$languageTag.pop.year.$year';
+      case PopularWindow.allTime:
+        return '$_discoverCachePrefix$languageTag.pop.alltime';
+    }
+  }
+
+  Future<List<TmdbSearchResult>?> _readCachedDiscover(
+    TmdbCompany company,
+    String languageTag,
+    int page,
+  ) =>
+      _readDiscoverCacheByKey(_discoverCacheKey(company, languageTag, page));
+
+  Future<void> _writeCachedDiscover(
+    TmdbCompany company,
+    String languageTag,
+    int page,
+    List<TmdbSearchResult> results,
+  ) =>
+      _writeDiscoverCacheByKey(
+          _discoverCacheKey(company, languageTag, page), results);
+
+  /// Key-based discover cache read, shared by the studio browse and the Home
+  /// popular rail so both hit the SAME LRU index.
+  Future<List<TmdbSearchResult>?> _readDiscoverCacheByKey(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(key);
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final cachedAt = DateTime.tryParse(decoded['cachedAt'] as String? ?? '');
+      if (cachedAt == null ||
+          DateTime.now().difference(cachedAt) > _discoverCacheTtl) {
+        await prefs.remove(key);
+        await _removeFromDiscoverIndex(prefs, key);
+        return null;
+      }
+      final items = decoded['results'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map<String, dynamic>>()
+          .map(TmdbSearchResult.fromJson)
+          .toList();
+    } catch (_) {
+      await prefs.remove(key);
+      await _removeFromDiscoverIndex(prefs, key);
+      return null;
+    }
+  }
+
+  Future<void> _writeDiscoverCacheByKey(
+    String key,
+    List<TmdbSearchResult> results,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      key,
+      jsonEncode({
+        'cachedAt': DateTime.now().toIso8601String(),
+        'results': results.map((item) => item.toJson()).toList(),
+      }),
+    );
+    await _addToDiscoverIndex(prefs, key);
+  }
+
+  Future<void> _addToDiscoverIndex(SharedPreferences prefs, String key) async {
+    final index = prefs.getStringList(_discoverCacheIndexKey) ?? <String>[];
+    index.remove(key);
+    index.add(key);
+    while (index.length > _discoverCacheMaxEntries) {
+      final evict = index.removeAt(0);
+      await prefs.remove(evict);
+    }
+    await prefs.setStringList(_discoverCacheIndexKey, index);
+  }
+
+  Future<void> _removeFromDiscoverIndex(
+      SharedPreferences prefs, String key) async {
+    final index = prefs.getStringList(_discoverCacheIndexKey);
+    if (index == null) return;
+    if (index.remove(key)) {
+      await prefs.setStringList(_discoverCacheIndexKey, index);
     }
   }
 }

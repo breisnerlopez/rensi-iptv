@@ -1,8 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/models/all_category_sentinel.dart';
+import 'package:rensi_iptv/models/category.dart';
+import 'package:rensi_iptv/models/category_type.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/services/content_service.dart';
+import 'package:rensi_iptv/utils/genre_utils.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
@@ -46,10 +54,73 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
   List<String> _genresAll = const ['Todos'];
   final Map<String, List<ContentItem>> _filterCache = {};
 
+  // FULL catalogue. Browse only receives PREVIEW CategoryViewModels (each
+  // capped at ~10 items by the home controller), so genre chips built from them
+  // covered a tiny slice of the catalogue — pick "Terror" and most horror
+  // titles were missing. We load the whole VOD + Series catalogue once, via the
+  // exact same sentinel path "Ver todo" uses (ContentService recognises the
+  // kAllCategoryId sentinel and aggregates every row of the type), then rebuild
+  // the chips and grid from these. First paint still comes from the previews so
+  // the screen is never blank while this resolves; the load never blocks and
+  // degrades to preview-only on any failure (e.g. a widget test with no DB).
+  List<ContentItem> _fullMovies = const [];
+  List<ContentItem> _fullSeries = const [];
+  bool _fullLoaded = false;
+  Future<void>? _loadFut;
+
+  /// The in-flight (or settled) full-catalogue load, so a test can await the
+  /// previews→full transition deterministically instead of guessing at pumps.
+  @visibleForTesting
+  Future<void>? get loadFuture => _loadFut;
+
+  /// One GlobalKey per genre chip, so [_selectGenre] can scroll the active chip
+  /// fully into view on D-pad/TV and in RTL (mirrors search_redesign).
+  final Map<String, GlobalKey> _chipKeys = {};
+
   /// Incremented each time the heavy flatten/genre recompute runs; lets a test
   /// assert that unrelated rebuilds don't re-flatten the whole catalogue.
   @visibleForTesting
   int recomputes = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Kick off the one-shot full load. It reads AppState.currentPlaylist (set
+    // before Browse is mounted), so no mount-site change is needed.
+    _loadFut = _loadFull();
+  }
+
+  /// Loads the entire VOD and Series catalogue through the "Ver todo" sentinel
+  /// path — the same accepted route CategoryDetail uses — for Xtream and M3U
+  /// alike. Wrapped in try/catch so a missing repository/DB (widget tests, or a
+  /// home mounted before a playlist is ready) degrades to preview-only instead
+  /// of throwing into the tree.
+  Future<void> _loadFull() async {
+    final playlistId = AppState.currentPlaylist?.id ?? '';
+    CategoryViewModel sentinel(CategoryType type) => CategoryViewModel(
+          category: Category(
+            categoryId: kAllCategoryId,
+            categoryName: '__ALL__',
+            parentId: 0,
+            playlistId: playlistId,
+            type: type,
+          ),
+          contentItems: const [],
+        );
+    try {
+      final service = ContentService();
+      final movies = await service.fetchContentByCategory(sentinel(CategoryType.vod));
+      final series = await service.fetchContentByCategory(sentinel(CategoryType.series));
+      if (!mounted) return;
+      setState(() {
+        _fullMovies = movies;
+        _fullSeries = series;
+        _fullLoaded = true; // flips the signature → recompute from full lists
+      });
+    } catch (_) {
+      // Degrade to preview-only; never throw into a test/home without a DB.
+    }
+  }
 
   List<ContentItem> _flatten(List<CategoryViewModel> cats) {
     final seen = <String>{};
@@ -62,21 +133,11 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
     return out;
   }
 
-  String? _genreOf(ContentItem it) =>
-      it.vodStream?.genre ?? it.seriesStream?.genre;
-
+  /// Genre chip labels for [items]: the localized "all" sentinel first, then
+  /// every distinct genre in the catalogue (accent-safe, sorted) via the shared
+  /// genre_utils helper. No arbitrary cap — the full catalogue's genres show.
   List<String> _genresFrom(List<ContentItem> items) {
-    final genreSet = <String>{};
-    for (final it in items) {
-      final g = _genreOf(it);
-      if (g != null) {
-        for (final part in g.split(RegExp('[,/]'))) {
-          final t = part.trim();
-          if (t.isNotEmpty) genreSet.add(t);
-        }
-      }
-    }
-    return ['Todos', ...genreSet.take(12)];
+    return ['Todos', ...enumerateGenres(items)];
   }
 
   /// Cheap content signature, O(categories) not O(items). The controller reuses
@@ -85,7 +146,8 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
   /// objects (never mutating an existing one's contentItems), so folding each
   /// category's object identity in — plus its item count — detects any reload,
   /// even one that happens to keep the same counts. Unrelated rebuilds keep the
-  /// same objects → same signature → no recompute.
+  /// same objects → same signature → no recompute. The full-load state is folded
+  /// in too, so the previews→full transition triggers exactly one recompute.
   int _signature() {
     var s = widget.movieCategories.length * 31 + widget.seriesCategories.length;
     for (final c in widget.movieCategories) {
@@ -96,6 +158,9 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
       s = s * 31 + identityHashCode(c);
       s = s * 31 + c.contentItems.length;
     }
+    s = s * 31 + (_fullLoaded ? 1 : 0);
+    s = s * 31 + _fullMovies.length;
+    s = s * 31 + _fullSeries.length;
     return s;
   }
 
@@ -103,14 +168,34 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
     final sig = _signature();
     if (sig == _sig) return;
     _sig = sig;
-    _moviesFlat = _flatten(widget.movieCategories);
-    _seriesFlat = _flatten(widget.seriesCategories);
+    // Once the full catalogue is in, chips and grid come from it; until then the
+    // previews keep the screen populated (instant first paint). Guard against an
+    // EMPTY full result (e.g. M3U, whose "all" sentinel path returns nothing):
+    // adopting empty lists would blank the grid — a regression vs the previous
+    // preview-flattening — so fall back to previews when the full load is empty.
+    final useFull = _fullLoaded && (_fullMovies.isNotEmpty || _fullSeries.isNotEmpty);
+    _moviesFlat = useFull ? _fullMovies : _flatten(widget.movieCategories);
+    _seriesFlat = useFull ? _fullSeries : _flatten(widget.seriesCategories);
     _allFlat = [..._moviesFlat, ..._seriesFlat];
     _genresMovies = _genresFrom(_moviesFlat);
     _genresSeries = _genresFrom(_seriesFlat);
     _genresAll = _genresFrom(_allFlat);
     _filterCache.clear();
     recomputes++;
+  }
+
+  /// Select a genre chip and scroll it fully into view (D-pad/TV + RTL): on a
+  /// narrow row the active chip — the most important label — was otherwise
+  /// clipped at the edge.
+  void _selectGenre(String g) {
+    setState(() => _genre = g);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _chipKeys[g]?.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(ctx,
+            alignment: 0.5, duration: const Duration(milliseconds: 250));
+      }
+    });
   }
 
   @override
@@ -129,12 +214,11 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
             ? _genresSeries
             : _genresAll;
     // Genre filter is cheap but keyed-cached so an off-screen rebuild reuses it.
+    // Exact-token, accent-safe match via the shared helper — "Drama" never
+    // catches "Melodrama", "Acción" matches "Acción".
     final items = _filterCache.putIfAbsent('$_tab|$_genre', () {
       if (_genre == 'Todos') return base;
-      final q = _genre.toLowerCase();
-      return base
-          .where((it) => (_genreOf(it) ?? '').toLowerCase().contains(q))
-          .toList();
+      return base.where((it) => itemHasGenre(it, _genre)).toList();
     });
 
     final cross = ResponsiveHelper.getCrossAxisCount(context);
@@ -203,24 +287,36 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
                 ],
               ),
             ),
-            // Genre chips
-            SizedBox(
-              height: 60,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 0),
-                itemCount: genres.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, i) => RensiChip(
-                  // 'Todos' is the internal "all genres" sentinel; show it
-                  // localized. Real genre names come from the panel and stay.
-                  label: genres[i] == 'Todos' ? context.loc.all : genres[i],
-                  active: _genre == genres[i],
-                  onTap: () => setState(() => _genre = genres[i]),
+            // Genre chips — hidden entirely when the catalogue carries no
+            // genres (only the 'Todos' sentinel), so we never show an empty row.
+            if (genres.length > 1) ...[
+              SizedBox(
+                height: 60,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: EdgeInsetsDirectional.fromSTEB(sidePad, 0, sidePad, 0),
+                  itemCount: genres.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) {
+                    final g = genres[i];
+                    return RensiChip(
+                      // A stable key per genre lets _selectGenre scroll the
+                      // active chip into view (D-pad/TV + RTL).
+                      key: _chipKeys.putIfAbsent(g, () => GlobalKey()),
+                      // 'Todos' is the internal "all genres" sentinel; show it
+                      // localized. Real genre names come from the panel and stay.
+                      label: g == 'Todos' ? context.loc.all : g,
+                      // Case-insensitive so the highlight survives a display-casing
+                      // shift when the genre list moves from previews to the full
+                      // catalogue (first-seen casing can differ between the two).
+                      active: _genre.toLowerCase() == g.toLowerCase(),
+                      onTap: () => _selectGenre(g),
+                    );
+                  },
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
+            ],
             Expanded(
               child: items.isEmpty
                   ? Center(

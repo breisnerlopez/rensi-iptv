@@ -52,10 +52,48 @@ class _LiveRedesignState extends State<LiveRedesign> {
   final TextEditingController _filter = TextEditingController();
   String _query = '';
 
+  /// One [GlobalKey] per category chip, so selecting a chip can scroll it into
+  /// view. The list is grown lazily in [build] to match the chip count, which
+  /// depends on the active playlist's categories.
+  final List<GlobalKey> _chipKeys = [];
+
   @override
   void dispose() {
     _filter.dispose();
     super.dispose();
+  }
+
+  /// Select a category chip and scroll it fully into view. With many provider
+  /// categories the horizontal row overflows, so the selected chip — the label
+  /// the user just acted on — would otherwise stay clipped at the edge. Mirrors
+  /// the search screen's filter-chip behaviour.
+  void _selectCategory(int i) {
+    setState(() => _catIndex = i);
+    if (i < 0 || i >= _chipKeys.length) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _chipKeys[i].currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(ctx,
+            alignment: 0.5, duration: const Duration(milliseconds: 250));
+      }
+    });
+  }
+
+  /// Opens the searchable category picker for large playlists and applies the
+  /// pick (which also scrolls the matching chip into view).
+  Future<void> _openCategoryPicker(List<String> labels) async {
+    final picked = await showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.62),
+      builder: (_) => _CategoryPickerSheet(
+        labels: labels,
+        activeIndex: _catIndex,
+      ),
+    );
+    if (picked != null) _selectCategory(picked);
   }
 
   /// All channels across the real categories, deduped by id — the same dedup as
@@ -87,6 +125,20 @@ class _LiveRedesignState extends State<LiveRedesign> {
         .where((c) => !isAllCategorySentinel(c.category.categoryId))
         .toList();
     final chips = ['Todos', ...realCats.map((c) => c.category.categoryName)];
+    // One key per chip so _selectCategory can scroll the active one into view.
+    while (_chipKeys.length < chips.length) {
+      _chipKeys.add(GlobalKey());
+    }
+    // Display labels (chip 0 is the localized "all" sentinel), reused by the
+    // jump-to-category picker so its list and the chip row read identically.
+    final chipLabels = [
+      context.loc.all,
+      ...realCats.map((c) => c.category.categoryName),
+    ];
+    // A jump-to-category affordance only earns its space once the chip row can
+    // no longer show everything at a glance. Below the threshold the row alone
+    // is less cluttered.
+    final showCategoryPicker = realCats.length > 8;
 
     final query = _query.trim();
     List<ContentItem> channels;
@@ -203,18 +255,44 @@ class _LiveRedesignState extends State<LiveRedesign> {
             ),
             SizedBox(
               height: 60,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(
-                    horizontal: ResponsiveHelper.safeInset(context)),
-                itemCount: chips.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, i) => RensiChip(
-                  // First chip is the "all categories" sentinel; localize it.
-                  label: i == 0 ? context.loc.all : chips[i],
-                  active: _catIndex == i,
-                  onTap: () => setState(() => _catIndex = i),
-                ),
+              child: Row(
+                children: [
+                  // Jump-to-category trigger, only for large playlists. D-pad
+                  // focusable (FocusHighlight, like the Browse search button)
+                  // and RTL-aware (EdgeInsetsDirectional).
+                  if (showCategoryPicker)
+                    Padding(
+                      padding: EdgeInsetsDirectional.only(
+                          start: ResponsiveHelper.safeInset(context), end: 4),
+                      child: _CategoryPickerButton(
+                        onTap: () => _openCategoryPicker(chipLabels),
+                      ),
+                    ),
+                  Expanded(
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      // No leading gutter once the picker button already carries
+                      // the safe inset; keep the trailing one so the last chip
+                      // is never flush against the edge.
+                      padding: EdgeInsetsDirectional.only(
+                          start: showCategoryPicker
+                              ? 0
+                              : ResponsiveHelper.safeInset(context),
+                          end: ResponsiveHelper.safeInset(context)),
+                      itemCount: chips.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 8),
+                      itemBuilder: (_, i) => KeyedSubtree(
+                        key: _chipKeys[i],
+                        child: RensiChip(
+                          // First chip is the "all categories" sentinel.
+                          label: chipLabels[i],
+                          active: _catIndex == i,
+                          onTap: () => _selectCategory(i),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 10),
@@ -253,6 +331,222 @@ class _LiveRedesignState extends State<LiveRedesign> {
                     ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Compact "jump to category" trigger shown beside the chip row on large
+/// playlists. Kept D-pad focusable via [FocusHighlight] (matching the Browse
+/// search button) so a 10-foot remote can reach it, and tooltipped/labelled
+/// with the existing `categories` string.
+class _CategoryPickerButton extends StatelessWidget {
+  const _CategoryPickerButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final r = rensi(context);
+    return Semantics(
+      button: true,
+      label: context.loc.categories,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: context.loc.categories,
+        child: FocusHighlight(
+          borderRadius: BorderRadius.circular(12),
+          child: Material(
+            color: Theme.of(context).colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: r.hairline),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: onTap,
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: Icon(Icons.category_outlined, size: 21, color: r.text2),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Searchable bottom sheet listing every category, for playlists with too many
+/// to scan on the chip row. Returns the chosen chip index (0 = the "all"
+/// sentinel) via [Navigator.pop]; the chip row stays for quick access.
+class _CategoryPickerSheet extends StatefulWidget {
+  const _CategoryPickerSheet({required this.labels, required this.activeIndex});
+
+  /// Display labels aligned with the chip row: index 0 is the localized "all"
+  /// sentinel, the rest are provider category names.
+  final List<String> labels;
+  final int activeIndex;
+
+  @override
+  State<_CategoryPickerSheet> createState() => _CategoryPickerSheetState();
+}
+
+class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
+  final TextEditingController _search = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = rensi(context);
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final q = _query.trim().toLowerCase();
+    // Keep original indices so a filtered pick still maps to the right chip.
+    final entries = [
+      for (var i = 0; i < widget.labels.length; i++)
+        if (q.isEmpty || widget.labels[i].toLowerCase().contains(q)) i,
+    ];
+    final pad = ResponsiveHelper.safeInset(context);
+    final maxHeight = MediaQuery.of(context).size.height * 0.82;
+
+    return Padding(
+      // Lift the sheet above the on-screen keyboard while searching.
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag handle.
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 10, bottom: 6),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: r.hairline2,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(pad, 6, pad, 10),
+                child: Text(
+                  context.loc.categories,
+                  style: TextStyle(
+                    fontFamily: 'Bricolage Grotesque',
+                    fontSize: AppThemes.h3Size,
+                    fontWeight: FontWeight.w800,
+                    color: onSurface,
+                  ),
+                ),
+              ),
+              // Searchable list — same field pattern as the channel filter,
+              // wrapped in TvFieldTraversal so the D-pad can escape it.
+              Padding(
+                padding: EdgeInsetsDirectional.fromSTEB(pad, 0, pad, 10),
+                child: TvFieldTraversal(
+                  child: TextField(
+                    controller: _search,
+                    autofocus: false,
+                    onChanged: (v) => setState(() => _query = v),
+                    decoration: InputDecoration(
+                      hintText: context.loc.search,
+                      prefixIcon: Icon(Icons.search, color: r.text3),
+                      filled: true,
+                      fillColor: r.surface2,
+                      isDense: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: r.hairline),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: r.hairline),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Flexible(
+                child: entries.isEmpty
+                    ? Padding(
+                        padding: EdgeInsets.all(pad),
+                        child: Text(context.loc.search_no_results,
+                            style: TextStyle(color: r.text3)),
+                      )
+                    : ListView.builder(
+                        padding: EdgeInsets.fromLTRB(pad, 0, pad, pad),
+                        itemCount: entries.length,
+                        itemBuilder: (_, i) {
+                          final idx = entries[i];
+                          final active = idx == widget.activeIndex;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: FocusHighlight(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Material(
+                                color: active
+                                    ? r.surface2
+                                    : Colors.transparent,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: BorderSide(color: r.hairline),
+                                ),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  autofocus: i == 0,
+                                  onTap: () => Navigator.of(context).pop(idx),
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 14),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            widget.labels[idx],
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: AppThemes.bodySmallSize,
+                                              fontWeight: active
+                                                  ? FontWeight.w800
+                                                  : FontWeight.w600,
+                                              color:
+                                                  active ? onSurface : r.text2,
+                                            ),
+                                          ),
+                                        ),
+                                        if (active)
+                                          Icon(Icons.check,
+                                              size: 18, color: r.accent),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );

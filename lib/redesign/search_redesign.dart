@@ -10,8 +10,10 @@ import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/redesign/search_detail_sheet.dart';
 import 'package:rensi_iptv/screens/settings/general_settings_section.dart';
 import 'package:rensi_iptv/services/global_search_service.dart';
+import 'package:rensi_iptv/services/recent_searches_service.dart';
 import 'package:rensi_iptv/services/tmdb_service.dart';
 import 'package:rensi_iptv/services/tmdb_wishlist_service.dart';
+import 'package:rensi_iptv/services/voice_search_service.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
@@ -31,9 +33,14 @@ import 'package:rensi_iptv/widgets/tv/tv_keyboard.dart';
 /// The constructor is unchanged on purpose — both homes push it as
 /// `SearchRedesign(onOpen: ...)`. The screen owns its own service instance.
 class SearchRedesign extends StatefulWidget {
-  const SearchRedesign({super.key, required this.onOpen});
+  const SearchRedesign({super.key, required this.onOpen, this.initialPerson});
 
   final void Function(ContentItem) onOpen;
+
+  /// When provided, the screen opens straight into this person's filmography
+  /// (people filter pre-selected) — used by the "tap a cast actor" flow on the
+  /// movie/series detail screens. Reuses the tested [_selectPerson] path.
+  final TmdbPerson? initialPerson;
 
   @override
   State<SearchRedesign> createState() => _SearchRedesignState();
@@ -78,6 +85,36 @@ class _SearchRedesignState extends State<SearchRedesign> {
   /// degradation banner/empty as a text search's `tmdbFailure`.
   TmdbFailure? _peopleFailure;
 
+  /// Companies/networks matching the current query in studio mode, or null
+  /// before a search. Only meaningful while `_filter == SearchFilter.studio`.
+  List<TmdbCompany>? _companies;
+
+  /// The studio whose filmography is being shown, or null while the studio
+  /// picker (the companies list) is on screen.
+  TmdbCompany? _selectedCompany;
+
+  /// Why the studio LIST search failed (typed), or null. Same degradation
+  /// surface as `_peopleFailure`.
+  TmdbFailure? _companiesFailure;
+
+  /// The genres present in the local catalogue (genre mode), or null before the
+  /// list has loaded. LOCAL-ONLY — there is no failure twin: an empty list just
+  /// means "no owned genres". Only meaningful while `_filter == SearchFilter.genre`.
+  List<String>? _genres;
+
+  /// The genre whose owned titles are being shown, or null while the genre
+  /// picker (the genres list) is on screen.
+  String? _selectedGenre;
+
+  /// Whether the platform can launch the system voice overlay. Checked once in
+  /// [initState]; the mic affordance is HIDDEN entirely when false (many
+  /// devices lack a recognizer).
+  bool _voiceAvailable = false;
+
+  /// True while the system voice overlay is being launched / is listening, so
+  /// the mic shows a brief disabled/spinner state.
+  bool _voiceListening = false;
+
   /// A search is in flight and there is nothing to show yet (drives the only
   /// full-panel spinner — the wishlist browse / filter switch). During a text
   /// search the discover-zone skeleton is driven by `tmdbPending` instead, so
@@ -88,6 +125,40 @@ class _SearchRedesignState extends State<SearchRedesign> {
   /// value and drops itself if a newer query has since started — the guard
   /// against an out-of-order TMDb reply overwriting a fresher local paint.
   int _reqToken = 0;
+
+  /// Recent searches (newest-first), loaded once and refreshed on engagement.
+  List<String> _recent = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecent();
+    _initVoice();
+    // Deep-link into a cast actor's filmography: pre-select the people filter
+    // and, once the first frame can read the locale, load their credits via the
+    // same path a person pick uses.
+    final person = widget.initialPerson;
+    if (person != null) {
+      _filter = SearchFilter.people;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _selectPerson(person);
+      });
+    }
+  }
+
+  Future<void> _loadRecent() async {
+    final recent = await RecentSearchesService.getAll();
+    if (mounted) setState(() => _recent = recent);
+  }
+
+  /// Records the current query as a recent search (on engagement, not per
+  /// keystroke) and refreshes the in-memory list.
+  void _recordRecent([String? value]) {
+    final q = (value ?? _query).trim();
+    RecentSearchesService.record(q).then((_) {
+      if (mounted) _loadRecent();
+    });
+  }
 
   @override
   void dispose() {
@@ -104,6 +175,9 @@ class _SearchRedesignState extends State<SearchRedesign> {
     setState(() => _query = v);
     final q = v.trim();
     _debounce?.cancel();
+    // Genre mode has no text query — the picker lists ALL owned genres. Typing
+    // must not run a search nor reset the already-loaded genre list.
+    if (_filter == SearchFilter.genre) return;
     // Below the local threshold on a normal search: nothing to run, and the
     // in-flight request (if any) is invalidated so a late reply can't repaint.
     if (_filter != SearchFilter.wishlist && q.length < 2) {
@@ -115,20 +189,30 @@ class _SearchRedesignState extends State<SearchRedesign> {
       });
       return;
     }
-    // Spinner only when there is nothing on screen yet. In person mode the
-    // "nothing yet" surface is the people list, not `_results`.
-    final nothingYet =
-        _filter == SearchFilter.people ? _people == null : _results == null;
+    // Spinner only when there is nothing on screen yet. In the picker modes the
+    // "nothing yet" surface is the people/studio list, not `_results`.
+    final nothingYet = _filter == SearchFilter.people
+        ? _people == null
+        : _filter == SearchFilter.studio
+            ? _companies == null
+            : _results == null;
     if (nothingYet) setState(() => _loading = true);
     _debounce = Timer(const Duration(milliseconds: 300), _run);
   }
 
-  /// Clears the person-mode state (picker list, selection, failure). Mutates
-  /// fields only — call inside an enclosing setState.
+  /// Clears the person- AND studio-mode state (picker list, selection, failure).
+  /// Mutates fields only — call inside an enclosing setState. Named for the
+  /// people mode it grew from; both picker modes share this reset so switching
+  /// filters never flashes the previous mode's picker.
   void _resetPeople() {
     _people = null;
     _selectedPerson = null;
     _peopleFailure = null;
+    _companies = null;
+    _selectedCompany = null;
+    _companiesFailure = null;
+    _genres = null;
+    _selectedGenre = null;
   }
 
   void _applyFilter(SearchFilter f) {
@@ -155,6 +239,13 @@ class _SearchRedesignState extends State<SearchRedesign> {
     }
     _debounce?.cancel();
     final q = _query.trim();
+    // Genre mode needs no text: entering it loads ALL owned genres immediately,
+    // unlike people/studio which wait for a ≥2-char query.
+    if (f == SearchFilter.genre) {
+      setState(() => _loading = true);
+      _run();
+      return;
+    }
     if (f != SearchFilter.wishlist && q.length < 2) {
       _reqToken++;
       setState(() {
@@ -219,6 +310,53 @@ class _SearchRedesignState extends State<SearchRedesign> {
       return;
     }
 
+    // Studio mode: a query searches COMPANIES/NETWORKS (the picker). Selecting a
+    // studio is a separate action (_selectCompany) that fetches its filmography;
+    // a fresh query here always returns to the picker.
+    if (filter == SearchFilter.studio) {
+      if (q.length < 2) {
+        setState(() {
+          _resetPeople();
+          _results = null;
+          _loading = false;
+        });
+        return;
+      }
+      List<TmdbCompany> companies = const [];
+      TmdbFailure? failure;
+      try {
+        companies = await _service.searchCompanies(q, locale: locale);
+      } on TmdbException catch (e) {
+        failure = e.reason;
+      } catch (_) {
+        failure = TmdbFailure.network;
+      }
+      if (!mounted || token != _reqToken) return;
+      setState(() {
+        _companies = companies;
+        _companiesFailure = failure;
+        _selectedCompany = null;
+        _results = null;
+        _loading = false;
+      });
+      return;
+    }
+
+    // Genre mode: LOCAL-ONLY, no text query. Entering the mode lists ALL owned
+    // genres immediately; picking one (_selectGenre) shows its owned titles. No
+    // TMDb, so no failure branch — an empty list just means "no owned genres".
+    if (filter == SearchFilter.genre) {
+      final genres = await _service.enumerateLocalGenres();
+      if (!mounted || token != _reqToken) return;
+      setState(() {
+        _genres = genres;
+        _selectedGenre = null;
+        _results = null;
+        _loading = false;
+      });
+      return;
+    }
+
     if (q.length < 2) {
       setState(() {
         _results = null;
@@ -277,6 +415,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
   /// contract, so two fast taps cannot interleave. Used for `localOnly`, a
   /// single-match `withLocal`, and the detail sheet's "play from" rows.
   void _playLocalMatch(LocalContentMatch match) {
+    _recordRecent();
     _service.openLocalMatch(match);
     widget.onOpen(match.content);
   }
@@ -285,6 +424,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
   /// the local catalogue. The result rides the SAME buckets/cards as a text
   /// search; a TMDb failure degrades to `tmdbFailure` on the returned set.
   Future<void> _selectPerson(TmdbPerson person) async {
+    _recordRecent();
     final token = ++_reqToken;
     final locale = Localizations.localeOf(context);
     // The tapped person card lives in the results scope on TV; replacing the
@@ -328,7 +468,100 @@ class _SearchRedesignState extends State<SearchRedesign> {
     });
   }
 
+  /// Loads and shows a selected studio's filmography, cross-referenced against
+  /// the local catalogue. The exact shape of [_selectPerson]: same buckets/cards
+  /// as a text search, same TMDb-failure degradation, same focus re-anchor.
+  Future<void> _selectCompany(TmdbCompany company) async {
+    _recordRecent();
+    final token = ++_reqToken;
+    final locale = Localizations.localeOf(context);
+    // The tapped studio card lives in the results scope on TV; replacing the
+    // picker with the filmography disposes it, so remember to re-anchor focus.
+    final hadResultsFocus = _resultsScope.hasFocus;
+    setState(() {
+      _selectedCompany = company;
+      _results = null;
+      _loading = true;
+    });
+    final res = await _service.searchByCompany(company, locale: locale);
+    if (!mounted || token != _reqToken) return;
+    setState(() {
+      _results = res;
+      _loading = false;
+    });
+    if (hadResultsFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _resultsScope.hasFocus) return;
+        for (final node in _resultsScope.traversalDescendants) {
+          if (node.canRequestFocus && !node.skipTraversal) {
+            node.requestFocus();
+            break;
+          }
+        }
+      });
+    }
+  }
+
+  /// Returns from a studio's filmography to the studio picker.
+  void _clearSelectedCompany() {
+    _reqToken++;
+    setState(() {
+      _selectedCompany = null;
+      _results = null;
+      _loading = false;
+    });
+  }
+
+  /// Loads and shows a selected genre's owned titles. The LOCAL-ONLY twin of
+  /// [_selectCompany]: no TMDb, so the result is a single `localOnly` bucket
+  /// built from [GlobalSearchService.searchLocalByGenre] and rendered through
+  /// the same owned-content grid. Same `_reqToken` guard and focus re-anchor.
+  Future<void> _selectGenre(String genre) async {
+    // A picked genre is worth remembering like a person/studio pick — there is
+    // no text query in this mode, so record the genre name itself.
+    _recordRecent(genre);
+    final token = ++_reqToken;
+    final hadResultsFocus = _resultsScope.hasFocus;
+    setState(() {
+      _selectedGenre = genre;
+      _results = null;
+      _loading = true;
+    });
+    final matches = await _service.searchLocalByGenre(genre);
+    if (!mounted || token != _reqToken) return;
+    setState(() {
+      _results = UnifiedSearchResults(
+        withLocal: const [],
+        tmdbOnly: const [],
+        localOnly: matches,
+      );
+      _loading = false;
+    });
+    if (hadResultsFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _resultsScope.hasFocus) return;
+        for (final node in _resultsScope.traversalDescendants) {
+          if (node.canRequestFocus && !node.skipTraversal) {
+            node.requestFocus();
+            break;
+          }
+        }
+      });
+    }
+  }
+
+  /// Returns from a genre's titles to the genre picker.
+  void _clearSelectedGenre() {
+    _reqToken++;
+    setState(() {
+      _selectedGenre = null;
+      _results = null;
+      _loading = false;
+    });
+  }
+
   void _openDetail(GlobalSearchResult result) {
+    _recordRecent();
     // SEAM: the sheet lands in parallel. This is the exact call it must accept.
     // See the module doc-comment at the bottom of this file.
     SearchDetailSheet.show(
@@ -337,7 +570,23 @@ class _SearchRedesignState extends State<SearchRedesign> {
       service: _service,
       onPlayLocal: _playLocalMatch,
       onToggleWishlist: () => _toggleWishlist(result),
+      onActorTap: _openActor,
     );
+  }
+
+  /// Opens a tapped cast member's filmography inside this same search screen:
+  /// switch to the people filter and load their credits via [_selectPerson].
+  void _openActor(TmdbCredit credit) {
+    setState(() {
+      _filter = SearchFilter.people;
+      _people = null;
+      _peopleFailure = null;
+    });
+    _selectPerson(TmdbPerson(
+      id: credit.id,
+      name: credit.name,
+      profilePath: credit.profilePath,
+    ));
   }
 
   /// Optimistic wishlist flip. Toggles the store, re-stamps the visible results
@@ -400,6 +649,35 @@ class _SearchRedesignState extends State<SearchRedesign> {
   void _clearQuery() {
     _controller.clear();
     _onChanged('');
+  }
+
+  /// One-shot capability probe for the system voice overlay. Stored so the mic
+  /// button can be hidden entirely where no recognizer exists. Never throws.
+  Future<void> _initVoice() async {
+    final available = await voiceSearchService.isAvailable();
+    if (mounted) setState(() => _voiceAvailable = available);
+  }
+
+  /// Launches the system voice overlay, then feeds the recognized text straight
+  /// into the EXISTING query pipeline ([_onChanged]) — no parallel path. A
+  /// cancel / no-match / failure comes back null and leaves the query untouched.
+  Future<void> _startVoice() async {
+    if (_voiceListening) return;
+    setState(() => _voiceListening = true);
+    final locale = Localizations.localeOf(context);
+    final localeTag = locale.countryCode == null
+        ? locale.languageCode
+        : '${locale.languageCode}-${locale.countryCode}';
+    final prompt = context.loc.search_voice;
+    String? text;
+    try {
+      text = await voiceSearchService.listen(localeTag: localeTag, prompt: prompt);
+    } finally {
+      if (mounted) setState(() => _voiceListening = false);
+    }
+    if (!mounted || text == null || text.trim().isEmpty) return;
+    _controller.text = text;
+    _onChanged(text);
   }
 
   // --- Layout ----------------------------------------------------------------
@@ -531,6 +809,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
                       autofocus: true,
                       textInputAction: TextInputAction.search,
                       onChanged: _onChanged,
+                      onSubmitted: (v) => _recordRecent(v),
                       decoration: InputDecoration(
                         border: InputBorder.none,
                         isCollapsed: true,
@@ -550,6 +829,9 @@ class _SearchRedesignState extends State<SearchRedesign> {
                       onPressed: _clearQuery,
                       icon: Icon(Icons.close, size: 18, color: r.text3),
                     ),
+                  // Voice: mic beside the clear button. Hidden where the platform
+                  // has no recognizer; feeds its result into the same pipeline.
+                  if (_voiceAvailable) _voiceButton(),
                 ],
               ),
             ),
@@ -590,8 +872,40 @@ class _SearchRedesignState extends State<SearchRedesign> {
                 ),
               ),
             ),
+            // Voice: a D-pad-focusable mic on the trailing edge. Hidden entirely
+            // when the platform has no recognizer (checked once in initState).
+            if (_voiceAvailable) ...[
+              const SizedBox(width: 8),
+              _voiceButton(),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// The mic affordance shared by the TV query bar and the mobile header. Wrapped
+  /// in [FocusHighlight] so it is a D-pad target on TV (harmless on mobile). While
+  /// the overlay is being launched it shows a brief spinner and is disabled.
+  Widget _voiceButton() {
+    final r = rensi(context);
+    return FocusHighlight(
+      borderRadius: BorderRadius.circular(24),
+      child: IconButton(
+        iconSize: 20,
+        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+        tooltip: context.loc.search_voice,
+        onPressed: _voiceListening ? null : _startVoice,
+        icon: _voiceListening
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: r.accent,
+                ),
+              )
+            : Icon(Icons.mic, size: 20, color: r.text3),
       ),
     );
   }
@@ -605,6 +919,8 @@ class _SearchRedesignState extends State<SearchRedesign> {
       (SearchFilter.live, loc.live),
       (SearchFilter.wishlist, loc.search_filter_wishlist),
       (SearchFilter.people, loc.search_filter_people),
+      (SearchFilter.studio, loc.search_filter_studios),
+      (SearchFilter.genre, loc.search_filter_genre),
     ];
     return SizedBox(
       height: 46,
@@ -647,6 +963,10 @@ class _SearchRedesignState extends State<SearchRedesign> {
     final browse = _filter == SearchFilter.wishlist;
     final personMode =
         _filter == SearchFilter.people && _selectedPerson != null;
+    final studioMode =
+        _filter == SearchFilter.studio && _selectedCompany != null;
+    final genreMode =
+        _filter == SearchFilter.genre && _selectedGenre != null;
 
     // Person picker: the people list stands in for the results until a person is
     // chosen; the selected person's filmography then falls through to the shared
@@ -655,8 +975,21 @@ class _SearchRedesignState extends State<SearchRedesign> {
       return _peopleBody(columns: columns, sidePad: sidePad);
     }
 
+    // Studio picker: same shape — the companies list stands in until a studio is
+    // chosen, then its filmography falls through to the shared sections below.
+    if (_filter == SearchFilter.studio && _selectedCompany == null) {
+      return _studioBody(columns: columns, sidePad: sidePad);
+    }
+
+    // Genre picker: the genres list stands in until a genre is chosen, then its
+    // owned titles fall through to the shared sections below.
+    if (_filter == SearchFilter.genre && _selectedGenre == null) {
+      return _genreBody(columns: columns, sidePad: sidePad);
+    }
+
     if (res == null) {
       if (_loading) return const Center(child: CircularProgressIndicator());
+      if (q.isEmpty && _recent.isNotEmpty) return _recentSection(sidePad);
       return _centered(Icons.search_rounded, loc.search_catalog_hint);
     }
 
@@ -679,14 +1012,29 @@ class _SearchRedesignState extends State<SearchRedesign> {
       // banner only shows when there ARE results, so this is the only place a
       // key-less/rejected/limited user learns why Discover is empty.
       final failure = res.tmdbFailure;
-      // Person filmography empty: name the person, offer a way back to the
+      // Person/studio filmography empty: name it, offer a way back to the
       // picker. A failure below still overrides the body/action honestly.
-      String body =
-          personMode ? loc.search_person_no_results : loc.search_catalog_hint;
-      String actionLabel =
-          personMode ? loc.search_back_to_actors : loc.clear;
-      VoidCallback onAction =
-          personMode ? _clearSelectedPerson : _clearQuery;
+      String body = personMode
+          ? loc.search_person_no_results
+          : studioMode
+              ? loc.search_studio_no_results
+              : genreMode
+                  ? loc.search_genre_no_results
+                  : loc.search_catalog_hint;
+      String actionLabel = personMode
+          ? loc.search_back_to_actors
+          : studioMode
+              ? loc.search_back_to_studios
+              : genreMode
+                  ? loc.search_back_to_genres
+                  : loc.clear;
+      VoidCallback onAction = personMode
+          ? _clearSelectedPerson
+          : studioMode
+              ? _clearSelectedCompany
+              : genreMode
+                  ? _clearSelectedGenre
+                  : _clearQuery;
       switch (failure) {
         case TmdbFailure.noKey:
           body = loc.search_global_disabled;
@@ -711,8 +1059,20 @@ class _SearchRedesignState extends State<SearchRedesign> {
           break;
       }
       return RensiEmptyState(
-        icon: personMode ? Icons.person_off_rounded : Icons.search_off_rounded,
-        title: personMode ? _selectedPerson!.name : loc.no_results_for(q),
+        icon: personMode
+            ? Icons.person_off_rounded
+            : studioMode
+                ? Icons.business_rounded
+                : genreMode
+                    ? Icons.theater_comedy_rounded
+                    : Icons.search_off_rounded,
+        title: personMode
+            ? _selectedPerson!.name
+            : studioMode
+                ? _selectedCompany!.name
+                : genreMode
+                    ? _selectedGenre!
+                    : loc.no_results_for(q),
         body: body,
         actionLabel: actionLabel,
         onAction: onAction,
@@ -731,6 +1091,14 @@ class _SearchRedesignState extends State<SearchRedesign> {
     // people picker without popping the search route.
     if (personMode) {
       slivers.add(_personHeaderSliver(_selectedPerson!, sidePad));
+    }
+    // Studio filmography: same back header, returning to the studio picker.
+    if (studioMode) {
+      slivers.add(_studioHeaderSliver(_selectedCompany!, sidePad));
+    }
+    // Genre titles: same back header, returning to the genre picker.
+    if (genreMode) {
+      slivers.add(_genreHeaderSliver(_selectedGenre!, sidePad));
     }
 
     // Failure / no-key banner — thin, above the sections, never replacing the
@@ -852,6 +1220,7 @@ class _SearchRedesignState extends State<SearchRedesign> {
 
     if (people == null) {
       if (_loading) return const Center(child: CircularProgressIndicator());
+      if (q.isEmpty && _recent.isNotEmpty) return _recentSection(sidePad);
       return _centered(Icons.person_search_rounded, loc.search_person_hint);
     }
 
@@ -959,6 +1328,232 @@ class _SearchRedesignState extends State<SearchRedesign> {
             Expanded(
               child: Text(
                 person.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: AppThemes.h3Size,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The studio picker: a grid of companies/networks (name-forward tile). The
+  /// exact shape of [_peopleBody] — same grid, same typed-failure/empty
+  /// surfaces. Selecting a studio loads its filmography (see [_selectCompany]).
+  Widget _studioBody({required int columns, required double sidePad}) {
+    final loc = context.loc;
+    final q = _query.trim();
+    final companies = _companies;
+
+    if (companies == null) {
+      if (_loading) return const Center(child: CircularProgressIndicator());
+      if (q.isEmpty && _recent.isNotEmpty) return _recentSection(sidePad);
+      return _centered(Icons.business_rounded, loc.search_studio_hint);
+    }
+
+    if (companies.isEmpty && !_loading) {
+      final failure = _companiesFailure;
+      String body = loc.search_studio_hint;
+      String actionLabel = loc.clear;
+      VoidCallback onAction = _clearQuery;
+      switch (failure) {
+        case TmdbFailure.noKey:
+          body = loc.search_global_disabled;
+          actionLabel = loc.search_enable_global;
+          onAction = _openSettings;
+          break;
+        case TmdbFailure.rejected:
+          body = loc.search_key_rejected;
+          actionLabel = loc.nav_settings;
+          onAction = _openSettings;
+          break;
+        case TmdbFailure.rateLimited:
+          body = loc.search_tmdb_rate_limited;
+          break;
+        case TmdbFailure.httpError:
+        case TmdbFailure.network:
+          body = loc.search_tmdb_error;
+          actionLabel = loc.try_again;
+          onAction = _run;
+          break;
+        case null:
+          break;
+      }
+      return RensiEmptyState(
+        icon: Icons.business_rounded,
+        title: loc.no_results_for(q),
+        body: body,
+        actionLabel: actionLabel,
+        onAction: onAction,
+      );
+    }
+
+    final slivers = <Widget>[
+      const SliverToBoxAdapter(child: SizedBox(height: 2)),
+    ];
+    if (_companiesFailure != null) {
+      slivers.add(
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 14),
+            child: _banner(_companiesFailure!),
+          ),
+        ),
+      );
+    }
+    slivers.add(
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child:
+              SectionHeader(title: loc.search_filter_studios, sidePad: sidePad),
+        ),
+      ),
+    );
+    slivers.add(_gridSliver(
+      [for (final c in companies) _companyCard(c)],
+      columns,
+      sidePad,
+    ));
+    slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 24)));
+    return CustomScrollView(slivers: slivers);
+  }
+
+  /// A studio cell. Company logos are wide/transparent (not 2:3 posters), so
+  /// this reuses [RensiPoster] with `showMeta: true` — a NAME-FORWARD tile like
+  /// [_personCard] when a photo is missing — rather than stretching a logo into
+  /// a poster frame. Tapping loads that studio's filmography.
+  Widget _companyCard(TmdbCompany c) {
+    return RensiPoster(
+      key: ValueKey('company:${c.isNetwork ? 'n' : 'c'}:${c.id}'),
+      item: ContentItem(
+        'company:${c.id}',
+        c.name,
+        // Deliberately no logo art: a wide/transparent logo cropped into a 2:3
+        // poster reads as broken. The name-forward tile is the identity here.
+        '',
+        ContentType.vod,
+      ),
+      width: double.infinity,
+      showMeta: true,
+      onTap: () => _selectCompany(c),
+    );
+  }
+
+  /// Back header above a studio's filmography — the studio twin of
+  /// [_personHeaderSliver]. [BackButton] flips in RTL and is D-pad focusable;
+  /// it returns to the picker instead of popping the search route.
+  Widget _studioHeaderSliver(TmdbCompany company, double sidePad) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsetsDirectional.fromSTEB(sidePad, 2, sidePad, 8),
+        child: Row(
+          children: [
+            Tooltip(
+              message: context.loc.search_back_to_studios,
+              child: BackButton(onPressed: _clearSelectedCompany),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                company.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: AppThemes.h3Size,
+                  fontWeight: FontWeight.w700,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The genre picker: a grid of the genre names owned in the local catalogue.
+  /// The LOCAL-ONLY twin of [_studioBody] — same grid, but with NO TMDb-failure
+  /// surfaces (there is no network here). Selecting a genre loads its owned
+  /// titles (see [_selectGenre]).
+  Widget _genreBody({required int columns, required double sidePad}) {
+    final loc = context.loc;
+    final genres = _genres;
+
+    if (genres == null) {
+      if (_loading) return const Center(child: CircularProgressIndicator());
+      return _centered(Icons.theater_comedy_rounded, loc.search_genre_hint);
+    }
+
+    // No owned genres (no key/no VOD or series/M3U-only playlist): degrade to
+    // the same hint surface rather than a bare empty grid — never a crash.
+    if (genres.isEmpty && !_loading) {
+      return _centered(Icons.theater_comedy_rounded, loc.search_genre_hint);
+    }
+
+    final slivers = <Widget>[
+      const SliverToBoxAdapter(child: SizedBox(height: 2)),
+    ];
+    slivers.add(
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child:
+              SectionHeader(title: loc.search_filter_genre, sidePad: sidePad),
+        ),
+      ),
+    );
+    slivers.add(_gridSliver(
+      [for (final g in genres) _genreCard(g)],
+      columns,
+      sidePad,
+    ));
+    slivers.add(const SliverToBoxAdapter(child: SizedBox(height: 24)));
+    return CustomScrollView(slivers: slivers);
+  }
+
+  /// A genre cell. Like [_companyCard] it is a NAME-FORWARD tile (no artwork —
+  /// a genre has none) reusing [RensiPoster] with `showMeta: true`, so it
+  /// inherits the TV focus ring/zoom and D-pad/RTL traversal for free. Tapping
+  /// loads that genre's owned titles.
+  Widget _genreCard(String genre) {
+    return RensiPoster(
+      key: ValueKey('genre:$genre'),
+      item: ContentItem(
+        'genre:$genre',
+        genre,
+        '',
+        ContentType.vod,
+      ),
+      width: double.infinity,
+      showMeta: true,
+      onTap: () => _selectGenre(genre),
+    );
+  }
+
+  /// Back header above a genre's titles — the genre twin of
+  /// [_studioHeaderSliver]. [BackButton] flips in RTL and is D-pad focusable;
+  /// it returns to the genre picker instead of popping the search route.
+  Widget _genreHeaderSliver(String genre, double sidePad) {
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsetsDirectional.fromSTEB(sidePad, 2, sidePad, 8),
+        child: Row(
+          children: [
+            Tooltip(
+              message: context.loc.search_back_to_genres,
+              child: BackButton(onPressed: _clearSelectedGenre),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                genre,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -1151,6 +1746,76 @@ class _SearchRedesignState extends State<SearchRedesign> {
           ),
       ],
     );
+  }
+
+  /// Pre-search "Recent searches" section: a header with a clear-all action and
+  /// a wrap of tappable chips. Rendered inside the results FocusScope on TV, so
+  /// each [RensiChip]'s FocusHighlight makes it D-pad reachable.
+  Widget _recentSection(double sidePad) {
+    final loc = context.loc;
+    final tv = ResponsiveHelper.isDesktopOrTV(context);
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 8),
+          SectionHeader(
+            title: loc.search_recent,
+            actionLabel: loc.clear,
+            onAction: _clearRecent,
+            sidePad: sidePad,
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 16),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [for (final q in _recent) _recentChip(q, tv)],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A single recent-search chip. Tapping re-runs the query. On mobile a small
+  /// delete affordance removes just that entry; on TV there is no per-chip
+  /// delete (one focus atom per cell) — clearing is via the header action.
+  Widget _recentChip(String q, bool tv) {
+    final chip = RensiChip(
+      label: q,
+      active: false,
+      onTap: () {
+        _controller.text = q;
+        _onChanged(q);
+      },
+    );
+    if (tv) return chip;
+    final r = rensi(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        chip,
+        IconButton(
+          iconSize: 16,
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+          tooltip: context.loc.search_recent_remove,
+          onPressed: () => _removeRecent(q),
+          icon: Icon(Icons.close, size: 16, color: r.text3),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _clearRecent() async {
+    await RecentSearchesService.clear();
+    if (mounted) setState(() => _recent = const []);
+  }
+
+  Future<void> _removeRecent(String q) async {
+    await RecentSearchesService.remove(q);
+    if (mounted) _loadRecent();
   }
 
   Widget _centered(IconData icon, String text) {

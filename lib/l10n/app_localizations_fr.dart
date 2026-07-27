@@ -37,6 +37,18 @@ class AppLocalizationsFr extends AppLocalizations {
   String get see_all => 'Voir tout';
 
   @override
+  String get popular_section_title => 'Populaires';
+
+  @override
+  String get popular_window_month => 'Ce mois-ci';
+
+  @override
+  String get popular_window_year => 'Cette année';
+
+  @override
+  String get popular_window_all_time => 'De tous les temps';
+
+  @override
   String get preview => 'Aperçu';
 
   @override
@@ -817,6 +829,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get search_placeholder => 'Rechercher films, séries, chaînes…';
 
   @override
+  String get search_recent => 'Recherches récentes';
+
+  @override
+  String get search_recent_remove => 'Supprimer';
+
+  @override
   String get no_channels => 'Aucune chaîne';
 
   @override
@@ -1250,6 +1268,34 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get search_back_to_actors => 'Retour aux acteurs';
+
+  @override
+  String get search_filter_studios => 'Studios';
+
+  @override
+  String get search_studio_hint => 'Recherchez un studio pour voir ses titres';
+
+  @override
+  String get search_studio_no_results => 'Aucun résultat pour ce studio';
+
+  @override
+  String get search_back_to_studios => 'Retour aux studios';
+
+  @override
+  String get search_filter_genre => 'Genres';
+
+  @override
+  String get search_genre_hint => 'Choisissez un genre pour voir vos titres';
+
+  @override
+  String get search_genre_no_results =>
+      'Vous ne possédez aucun titre dans ce genre';
+
+  @override
+  String get search_back_to_genres => 'Retour aux genres';
+
+  @override
+  String get search_voice => 'Recherche vocale';
 
   @override
   String get search_clear_history => 'Effacer l\'historique';

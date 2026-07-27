@@ -17,6 +17,7 @@ import 'package:rensi_iptv/widgets/playlist_switcher_button.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/redesign/home_redesign.dart';
 import 'package:rensi_iptv/redesign/browse_redesign.dart';
+import 'package:rensi_iptv/redesign/continue_watching_all_screen.dart';
 import 'package:rensi_iptv/redesign/live_redesign.dart';
 import 'package:rensi_iptv/redesign/list_redesign.dart';
 import 'package:rensi_iptv/redesign/search_redesign.dart';
@@ -273,6 +274,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
         onSearch: _openSearch,
         onSettings: () => controller.onNavigationTap(4),
         onSeeAll: _navigateToCategoryDetail,
+        onSeeAllContinue: _navigateToContinueAll,
         continueWatching: resumableFrom(_history.continueWatching),
         onResume: (h) async {
           final started = await _history.playContent(context, h);
@@ -327,6 +329,38 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => CategoryDetailScreen(category: category),
+      ),
+    );
+  }
+
+  /// Opens the "Seguir viendo → Ver todo" grid (last 20 watched). onResume is
+  /// the SAME block the Home rail runs: play + reload + offer to remove a dead
+  /// entry.
+  void _navigateToContinueAll() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => ContinueWatchingAllScreen(
+          listenable: _history,
+          itemsBuilder: () =>
+              resumableFrom(_history.continueWatching).take(20).toList(),
+          onResume: (h) async {
+            final started = await _history.playContent(context, h);
+            if (!mounted) return;
+            if (!started) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(context.loc.resume_failed),
+                  action: SnackBarAction(
+                    label: context.loc.remove,
+                    onPressed: () => _history.removeHistory(h),
+                  ),
+                ),
+              );
+            }
+            await _history.loadWatchHistory();
+          },
+        ),
       ),
     );
   }

@@ -4,10 +4,19 @@ import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/models/all_category_sentinel.dart';
 import 'package:rensi_iptv/models/category_type.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
+import 'package:rensi_iptv/models/content_type.dart';
+import 'package:rensi_iptv/models/global_search_result.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/models/tmdb_search_result.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
+import 'package:rensi_iptv/redesign/search_detail_sheet.dart';
+import 'package:rensi_iptv/redesign/search_redesign.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
+import 'package:rensi_iptv/services/global_search_service.dart';
+import 'package:rensi_iptv/services/tmdb_credentials_service.dart';
+import 'package:rensi_iptv/services/tmdb_service.dart';
+import 'package:rensi_iptv/services/tmdb_wishlist_service.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
@@ -27,6 +36,7 @@ class RedesignHome extends StatelessWidget {
     this.onSearch,
     this.onSettings,
     this.onSeeAll,
+    this.onSeeAllContinue,
     this.playlistSwitcher,
   });
 
@@ -64,6 +74,10 @@ class RedesignHome extends StatelessWidget {
   final VoidCallback? onSettings;
   // Opens the full category grid ("Ver todo") — a rail only shows the first 18.
   final void Function(CategoryViewModel)? onSeeAll;
+  // Opens the "Seguir viendo → Ver todo" screen (the last 20 watched). Null
+  // hides the rail's action label. Threaded from each mount site alongside
+  // [onResume], which the see-all screen reuses to resume a tapped card.
+  final VoidCallback? onSeeAllContinue;
   final Widget? playlistSwitcher;
 
   /// Number of category rails actually CONSTRUCTED (not just mounted). With the
@@ -134,13 +148,28 @@ class RedesignHome extends StatelessWidget {
         _Hero(item: hero, onOpen: onOpen, onPlay: onPlay, tv: tv),
       const SizedBox(height: 8),
       if (continueWatching.isNotEmpty) ...[
-        SectionHeader(title: context.loc.continue_watching, sidePad: sidePad),
+        SectionHeader(
+          title: context.loc.continue_watching,
+          sidePad: sidePad,
+          actionLabel: onSeeAllContinue != null ? context.loc.see_all : null,
+          onAction: onSeeAllContinue,
+        ),
         _ContinueRail(
             items: continueWatching,
             onResume: onResume,
             onRemove: onRemove),
         const SizedBox(height: 26),
       ],
+      // "Popular" (this month / year / all time) — self-contained; hides itself
+      // when there's no TMDb key or the window resolves empty. Sits right after
+      // Continue-Watching and before the category rails.
+      _PopularRail(
+        key: const ValueKey('home_popular_rail'),
+        onOpen: onOpen,
+        tv: tv,
+        sidePad: sidePad,
+        posterWidth: posterW,
+      ),
     ];
 
     final showEmpty = cats.isEmpty && continueWatching.isEmpty;
@@ -786,6 +815,264 @@ class _ContinueRail extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// The Home "Popular" rail (this month / this year / all time).
+///
+/// Self-contained and self-hiding, exactly like the search screen owns its own
+/// [GlobalSearchService]: it checks for a TMDb key on init and renders nothing
+/// (`SizedBox.shrink`) when there is none, and it degrades a TMDb failure or an
+/// empty window to the same silent hide — Home shows NO error banner for an
+/// optional discovery rail. Switching windows keeps the previous list mounted
+/// until the new one resolves (so D-pad focus never collapses), then re-anchors
+/// focus onto the first poster.
+class _PopularRail extends StatefulWidget {
+  const _PopularRail({
+    super.key,
+    required this.onOpen,
+    required this.tv,
+    required this.sidePad,
+    required this.posterWidth,
+  });
+
+  final void Function(ContentItem) onOpen;
+  final bool tv;
+  final double sidePad;
+  final double posterWidth;
+
+  @override
+  State<_PopularRail> createState() => _PopularRailState();
+}
+
+class _PopularRailState extends State<_PopularRail> {
+  final GlobalSearchService _service = GlobalSearchService();
+
+  /// Wraps the rail so a window switch — which rebuilds the ListView children
+  /// with new keys and disposes the focused poster's element — can put focus
+  /// back on a card instead of leaving it dangling mid-navigation.
+  final FocusScopeNode _railScope = FocusScopeNode();
+
+  PopularWindow _window = PopularWindow.month;
+
+  /// Latest results for the active window, or null before the first paint.
+  List<GlobalSearchResult>? _results;
+
+  /// Once true the rail renders nothing for the rest of the session: no key, or
+  /// the first window came back empty. A per-switch empty keeps the old list.
+  bool _hidden = false;
+
+  /// Monotonic request id: a stale window's late reply drops itself.
+  int _reqToken = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  @override
+  void dispose() {
+    _railScope.dispose();
+    super.dispose();
+  }
+
+  Future<void> _init() async {
+    String? credential;
+    try {
+      credential = await TmdbCredentialsService.getCredential();
+    } catch (_) {
+      // A secure-storage read failure (e.g. no platform channel) is treated
+      // exactly like "no key": hide the optional rail, no error surfaced.
+      credential = null;
+    }
+    if (!mounted) return;
+    if (credential == null) {
+      setState(() => _hidden = true);
+      return;
+    }
+    _load(_window);
+  }
+
+  Future<void> _load(PopularWindow window) async {
+    final token = ++_reqToken;
+    final locale = Localizations.localeOf(context);
+    final hadFocus = _railScope.hasFocus;
+    // popular() already degrades a TMDb failure to []; the broad guard also
+    // covers a storage/DB error on the local-catalogue side so the rail can
+    // never throw an unhandled async error out of the Home tree.
+    List<GlobalSearchResult> results;
+    try {
+      results = await _service.popular(window, locale: locale);
+    } catch (_) {
+      results = const [];
+    }
+    if (!mounted || token != _reqToken) return;
+    if (results.isEmpty) {
+      // Empty only hides when there is nothing already on screen; a window
+      // switch that resolves empty keeps the previous list rather than yanking
+      // the rail out from under the viewer.
+      if (_results == null || _results!.isEmpty) {
+        setState(() => _hidden = true);
+      }
+      return;
+    }
+    setState(() => _results = results);
+    // Re-anchor D-pad focus onto a card in the rebuilt rail so it never dangles.
+    if (hadFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _railScope.hasFocus) return;
+        for (final node in _railScope.traversalDescendants) {
+          if (node.canRequestFocus && !node.skipTraversal) {
+            node.requestFocus();
+            break;
+          }
+        }
+      });
+    }
+  }
+
+  void _onWindow(PopularWindow window) {
+    if (window == _window) return;
+    // Highlight the chip immediately; keep the old list mounted until the new
+    // window resolves (see [_load]).
+    setState(() => _window = window);
+    _load(window);
+  }
+
+  void _openResult(GlobalSearchResult gsr) {
+    if (gsr.localMatches.isNotEmpty) {
+      final match = gsr.localMatches.first; // service orders exact-first
+      // A popular title can match a stream in a playlist other than the current
+      // one; point AppState at it before navigating, per openLocalMatch.
+      _service.openLocalMatch(match);
+      widget.onOpen(match.content);
+    } else {
+      SearchDetailSheet.show(
+        context,
+        result: gsr,
+        service: _service,
+        onPlayLocal: (m) {
+          _service.openLocalMatch(m);
+          widget.onOpen(m.content);
+        },
+        onToggleWishlist: () => _toggleWishlist(gsr),
+        onActorTap: _openActor,
+      );
+    }
+  }
+
+  /// Local wishlist toggle for the Discover detail sheet. Flips the store and
+  /// re-stamps the saved flag on the matching card so its bookmark reflects the
+  /// new state; a failed write keeps the old state (no throw out of onTap).
+  Future<bool> _toggleWishlist(GlobalSearchResult gsr) async {
+    final bool nowSaved;
+    try {
+      nowSaved = await TmdbWishlistService.toggle(gsr.tmdb);
+    } catch (_) {
+      return gsr.isWishlisted;
+    }
+    if (mounted) {
+      setState(() {
+        _results = _results
+            ?.map((r) => r.tmdb.id == gsr.tmdb.id &&
+                    r.tmdb.mediaType == gsr.tmdb.mediaType
+                ? r.copyWith(isWishlisted: nowSaved)
+                : r)
+            .toList();
+      });
+    }
+    return nowSaved;
+  }
+
+  /// Opens a tapped cast member's filmography in the full search screen (people
+  /// filter pre-selected), reusing the tested initialPerson deep-link path.
+  void _openActor(TmdbCredit credit) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SearchRedesign(
+          onOpen: widget.onOpen,
+          initialPerson: TmdbPerson(
+            id: credit.id,
+            name: credit.name,
+            profilePath: credit.profilePath,
+          ),
+        ),
+      ),
+    );
+  }
+
+  ContentItem _tmdbAsContentItem(TmdbSearchResult t) => ContentItem(
+        'tmdb:${t.id}',
+        t.title,
+        t.posterUrl,
+        t.mediaType == TmdbMediaType.tv ? ContentType.series : ContentType.vod,
+      );
+
+  Widget _poster(GlobalSearchResult gsr) {
+    final owned = gsr.localMatches.isNotEmpty;
+    final item = owned ? gsr.localMatches.first.content : _tmdbAsContentItem(gsr.tmdb);
+    return RensiPoster(
+      key: ValueKey('pop:${gsr.tmdb.id}|${gsr.tmdb.mediaType.name}'),
+      item: item,
+      width: widget.posterWidth,
+      // Owned popular titles look like any Home poster; Discover ones carry the
+      // same neutral "not in your lists" badge as the search screen.
+      badge: owned ? null : context.loc.search_not_in_lists,
+      badgeTone: RensiBadgeTone.neutral,
+      onTap: () => _openResult(gsr),
+    );
+  }
+
+  Widget _chipRow() {
+    final loc = context.loc;
+    final chips = <(PopularWindow, String)>[
+      (PopularWindow.month, loc.popular_window_month),
+      (PopularWindow.year, loc.popular_window_year),
+      (PopularWindow.allTime, loc.popular_window_all_time),
+    ];
+    return Padding(
+      padding: EdgeInsets.fromLTRB(widget.sidePad, 0, widget.sidePad, 12),
+      child: Row(
+        children: [
+          for (final c in chips)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(end: 8),
+              child: RensiChip(
+                label: c.$2,
+                active: _window == c.$1,
+                onTap: () => _onWindow(c.$1),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Nothing to show yet (still probing the key / loading the first window) or
+    // permanently hidden (no key / empty): render zero-height so Home's layout
+    // is unaffected and no error banner appears.
+    if (_hidden) return const SizedBox.shrink();
+    final results = _results;
+    if (results == null) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(title: context.loc.popular_section_title, sidePad: widget.sidePad),
+        _chipRow(),
+        FocusScope(
+          node: _railScope,
+          child: RensiRail(
+            sidePadding: widget.sidePad,
+            posterWidth: widget.posterWidth,
+            children: [for (final gsr in results) _poster(gsr)],
+          ),
+        ),
+        SizedBox(height: widget.tv ? 34 : 26),
+      ],
     );
   }
 }

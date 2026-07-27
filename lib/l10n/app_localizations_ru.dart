@@ -36,6 +36,18 @@ class AppLocalizationsRu extends AppLocalizations {
   String get see_all => 'Показать все';
 
   @override
+  String get popular_section_title => 'Популярное';
+
+  @override
+  String get popular_window_month => 'За месяц';
+
+  @override
+  String get popular_window_year => 'За год';
+
+  @override
+  String get popular_window_all_time => 'За всё время';
+
+  @override
   String get preview => 'Предпросмотр';
 
   @override
@@ -811,6 +823,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get search_placeholder => 'Поиск фильмов, сериалов, каналов…';
 
   @override
+  String get search_recent => 'Недавние запросы';
+
+  @override
+  String get search_recent_remove => 'Удалить';
+
+  @override
   String get no_channels => 'Нет каналов';
 
   @override
@@ -1239,6 +1257,33 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get search_back_to_actors => 'Назад к актёрам';
+
+  @override
+  String get search_filter_studios => 'Студии';
+
+  @override
+  String get search_studio_hint => 'Найдите студию, чтобы увидеть её фильмы';
+
+  @override
+  String get search_studio_no_results => 'Нет результатов для этой студии';
+
+  @override
+  String get search_back_to_studios => 'Назад к студиям';
+
+  @override
+  String get search_filter_genre => 'Жанры';
+
+  @override
+  String get search_genre_hint => 'Выберите жанр, чтобы увидеть свои названия';
+
+  @override
+  String get search_genre_no_results => 'У вас нет названий в этом жанре';
+
+  @override
+  String get search_back_to_genres => 'Назад к жанрам';
+
+  @override
+  String get search_voice => 'Голосовой поиск';
 
   @override
   String get search_clear_history => 'Очистить историю';

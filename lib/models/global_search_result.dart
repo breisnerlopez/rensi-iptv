@@ -77,7 +77,19 @@ class GlobalSearchResult {
 /// person and shows that person's filmography cross-referenced against the local
 /// catalogue. The service treats it like [all] for the type-narrowing switches;
 /// the UI routes it to the person picker instead of the text pipeline.
-enum SearchFilter { all, movies, tv, live, wishlist, people }
+///
+/// [studio] is the same shape as [people] but for a production company/network:
+/// it searches TMDb for a studio and shows that studio's filmography (a
+/// discover query) cross-referenced against the local catalogue. Also treated
+/// like [all] by the type-narrowing switches, and routed to the studio picker.
+///
+/// [genre] is a LOCAL-ONLY mode (no TMDb): it lists the standard genre names
+/// present in the user's own catalogue and shows the owned titles for a picked
+/// genre ("show me what I own in this genre"). Like [people]/[studio] it is
+/// treated as [all] by the type-narrowing switches and routed to its own
+/// picker, but it never touches the TMDb text pipeline.
+/// Appended LAST so existing persisted/ordinal usages of the enum are unmoved.
+enum SearchFilter { all, movies, tv, live, wishlist, people, studio, genre }
 
 class UnifiedSearchResults {
   final List<GlobalSearchResult> withLocal;

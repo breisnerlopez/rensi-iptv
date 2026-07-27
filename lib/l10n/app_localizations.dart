@@ -168,6 +168,30 @@ abstract class AppLocalizations {
   /// **'View All'**
   String get see_all;
 
+  /// No description provided for @popular_section_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular'**
+  String get popular_section_title;
+
+  /// No description provided for @popular_window_month.
+  ///
+  /// In en, this message translates to:
+  /// **'This month'**
+  String get popular_window_month;
+
+  /// No description provided for @popular_window_year.
+  ///
+  /// In en, this message translates to:
+  /// **'This year'**
+  String get popular_window_year;
+
+  /// No description provided for @popular_window_all_time.
+  ///
+  /// In en, this message translates to:
+  /// **'All time'**
+  String get popular_window_all_time;
+
   /// No description provided for @preview.
   ///
   /// In en, this message translates to:
@@ -1596,6 +1620,18 @@ abstract class AppLocalizations {
   /// **'Search films, series, channels…'**
   String get search_placeholder;
 
+  /// No description provided for @search_recent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent searches'**
+  String get search_recent;
+
+  /// No description provided for @search_recent_remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get search_recent_remove;
+
   /// No description provided for @no_channels.
   ///
   /// In en, this message translates to:
@@ -2351,6 +2387,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back to actors'**
   String get search_back_to_actors;
+
+  /// No description provided for @search_filter_studios.
+  ///
+  /// In en, this message translates to:
+  /// **'Studios'**
+  String get search_filter_studios;
+
+  /// No description provided for @search_studio_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search for a studio to see its titles'**
+  String get search_studio_hint;
+
+  /// No description provided for @search_studio_no_results.
+  ///
+  /// In en, this message translates to:
+  /// **'No results for this studio'**
+  String get search_studio_no_results;
+
+  /// No description provided for @search_back_to_studios.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to studios'**
+  String get search_back_to_studios;
+
+  /// No description provided for @search_filter_genre.
+  ///
+  /// In en, this message translates to:
+  /// **'Genres'**
+  String get search_filter_genre;
+
+  /// No description provided for @search_genre_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a genre to see your titles'**
+  String get search_genre_hint;
+
+  /// No description provided for @search_genre_no_results.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t own any titles in this genre'**
+  String get search_genre_no_results;
+
+  /// No description provided for @search_back_to_genres.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to genres'**
+  String get search_back_to_genres;
+
+  /// No description provided for @search_voice.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice search'**
+  String get search_voice;
 
   /// No description provided for @search_clear_history.
   ///

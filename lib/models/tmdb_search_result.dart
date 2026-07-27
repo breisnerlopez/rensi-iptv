@@ -137,6 +137,42 @@ class TmdbPerson {
       );
 }
 
+/// A production company or network from the TMDb `search/company` list (plus a
+/// curated set of networks — TMDb has no network search). Deliberately tiny,
+/// mirroring [TmdbPerson]: the studio picker renders a name and carries the id
+/// so the caller can run a discover query.
+///
+/// [isNetwork] routes discovery to `discover/tv?with_networks=` (a streaming
+/// network like HBO/Netflix) rather than `discover/movie?with_companies=` (a
+/// production company like A24). The two id-spaces are distinct on TMDb, so the
+/// flag — not the id alone — decides the endpoint.
+class TmdbCompany {
+  final int id;
+  final String name;
+  final String? logoPath;
+  final bool isNetwork;
+
+  const TmdbCompany({
+    required this.id,
+    required this.name,
+    this.logoPath,
+    this.isNetwork = false,
+  });
+
+  /// w185 logo. Unlike a 2:3 poster this art is wide/transparent, so the UI
+  /// renders a NAME-FORWARD tile rather than a bare logo. Null (not '') when
+  /// absent so callers can branch cleanly, exactly like [TmdbPerson.profileUrl].
+  String? get logoUrl => logoPath == null || logoPath!.isEmpty
+      ? null
+      : 'https://image.tmdb.org/t/p/w185$logoPath';
+
+  factory TmdbCompany.fromTmdbJson(Map<String, dynamic> json) => TmdbCompany(
+        id: (json['id'] as num?)?.toInt() ?? 0,
+        name: (json['name'] as String? ?? '').trim(),
+        logoPath: json['logo_path'] as String?,
+      );
+}
+
 /// A single cast member from the TMDb `credits.cast` list. Deliberately tiny —
 /// the detail enrichment only ever renders a photo, a name and the character.
 class TmdbCredit {

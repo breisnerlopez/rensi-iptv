@@ -2,6 +2,7 @@ import 'package:rensi_iptv/database/database.dart';
 import 'package:rensi_iptv/screens/settings/subtitle_settings_section.dart';
 import 'package:rensi_iptv/services/backup_service.dart';
 import 'package:rensi_iptv/services/pip_service.dart';
+import 'package:rensi_iptv/services/recent_searches_service.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/services/service_locator.dart';
 import 'package:rensi_iptv/services/tmdb_credentials_service.dart';
@@ -253,6 +254,10 @@ String _videoDecoder = 'auto';
     var cleared = true;
     try {
       await controller.clearAllHistory();
+      // Recent searches are private session data — wipe them here too so "Clear
+      // All History" leaves nothing behind. Best-effort: a failure here must not
+      // flip the (successful) history-clear result.
+      await RecentSearchesService.clear();
     } catch (_) {
       cleared = false;
     } finally {
