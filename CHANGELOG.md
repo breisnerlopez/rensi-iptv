@@ -1,3 +1,16 @@
+# [2.8.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.7.0...v2.8.0) (2026-07-29)
+
+
+### Features
+
+* **casting a Android TV — segunda pantalla (PoC, arquitectura D):** el móvil actúa como control remoto y el televisor reproduce el stream IPTV directamente desde el servidor (sin mirroring, sin retransmitir el video, sin backend). Incluye descubrimiento en la red (mDNS/DNS-SD), emparejamiento por PIN (HKDF→HMAC challenge-response), envío de credenciales Xtream **cifradas** (AES-GCM) por la LAN, y un entrypoint receptor de televisor (`main_tv.dart`) que reproduce con media_kit/libmpv. **No usa Google Cast/Cast Connect**, por lo que funciona con la app instalada por sideload (sin depender de Google Play). Probado end-to-end en el emulador Android TV (descubrir → emparejar → LOAD cifrado → reproducir). **Aún no expuesto en la UI del móvil (sin botón "Cast") ni empaquetado como app leanback de TV** — es la base funcional; el diseño y los resultados están en `CASTING_ARCHITECTURE.md`
+
+
+### Bug Fixes
+
+* la inicialización del reproductor ya no aborta si `connectivity_plus` lanza un error en el chequeo de conectividad (observado en Android TV): ante el fallo se asume conexión y se continúa, en vez de dejar el player sin arrancar
+
+
 # [2.7.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.6.2...v2.7.0) (2026-07-27)
 
 

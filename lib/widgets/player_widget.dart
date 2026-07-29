@@ -642,13 +642,22 @@ class _PlayerWidgetState extends State<PlayerWidget>
       );
 
       if (_isFirstCheck) {
-        final currentConnectivity = await Connectivity().checkConnectivity();
-        hasConnection = currentConnectivity.any(
-          (connectivity) =>
-              connectivity == ConnectivityResult.mobile ||
-              connectivity == ConnectivityResult.wifi ||
-              connectivity == ConnectivityResult.ethernet,
-        );
+        // Connectivity is auxiliary (reconnect UX). Some platforms — observed on
+        // the Android TV emulator image — can make checkConnectivity() throw a
+        // plugin cast error; that must never abort player init, so on failure we
+        // assume connected and carry on.
+        try {
+          final currentConnectivity = await Connectivity().checkConnectivity();
+          hasConnection = currentConnectivity.any(
+            (connectivity) =>
+                connectivity == ConnectivityResult.mobile ||
+                connectivity == ConnectivityResult.wifi ||
+                connectivity == ConnectivityResult.ethernet,
+          );
+        } catch (e) {
+          debugPrint('checkConnectivity failed, assuming online: $e');
+          hasConnection = true;
+        }
         _isFirstCheck = false;
       }
 

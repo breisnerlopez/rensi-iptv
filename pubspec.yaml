@@ -2,7 +2,7 @@ name: rensi_iptv
 description: "Rensi IPTV — Reproductor IPTV para móvil y Android TV"
 publish_to: "none"
 
-version: 2.7.0+29
+version: 2.8.0+30
 
 environment:
   sdk: ^3.9.2
@@ -57,6 +57,9 @@ dependencies:
   url_launcher: ^6.3.2
   package_info_plus: ^8.0.0
   wakelock_plus: ^1.2.5
+  # Casting / segunda pantalla (feat/cast-second-screen):
+  bonsoir: ^5.1.11 # descubrimiento mDNS/DNS-SD (anunciar en TV + descubrir en móvil)
+  web_socket_channel: ^3.0.1 # cliente del canal de control (servidor = dart:io en la TV)
 
 dependency_overrides:
   media_kit:
