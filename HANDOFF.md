@@ -1,15 +1,60 @@
 # Handoff — rensi-iptv
 
-> **Actual (§A):** v2.2.1 → **v2.2.2 en curso** — self-heal de extensión VOD + refresh
-> de catálogo en segundo plano. Trabajo **implementado, suite verde, SIN commitear**.
+> **Actual (§A):** **v2.7.0 PUBLICADO** (2026-07-29) — filtro por género, búsqueda por
+> estudio, reparto tocable, populares, voz en TV, seguir-viendo "ver todo". `main` limpio,
+> release firmado por CI en Latest.
 >
-> **Histórico (§0 en adelante):** campaña v2.2.0 (emulación, diseño 10-pies, poda) —
-> ya commiteada y released. Las notas de laboratorio (§2) y de disciplina de test (§5)
-> siguen siendo la guía evergreen para trabajar aquí.
+> **§A-hist:** v2.2.3 (fixes de TV) — superado, se conserva como detalle histórico.
+> **§HISTÓRICO (§0 en adelante):** campaña v2.2.0 (emulación, diseño 10-pies, poda) —
+> ya released. Las notas de laboratorio (§2) y de disciplina de test (§5) siguen siendo
+> la guía evergreen. Detalle de usuario de cada versión: `CHANGELOG.md` + historial de git.
 
 ---
 
-# §A — Estado ACTUAL (2026-07-26): v2.2.3 (fixes de TV)
+# §A — Estado ACTUAL (2026-07-29): v2.7.0 (publicado)
+
+**Rama:** `main` (árbol limpio) · **Versión:** `2.7.0+29` (tag `v2.7.0`, release firmado por CI, assets en Latest: arm64/armeabi-v7a/x86_64 APK + aab + linux.zip).
+**Estado:** ✅ Publicado. Suite **392 pass / 2 skip**, `flutter analyze lib/` 0 errores, `flutter gen-l10n` 10 idiomas. Gate adversarial (retador + auditor) resuelto en los dos lotes del release.
+
+> Contexto: entre v2.2.3 y v2.7.0 se shipearon en cadena v2.2.4–v2.6.2 (perf/escala TV, TMDb Phase 1/2, búsqueda por actor, live en búsqueda global, self-heal de extensión, `tmdb_id`). Detalle de usuario en `CHANGELOG.md` + historial de git. Este §A cubre v2.7.0; el §A viejo (v2.2.3) queda abajo como histórico.
+
+## A.0 Qué trae v2.7.0 — mapa de código (detalle de usuario en CHANGELOG.md)
+- **Búsqueda por estudio/plataforma:** `TmdbCompany` (`models/tmdb_search_result.dart`), `TmdbService.searchCompany`/`discoverByCompany` (`services/tmdb_service.dart`) con lista curada de networks (ids VERIFICADOS contra la API: HBO 49, Apple TV+ 2552, Netflix 213, Disney+ 2739, Amazon/Prime 1024). Nuevo `SearchFilter.studio`.
+- **Reparto tocable → filmografía:** `onActorTap` hilado `TmdbCastRail`→`TmdbEnrichment`→`SearchDetailSheet`→`SearchRedesign.initialPerson`→movie/series. `_tmdbHasCast` (vía `onResolved`) evita duplicar el reparto nativo + TMDb.
+- **Búsquedas recientes:** `lib/services/recent_searches_service.dart` (SharedPreferences, cap 10).
+- **Voz en TV:** nativo `MainActivity.kt` MethodChannel `.../voice` → `RecognizerIntent` del sistema (sin permiso RECORD_AUDIO) + `lib/services/voice_search_service.dart` (timeout 120s anti-cuelgue). **CRÍTICO:** el manifest declara `<queries>` para `android.speech.action.RECOGNIZE_SPEECH` — sin eso, la visibilidad de paquetes de Android 11+ oculta el mic en todos lados (bloqueante que cazó el retador).
+- **Populares en Home:** `_PopularRail` (`redesign/home_redesign.dart`), `PopularWindow {month,year,allTime}`, `GlobalSearchService.popular` (preserva ranking). Se oculta sin key de TMDb.
+- **Seguir viendo → Ver todo:** `lib/redesign/continue_watching_all_screen.dart`, `resumableFrom(...).take(20)`, reactivo (`ListenableBuilder` sobre `WatchHistoryController`).
+- **Filtro por GÉNERO** (Explorar + Buscar + pulido del selector de categoría en Live) — ver A.0.1.
+- **Fixes:** tráiler no tapado + D-pad abajo → botón play (autofocus); dedup de búsqueda por `(id|mediaType)`; dedup de reparto en series; info en el idioma correcto + fallback al original; los avisos no-fatales del player (`force-seekable`) ya no cortan el live.
+
+### A.0.1 Filtro por género (arquitectura clave)
+- **`lib/utils/genre_utils.dart`** = parser ÚNICO: `genreOf`/`splitGenres`/`enumerateGenres`/`itemHasGenre`. Match **en memoria, token-exacto**, contra géneros derivados del catálogo → **a prueba de acentos por construcción** (mismos bytes en el chip y en el ítem; NO usar SQL `LIKE`, que pliega solo ASCII y reintroduce el bug de acento). Separadores `,` `/` `\` `|` `;` + coma árabe, **pero NO `&`** (para no fragmentar géneros TMDb como "Action & Adventure"). `controllers/category_detail_controller.dart` refactorizado sobre él. Tests: `test/utils/genre_utils_semantics_test.dart` (7).
+- **Explorar (`redesign/browse_redesign.dart`):** chips de género sobre el **catálogo COMPLETO** vía el sentinel `kAllCategoryId` + `ContentService.fetchContentByCategory` (mismo path que "Ver todo"), memoizado una vez. **GUARD:** `useFull = _fullLoaded && (movies||series no vacío)` — `content_service.dart::_fetchM3uContent` NO honra el sentinel → devuelve vacío → cae a previews (M3U no trae `genre`, así que su fila de género simplemente se oculta). Fue un bloqueante del retador (dejaba Explorar en blanco en M3U).
+- **Buscar (`services/global_search_service.dart`):** `SearchFilter.genre` local-only (`enumerateLocalGenres`/`searchLocalByGenre`); catálogo **memoizado por `playlist.id`** (el auditor detectó recarga completa por cada tap de género = riesgo de ANR en TV de gama baja).
+
+## A.0.2 Pendientes para el siguiente equipo (por prioridad)
+| # | Pendiente | Responsable | Bloqueante |
+|---|-----------|-------------|------------|
+| 1 | **Rotar credenciales filtradas** (§A-hist.5): token TMDb (aud `1840a927…`) + passwords Xtream | **USUARIO** | Seguridad |
+| 2 | Validar en **TV real** lo que el emulador no cubre: **voz** (mando con micrófono), y **género/estudio/populares** contra el catálogo y la lista reales | Usuario/QA | No |
+| 3 | **Play Store**: primera subida manual. 2 caveats CRÍTICOS: (a) la re-firma de Play App Signing rompe la actualización in-place del sideload firmado por CI; (b) riesgo real de rechazo por política IPTV (mantener la ficha "reproductor personal M3U/Xtream", sin playlists ni logos con copyright; probar en track interno primero). App ya declara Android TV (leanback/banner). `PRIVACY_POLICY.md` debe hostearse en URL pública. | Usuario | No |
+| 4 | Espejar al **M3U home** cualquier fix que siga solo en Xtream (el usuario está en Xtream) | Equipo | No |
+
+## A.0.3 Cómo trabajar aquí
+- **Tests:** `flutter test` (392 pass / 2 skip). El host **bloquea todo HTTP real** → los tests de red/panel corren SOLO como `integration_test` en dispositivo, opt-in con `--dart-define`.
+- **i18n:** editar `lib/l10n/app_*.arb` (10 idiomas) y correr `flutter gen-l10n`.
+- **Emuladores:** `source ~/android-lab/env.sh`; lanzar con `sg kvm`. **tv_1080p (emulator-5554) = 960dp = la TV AOC real del usuario** → las capturas son fieles para layout/escala de TV. Puertos dinámicos por orden de arranque → verificar identidad con `adb -s emulator-XXXX shell wm size`.
+- **Capturas de UI con datos reales:** `integration_test/v27_capture_test.dart` + `flutter drive --driver=test_driver/integration_test.dart --target=... --dart-define-from-file=<scratch>/tmdb_env.json` (token runtime-only, NUNCA commiteado). Usa una `AppDatabase` in-memory como shim; ojo con el **gotcha de timing del debounce** al teclear en el teclado TV (ráfaga `tap+pump()` y UN settle largo, no `pumpAndSettle` entre teclas — documentado en el test). Ensamblar en un Artefacto de revisión para el usuario ANTES de publicar.
+
+## A.0.4 Git y release (obligatorio)
+- **Nunca firmar** commits/PRs (sin `Co-Authored-By`, sin "Generated with Claude Code", sin trailers).
+- **Commit/push solo cuando el usuario lo pida explícitamente.**
+- Release: bump `pubspec.yaml` `X.Y.Z+BUILD` → prepend `CHANGELOG.md` → commit → `git tag vX.Y.Z` → `git push origin main` + **`git push origin vX.Y.Z` EXPLÍCITO** (`--follow-tags` NO sube tags ligeros → el CI no dispara). `release.yml` firma con `secrets.ANDROID_KEYSTORE_BASE64` (no hay keystore local — el APK con la MISMA firma solo lo produce el build del tag en CI) y publica los assets.
+
+---
+
+# §A-hist — v2.2.3 (fixes de TV) · SUPERADO por §A (v2.7.0) arriba, se conserva como referencia
 
 **Rama:** `main` · **Versión publicada:** `2.2.3+18` (tag `v2.2.3`). v2.2.2 salió antes el mismo día.
 **Estado:** ✅ v2.2.2 released. **v2.2.3 = lote de 4 fixes de Android TV** reportados por el usuario en TV real. Suite 383 pass / 2 skip · analyze 0 errores · gate del retador *aprobado-con-correcciones* (3 correcciones aplicadas, sin auditor — no alto riesgo).
