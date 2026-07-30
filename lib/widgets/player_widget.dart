@@ -256,9 +256,19 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   void _startPreBuffer() {
     final isLive = widget.contentItem.contentType == ContentType.liveStream;
+    final tv = ResponsiveHelper.isTelevisionDevice;
     _preBuffer = PreBufferMonitor(targetSecs: isLive ? 4 : 15);
     _preBuffering = true;
-    _player.pause(); // retener el video; el caché sigue llenándose
+    if (tv) {
+      // En la TV (receptor de casting) NO retener el vídeo: algunas cajas no
+      // llenan/reportan la caché con el vídeo en pausa antes del primer frame,
+      // así que retener dejaba las métricas en 0 y el arranque colgado (el
+      // usuario veía un círculo eterno). Reproducir y SOLO monitorear: el panel
+      // muestra velocidad/buffer reales mientras carga y se oculta al estabilizar.
+      _player.play();
+    } else {
+      _player.pause(); // móvil: retener el vídeo; el caché sigue llenándose
+    }
     _preBufferClock
       ..reset()
       ..start();
@@ -312,6 +322,33 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _preBuffering = false;
     _player.play();
     if (mounted) setState(() {});
+  }
+
+  /// Indicador de carga inicial (mientras se abre el stream, antes de que el
+  /// pre-buffer tome métricas): "Preparando…" en vez de un círculo mudo, para
+  /// que en la TV el usuario sepa que está conectando y no vea solo una rueda.
+  Widget _buildLoadingIndicator(BuildContext context) {
+    return Container(
+      color: Colors.black,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(color: Color(0xFFD2603A)),
+          const SizedBox(height: 18),
+          Text(
+            // Null-safe: durante la carga el árbol puede no tener aún los
+            // delegados de localización (p. ej. en tests) → fallback.
+            AppLocalizations.of(context)?.prebuffer_preparing ?? 'Preparando…',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: AppThemes.tenFoot(context, 16),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildPreBuffer(BuildContext context) {
@@ -2163,14 +2200,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         child: Stack(
           fit: StackFit.passthrough,
           children: [
-            isLoading
-                ? Container(
-                    color: Colors.black,
-                    child: const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    ),
-                  )
-                : _buildPlayerContent(),
+            isLoading ? _buildLoadingIndicator(context) : _buildPlayerContent(),
             // Gate de casting por encima (también durante la carga), para poder
             // enviar a la TV sin esperar a que cargue el stream.
             _buildCastGate(context),
@@ -2186,14 +2216,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         child: Stack(
           fit: StackFit.passthrough,
           children: [
-            isLoading
-                ? Container(
-                    color: Colors.black,
-                    child: const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    ),
-                  )
-                : _buildPlayerContent(),
+            isLoading ? _buildLoadingIndicator(context) : _buildPlayerContent(),
             // Gate de casting por encima (también durante la carga), para poder
             // enviar a la TV sin esperar a que cargue el stream.
             _buildCastGate(context),

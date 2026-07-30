@@ -1,3 +1,12 @@
+# [2.10.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.10.1...v2.10.2) (2026-07-30)
+
+
+### Bug Fixes
+
+* **la TV se quedaba en un círculo de carga sin reproducir:** en el televisor ya no se retiene el vídeo en pausa esperando llenar el colchón — algunas cajas de TV no reportan la caché con el vídeo en pausa y quedaba colgado; ahora reproduce y solo monitorea, mostrando velocidad/buffer/estado reales mientras carga
+* **indicador de carga más claro:** durante la conexión inicial se muestra "Preparando…" en vez de un círculo sin información
+
+
 # [2.10.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.10.0...v2.10.1) (2026-07-30)
 
 
