@@ -48,6 +48,8 @@ class CastSenderController extends ChangeNotifier {
   CastMedia? _media;
   String? _error;
   bool _wrongPin = false;
+  String? _pin; // cacheado tras emparejar, para reconexión transparente
+  bool _reconnecting = false;
 
   CastPhase get phase => _phase;
   List<CastDevice> get devices => List.unmodifiable(_devices);
@@ -96,7 +98,7 @@ class CastSenderController extends ChangeNotifier {
     _device = device;
     _set(CastPhase.connecting);
     try {
-      _sender = _senderFactory();
+      _sender = _senderFactory()..onDisconnected = _onDisconnected;
       await _sender!.connect(device.host, device.port);
       _set(CastPhase.pairing);
     } catch (e) {
@@ -115,6 +117,7 @@ class CastSenderController extends ChangeNotifier {
         notifyListeners();
         return;
       }
+      _pin = pin; // para reconexión transparente
       await _startPlayback();
     } catch (e) {
       _set(CastPhase.error, error: e.toString());
@@ -140,6 +143,40 @@ class CastSenderController extends ChangeNotifier {
     _set(CastPhase.casting);
   }
 
+  /// El socket se cayó: si estábamos transmitiendo, reconecta y reanuda el
+  /// control sin volver a pedir el PIN (lo tenemos cacheado).
+  void _onDisconnected() {
+    if (_phase == CastPhase.casting && !_reconnecting) _reconnect();
+  }
+
+  Future<void> _reconnect() async {
+    final device = _device, pin = _pin, media = _media;
+    final playlist = AppState.currentPlaylist;
+    if (device == null || pin == null || media == null || playlist == null) return;
+    _reconnecting = true;
+    for (var attempt = 0; attempt < 5 && _phase == CastPhase.casting; attempt++) {
+      await Future<void>.delayed(Duration(seconds: 1 << attempt)); // 1,2,4,8,16s
+      try {
+        _sender = _senderFactory()..onDisconnected = _onDisconnected;
+        await _sender!.connect(device.host, device.port);
+        if (await _sender!.pair(pin)) {
+          await _sender!.sendLoad(
+            channelId: media.channelId,
+            contentType: media.contentType,
+            url: playlist.url ?? '',
+            username: playlist.username ?? '',
+            password: playlist.password ?? '',
+            title: media.title,
+            ext: media.ext,
+          );
+          _reconnecting = false;
+          return; // control recuperado
+        }
+      } catch (_) {/* reintentar con backoff */}
+    }
+    _reconnecting = false;
+  }
+
   void channelUp() => _sender?.sendCommand(CmdType.channelUp);
   void channelDown() => _sender?.sendCommand(CmdType.channelDown);
   void playPause() => _sender?.sendCommand(CmdType.playPause);
@@ -153,6 +190,8 @@ class CastSenderController extends ChangeNotifier {
     _media = null;
     _devices = const [];
     _wrongPin = false;
+    _pin = null;
+    _reconnecting = false;
     _set(CastPhase.idle);
   }
 

@@ -34,6 +34,9 @@ class PhoneSenderService {
   final _stateController = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onState => _stateController.stream;
 
+  /// Se invoca si el socket se cierra (para que el controlador reconecte).
+  void Function()? onDisconnected;
+
   /// Descubre TVs anunciando [kCastServiceType] durante [timeout].
   Future<List<CastDevice>> discover(
       {Duration timeout = const Duration(seconds: 4)}) async {
@@ -65,6 +68,7 @@ class PhoneSenderService {
     _ws = await WebSocket.connect('ws://$host:$port');
     _sub = _ws!.listen(_onMessage, onDone: () {
       if (!_pairResult.isCompleted) _pairResult.complete(false);
+      onDisconnected?.call();
     });
     await _challengeReady.future
         .timeout(const Duration(seconds: 5), onTimeout: () {

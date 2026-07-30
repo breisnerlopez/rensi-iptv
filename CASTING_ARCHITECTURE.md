@@ -358,6 +358,32 @@ Entrypoint del televisor: UI de espera con **nombre + PIN de emparejamiento**, l
 
 ---
 
+## 14. Estado de productización (feat/cast-second-screen)
+
+Mapeo de cada requisito a su estado. Construido y probado en emulador; la validación final entre dos dispositivos físicos (mDNS real, decode HW, ver el video) requiere el hardware del usuario.
+
+| Requisito | Estado | Evidencia / nota |
+|---|---|---|
+| Móvil como control, TV reproduce directo (sin mirroring/relay/backend) | ✅ | Arquitectura D end-to-end |
+| Descubrimiento en la red (mDNS/DNS-SD, `bonsoir`) | ✅ | `POC_DISCOVERED=1` en emulador |
+| Emparejamiento seguro (PIN → HKDF → HMAC) | ✅ | 6 tests de pairing |
+| Credenciales sin exponer (AES-GCM por la LAN, sin backend) | ✅ | 6 tests de cifrado (nunca en claro, MAC, clave equivocada) |
+| No dos conexiones (handoff stop-móvil→open-TV) | ✅ | Libera el player local al castear (R4) |
+| Live, películas y series | ✅ | `container_extension` end-to-end; 4 tests de URL por tipo |
+| Cambio rápido de canal (zap) | ✅ | Comandos `ch_up/ch_down` por el canal |
+| Reconexión del canal de control | ✅ | Reconecta con backoff + re-empareja con PIN cacheado; test |
+| App TV receptora (leanback) | ✅ | Manifest ya era leanback; receptor integrado en la app (`TvReceiverHost`) |
+| UX comercial (botón Cast, selector, PIN, pantalla de control) | ✅ | Widgets + widget test |
+| i18n | ✅ | 14 cadenas en los 10 idiomas |
+| Tests | ✅ | 26 de casting + suite completa **417 passed, 2 skipped** |
+| **Subtítulos / pistas de audio sobre el cast** (elegir desde el móvil) | ⏳ pendiente | Requiere round-trip: la TV reporta pistas → el móvil las elige → la TV aplica |
+| **`wss` + cert-pinning** (defensa en profundidad) | ⏳ pendiente | Las credenciales YA van cifradas (AES-GCM); `wss` cifra además el resto del canal. `web_socket_channel` no expone `SecurityContext` → ruta `WebSocket.connect(customClient:)` |
+| **Validación final en hardware** (TV AOC + teléfono) | ⏳ pendiente | mDNS en LAN física + AP-isolation (R11), decode HW (R5), frame de video real — solo verificable en dispositivos reales |
+
+**Artefactos añadidos** (además de los del PoC): `lib/controllers/cast_sender_controller.dart`, `lib/widgets/cast/{cast_flow,casting_screen,tv_receiver_host}.dart`, `ext` end-to-end en el protocolo, integración en `player_widget.dart` y `main.dart`, cadenas cast en los 10 `.arb`, y tests en `test/services/cast/`, `test/controllers/`, `test/widgets/`.
+
+---
+
 ## Apéndice — Fuentes
 
 - Google Cast — Registration, Supported Media, Web Receiver Core Features, Streaming Protocols, Live Streaming, Android TV Receiver / Cast Connect, Troubleshooting (developers.google.com/cast).

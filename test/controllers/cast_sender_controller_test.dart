@@ -136,6 +136,24 @@ void main() {
     expect(fake.commands, contains('stop'));
   });
 
+  test('reconexión: al caerse el socket mientras castea, reconecta y reenvía el LOAD',
+      () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    await c.beginCast(media);
+    await c.submitPin('123456');
+    expect(c.isCasting, isTrue);
+    expect(fake.loads.length, 1);
+
+    // Simular caída del socket estando en casting.
+    fake.onDisconnected?.call();
+    // Esperar el primer backoff (1s) + la reconexión.
+    await Future<void>.delayed(const Duration(seconds: 2));
+
+    expect(c.isCasting, isTrue, reason: 'sigue en casting tras reconectar');
+    expect(fake.loads.length, 2, reason: 'reenvió el LOAD tras reconectar');
+  }, timeout: const Timeout(Duration(seconds: 10)));
+
   test('comandos de control se envían por el canal', () async {
     final fake = _FakeSender(devices: [oneTv]);
     final c = make(fake);
