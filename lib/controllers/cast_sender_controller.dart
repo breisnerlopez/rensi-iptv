@@ -130,7 +130,7 @@ class CastSenderController extends ChangeNotifier {
     try {
       _sender = _senderFactory()..onDisconnected = _onDisconnected;
       _sender!.onTracks.listen(_onTracks);
-      await _sender!.connect(device.host, device.port);
+      await _sender!.connect(device.host, device.port, secure: device.secure);
       _set(CastPhase.pairing);
     } catch (e) {
       _set(CastPhase.error, error: e.toString());
@@ -195,7 +195,7 @@ class CastSenderController extends ChangeNotifier {
       try {
         _sender = _senderFactory()..onDisconnected = _onDisconnected;
         _sender!.onTracks.listen(_onTracks);
-        await _sender!.connect(device.host, device.port);
+        await _sender!.connect(device.host, device.port, secure: device.secure);
         if (await _sender!.pair(pin)) {
           await _sendLoad();
           _reconnecting = false;

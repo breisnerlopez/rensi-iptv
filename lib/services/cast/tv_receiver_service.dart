@@ -17,6 +17,7 @@ import 'package:bonsoir/bonsoir.dart';
 import 'package:cryptography/cryptography.dart';
 
 import 'cast_protocol.dart';
+import 'cast_tls.dart';
 
 /// Petición de reproducción que llega desde el móvil (credenciales ya
 /// descifradas). El receptor construye la URL igual que el móvil.
@@ -56,13 +57,19 @@ class CastLoadRequest {
 }
 
 class TvReceiverService {
-  TvReceiverService({required this.deviceName, String? pin})
+  TvReceiverService({required this.deviceName, String? pin, this.tls})
       : pin = pin ?? _genPin();
 
   final String deviceName;
 
   /// PIN de 6 dígitos que la UI de la TV muestra al usuario.
   final String pin;
+
+  /// Cert TLS para servir wss:// con cert-pinning. Si es null, sirve ws:// plano
+  /// (útil en pruebas por loopback; el fingerprint atado al proof queda vacío).
+  final CastTls? tls;
+
+  List<int> get _certfp => tls?.fingerprint ?? const [];
 
   HttpServer? _server;
   BonsoirBroadcast? _broadcast;
@@ -91,7 +98,15 @@ class TvReceiverService {
   /// Arranca el servidor y el anuncio mDNS. Devuelve el puerto ligado.
   /// [advertise] false = solo servidor (útil en pruebas por loopback).
   Future<int> start({bool advertise = true}) async {
-    _server = await HttpServer.bind(InternetAddress.anyIPv4, 0, shared: true);
+    if (tls != null) {
+      final ctx = SecurityContext(withTrustedRoots: false)
+        ..useCertificateChainBytes(tls!.certPem.codeUnits)
+        ..usePrivateKeyBytes(tls!.keyPem.codeUnits);
+      _server =
+          await HttpServer.bindSecure(InternetAddress.anyIPv4, 0, ctx, shared: true);
+    } else {
+      _server = await HttpServer.bind(InternetAddress.anyIPv4, 0, shared: true);
+    }
     _server!.listen(_handleHttpRequest);
     if (advertise) {
       _broadcast = BonsoirBroadcast(
@@ -99,7 +114,7 @@ class TvReceiverService {
           name: deviceName,
           type: kCastServiceType,
           port: _server!.port,
-          attributes: {'device': deviceName},
+          attributes: {'device': deviceName, 'tls': tls != null ? '1' : '0'},
         ),
       );
       await _broadcast!.ready;
@@ -145,6 +160,7 @@ class TvReceiverService {
       'salt': base64.encode(salt),
       'nonce': base64.encode(nonce),
       'device': deviceName,
+      'certfp': base64.encode(_certfp),
     }));
 
     ws.listen((data) async {
@@ -154,8 +170,8 @@ class TvReceiverService {
           case MsgType.pairProof:
             attempts++;
             sessionKey = await CastCrypto.deriveSessionKey(pin, salt);
-            paired =
-                await CastCrypto.verifyProof(sessionKey!, nonce, msg['proof'] as String);
+            paired = await CastCrypto.verifyProof(
+                sessionKey!, nonce, msg['proof'] as String, _certfp);
             ws.add(encodeMsg(MsgType.pairResult, {'ok': paired}));
             if (paired) _activeWs = ws;
             if (!paired && attempts >= 3) {

@@ -19,7 +19,7 @@ class _FakeSender extends PhoneSenderService {
   Future<List<CastDevice>> discover({Duration timeout = const Duration(seconds: 4)}) async =>
       devices;
   @override
-  Future<void> connect(String host, int port) async {}
+  Future<void> connect(String host, int port, {bool secure = false}) async {}
   @override
   Future<bool> pair(String pin) async => pin == correctPin;
   @override

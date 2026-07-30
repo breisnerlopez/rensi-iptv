@@ -7,6 +7,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:media_kit/media_kit.dart' hide PlayerState, Playlist;
 
 import '../../l10n/localization_extension.dart';
@@ -16,6 +17,7 @@ import '../../models/playlist_content_model.dart';
 import '../../models/playlist_model.dart';
 import '../../services/app_state.dart';
 import '../../services/cast/cast_protocol.dart';
+import '../../services/cast/cast_tls.dart';
 import '../../services/cast/tv_receiver_service.dart';
 import '../../services/event_bus.dart';
 import '../../services/player_state.dart';
@@ -50,8 +52,28 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     }
   }
 
+  Future<CastTls?> _loadOrCreateCert() async {
+    const storage = FlutterSecureStorage(
+      aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    );
+    try {
+      final cert = await storage.read(key: 'cast.tls.cert');
+      final key = await storage.read(key: 'cast.tls.key');
+      if (cert != null && key != null) {
+        return CastTls.fromStorage({'cert': cert, 'key': key});
+      }
+      final tls = CastTls.generate(); // costoso: solo la 1ª vez
+      await storage.write(key: 'cast.tls.cert', value: tls.certPem);
+      await storage.write(key: 'cast.tls.key', value: tls.keyPem);
+      return tls;
+    } catch (_) {
+      return null; // si falla, se sirve ws:// (degradado)
+    }
+  }
+
   Future<void> _start() async {
-    final service = TvReceiverService(deviceName: widget.deviceName);
+    final tls = await _loadOrCreateCert();
+    final service = TvReceiverService(deviceName: widget.deviceName, tls: tls);
     try {
       await service.start();
     } catch (_) {

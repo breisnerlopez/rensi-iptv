@@ -74,6 +74,32 @@ void main() {
     });
   });
 
+  group('CastCrypto — atadura del cert al PIN (wss / anti-MITM)', () {
+    test('el proof cambia si cambia el certfp', () async {
+      final salt = randomBytes(16);
+      final nonce = randomBytes(16);
+      final key = await CastCrypto.deriveSessionKey('123456', salt);
+      final p1 = await CastCrypto.proof(key, nonce, [1, 2, 3]);
+      final p2 = await CastCrypto.proof(key, nonce, [9, 9, 9]);
+      expect(p1, isNot(p2));
+    });
+
+    test('un proof atado a un certfp NO verifica contra otro cert (MITM)', () async {
+      final salt = randomBytes(16);
+      final nonce = randomBytes(16);
+      final key = await CastCrypto.deriveSessionKey('123456', salt);
+      final proof = await CastCrypto.proof(key, nonce, [1, 2, 3, 4]);
+      expect(await CastCrypto.verifyProof(key, nonce, proof, [5, 6, 7, 8]), isFalse);
+      expect(await CastCrypto.verifyProof(key, nonce, proof, [1, 2, 3, 4]), isTrue);
+    });
+
+    test('bytesEqual compara en tiempo constante', () {
+      expect(CastCrypto.bytesEqual([1, 2, 3], [1, 2, 3]), isTrue);
+      expect(CastCrypto.bytesEqual([1, 2, 3], [1, 2, 4]), isFalse);
+      expect(CastCrypto.bytesEqual([1, 2], [1, 2, 3]), isFalse);
+    });
+  });
+
   group('CastCrypto — credenciales cifradas (AES-GCM)', () {
     test('round-trip: descifra exactamente lo cifrado', () async {
       final key = await CastCrypto.deriveSessionKey('123456', randomBytes(16));

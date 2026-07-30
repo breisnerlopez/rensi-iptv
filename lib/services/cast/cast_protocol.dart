@@ -68,17 +68,33 @@ class CastCrypto {
     );
   }
 
-  /// Prueba de conocimiento del PIN: HMAC(clave, nonce). Base64.
-  static Future<String> proof(SecretKey key, List<int> nonce) async {
-    final mac = await _hmac.calculateMac(nonce, secretKey: key);
+  /// Prueba de conocimiento del PIN: HMAC(clave, nonce || certfp). Base64.
+  ///
+  /// Atar el fingerprint del cert TLS de la TV (`certfp`) al HMAC del PIN da
+  /// autenticación mutua del canal: un MITM que presente otro cert no puede
+  /// forjar una prueba válida sin el PIN. En ws:// plano `certfp` es vacío y se
+  /// reduce a HMAC(clave, nonce).
+  static Future<String> proof(SecretKey key, List<int> nonce,
+      [List<int> certfp = const []]) async {
+    final mac = await _hmac.calculateMac([...nonce, ...certfp], secretKey: key);
     return base64.encode(mac.bytes);
   }
 
-  /// Verificación en tiempo constante de la prueba recibida.
-  static Future<bool> verifyProof(
-      SecretKey key, List<int> nonce, String proofB64) async {
-    final expected = await proof(key, nonce);
+  /// Verificación en tiempo constante de la prueba recibida (atada a `certfp`).
+  static Future<bool> verifyProof(SecretKey key, List<int> nonce, String proofB64,
+      [List<int> certfp = const []]) async {
+    final expected = await proof(key, nonce, certfp);
     return _constantTimeEquals(expected, proofB64);
+  }
+
+  /// Comparación de bytes en tiempo constante (para pinning de fingerprint).
+  static bool bytesEqual(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    var diff = 0;
+    for (var i = 0; i < a.length; i++) {
+      diff |= a[i] ^ b[i];
+    }
+    return diff == 0;
   }
 
   /// Cifra un JSON (p.ej. credenciales) con AES-GCM. Devuelve {n, ct} base64

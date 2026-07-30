@@ -6,8 +6,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:bonsoir/bonsoir.dart';
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:cryptography/cryptography.dart';
 
 import 'cast_protocol.dart';
@@ -17,7 +19,15 @@ class CastDevice {
   final String name;
   final String host;
   final int port;
-  CastDevice({required this.name, required this.host, required this.port});
+
+  /// La TV sirve wss:// (nuestra app siempre lo hace). En pruebas por loopback
+  /// se usa ws:// (secure=false).
+  final bool secure;
+  CastDevice(
+      {required this.name,
+      required this.host,
+      required this.port,
+      this.secure = true});
 }
 
 class PhoneSenderService {
@@ -27,6 +37,8 @@ class PhoneSenderService {
   // Estado del reto de emparejamiento recibido de la TV.
   List<int>? _salt;
   List<int>? _nonce;
+  List<int>? _certfp; // fingerprint del cert que la TV firma en el reto
+  Uint8List? _capturedFp; // fingerprint del cert TLS realmente presentado (wss)
   SecretKey? _sessionKey;
   final _pairResult = Completer<bool>();
   final _challengeReady = Completer<void>();
@@ -69,8 +81,20 @@ class PhoneSenderService {
   }
 
   /// Abre el WebSocket con la TV y espera el reto de emparejamiento.
-  Future<void> connect(String host, int port) async {
-    _ws = await WebSocket.connect('ws://$host:$port');
+  /// Con [secure] usa wss:// y captura el cert presentado para pinearlo (el
+  /// pinning se cierra en pair(), atado al PIN).
+  Future<void> connect(String host, int port, {bool secure = false}) async {
+    if (secure) {
+      final client = HttpClient(context: SecurityContext(withTrustedRoots: false))
+        ..badCertificateCallback = (cert, h, p) {
+          // TOFU: aceptamos el cert y validamos por el proof atado al PIN.
+          _capturedFp = Uint8List.fromList(crypto.sha256.convert(cert.der).bytes);
+          return true;
+        };
+      _ws = await WebSocket.connect('wss://$host:$port', customClient: client);
+    } else {
+      _ws = await WebSocket.connect('ws://$host:$port');
+    }
     _sub = _ws!.listen(_onMessage, onDone: () {
       if (!_pairResult.isCompleted) _pairResult.complete(false);
       onDisconnected?.call();
@@ -86,8 +110,15 @@ class PhoneSenderService {
     if (_salt == null || _nonce == null) {
       throw StateError('connect() debe completarse antes de pair()');
     }
+    final certfp = _certfp ?? const <int>[];
+    // Anti-MITM: si vamos por wss, el cert TLS presentado debe coincidir con el
+    // fingerprint que la TV firmó en el reto; si no, hay un intermediario.
+    if (_capturedFp != null && !CastCrypto.bytesEqual(_capturedFp!, certfp)) {
+      if (!_pairResult.isCompleted) _pairResult.complete(false);
+      return false;
+    }
     _sessionKey = await CastCrypto.deriveSessionKey(pin, _salt!);
-    final proof = await CastCrypto.proof(_sessionKey!, _nonce!);
+    final proof = await CastCrypto.proof(_sessionKey!, _nonce!, certfp);
     _ws!.add(encodeMsg(MsgType.pairProof, {'proof': proof}));
     return _pairResult.future.timeout(const Duration(seconds: 5));
   }
@@ -128,6 +159,8 @@ class PhoneSenderService {
       case MsgType.pairChallenge:
         _salt = base64.decode(msg['salt'] as String);
         _nonce = base64.decode(msg['nonce'] as String);
+        final fp = msg['certfp'] as String?;
+        _certfp = (fp != null && fp.isNotEmpty) ? base64.decode(fp) : const [];
         if (!_challengeReady.isCompleted) _challengeReady.complete();
         break;
       case MsgType.pairResult:

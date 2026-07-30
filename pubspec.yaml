@@ -60,6 +60,8 @@ dependencies:
   # Casting / segunda pantalla (feat/cast-second-screen):
   bonsoir: ^5.1.11 # descubrimiento mDNS/DNS-SD (anunciar en TV + descubrir en móvil)
   web_socket_channel: ^3.0.1 # cliente del canal de control (servidor = dart:io en la TV)
+  basic_utils: ^5.7.0 # cert X.509 self-signed en runtime para wss (cert-pinning)
+  crypto: ^3.0.0 # SHA-256 del cert DER (fingerprint para pinning)
 
 dependency_overrides:
   media_kit:

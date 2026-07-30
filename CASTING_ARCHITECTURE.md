@@ -370,15 +370,18 @@ Mapeo de cada requisito a su estado. Construido y probado en emulador; la valida
 | Credenciales sin exponer (AES-GCM por la LAN, sin backend) | ✅ | 6 tests de cifrado (nunca en claro, MAC, clave equivocada) |
 | No dos conexiones (handoff stop-móvil→open-TV) | ✅ | Libera el player local al castear (R4) |
 | Live, películas y series | ✅ | `container_extension` end-to-end; 4 tests de URL por tipo |
-| Cambio rápido de canal (zap) | ✅ | Comandos `ch_up/ch_down` por el canal |
+| Cambio rápido de canal (zap) | ✅ | El móvil (que tiene el catálogo) reenvía el LOAD del canal vecino; test |
 | Reconexión del canal de control | ✅ | Reconecta con backoff + re-empareja con PIN cacheado; test |
 | App TV receptora (leanback) | ✅ | Manifest ya era leanback; receptor integrado en la app (`TvReceiverHost`) |
-| UX comercial (botón Cast, selector, PIN, pantalla de control) | ✅ | Widgets + widget test |
+| **Seguir navegando mientras castea** | ✅ | Mini-control global persistente; el player devuelve a navegar al castear |
+| Control remoto real (play/pausa/stop) | ✅ | El receptor aplica los comandos vía EventBus (antes se enviaban sin consumirse) |
+| **Subtítulos / pistas de audio sobre el cast** | ✅ | Round-trip: la TV reporta sus pistas reales (libmpv) → selector en el móvil → aplica vía EventBus; test |
+| **`wss` + cert-pinning atado al PIN** | ✅ | Cert EC self-signed (`basic_utils`) persistido; `bindSecure`; el móvil pinea el cert y el proof ata el fingerprint al PIN (autenticación mutua, anti-MITM). **Probado end-to-end por loopback headless.** ⚠️ latencia de generación de cert en TV de gama baja: validar en hardware |
+| UX comercial (botón Cast, selector, PIN, control) | ✅ | Widgets + widget test |
 | i18n | ✅ | 14 cadenas en los 10 idiomas |
-| Tests | ✅ | 26 de casting + suite completa **417 passed, 2 skipped** |
-| **Subtítulos / pistas de audio sobre el cast** (elegir desde el móvil) | ⏳ pendiente | Requiere round-trip: la TV reporta pistas → el móvil las elige → la TV aplica |
-| **`wss` + cert-pinning** (defensa en profundidad) | ⏳ pendiente | Las credenciales YA van cifradas (AES-GCM); `wss` cifra además el resto del canal. `web_socket_channel` no expone `SecurityContext` → ruta `WebSocket.connect(customClient:)` |
-| **Validación final en hardware** (TV AOC + teléfono) | ⏳ pendiente | mDNS en LAN física + AP-isolation (R11), decode HW (R5), frame de video real — solo verificable en dispositivos reales |
+| Permiso de red local (Android 13+) | ✅ | `NEARBY_WIFI_DEVICES` declarado |
+| Tests | ✅ | ~35 de casting (cripto, wss loopback, máquina de estados, zap, pistas, widget) + suite completa **426 passed, 2 skipped** |
+| **Validación final en hardware** (TV AOC + teléfono) | ⏳ tuyo | mDNS en LAN física + AP-isolation (R11), decode HW (R5), frame de video real, y latencia de cert-gen — solo en dispositivos reales. Guía: `CASTING_HARDWARE_VALIDATION.md` |
 
 **Artefactos añadidos** (además de los del PoC): `lib/controllers/cast_sender_controller.dart`, `lib/widgets/cast/{cast_flow,casting_screen,tv_receiver_host}.dart`, `ext` end-to-end en el protocolo, integración en `player_widget.dart` y `main.dart`, cadenas cast en los 10 `.arb`, y tests en `test/services/cast/`, `test/controllers/`, `test/widgets/`.
 
