@@ -1,4 +1,9 @@
 {
+  "prebuffer_preparing": "Wird vorbereitet…",
+  "prebuffer_ready": "Bereit für flüssige Wiedergabe",
+  "prebuffer_slow": "Langsame Verbindung",
+  "prebuffer_stalled": "Keine Daten – Verbindung prüfen",
+  "prebuffer_play_now": "Jetzt abspielen",
   "cast_gate_prompt": "An deinen Fernseher senden?",
   "cast_gate_play_now": "Hier abspielen",
   "cast_to_tv": "Auf TV streamen",

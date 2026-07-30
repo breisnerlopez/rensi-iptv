@@ -1,4 +1,9 @@
 {
+  "prebuffer_preparing": "正在准备…",
+  "prebuffer_ready": "可以流畅播放了",
+  "prebuffer_slow": "连接较慢",
+  "prebuffer_stalled": "没有数据——请检查网络",
+  "prebuffer_play_now": "立即播放",
   "cast_gate_prompt": "发送到电视？",
   "cast_gate_play_now": "在此播放",
   "cast_to_tv": "投屏到电视",

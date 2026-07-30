@@ -9,6 +9,21 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get prebuffer_preparing => 'तैयार हो रहा है…';
+
+  @override
+  String get prebuffer_ready => 'सुचारू प्लेबैक के लिए तैयार';
+
+  @override
+  String get prebuffer_slow => 'धीमा कनेक्शन';
+
+  @override
+  String get prebuffer_stalled => 'कोई डेटा नहीं — कनेक्शन जांचें';
+
+  @override
+  String get prebuffer_play_now => 'अभी चलाएं';
+
+  @override
   String get cast_gate_prompt => 'इसे अपने टीवी पर भेजें?';
 
   @override

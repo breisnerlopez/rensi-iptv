@@ -9,6 +9,21 @@ class AppLocalizationsTr extends AppLocalizations {
   AppLocalizationsTr([String locale = 'tr']) : super(locale);
 
   @override
+  String get prebuffer_preparing => 'Hazırlanıyor…';
+
+  @override
+  String get prebuffer_ready => 'Akıcı oynatmaya hazır';
+
+  @override
+  String get prebuffer_slow => 'Yavaş bağlantı';
+
+  @override
+  String get prebuffer_stalled => 'Veri yok — bağlantını kontrol et';
+
+  @override
+  String get prebuffer_play_now => 'Şimdi oynat';
+
+  @override
   String get cast_gate_prompt => 'TV\'ye gönderilsin mi?';
 
   @override

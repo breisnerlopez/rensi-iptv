@@ -1,4 +1,9 @@
 {
+  "prebuffer_preparing": "Preparando…",
+  "prebuffer_ready": "Pronto para reprodução fluida",
+  "prebuffer_slow": "Conexão lenta",
+  "prebuffer_stalled": "Sem dados: verifique sua conexão",
+  "prebuffer_play_now": "Reproduzir agora",
   "cast_gate_prompt": "Enviar isto para a TV?",
   "cast_gate_play_now": "Reproduzir aqui",
   "cast_to_tv": "Transmitir para a TV",

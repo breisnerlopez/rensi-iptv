@@ -1,4 +1,9 @@
 {
+  "prebuffer_preparing": "तैयार हो रहा है…",
+  "prebuffer_ready": "सुचारू प्लेबैक के लिए तैयार",
+  "prebuffer_slow": "धीमा कनेक्शन",
+  "prebuffer_stalled": "कोई डेटा नहीं — कनेक्शन जांचें",
+  "prebuffer_play_now": "अभी चलाएं",
   "cast_gate_prompt": "इसे अपने टीवी पर भेजें?",
   "cast_gate_play_now": "यहीं चलाएं",
   "cast_to_tv": "टीवी पर कास्ट करें",

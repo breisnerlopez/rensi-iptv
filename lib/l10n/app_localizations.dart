@@ -114,6 +114,36 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @prebuffer_preparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing…'**
+  String get prebuffer_preparing;
+
+  /// No description provided for @prebuffer_ready.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready for smooth playback'**
+  String get prebuffer_ready;
+
+  /// No description provided for @prebuffer_slow.
+  ///
+  /// In en, this message translates to:
+  /// **'Slow connection'**
+  String get prebuffer_slow;
+
+  /// No description provided for @prebuffer_stalled.
+  ///
+  /// In en, this message translates to:
+  /// **'No data — check your connection'**
+  String get prebuffer_stalled;
+
+  /// No description provided for @prebuffer_play_now.
+  ///
+  /// In en, this message translates to:
+  /// **'Play now'**
+  String get prebuffer_play_now;
+
   /// No description provided for @cast_gate_prompt.
   ///
   /// In en, this message translates to:

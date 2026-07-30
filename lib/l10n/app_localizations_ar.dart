@@ -9,6 +9,21 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
+  String get prebuffer_preparing => 'جارٍ التحضير…';
+
+  @override
+  String get prebuffer_ready => 'جاهز للتشغيل السلس';
+
+  @override
+  String get prebuffer_slow => 'اتصال بطيء';
+
+  @override
+  String get prebuffer_stalled => 'لا توجد بيانات — تحقق من اتصالك';
+
+  @override
+  String get prebuffer_play_now => 'التشغيل الآن';
+
+  @override
   String get cast_gate_prompt => 'إرسال هذا إلى التلفزيون؟';
 
   @override

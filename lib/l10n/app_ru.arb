@@ -1,4 +1,9 @@
 {
+  "prebuffer_preparing": "Подготовка…",
+  "prebuffer_ready": "Готово к плавному воспроизведению",
+  "prebuffer_slow": "Медленное соединение",
+  "prebuffer_stalled": "Нет данных — проверьте соединение",
+  "prebuffer_play_now": "Смотреть сейчас",
   "cast_gate_prompt": "Отправить на телевизор?",
   "cast_gate_play_now": "Смотреть здесь",
   "cast_to_tv": "Транслировать на ТВ",

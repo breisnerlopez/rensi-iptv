@@ -1,4 +1,9 @@
 {
+  "prebuffer_preparing": "Hazırlanıyor…",
+  "prebuffer_ready": "Akıcı oynatmaya hazır",
+  "prebuffer_slow": "Yavaş bağlantı",
+  "prebuffer_stalled": "Veri yok — bağlantını kontrol et",
+  "prebuffer_play_now": "Şimdi oynat",
   "cast_gate_prompt": "TV'ye gönderilsin mi?",
   "cast_gate_play_now": "Burada oynat",
   "cast_to_tv": "TV'ye yayınla",

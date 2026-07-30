@@ -9,6 +9,21 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get prebuffer_preparing => 'Preparando…';
+
+  @override
+  String get prebuffer_ready => 'Pronto para reprodução fluida';
+
+  @override
+  String get prebuffer_slow => 'Conexão lenta';
+
+  @override
+  String get prebuffer_stalled => 'Sem dados: verifique sua conexão';
+
+  @override
+  String get prebuffer_play_now => 'Reproduzir agora';
+
+  @override
   String get cast_gate_prompt => 'Enviar isto para a TV?';
 
   @override

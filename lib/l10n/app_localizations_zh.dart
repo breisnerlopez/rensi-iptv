@@ -9,6 +9,21 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get prebuffer_preparing => '正在准备…';
+
+  @override
+  String get prebuffer_ready => '可以流畅播放了';
+
+  @override
+  String get prebuffer_slow => '连接较慢';
+
+  @override
+  String get prebuffer_stalled => '没有数据——请检查网络';
+
+  @override
+  String get prebuffer_play_now => '立即播放';
+
+  @override
   String get cast_gate_prompt => '发送到电视？';
 
   @override

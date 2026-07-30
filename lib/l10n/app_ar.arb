@@ -1,4 +1,9 @@
 {
+  "prebuffer_preparing": "جارٍ التحضير…",
+  "prebuffer_ready": "جاهز للتشغيل السلس",
+  "prebuffer_slow": "اتصال بطيء",
+  "prebuffer_stalled": "لا توجد بيانات — تحقق من اتصالك",
+  "prebuffer_play_now": "التشغيل الآن",
   "cast_gate_prompt": "إرسال هذا إلى التلفزيون؟",
   "cast_gate_play_now": "التشغيل هنا",
   "cast_to_tv": "البث إلى التلفزيون",

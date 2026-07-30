@@ -9,6 +9,21 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
+  String get prebuffer_preparing => 'Preparando…';
+
+  @override
+  String get prebuffer_ready => 'Listo para reproducción fluida';
+
+  @override
+  String get prebuffer_slow => 'Conexión lenta';
+
+  @override
+  String get prebuffer_stalled => 'Sin datos: revisa tu conexión';
+
+  @override
+  String get prebuffer_play_now => 'Reproducir ahora';
+
+  @override
   String get cast_gate_prompt => '¿Enviar esto a tu TV?';
 
   @override

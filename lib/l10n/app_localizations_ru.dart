@@ -9,6 +9,21 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get prebuffer_preparing => 'Подготовка…';
+
+  @override
+  String get prebuffer_ready => 'Готово к плавному воспроизведению';
+
+  @override
+  String get prebuffer_slow => 'Медленное соединение';
+
+  @override
+  String get prebuffer_stalled => 'Нет данных — проверьте соединение';
+
+  @override
+  String get prebuffer_play_now => 'Смотреть сейчас';
+
+  @override
   String get cast_gate_prompt => 'Отправить на телевизор?';
 
   @override

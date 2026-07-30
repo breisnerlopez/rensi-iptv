@@ -9,6 +9,21 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get prebuffer_preparing => 'Wird vorbereitet…';
+
+  @override
+  String get prebuffer_ready => 'Bereit für flüssige Wiedergabe';
+
+  @override
+  String get prebuffer_slow => 'Langsame Verbindung';
+
+  @override
+  String get prebuffer_stalled => 'Keine Daten – Verbindung prüfen';
+
+  @override
+  String get prebuffer_play_now => 'Jetzt abspielen';
+
+  @override
   String get cast_gate_prompt => 'An deinen Fernseher senden?';
 
   @override
