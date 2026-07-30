@@ -1,3 +1,11 @@
+# [2.8.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.8.0...v2.8.1) (2026-07-30)
+
+
+### Features
+
+* **recordar tu televisor una semana:** ahora solo escribes el código de emparejamiento la **primera** vez que envías a un televisor; durante los **7 días** siguientes los envíos a esa misma TV van directos, sin pedir el código otra vez (incluso si reinicias la app en el televisor). Al cabo de la semana vuelve a pedirlo. Sin ajustes ni pasos extra
+
+
 # [2.8.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.7.0...v2.8.0) (2026-07-30)
 
 
