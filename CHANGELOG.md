@@ -1,9 +1,10 @@
-# [2.8.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.7.0...v2.8.0) (2026-07-29)
+# [2.8.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.7.0...v2.8.0) (2026-07-30)
 
 
 ### Features
 
-* **casting a Android TV — segunda pantalla (PoC, arquitectura D):** el móvil actúa como control remoto y el televisor reproduce el stream IPTV directamente desde el servidor (sin mirroring, sin retransmitir el video, sin backend). Incluye descubrimiento en la red (mDNS/DNS-SD), emparejamiento por PIN (HKDF→HMAC challenge-response), envío de credenciales Xtream **cifradas** (AES-GCM) por la LAN, y un entrypoint receptor de televisor (`main_tv.dart`) que reproduce con media_kit/libmpv. **No usa Google Cast/Cast Connect**, por lo que funciona con la app instalada por sideload (sin depender de Google Play). Probado end-to-end en el emulador Android TV (descubrir → emparejar → LOAD cifrado → reproducir). **Aún no expuesto en la UI del móvil (sin botón "Cast") ni empaquetado como app leanback de TV** — es la base funcional; el diseño y los resultados están en `CASTING_ARCHITECTURE.md`
+* **enviar la reproducción a tu Android TV (segunda pantalla):** abre un canal, película o episodio en el móvil y envíalo a tu televisor con el botón "Enviar a la TV" — la TV reproduce el contenido **directamente desde el servidor IPTV** y el teléfono queda como control remoto (sin duplicar la imagen ni retransmitir el video). Mientras la TV reproduce, **puedes seguir navegando y buscando** en el móvil: una barra de control persistente te deja pausar, cambiar de canal, elegir **audio y subtítulos**, y detener, sin volver a la pantalla de reproducción. La TV se descubre sola en tu red Wi-Fi y el emparejamiento es con un **código que aparece en el televisor**. Requiere tener la app **abierta en el Android TV** (funciona instalándola por sideload; no depende de Google Cast ni de Google Play)
+* **casting seguro sin exponer tus credenciales:** el usuario y la contraseña de tu proveedor viajan **cifrados** por tu red local (AES-GCM) y nunca a ningún servidor; el canal con la TV usa **wss:// con fijación de certificado atada al código de emparejamiento**, de modo que solo tu televisor recibe el contenido. La reconexión es automática si el Wi-Fi parpadea
 
 
 ### Bug Fixes
