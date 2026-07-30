@@ -1,3 +1,11 @@
+# [2.8.3](https://github.com/breisnerlopez/rensi-iptv/compare/v2.8.2...v2.8.3) (2026-07-30)
+
+
+### Features
+
+* **carga inteligente para conexiones lentas:** al abrir un canal, película o episodio, antes de reproducir se muestra **a qué velocidad se está descargando** y cuánto **buffer** se ha acumulado; la reproducción empieza sola cuando hay colchón suficiente para verla **fluida**, o puedes forzarla con **"Reproducir ahora"**. Si la conexión va lenta o no llegan datos, lo indica claramente en vez de quedarse en una carga infinita
+
+
 # [2.8.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.8.1...v2.8.2) (2026-07-30)
 
 
