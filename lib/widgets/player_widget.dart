@@ -20,6 +20,7 @@ import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:provider/provider.dart';
 import 'package:rensi_iptv/controllers/cast_sender_controller.dart';
+import 'package:rensi_iptv/utils/pre_buffer_monitor.dart';
 import 'package:rensi_iptv/widgets/cast/cast_flow.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:rensi_iptv/utils/subtitle_configuration.dart';
@@ -229,6 +230,127 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Timer? _castGateTimer;
   int _castGateSecs = 8;
 
+  // --- Pre-buffer inteligente (conexiones lentas) ---
+  // Abre el stream, PAUSA el video (el demuxer sigue llenando el caché) y
+  // reproduce al alcanzar colchón suficiente (o al forzar). Muestra velocidad,
+  // buffer y estado (cargando/listo/lento/sin datos). Solo se activa en el open
+  // inicial; el zapping/reconexión no pasan por aquí.
+  Timer? _preBufferTimer;
+  PreBufferMonitor? _preBuffer;
+  bool _preBuffering = false;
+  final Stopwatch _preBufferClock = Stopwatch();
+
+  void _startPreBuffer() {
+    final isLive = widget.contentItem.contentType == ContentType.liveStream;
+    _preBuffer = PreBufferMonitor(targetSecs: isLive ? 4 : 15);
+    _preBuffering = true;
+    _player.pause(); // retener el video; el caché sigue llenándose
+    _preBufferClock
+      ..reset()
+      ..start();
+    if (mounted) setState(() {});
+    _preBufferTimer?.cancel();
+    _preBufferTimer =
+        Timer.periodic(const Duration(milliseconds: 500), (t) async {
+      if (!mounted || !_preBuffering) {
+        t.cancel();
+        return;
+      }
+      double buf = 0, spd = 0;
+      final pf = _player.platform;
+      if (pf is NativePlayer) {
+        try {
+          buf = double.tryParse(
+                  await pf.getProperty('demuxer-cache-duration')) ??
+              0;
+          spd = double.tryParse(await pf.getProperty('cache-speed')) ?? 0;
+        } catch (_) {}
+      }
+      _preBuffer!.add(PreBufferSample(buf, spd, _preBufferClock.elapsed));
+      if (mounted) setState(() {});
+      if (_preBuffer!.isReady) _finishPreBuffer(); // auto-inicia al haber colchón
+    });
+  }
+
+  /// Reproduce: automático al alcanzar la meta de caché, o forzado por el usuario.
+  void _finishPreBuffer() {
+    _preBufferTimer?.cancel();
+    _preBufferClock.stop();
+    if (!_preBuffering) return;
+    _preBuffering = false;
+    _player.play();
+    if (mounted) setState(() {});
+  }
+
+  Widget _buildPreBuffer(BuildContext context) {
+    if (!_preBuffering || _preBuffer == null) return const SizedBox.shrink();
+    final loc = context.loc;
+    final m = _preBuffer!;
+    final speedMbps = m.speedBps / (1024 * 1024);
+    final (String status, Color color, IconData icon) = switch (m.phase) {
+      BufferPhase.ready => (loc.prebuffer_ready, Colors.greenAccent, Icons.check_circle),
+      BufferPhase.slow => (loc.prebuffer_slow, Colors.orangeAccent, Icons.warning_amber),
+      BufferPhase.stalled => (loc.prebuffer_stalled, Colors.redAccent, Icons.wifi_off),
+      _ => (loc.prebuffer_preparing, Colors.white70, Icons.downloading),
+    };
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.92),
+        alignment: Alignment.center,
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 46),
+              const SizedBox(height: 14),
+              Text(status,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: color,
+                      fontSize: AppThemes.tenFoot(context, 18),
+                      fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              Text('${speedMbps.toStringAsFixed(2)} MB/s',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: AppThemes.tenFoot(context, 15))),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: 260,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: m.progress,
+                    minHeight: 6,
+                    backgroundColor: Colors.white24,
+                    color: const Color(0xFFD2603A),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text('${m.bufferedSecs.toStringAsFixed(0)} s / ${m.targetSecs.toStringAsFixed(0)} s',
+                  style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: AppThemes.tenFoot(context, 13))),
+              const SizedBox(height: 22),
+              SizedBox(
+                width: 260,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFD2603A),
+                      padding: const EdgeInsets.symmetric(vertical: 13)),
+                  onPressed: _finishPreBuffer, // "Reproducir ahora"
+                  child: Text(loc.prebuffer_play_now),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   bool _needsCastGate() {
     if (ResponsiveHelper.isTelevisionDevice || !mounted) return false;
     try {
@@ -436,6 +558,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _errorHandler.reset();
     _cast?.removeListener(_onCastChanged);
     _castGateTimer?.cancel();
+    _preBufferTimer?.cancel();
     _remoteFocusNode.dispose();
     _pipWidthSubscription?.cancel();
     _pipHeightSubscription?.cancel();
@@ -826,6 +949,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
         play: true,
       );
     }
+
+    // Pre-buffer: pausa el video y llena caché; muestra velocidad/buffer/estado
+    // y reproduce al haber colchón suficiente (o al forzar). Cubre además el
+    // caso de cargas infinitas / errores de conexión con estado visible.
+    _startPreBuffer();
 
     _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
       List<ConnectivityResult> results,
@@ -1988,6 +2116,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
             // Gate de casting por encima (también durante la carga), para poder
             // enviar a la TV sin esperar a que cargue el stream.
             _buildCastGate(context),
+            // Pre-buffer: velocidad/buffer/estado (por encima de la carga).
+            _buildPreBuffer(context),
           ],
         ),
       );
@@ -2009,6 +2139,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
             // Gate de casting por encima (también durante la carga), para poder
             // enviar a la TV sin esperar a que cargue el stream.
             _buildCastGate(context),
+            // Pre-buffer: velocidad/buffer/estado (por encima de la carga).
+            _buildPreBuffer(context),
           ],
         ),
       );
