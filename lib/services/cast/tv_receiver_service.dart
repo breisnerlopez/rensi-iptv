@@ -46,6 +46,10 @@ class CastLoadRequest {
   String get mediaUrl {
     final suffix = ext.isNotEmpty ? '.$ext' : '';
     switch (contentType) {
+      case 'file':
+        // Archivo local servido por el móvil en la LAN: la URL ya es el media
+        // completo (http://<ip>:<port>/f), no se arma URL Xtream.
+        return url;
       case 'vod':
         return '$url/movie/$username/$password/$channelId$suffix';
       case 'series':

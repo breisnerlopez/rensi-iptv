@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import '../services/app_state.dart';
 import '../services/cast/cast_protocol.dart';
 import '../services/cast/cast_trust_store.dart';
+import '../services/cast/local_file_server.dart';
 import '../services/cast/phone_sender_service.dart';
 
 enum CastPhase {
@@ -61,6 +62,13 @@ class CastSenderController extends ChangeNotifier {
   final CastTrustStore _trust;
   PhoneSenderService? _sender;
 
+  // Streaming de un archivo LOCAL (descarga offline) del móvil a la TV por la
+  // LAN. Cuando [_localUrl] != null, el LOAD envía esta URL (sin credenciales)
+  // en vez de armar la URL Xtream desde la playlist activa.
+  LocalFileServer? _fileServer;
+  String? _localUrl;
+  String? _localFilePath; // recordado para reintentar un cast de archivo local
+
   CastPhase _phase = CastPhase.idle;
   List<CastDevice> _devices = const [];
   CastDevice? _device;
@@ -103,7 +111,14 @@ class CastSenderController extends ChangeNotifier {
   /// Comienza a descubrir TVs. El contenido a castear se recuerda para enviarlo
   /// en cuanto el emparejamiento termine.
   Future<void> beginCast(CastMedia media,
-      {List<CastMedia>? queue, int index = 0}) async {
+      {List<CastMedia>? queue, int index = 0, String? localUrl}) async {
+    // Un cast normal (sin localUrl) suelta cualquier archivo local previo para
+    // que _sendLoad no reutilice una URL de archivo caduca.
+    if (localUrl == null) {
+      await _fileServer?.stop();
+      _localFilePath = null;
+    }
+    _localUrl = localUrl;
     _media = media;
     _queue = queue;
     _index = index;
@@ -186,19 +201,91 @@ class CastSenderController extends ChangeNotifier {
   }
 
   Future<bool> _sendLoad() async {
-    final playlist = AppState.currentPlaylist;
     final media = _media;
-    if (_sender == null || playlist == null || media == null) return false;
+    if (_sender == null || media == null) return false;
+    final local = _localUrl;
+    final String url, user, pass;
+    if (local != null) {
+      // Archivo local servido por LAN: la URL ES el media, sin credenciales.
+      url = local;
+      user = '';
+      pass = '';
+    } else {
+      final playlist = AppState.currentPlaylist;
+      if (playlist == null) return false;
+      url = playlist.url ?? '';
+      user = playlist.username ?? '';
+      pass = playlist.password ?? '';
+    }
     await _sender!.sendLoad(
       channelId: media.channelId,
       contentType: media.contentType,
-      url: playlist.url ?? '',
-      username: playlist.username ?? '',
-      password: playlist.password ?? '',
+      url: url,
+      username: user,
+      password: pass,
       title: media.title,
       ext: media.ext,
     );
     return true;
+  }
+
+  /// Envía a la TV un archivo LOCAL ya descargado: lo sirve por HTTP en la LAN
+  /// (con Range para permitir seek) y manda un LOAD con la URL local. El vídeo
+  /// viaja móvil→TV por Wi-Fi, sin gastar Internet. Requiere estar en la misma
+  /// red que la TV (si no hay IP LAN, aborta con error 'no_wifi').
+  Future<void> castLocalFile({
+    required String filePath,
+    required String contentId,
+    required String title,
+    String ext = '',
+  }) async {
+    _localFilePath = filePath;
+    final server = _fileServer ??= LocalFileServer();
+    final String lanUrl;
+    try {
+      lanUrl = await server.serve(filePath);
+    } catch (e) {
+      _set(CastPhase.error, error: e.toString());
+      return;
+    }
+    if (await server.lanIp() == null) {
+      await server.stop();
+      _set(CastPhase.error, error: 'no_wifi');
+      return;
+    }
+    await beginCast(
+      CastMedia(
+        channelId: contentId,
+        contentType: 'file',
+        title: title,
+        ext: ext,
+      ),
+      localUrl: lanUrl,
+    );
+    // Descubrimiento/conexión fallidos: soltar el servidor de archivos.
+    if (_phase == CastPhase.error) {
+      await _fileServer?.stop();
+      _localUrl = null;
+    }
+  }
+
+  /// Reintenta el último cast tras un error, eligiendo el camino correcto:
+  /// re-sirve el archivo local si era un cast de archivo, o redescubre TVs si
+  /// era un cast normal de la playlist.
+  void retry() {
+    final media = _media;
+    if (media == null) return;
+    final path = _localFilePath;
+    if (media.contentType == 'file' && path != null) {
+      castLocalFile(
+        filePath: path,
+        contentId: media.channelId,
+        title: media.title,
+        ext: media.ext,
+      );
+    } else {
+      beginCast(media, queue: _queue, index: _index);
+    }
   }
 
   /// El socket se cayó: si estábamos transmitiendo, reconecta y reanuda el
@@ -268,6 +355,9 @@ class CastSenderController extends ChangeNotifier {
   Future<void> stopCasting() async {
     _sender?.sendCommand(CmdType.stop);
     await _sender?.close();
+    await _fileServer?.stop();
+    _localUrl = null;
+    _localFilePath = null;
     _sender = null;
     _device = null;
     _media = null;
@@ -288,6 +378,7 @@ class CastSenderController extends ChangeNotifier {
   @override
   void dispose() {
     _sender?.close();
+    _fileServer?.stop();
     super.dispose();
   }
 }

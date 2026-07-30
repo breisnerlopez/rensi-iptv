@@ -1453,4 +1453,64 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get video_decoding_software => '软件';
+
+  @override
+  String get downloads_title => '下载';
+
+  @override
+  String get downloads_empty => '暂无下载';
+
+  @override
+  String get downloads_storage_used => '已用存储空间';
+
+  @override
+  String get download_status_queued => '排队中';
+
+  @override
+  String get download_status_downloading => '下载中';
+
+  @override
+  String get download_status_paused => '已暂停';
+
+  @override
+  String get download_status_complete => '已完成';
+
+  @override
+  String get download_status_failed => '失败';
+
+  @override
+  String get download_pause => '暂停';
+
+  @override
+  String get download_resume => '继续';
+
+  @override
+  String get download_cancel => '取消';
+
+  @override
+  String get download_delete => '删除';
+
+  @override
+  String get download_send_to_tv => '发送到 TV';
+
+  @override
+  String get download_for_offline => '下载以离线观看';
+
+  @override
+  String get download_available_offline => '可离线观看';
+
+  @override
+  String get download_failed_retry => '下载失败 — 点按以重试';
+
+  @override
+  String get tv_ready_subtitle => '已准备好从您的手机接收内容';
+
+  @override
+  String get tv_playback_settings => '播放设置';
+
+  @override
+  String get tv_replay_failed => '无法获取此内容以进行播放。';
+
+  @override
+  String get cast_need_wifi => '连接到与 TV 相同的 Wi‑Fi 网络以发送文件。';
 }

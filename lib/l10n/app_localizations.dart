@@ -2867,6 +2867,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Software'**
   String get video_decoding_software;
+
+  /// No description provided for @downloads_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloads'**
+  String get downloads_title;
+
+  /// No description provided for @downloads_empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No downloads yet'**
+  String get downloads_empty;
+
+  /// No description provided for @downloads_storage_used.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage used'**
+  String get downloads_storage_used;
+
+  /// No description provided for @download_status_queued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get download_status_queued;
+
+  /// No description provided for @download_status_downloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading'**
+  String get download_status_downloading;
+
+  /// No description provided for @download_status_paused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get download_status_paused;
+
+  /// No description provided for @download_status_complete.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete'**
+  String get download_status_complete;
+
+  /// No description provided for @download_status_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get download_status_failed;
+
+  /// No description provided for @download_pause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get download_pause;
+
+  /// No description provided for @download_resume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get download_resume;
+
+  /// No description provided for @download_cancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get download_cancel;
+
+  /// No description provided for @download_delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get download_delete;
+
+  /// No description provided for @download_send_to_tv.
+  ///
+  /// In en, this message translates to:
+  /// **'Send to TV'**
+  String get download_send_to_tv;
+
+  /// No description provided for @download_for_offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Download for offline'**
+  String get download_for_offline;
+
+  /// No description provided for @download_available_offline.
+  ///
+  /// In en, this message translates to:
+  /// **'Available offline'**
+  String get download_available_offline;
+
+  /// No description provided for @download_failed_retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed — tap to retry'**
+  String get download_failed_retry;
+
+  /// No description provided for @tv_ready_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to receive content from your phone'**
+  String get tv_ready_subtitle;
+
+  /// No description provided for @tv_playback_settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback settings'**
+  String get tv_playback_settings;
+
+  /// No description provided for @tv_replay_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t retrieve this content to play it.'**
+  String get tv_replay_failed;
+
+  /// No description provided for @cast_need_wifi.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to the same Wi‑Fi network as the TV to send the file.'**
+  String get cast_need_wifi;
 }
 
 class _AppLocalizationsDelegate

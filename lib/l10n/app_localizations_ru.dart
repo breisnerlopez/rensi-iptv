@@ -1511,4 +1511,67 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get video_decoding_software => 'Программное';
+
+  @override
+  String get downloads_title => 'Загрузки';
+
+  @override
+  String get downloads_empty => 'Пока нет загрузок';
+
+  @override
+  String get downloads_storage_used => 'Использовано памяти';
+
+  @override
+  String get download_status_queued => 'В очереди';
+
+  @override
+  String get download_status_downloading => 'Загрузка';
+
+  @override
+  String get download_status_paused => 'Приостановлено';
+
+  @override
+  String get download_status_complete => 'Завершено';
+
+  @override
+  String get download_status_failed => 'Ошибка';
+
+  @override
+  String get download_pause => 'Пауза';
+
+  @override
+  String get download_resume => 'Возобновить';
+
+  @override
+  String get download_cancel => 'Отмена';
+
+  @override
+  String get download_delete => 'Удалить';
+
+  @override
+  String get download_send_to_tv => 'Отправить на TV';
+
+  @override
+  String get download_for_offline => 'Скачать для просмотра офлайн';
+
+  @override
+  String get download_available_offline => 'Доступно офлайн';
+
+  @override
+  String get download_failed_retry =>
+      'Не удалось загрузить — нажмите, чтобы повторить';
+
+  @override
+  String get tv_ready_subtitle => 'Готово к приёму контента с телефона';
+
+  @override
+  String get tv_playback_settings => 'Настройки воспроизведения';
+
+  @override
+  String get tv_replay_failed =>
+      'Не удалось получить этот контент для воспроизведения.';
+
+  @override
+  String get cast_need_wifi =>
+      'Подключитесь к той же сети Wi‑Fi, что и TV, чтобы отправить файл.';
 }

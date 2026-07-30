@@ -1506,4 +1506,68 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get video_decoding_software => 'सॉफ़्टवेयर';
+
+  @override
+  String get downloads_title => 'डाउनलोड';
+
+  @override
+  String get downloads_empty => 'अभी तक कोई डाउनलोड नहीं';
+
+  @override
+  String get downloads_storage_used => 'उपयोग किया गया स्टोरेज';
+
+  @override
+  String get download_status_queued => 'कतार में';
+
+  @override
+  String get download_status_downloading => 'डाउनलोड हो रहा है';
+
+  @override
+  String get download_status_paused => 'रुका हुआ';
+
+  @override
+  String get download_status_complete => 'पूर्ण';
+
+  @override
+  String get download_status_failed => 'विफल';
+
+  @override
+  String get download_pause => 'रोकें';
+
+  @override
+  String get download_resume => 'फिर से शुरू करें';
+
+  @override
+  String get download_cancel => 'रद्द करें';
+
+  @override
+  String get download_delete => 'हटाएं';
+
+  @override
+  String get download_send_to_tv => 'TV पर भेजें';
+
+  @override
+  String get download_for_offline => 'ऑफ़लाइन देखने के लिए डाउनलोड करें';
+
+  @override
+  String get download_available_offline => 'ऑफ़लाइन उपलब्ध';
+
+  @override
+  String get download_failed_retry =>
+      'डाउनलोड विफल — पुनः प्रयास के लिए टैप करें';
+
+  @override
+  String get tv_ready_subtitle =>
+      'आपके फ़ोन से सामग्री प्राप्त करने के लिए तैयार';
+
+  @override
+  String get tv_playback_settings => 'प्लेबैक सेटिंग्स';
+
+  @override
+  String get tv_replay_failed =>
+      'इस सामग्री को चलाने के लिए प्राप्त नहीं किया जा सका।';
+
+  @override
+  String get cast_need_wifi =>
+      'फ़ाइल भेजने के लिए TV के समान Wi‑Fi नेटवर्क से कनेक्ट करें।';
 }

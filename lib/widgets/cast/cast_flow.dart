@@ -66,6 +66,40 @@ Future<void> startCastFlow(BuildContext context, CastMedia media,
   }
 }
 
+/// Inicia el envío a la TV de un archivo LOCAL ya descargado (streaming por la
+/// LAN, sin gastar Internet). Reusa el mismo modal guiado que [startCastFlow].
+Future<void> startLocalFileCastFlow(
+  BuildContext context, {
+  required String filePath,
+  required String contentId,
+  required String title,
+  String ext = '',
+}) async {
+  final controller = context.read<CastSenderController>();
+  if (controller.isCasting) return;
+  controller.castLocalFile(
+    filePath: filePath,
+    contentId: contentId,
+    title: title,
+    ext: ext,
+  );
+  await showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: const Color(0xFF15151A),
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (_) => ChangeNotifierProvider<CastSenderController>.value(
+      value: controller,
+      child: const _CastSheet(),
+    ),
+  );
+  if (!controller.isCasting && controller.phase != CastPhase.idle) {
+    controller.cancel();
+  }
+}
+
 class _CastSheet extends StatefulWidget {
   const _CastSheet();
   @override
@@ -144,14 +178,16 @@ class _CastSheetState extends State<_CastSheet> {
       case CastPhase.pairing:
         return _pairingBody(context, c, loc);
       case CastPhase.error:
+        final msg = switch (c.error) {
+          'no_devices' => loc.cast_no_devices,
+          // Archivo local sin Wi‑Fi: la TV no puede alcanzar la URL de la LAN.
+          'no_wifi' => loc.cast_need_wifi,
+          _ => loc.cast_error,
+        };
         return [
-          _status(
-              c.error == 'no_devices' ? loc.cast_no_devices : loc.cast_error,
-              icon: Icons.tv_off),
+          _status(msg, icon: Icons.tv_off),
           const SizedBox(height: 16),
-          _primaryButton(loc.cast_retry, () {
-            if (c.media != null) c.beginCast(c.media!);
-          }),
+          _primaryButton(loc.cast_retry, c.retry),
         ];
       case CastPhase.idle:
       case CastPhase.casting:

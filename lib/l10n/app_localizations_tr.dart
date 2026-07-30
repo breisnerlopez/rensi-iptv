@@ -1506,4 +1506,66 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get video_decoding_software => 'Yazılım';
+
+  @override
+  String get downloads_title => 'İndirilenler';
+
+  @override
+  String get downloads_empty => 'Henüz indirme yok';
+
+  @override
+  String get downloads_storage_used => 'Kullanılan depolama';
+
+  @override
+  String get download_status_queued => 'Sırada';
+
+  @override
+  String get download_status_downloading => 'İndiriliyor';
+
+  @override
+  String get download_status_paused => 'Duraklatıldı';
+
+  @override
+  String get download_status_complete => 'Tamamlandı';
+
+  @override
+  String get download_status_failed => 'Başarısız';
+
+  @override
+  String get download_pause => 'Duraklat';
+
+  @override
+  String get download_resume => 'Sürdür';
+
+  @override
+  String get download_cancel => 'İptal';
+
+  @override
+  String get download_delete => 'Sil';
+
+  @override
+  String get download_send_to_tv => 'TV\'ye gönder';
+
+  @override
+  String get download_for_offline => 'Çevrimdışı için indir';
+
+  @override
+  String get download_available_offline => 'Çevrimdışı kullanılabilir';
+
+  @override
+  String get download_failed_retry =>
+      'İndirme başarısız — yeniden denemek için dokunun';
+
+  @override
+  String get tv_ready_subtitle => 'Telefonunuzdan içerik almaya hazır';
+
+  @override
+  String get tv_playback_settings => 'Oynatma ayarları';
+
+  @override
+  String get tv_replay_failed => 'Bu içerik oynatmak için alınamadı.';
+
+  @override
+  String get cast_need_wifi =>
+      'Dosyayı göndermek için TV ile aynı Wi‑Fi ağına bağlanın.';
 }

@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:ui' show PlatformDispatcher;
 import 'package:rensi_iptv/controllers/playlist_controller.dart';
 import 'package:rensi_iptv/screens/app_initializer_screen.dart';
+import 'package:rensi_iptv/screens/tv/tv_receiver_home.dart';
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/services/service_locator.dart';
+import 'package:rensi_iptv/services/download_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'controllers/locale_provider.dart';
@@ -26,6 +28,10 @@ Future<void> main() async {
   // real platform signal instead of relying on screen width alone.
   await ResponsiveHelper.initTelevisionFlag();
   await setupServiceLocator();
+  // Rastrear descargas de background desde el arranque (capta las que
+  // terminaron/avanzaron con la app cerrada). Lazy en el resto de superficies
+  // para no tocar el plugin al solo renderizar un botón (ver DownloadService).
+  DownloadService.instance.ensureListening();
   runApp(
     MultiProvider(
       providers: [
@@ -185,7 +191,14 @@ class MyApp extends StatelessWidget {
         }
         return withCast(themed);
       },
-      home: TvReceiverHost(child: AppInitializerScreen()),
+      // En un dispositivo Android TV la app se reduce a receptor + histórico +
+      // ajustes mínimos (sin búsqueda ni catálogo): TvReceiverHost sigue
+      // escuchando en la LAN y superpone el PIN. En móvil/tablet, la app normal.
+      home: TvReceiverHost(
+        child: ResponsiveHelper.isTelevisionDevice
+            ? const TvReceiverHome()
+            : AppInitializerScreen(),
+      ),
       debugShowCheckedModeBanner: false,
     );
   }

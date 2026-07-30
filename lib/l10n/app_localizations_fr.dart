@@ -1524,4 +1524,69 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get video_decoding_software => 'Logiciel';
+
+  @override
+  String get downloads_title => 'Téléchargements';
+
+  @override
+  String get downloads_empty => 'Aucun téléchargement pour l\'instant';
+
+  @override
+  String get downloads_storage_used => 'Stockage utilisé';
+
+  @override
+  String get download_status_queued => 'En file d\'attente';
+
+  @override
+  String get download_status_downloading => 'Téléchargement en cours';
+
+  @override
+  String get download_status_paused => 'En pause';
+
+  @override
+  String get download_status_complete => 'Terminé';
+
+  @override
+  String get download_status_failed => 'Échec';
+
+  @override
+  String get download_pause => 'Mettre en pause';
+
+  @override
+  String get download_resume => 'Reprendre';
+
+  @override
+  String get download_cancel => 'Annuler';
+
+  @override
+  String get download_delete => 'Supprimer';
+
+  @override
+  String get download_send_to_tv => 'Envoyer vers la TV';
+
+  @override
+  String get download_for_offline =>
+      'Télécharger pour un visionnage hors ligne';
+
+  @override
+  String get download_available_offline => 'Disponible hors ligne';
+
+  @override
+  String get download_failed_retry =>
+      'Échec du téléchargement — appuyez pour réessayer';
+
+  @override
+  String get tv_ready_subtitle =>
+      'Prêt à recevoir du contenu depuis votre téléphone';
+
+  @override
+  String get tv_playback_settings => 'Paramètres de lecture';
+
+  @override
+  String get tv_replay_failed =>
+      'Impossible de récupérer ce contenu pour le lire.';
+
+  @override
+  String get cast_need_wifi =>
+      'Connectez-vous au même réseau Wi‑Fi que la TV pour envoyer le fichier.';
 }

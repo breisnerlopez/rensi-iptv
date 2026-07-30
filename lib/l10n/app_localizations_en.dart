@@ -1505,4 +1505,65 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get video_decoding_software => 'Software';
+
+  @override
+  String get downloads_title => 'Downloads';
+
+  @override
+  String get downloads_empty => 'No downloads yet';
+
+  @override
+  String get downloads_storage_used => 'Storage used';
+
+  @override
+  String get download_status_queued => 'Queued';
+
+  @override
+  String get download_status_downloading => 'Downloading';
+
+  @override
+  String get download_status_paused => 'Paused';
+
+  @override
+  String get download_status_complete => 'Complete';
+
+  @override
+  String get download_status_failed => 'Failed';
+
+  @override
+  String get download_pause => 'Pause';
+
+  @override
+  String get download_resume => 'Resume';
+
+  @override
+  String get download_cancel => 'Cancel';
+
+  @override
+  String get download_delete => 'Delete';
+
+  @override
+  String get download_send_to_tv => 'Send to TV';
+
+  @override
+  String get download_for_offline => 'Download for offline';
+
+  @override
+  String get download_available_offline => 'Available offline';
+
+  @override
+  String get download_failed_retry => 'Download failed — tap to retry';
+
+  @override
+  String get tv_ready_subtitle => 'Ready to receive content from your phone';
+
+  @override
+  String get tv_playback_settings => 'Playback settings';
+
+  @override
+  String get tv_replay_failed => 'Couldn\'t retrieve this content to play it.';
+
+  @override
+  String get cast_need_wifi =>
+      'Connect to the same Wi‑Fi network as the TV to send the file.';
 }

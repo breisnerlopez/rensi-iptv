@@ -205,6 +205,9 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     final ctype = switch (req.contentType) {
       'vod' => ContentType.vod,
       'series' => ContentType.series,
+      // Archivo local (descarga offline) enviado por LAN: tratarlo como VOD
+      // para que el player ofrezca barra de progreso/seek.
+      'file' => ContentType.vod,
       _ => ContentType.liveStream,
     };
     final item = ContentItem(

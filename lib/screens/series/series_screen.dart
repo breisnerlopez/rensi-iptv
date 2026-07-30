@@ -3,6 +3,7 @@ import 'package:rensi_iptv/database/database.dart';
 import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/widgets/download_button.dart';
 import 'package:rensi_iptv/models/tmdb_search_result.dart';
 import 'package:rensi_iptv/redesign/search_redesign.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
@@ -1088,6 +1089,18 @@ class _SeriesScreenState extends State<SeriesScreen> {
                     Icons.play_circle_outline,
                     color: Theme.of(context).primaryColor,
                     size: 24,
+                  ),
+                  // Descarga offline del episodio (mismo ContentItem que abre
+                  // el player, así DownloadButton resuelve su url).
+                  DownloadButton(
+                    item: ContentItem(
+                      episode.episodeId,
+                      episode.title,
+                      episode.movieImage ?? '',
+                      ContentType.series,
+                      containerExtension: episode.containerExtension,
+                      season: episode.season,
+                    ),
                   ),
                 ],
               ),

@@ -1501,4 +1501,65 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get video_decoding_software => 'برمجي';
+
+  @override
+  String get downloads_title => 'التنزيلات';
+
+  @override
+  String get downloads_empty => 'لا توجد تنزيلات بعد';
+
+  @override
+  String get downloads_storage_used => 'مساحة التخزين المستخدمة';
+
+  @override
+  String get download_status_queued => 'في قائمة الانتظار';
+
+  @override
+  String get download_status_downloading => 'جارٍ التنزيل';
+
+  @override
+  String get download_status_paused => 'متوقف مؤقتًا';
+
+  @override
+  String get download_status_complete => 'مكتمل';
+
+  @override
+  String get download_status_failed => 'فشل';
+
+  @override
+  String get download_pause => 'إيقاف مؤقت';
+
+  @override
+  String get download_resume => 'استئناف';
+
+  @override
+  String get download_cancel => 'إلغاء';
+
+  @override
+  String get download_delete => 'حذف';
+
+  @override
+  String get download_send_to_tv => 'إرسال إلى TV';
+
+  @override
+  String get download_for_offline => 'التنزيل للمشاهدة دون اتصال';
+
+  @override
+  String get download_available_offline => 'متاح دون اتصال';
+
+  @override
+  String get download_failed_retry => 'فشل التنزيل — انقر لإعادة المحاولة';
+
+  @override
+  String get tv_ready_subtitle => 'جاهز لاستقبال المحتوى من هاتفك';
+
+  @override
+  String get tv_playback_settings => 'إعدادات التشغيل';
+
+  @override
+  String get tv_replay_failed => 'تعذّر استرجاع هذا المحتوى لتشغيله.';
+
+  @override
+  String get cast_need_wifi =>
+      'اتصل بنفس شبكة Wi‑Fi المتصلة بها TV لإرسال الملف.';
 }

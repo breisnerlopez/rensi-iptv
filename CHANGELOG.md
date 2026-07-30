@@ -1,3 +1,13 @@
+# [2.9.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.8.3...v2.9.0) (2026-07-30)
+
+
+### Features
+
+* **descargas offline (películas y episodios):** ahora puedes **descargar** una película o un episodio para verlo **sin conexión**. Un botón de descarga en la ficha muestra el estado (encolar, en curso, disponible offline) y una nueva pantalla **Descargas** (en Ajustes) lista todo con su progreso y acciones de **pausar/reanudar/cancelar/borrar**, más un indicador del **espacio usado**. Al terminar de ver un contenido descargado, se libera solo (borrar-al-ver, con un tope de espacio que purga lo más antiguo)
+* **enviar una descarga a la TV por Wi‑Fi (sin gastar Internet):** desde **Descargas → Enviar a la TV**, el móvil sirve el archivo local por la red y la TV lo reproduce en streaming **sin consumir datos**. Requiere estar en la misma red Wi‑Fi que la TV (si no, lo avisa)
+* **la TV como reproductor dedicado:** en un Android TV la app se reduce a lo esencial —**reproductor + histórico de lo reproducido + ajustes de reproducción**—, sin listas ni búsqueda; sigue recibiendo lo que envíes desde el móvil y muestra el PIN de emparejamiento
+
+
 # [2.8.3](https://github.com/breisnerlopez/rensi-iptv/compare/v2.8.2...v2.8.3) (2026-07-30)
 
 

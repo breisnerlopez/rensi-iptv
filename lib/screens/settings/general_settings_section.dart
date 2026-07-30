@@ -27,6 +27,7 @@ import '../../services/app_state.dart';
 import '../../services/m3u_parser.dart';
 import '../../widgets/dropdown_tile_widget.dart';
 import '../../widgets/section_title_widget.dart';
+import '../downloads_screen.dart';
 import '../m3u/m3u_data_loader_screen.dart';
 import '../playlist_screen.dart';
 import '../xtream-codes/xtream_code_data_loader_screen.dart';
@@ -456,6 +457,22 @@ String _videoDecoder = 'auto';
                         ),
                       );
                     }
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.download_for_offline_outlined),
+                  title: Text(context.loc.downloads_title),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DownloadsScreen(),
+                      ),
+                    );
                   },
                 ),
               ),

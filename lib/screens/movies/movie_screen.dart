@@ -23,6 +23,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../widgets/download_button.dart';
 import '../../../widgets/player_widget.dart';
 import '../../../widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
@@ -1346,8 +1347,14 @@ class _MovieActionsRowState extends State<_MovieActionsRow> {
 
     return Row(
       children: [
-        // Descargar / Enviar hidden: both are "Próximamente" (not implemented
-        // yet), so they shouldn't be focusable dead ends on TV.
+        // Descarga offline (VOD): el propio DownloadButton refleja el estado
+        // (encolar/progreso/pausa/completa) con su icono.
+        Expanded(
+          child: FocusHighlight(
+            borderRadius: BorderRadius.circular(12),
+            child: Center(child: DownloadButton(item: widget.item)),
+          ),
+        ),
         action(_saved ? Icons.check : Icons.add, _saved ? 'Guardado' : 'Mi lista',
             _toggle, _saved),
       ],

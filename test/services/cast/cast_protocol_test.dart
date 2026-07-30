@@ -26,6 +26,19 @@ void main() {
     test('vod sin extensión: sin sufijo', () {
       expect(req('vod').mediaUrl, 'http://h:8080/movie/u/p/9');
     });
+    test('file: URL LAN cruda del archivo local, sin credenciales ni sufijo', () {
+      // Un archivo local servido por el móvil ya viene como URL completa
+      // (http://<ip>:<port>/f); el receptor la reproduce tal cual.
+      final r = CastLoadRequest(
+          channelId: 'x',
+          contentType: 'file',
+          url: 'http://192.168.1.23:41231/f',
+          username: '',
+          password: '',
+          title: 'peli',
+          ext: 'mp4');
+      expect(r.mediaUrl, 'http://192.168.1.23:41231/f');
+    });
   });
 
   group('CastCrypto — emparejamiento por PIN', () {

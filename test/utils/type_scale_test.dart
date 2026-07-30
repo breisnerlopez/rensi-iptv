@@ -23,6 +23,8 @@ const _tvSurfaceDirs = <String>[
   'lib/redesign',
   'lib/widgets/tv',
   'lib/widgets/live',
+  // TV-only home (receptor reducido: reproductor + histórico + ajustes).
+  'lib/screens/tv',
 ];
 
 /// Legacy screens that are nonetheless REACHED on Android TV, so their sizes

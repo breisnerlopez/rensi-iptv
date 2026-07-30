@@ -4,6 +4,7 @@ import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/repositories/user_preferences.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/channel_number_buffer.dart';
+import 'package:rensi_iptv/services/download_service.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/services/pip_service.dart';
 import 'package:rensi_iptv/services/sleep_timer_service.dart';
@@ -660,6 +661,15 @@ class _PlayerWidgetState extends State<PlayerWidget>
           seriesId: contentItem.seriesStream?.seriesId,
         ),
       );
+      // Borrar-al-ver: si este contenido es una descarga offline y se alcanzó
+      // el umbral de "visto" (política conservadora: requiere duración fiable),
+      // liberar el archivo. No-op si no hay descarga con este contentId.
+      final watched = _pendingWatchDuration;
+      final total = _pendingTotalDuration;
+      if (watched != null && total != null) {
+        await DownloadService.instance
+            .markWatchedAndMaybeDelete(contentItem.id, watched, total);
+      }
       _pendingWatchDuration = null;
       _pendingTotalDuration = null;
     } catch (e) {
