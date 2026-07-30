@@ -23,6 +23,16 @@ Ideas no comprometidas todavía; se priorizan aparte.
   cuidando la carrera con `_tuneForPerformance` que hoy pone `cache-pause=no`), y
   subir `demuxer-max-bytes` a un límite grande (idea del usuario) para más colchón.
   UI ya diseñada; para cast, la TV reporta las métricas por el canal de control.
+  **Hallazgo (bloqueo actual):** el enfoque por `NativePlayer.setProperty`/`getProperty`
+  en runtime NO funciona en este media_kit pineado — `demuxer-cache-duration`,
+  `cache-speed` y `demuxer-cache-state` devuelven cadena VACÍA, y fijar
+  `cache-pause-initial`/`cache-pause=yes` antes del open ROMPE la carga (el
+  demuxer no arranca: `state.buffer`/`position` quedan en 0). Camino a explorar:
+  pasar opciones mpv al CREAR el Player (`PlayerConfiguration`), u observar el
+  buffer por la API nativa de media_kit (`player.stream.buffer`/`bufferingPercentage`)
+  en vez de getProperty, o parchear media_kit. Nota de pruebas: el emulador de
+  teléfono (phone_compact) no reproduce streams; validar en el emulador TV o en
+  hardware real.
 - **Descarga offline (VOD/series):** descargar el contenido completo al
   dispositivo para verlo sin conexión (gestor de descargas: almacenamiento,
   reanudar, gestión de espacio, UI). Feature separada del pre-buffer.
