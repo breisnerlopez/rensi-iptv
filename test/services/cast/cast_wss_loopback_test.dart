@@ -44,4 +44,43 @@ void main() {
     await receiver.stop();
     receiver.dispose();
   }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test('confianza: tras emparejar con PIN, un 2º móvil reanuda SIN PIN', () async {
+    final tls = CastTls.generate();
+    final tokens = <String>[]; // crece vía onIssueToken (dispositivos de confianza)
+    final receiver = TvReceiverService(
+      deviceName: 'TV',
+      pin: '123456',
+      tls: tls,
+      tvId: 'tv-1',
+      knownTokens: tokens,
+      onIssueToken: tokens.add,
+    );
+    final port = await receiver.start(advertise: false);
+
+    // 1ª vez: PIN → la TV emite un token de confianza.
+    final first = PhoneSenderService();
+    await first.connect('127.0.0.1', port, secure: true);
+    expect(await first.pair('123456'), isTrue);
+    expect(first.issuedToken, isNotNull);
+    expect(first.tvId, 'tv-1');
+    expect(tokens, contains(first.issuedToken));
+    await first.close();
+
+    // 2ª vez (otro socket): reanuda con el token, SIN PIN.
+    final again = PhoneSenderService();
+    await again.connect('127.0.0.1', port, secure: true);
+    expect(await again.resume(first.issuedToken!), isTrue,
+        reason: 'un token de confianza vigente empareja sin PIN');
+    await again.close();
+
+    // Un token desconocido NO reanuda.
+    final bad = PhoneSenderService();
+    await bad.connect('127.0.0.1', port, secure: true);
+    expect(await bad.resume('token-invalido'), isFalse);
+    await bad.close();
+
+    await receiver.stop();
+    receiver.dispose();
+  }, timeout: const Timeout(Duration(seconds: 20)));
 }

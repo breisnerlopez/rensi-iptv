@@ -57,13 +57,30 @@ class CastLoadRequest {
 }
 
 class TvReceiverService {
-  TvReceiverService({required this.deviceName, String? pin, this.tls})
-      : pin = pin ?? _genPin();
+  TvReceiverService({
+    required this.deviceName,
+    String? pin,
+    this.tls,
+    this.tvId = '',
+    this.knownTokens = const [],
+    this.onIssueToken,
+  }) : pin = pin ?? _genPin();
 
   final String deviceName;
 
   /// PIN de 6 dígitos que la UI de la TV muestra al usuario.
   final String pin;
+
+  /// Id estable de esta TV (para que el móvil recuerde la confianza por-TV).
+  final String tvId;
+
+  /// Tokens de confianza vigentes (dispositivos ya emparejados en los últimos
+  /// 7 días). Un móvil con uno de estos empareja sin PIN.
+  final List<String> knownTokens;
+
+  /// Se invoca al emitir un token nuevo (emparejamiento con PIN) para que la
+  /// capa de UI lo persista.
+  final void Function(String token)? onIssueToken;
 
   /// Cert TLS para servir wss:// con cert-pinning. Si es null, sirve ws:// plano
   /// (útil en pruebas por loopback; el fingerprint atado al proof queda vacío).
@@ -160,6 +177,7 @@ class TvReceiverService {
       'salt': base64.encode(salt),
       'nonce': base64.encode(nonce),
       'device': deviceName,
+      'tvId': tvId,
       'certfp': base64.encode(_certfp),
     }));
 
@@ -169,14 +187,33 @@ class TvReceiverService {
         switch (msg['t']) {
           case MsgType.pairProof:
             attempts++;
-            sessionKey = await CastCrypto.deriveSessionKey(pin, salt);
-            paired = await CastCrypto.verifyProof(
-                sessionKey!, nonce, msg['proof'] as String, _certfp);
-            ws.add(encodeMsg(MsgType.pairResult, {'ok': paired}));
-            if (paired) _activeWs = ws;
-            if (!paired && attempts >= 3) {
-              ws.add(encodeMsg(MsgType.error, {'e': 'too_many_attempts'}));
-              await ws.close();
+            final proofB64 = msg['proof'] as String;
+            // 1) Intento con el PIN → si acierta, emparejado y se EMITE un token
+            //    de confianza (para no volver a pedir PIN durante 7 días).
+            final pinKey = await CastCrypto.deriveSessionKey(pin, salt);
+            if (await CastCrypto.verifyProof(pinKey, nonce, proofB64, _certfp)) {
+              paired = true;
+              sessionKey = pinKey;
+              final token = base64.encode(randomBytes(32));
+              onIssueToken?.call(token);
+              _activeWs = ws;
+              ws.add(encodeMsg(MsgType.pairResult, {'ok': true, 'token': token}));
+            } else {
+              // 2) Intento con los tokens de confianza vigentes (sin PIN).
+              for (final t in knownTokens) {
+                final tk = await CastCrypto.deriveSessionKey(t, salt);
+                if (await CastCrypto.verifyProof(tk, nonce, proofB64, _certfp)) {
+                  paired = true;
+                  sessionKey = tk;
+                  _activeWs = ws;
+                  break;
+                }
+              }
+              ws.add(encodeMsg(MsgType.pairResult, {'ok': paired}));
+              if (!paired && attempts >= 3) {
+                ws.add(encodeMsg(MsgType.error, {'e': 'too_many_attempts'}));
+                await ws.close();
+              }
             }
             break;
 

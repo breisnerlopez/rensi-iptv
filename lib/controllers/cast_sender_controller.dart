@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 
 import '../services/app_state.dart';
 import '../services/cast/cast_protocol.dart';
+import '../services/cast/cast_trust_store.dart';
 import '../services/cast/phone_sender_service.dart';
 
 enum CastPhase {
@@ -50,10 +51,14 @@ class CastTrack {
 }
 
 class CastSenderController extends ChangeNotifier {
-  CastSenderController({PhoneSenderService Function()? senderFactory})
-      : _senderFactory = senderFactory ?? PhoneSenderService.new;
+  CastSenderController({
+    PhoneSenderService Function()? senderFactory,
+    CastTrustStore trustStore = const CastTrustStore(),
+  })  : _senderFactory = senderFactory ?? PhoneSenderService.new,
+        _trust = trustStore;
 
   final PhoneSenderService Function() _senderFactory;
+  final CastTrustStore _trust;
   PhoneSenderService? _sender;
 
   CastPhase _phase = CastPhase.idle;
@@ -131,6 +136,16 @@ class CastSenderController extends ChangeNotifier {
       _sender = _senderFactory()..onDisconnected = _onDisconnected;
       _sender!.onTracks.listen(_onTracks);
       await _sender!.connect(device.host, device.port, secure: device.secure);
+      // ¿TV de confianza (emparejada en los últimos 7 días)? Reanudar SIN PIN.
+      final tvId = _sender!.tvId;
+      if (tvId != null && tvId.isNotEmpty) {
+        final token = await _trust.tokenFor(tvId);
+        if (token != null && await _sender!.resume(token)) {
+          _pin = token; // reconexión futura reautentica con el token
+          await _startPlayback();
+          return;
+        }
+      }
       _set(CastPhase.pairing);
     } catch (e) {
       _set(CastPhase.error, error: e.toString());
@@ -149,6 +164,13 @@ class CastSenderController extends ChangeNotifier {
         return;
       }
       _pin = pin; // para reconexión transparente
+      // Recordar la confianza 7 días: la TV emitió un token para no pedir PIN.
+      final tvId = _sender!.tvId;
+      final token = _sender!.issuedToken;
+      if (tvId != null && tvId.isNotEmpty && token != null) {
+        await _trust.save(tvId, token);
+        _pin = token; // futuras reconexiones/sesiones reautentican con el token
+      }
       await _startPlayback();
     } catch (e) {
       _set(CastPhase.error, error: e.toString());

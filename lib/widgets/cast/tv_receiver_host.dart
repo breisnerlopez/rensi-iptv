@@ -5,10 +5,12 @@
 //
 // No usa Cast Connect → funciona con la app instalada por sideload.
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:media_kit/media_kit.dart' hide PlayerState, Playlist;
+import 'package:uuid/uuid.dart';
 
 import '../../l10n/localization_extension.dart';
 import '../../models/content_type.dart';
@@ -71,9 +73,55 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     }
   }
 
+  static const _store = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+  static const _trustTtlMs = 7 * 24 * 60 * 60 * 1000; // 7 días
+  List<Map<String, dynamic>> _tokenEntries = [];
+
+  /// Id estable de esta TV (uuid persistido).
+  Future<String> _loadTvId() async {
+    var id = await _store.read(key: 'cast.tv.id');
+    if (id == null) {
+      id = const Uuid().v4();
+      await _store.write(key: 'cast.tv.id', value: id);
+    }
+    return id;
+  }
+
+  /// Tokens de confianza vigentes (poda los de más de 7 días).
+  Future<List<String>> _loadTokens() async {
+    final raw = await _store.read(key: 'cast.tv.tokens');
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _tokenEntries = raw != null
+        ? (jsonDecode(raw) as List)
+            .cast<Map<String, dynamic>>()
+            .where((e) => now - (e['iat'] as int) < _trustTtlMs)
+            .toList()
+        : [];
+    return _tokenEntries.map((e) => e['t'] as String).toList();
+  }
+
   Future<void> _start() async {
     final tls = await _loadOrCreateCert();
-    final service = TvReceiverService(deviceName: widget.deviceName, tls: tls);
+    String tvId = '';
+    List<String> tokens = const [];
+    try {
+      tvId = await _loadTvId();
+      tokens = await _loadTokens();
+    } catch (_) {/* sin confianza persistida; se pedirá PIN */}
+    final service = TvReceiverService(
+      deviceName: widget.deviceName,
+      tls: tls,
+      tvId: tvId,
+      knownTokens: tokens,
+      onIssueToken: (token) {
+        // Recordar el dispositivo emparejado 7 días (sin UI de gestión).
+        _tokenEntries
+            .add({'t': token, 'iat': DateTime.now().millisecondsSinceEpoch});
+        _store.write(key: 'cast.tv.tokens', value: jsonEncode(_tokenEntries));
+      },
+    );
     try {
       await service.start();
     } catch (_) {

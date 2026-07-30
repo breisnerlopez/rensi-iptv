@@ -40,8 +40,15 @@ class PhoneSenderService {
   List<int>? _certfp; // fingerprint del cert que la TV firma en el reto
   Uint8List? _capturedFp; // fingerprint del cert TLS realmente presentado (wss)
   SecretKey? _sessionKey;
-  final _pairResult = Completer<bool>();
+  Completer<bool>? _pairResult; // recreado por cada intento (PIN o token)
   final _challengeReady = Completer<void>();
+
+  /// Id estable de la TV (llega en el reto). Para recordar la confianza.
+  String? tvId;
+
+  /// Token de larga duración que la TV emite al emparejar con PIN (para
+  /// persistirlo y reutilizarlo sin PIN durante 7 días).
+  String? issuedToken;
 
   final _stateController = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onState => _stateController.stream;
@@ -96,7 +103,7 @@ class PhoneSenderService {
       _ws = await WebSocket.connect('ws://$host:$port');
     }
     _sub = _ws!.listen(_onMessage, onDone: () {
-      if (!_pairResult.isCompleted) _pairResult.complete(false);
+      if (_pairResult?.isCompleted == false) _pairResult!.complete(false);
       onDisconnected?.call();
     });
     await _challengeReady.future
@@ -106,21 +113,30 @@ class PhoneSenderService {
   }
 
   /// Prueba el PIN. Devuelve true si la TV lo acepta.
-  Future<bool> pair(String pin) async {
+  /// Empareja con el PIN (primera vez con esa TV).
+  Future<bool> pair(String pin) => _pairWithSecret(pin);
+
+  /// Reanuda la confianza SIN PIN usando un token guardado (cumple el rol de
+  /// "secreto" en el mismo emparejamiento). Devuelve false si la TV ya no lo
+  /// reconoce (venció o reinstaló) → el controlador cae al PIN.
+  Future<bool> resume(String token) => _pairWithSecret(token);
+
+  Future<bool> _pairWithSecret(String secret) async {
     if (_salt == null || _nonce == null) {
-      throw StateError('connect() debe completarse antes de pair()');
+      throw StateError('connect() debe completarse antes de emparejar');
     }
     final certfp = _certfp ?? const <int>[];
     // Anti-MITM: si vamos por wss, el cert TLS presentado debe coincidir con el
     // fingerprint que la TV firmó en el reto; si no, hay un intermediario.
     if (_capturedFp != null && !CastCrypto.bytesEqual(_capturedFp!, certfp)) {
-      if (!_pairResult.isCompleted) _pairResult.complete(false);
       return false;
     }
-    _sessionKey = await CastCrypto.deriveSessionKey(pin, _salt!);
+    final result = _pairResult = Completer<bool>();
+    _sessionKey = await CastCrypto.deriveSessionKey(secret, _salt!);
     final proof = await CastCrypto.proof(_sessionKey!, _nonce!, certfp);
     _ws!.add(encodeMsg(MsgType.pairProof, {'proof': proof}));
-    return _pairResult.future.timeout(const Duration(seconds: 5));
+    return result.future
+        .timeout(const Duration(seconds: 5), onTimeout: () => false);
   }
 
   /// Envía un LOAD: la TV reproducirá el contenido. Las credenciales viajan
@@ -159,12 +175,17 @@ class PhoneSenderService {
       case MsgType.pairChallenge:
         _salt = base64.decode(msg['salt'] as String);
         _nonce = base64.decode(msg['nonce'] as String);
+        tvId = msg['tvId'] as String?;
         final fp = msg['certfp'] as String?;
         _certfp = (fp != null && fp.isNotEmpty) ? base64.decode(fp) : const [];
         if (!_challengeReady.isCompleted) _challengeReady.complete();
         break;
       case MsgType.pairResult:
-        if (!_pairResult.isCompleted) _pairResult.complete(msg['ok'] == true);
+        final tk = msg['token'] as String?;
+        if (tk != null && tk.isNotEmpty) issuedToken = tk;
+        if (_pairResult?.isCompleted == false) {
+          _pairResult!.complete(msg['ok'] == true);
+        }
         break;
       case MsgType.state:
         _stateController.add(msg);
