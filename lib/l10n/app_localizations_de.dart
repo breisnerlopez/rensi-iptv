@@ -9,6 +9,12 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get cast_gate_prompt => 'An deinen Fernseher senden?';
+
+  @override
+  String get cast_gate_play_now => 'Hier abspielen';
+
+  @override
   String get cast_to_tv => 'Auf TV streamen';
 
   @override

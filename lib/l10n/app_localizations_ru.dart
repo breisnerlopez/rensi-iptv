@@ -9,6 +9,12 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get cast_gate_prompt => 'Отправить на телевизор?';
+
+  @override
+  String get cast_gate_play_now => 'Смотреть здесь';
+
+  @override
   String get cast_to_tv => 'Транслировать на ТВ';
 
   @override

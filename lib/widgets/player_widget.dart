@@ -219,6 +219,96 @@ class _PlayerWidgetState extends State<PlayerWidget>
     return i < 0 ? 0 : i;
   }
 
+  // --- Gate de casting pre-reproducción (solo móvil) ---
+  // Antes de cargar el stream en el teléfono, ofrece enviarlo a la TV para NO
+  // gastar datos. "Reproducir ahora" o la cuenta atrás siguen a reproducción
+  // local. En la TV (receptora) o si ya se está casteando, no aparece.
+  Completer<bool>? _castGate;
+  bool _castGateActive = false;
+  bool _castGateResolved = false;
+  Timer? _castGateTimer;
+  int _castGateSecs = 8;
+
+  bool _needsCastGate() =>
+      !ResponsiveHelper.isTelevisionDevice && _cast != null && !_cast!.isCasting;
+
+  void _startCastGateCountdown() {
+    _castGateSecs = 8;
+    _castGateTimer?.cancel();
+    _castGateTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return t.cancel();
+      setState(() => _castGateSecs--);
+      if (_castGateSecs <= 0) _resolveCastGate(true);
+    });
+  }
+
+  void _resolveCastGate(bool playLocal) {
+    _castGateTimer?.cancel();
+    _castGateResolved = true;
+    _castGateActive = false;
+    if (_castGate?.isCompleted == false) _castGate!.complete(playLocal);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _onGateSendToTv() async {
+    _castGateTimer?.cancel();
+    if (mounted) setState(() => _castGateActive = false);
+    await startCastFlow(context, _castMedia, queue: _castQueue, index: _castIndex);
+    if (!mounted) return;
+    // Si el usuario no llegó a castear (canceló), reproducir local; si casteó,
+    // el player se cierra solo (ver _onCastChanged).
+    _resolveCastGate(!(_cast?.isCasting ?? false));
+  }
+
+  Widget _buildCastGate(BuildContext context) {
+    if (!_castGateActive) return const SizedBox.shrink();
+    final loc = context.loc;
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.92),
+        alignment: Alignment.center,
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cast, color: Color(0xFFD2603A), size: 52),
+              const SizedBox(height: 20),
+              Text(loc.cast_gate_prompt,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: 280,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFD2603A),
+                      padding: const EdgeInsets.symmetric(vertical: 14)),
+                  onPressed: _onGateSendToTv,
+                  icon: const Icon(Icons.cast),
+                  label: Text(loc.cast_to_tv),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: 280,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white30),
+                      padding: const EdgeInsets.symmetric(vertical: 14)),
+                  onPressed: () => _resolveCastGate(true),
+                  child: Text('${loc.cast_gate_play_now}  ·  ${_castGateSecs}s'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Capa de casting sobre el video: botón "Enviar a la TV" (solo en móvil y,
   /// por ahora, en vivo) y, mientras se transmite, la pantalla de control.
   Widget _castLayer(BuildContext context) {
@@ -326,6 +416,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // for the rest of the session. dispose() always clears it.
     PlayerState.isPlayerActive = true;
 
+    _castGate = Completer<bool>();
     _initializePlayer();
   }
 
@@ -362,6 +453,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _connectivitySubscription?.cancel();
     _errorHandler.reset();
     _cast?.removeListener(_onCastChanged);
+    _castGateTimer?.cancel();
     _remoteFocusNode.dispose();
     _pipWidthSubscription?.cancel();
     _pipHeightSubscription?.cancel();
@@ -619,6 +711,15 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _audioHandler.setPlayer(_player);
     final decoderMode = await UserPreferences.getVideoDecoder();
     _videoController = _createVideoController(decoderMode);
+
+    // Gate de casting (solo móvil): ofrecer enviar a la TV ANTES de cargar el
+    // stream aquí (para no gastar datos). Si se elige enviar, no abrimos local.
+    if (_needsCastGate()) {
+      _castGateActive = true;
+      if (mounted) setState(() {});
+      _startCastGateCountdown();
+      if (!await _castGate!.future) return;
+    }
 
     // Picture-in-Picture: arm auto-enter on user-leave-hint and keep the
     // native side in sync with the video aspect ratio.
@@ -2095,6 +2196,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
           // Casting: botón "Enviar a la TV" y pantalla de control al transmitir.
           _castLayer(context),
+
+          // Gate pre-reproducción (móvil): enviar a la TV sin gastar datos.
+          _buildCastGate(context),
         ],
       ),
       ),

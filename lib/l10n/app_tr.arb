@@ -1,4 +1,6 @@
 {
+  "cast_gate_prompt": "TV'ye gönderilsin mi?",
+  "cast_gate_play_now": "Burada oynat",
   "cast_to_tv": "TV'ye yayınla",
   "cast_searching": "Ağınızdaki TV'ler aranıyor…",
   "cast_no_devices": "TV bulunamadı. Uygulamanın TV'nizde açık olduğundan ve ikisinin de aynı Wi-Fi ağında olduğundan emin olun.",

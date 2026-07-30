@@ -1,4 +1,6 @@
 {
+  "cast_gate_prompt": "Send this to your TV?",
+  "cast_gate_play_now": "Play here",
   "cast_to_tv": "Cast to TV",
   "cast_searching": "Searching for TVs on your network…",
   "cast_no_devices": "No TVs found. Make sure your TV has the app open and is on the same Wi-Fi.",

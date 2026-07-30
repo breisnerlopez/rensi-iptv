@@ -1,4 +1,6 @@
 {
+  "cast_gate_prompt": "An deinen Fernseher senden?",
+  "cast_gate_play_now": "Hier abspielen",
   "cast_to_tv": "Auf TV streamen",
   "cast_searching": "Fernseher im Netzwerk werden gesucht…",
   "cast_no_devices": "Keine Fernseher gefunden. Stelle sicher, dass die App auf deinem TV geöffnet ist und beide im selben WLAN sind.",

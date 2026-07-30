@@ -9,6 +9,12 @@ class AppLocalizationsTr extends AppLocalizations {
   AppLocalizationsTr([String locale = 'tr']) : super(locale);
 
   @override
+  String get cast_gate_prompt => 'TV\'ye gönderilsin mi?';
+
+  @override
+  String get cast_gate_play_now => 'Burada oynat';
+
+  @override
   String get cast_to_tv => 'TV\'ye yayınla';
 
   @override

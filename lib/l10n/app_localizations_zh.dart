@@ -9,6 +9,12 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get cast_gate_prompt => '发送到电视？';
+
+  @override
+  String get cast_gate_play_now => '在此播放';
+
+  @override
   String get cast_to_tv => '投屏到电视';
 
   @override

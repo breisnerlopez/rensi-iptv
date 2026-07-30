@@ -9,6 +9,12 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
+  String get cast_gate_prompt => 'إرسال هذا إلى التلفزيون؟';
+
+  @override
+  String get cast_gate_play_now => 'التشغيل هنا';
+
+  @override
   String get cast_to_tv => 'البث إلى التلفزيون';
 
   @override

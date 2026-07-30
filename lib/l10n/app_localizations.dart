@@ -114,6 +114,18 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @cast_gate_prompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Send this to your TV?'**
+  String get cast_gate_prompt;
+
+  /// No description provided for @cast_gate_play_now.
+  ///
+  /// In en, this message translates to:
+  /// **'Play here'**
+  String get cast_gate_play_now;
+
   /// No description provided for @cast_to_tv.
   ///
   /// In en, this message translates to:

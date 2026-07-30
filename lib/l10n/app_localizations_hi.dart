@@ -9,6 +9,12 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get cast_gate_prompt => 'इसे अपने टीवी पर भेजें?';
+
+  @override
+  String get cast_gate_play_now => 'यहीं चलाएं';
+
+  @override
   String get cast_to_tv => 'टीवी पर कास्ट करें';
 
   @override
