@@ -14,10 +14,20 @@ const _accent = Color(0xFFD2603A);
 /// Botón de casting para la barra del reproductor. Cambia de icono según si ya
 /// se está transmitiendo.
 class CastButton extends StatelessWidget {
-  const CastButton({super.key, required this.media, this.color = Colors.white});
+  const CastButton({
+    super.key,
+    required this.media,
+    this.queue,
+    this.index = 0,
+    this.color = Colors.white,
+  });
 
   /// Qué contenido castear al pulsar (canal/película/episodio actual).
   final CastMedia media;
+
+  /// Catálogo para el zapping (canales de la categoría, episodios…). Opcional.
+  final List<CastMedia>? queue;
+  final int index;
   final Color color;
 
   @override
@@ -26,17 +36,18 @@ class CastButton extends StatelessWidget {
     return IconButton(
       tooltip: context.loc.cast_to_tv,
       icon: Icon(casting ? Icons.cast_connected : Icons.cast, color: color),
-      onPressed: () => startCastFlow(context, media),
+      onPressed: () => startCastFlow(context, media, queue: queue, index: index),
     );
   }
 }
 
 /// Inicia el descubrimiento y abre el modal guiado. No hace nada si ya se está
 /// transmitiendo (en ese caso el control vive en el player).
-Future<void> startCastFlow(BuildContext context, CastMedia media) async {
+Future<void> startCastFlow(BuildContext context, CastMedia media,
+    {List<CastMedia>? queue, int index = 0}) async {
   final controller = context.read<CastSenderController>();
   if (controller.isCasting) return;
-  controller.beginCast(media);
+  controller.beginCast(media, queue: queue, index: index);
   await showModalBottomSheet<void>(
     context: context,
     backgroundColor: const Color(0xFF15151A),

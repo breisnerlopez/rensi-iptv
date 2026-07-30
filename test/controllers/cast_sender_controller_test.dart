@@ -41,7 +41,8 @@ class _FakeSender extends PhoneSenderService {
     loads.add({'id': channelId, 'url': url, 'user': username, 'pass': password});
   }
   @override
-  void sendCommand(String cmd) => commands.add(cmd);
+  void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) =>
+      commands.add(cmd);
   @override
   Future<void> close() async => closed = true;
 }
@@ -154,13 +155,42 @@ void main() {
     expect(fake.loads.length, 2, reason: 'reenvió el LOAD tras reconectar');
   }, timeout: const Timeout(Duration(seconds: 10)));
 
-  test('comandos de control se envían por el canal', () async {
+  test('play/pausa se envía como comando; zap sin catálogo es no-op', () async {
     final fake = _FakeSender(devices: [oneTv]);
     final c = make(fake);
     await c.beginCast(media);
     await c.submitPin('123456');
-    c.channelUp();
     c.playPause();
-    expect(fake.commands, containsAllInOrder(['ch_up', 'play_pause']));
+    await c.channelUp(); // sin queue → no hace nada
+    expect(fake.commands, ['play_pause']);
+  });
+
+  test('zap: con catálogo, channelUp/Down reenvían el LOAD del canal vecino',
+      () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    final q = const [
+      CastMedia(channelId: '1', contentType: 'live', title: 'C1'),
+      CastMedia(channelId: '2', contentType: 'live', title: 'C2'),
+    ];
+    await c.beginCast(q[0], queue: q, index: 0);
+    await c.submitPin('123456');
+    expect(fake.loads.last['id'], '1');
+    await c.channelUp();
+    expect(fake.loads.last['id'], '2'); // reenvió el LOAD del siguiente
+    await c.channelDown();
+    expect(fake.loads.last['id'], '1');
+    await c.channelDown(); // ya en el primero → no-op
+    expect(fake.loads.length, 3);
+  });
+
+  test('selección de audio/subtítulo se envía con su id', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    await c.beginCast(media);
+    await c.submitPin('123456');
+    c.selectAudio('a2');
+    c.selectSubtitle('');
+    expect(fake.commands, ['sel_audio', 'sel_sub']);
   });
 }

@@ -26,17 +26,21 @@ class MsgType {
   static const pairProof = 'pair_proof'; // móvil -> TV: {proof}
   static const pairResult = 'pair_result'; // TV -> móvil: {ok}
   static const load = 'load'; // móvil -> TV: reproducir contenido
-  static const command = 'command'; // móvil -> TV: zap/pausa/seek/track
-  static const state = 'state'; // TV -> móvil: playing/pos/tracks
+  static const command = 'command'; // móvil -> TV: pausa/track/stop
+  static const state = 'state'; // TV -> móvil: playing/pos
+  static const tracks = 'tracks'; // TV -> móvil: pistas de audio/subtítulo
   static const error = 'error';
 }
 
 /// Comandos de control remoto (payload de MsgType.command → campo `c`).
+/// El zapping NO va por aquí: lo resuelve el móvil reenviando un LOAD (tiene el
+/// catálogo). Estos comandos actúan sobre la reproducción ya en curso en la TV.
 class CmdType {
-  static const channelUp = 'ch_up';
-  static const channelDown = 'ch_down';
   static const playPause = 'play_pause';
   static const stop = 'stop';
+  static const getTracks = 'get_tracks'; // pide a la TV sus pistas actuales
+  static const selectAudio = 'sel_audio'; // + campo 'id'
+  static const selectSubtitle = 'sel_sub'; // + campo 'id' ('' = off)
 }
 
 String encodeMsg(String type, Map<String, dynamic> body) =>

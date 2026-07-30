@@ -34,6 +34,11 @@ class PhoneSenderService {
   final _stateController = StreamController<Map<String, dynamic>>.broadcast();
   Stream<Map<String, dynamic>> get onState => _stateController.stream;
 
+  final _tracksController = StreamController<Map<String, dynamic>>.broadcast();
+
+  /// Pistas de audio/subtítulo que reporta la TV (respuesta a getTracks).
+  Stream<Map<String, dynamic>> get onTracks => _tracksController.stream;
+
   /// Se invoca si el socket se cierra (para que el controlador reconecte).
   void Function()? onDisconnected;
 
@@ -113,8 +118,8 @@ class PhoneSenderService {
     }));
   }
 
-  void sendCommand(String cmd) {
-    _ws?.add(encodeMsg(MsgType.command, {'c': cmd}));
+  void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) {
+    _ws?.add(encodeMsg(MsgType.command, {'c': cmd, ...extra}));
   }
 
   void _onMessage(dynamic data) {
@@ -131,6 +136,9 @@ class PhoneSenderService {
       case MsgType.state:
         _stateController.add(msg);
         break;
+      case MsgType.tracks:
+        _tracksController.add(msg);
+        break;
     }
   }
 
@@ -138,5 +146,6 @@ class PhoneSenderService {
     await _sub?.cancel();
     await _ws?.close();
     await _stateController.close();
+    await _tracksController.close();
   }
 }

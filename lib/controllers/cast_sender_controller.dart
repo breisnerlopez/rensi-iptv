@@ -35,6 +35,20 @@ class CastMedia {
   });
 }
 
+/// Una pista (audio o subtítulo) que la TV reporta, para el selector del móvil.
+class CastTrack {
+  final String id;
+  final String label;
+  final bool selected;
+  const CastTrack({required this.id, required this.label, required this.selected});
+
+  factory CastTrack.fromJson(Map<String, dynamic> j) => CastTrack(
+        id: j['id'] as String? ?? '',
+        label: j['label'] as String? ?? '',
+        selected: j['sel'] == true,
+      );
+}
+
 class CastSenderController extends ChangeNotifier {
   CastSenderController({PhoneSenderService Function()? senderFactory})
       : _senderFactory = senderFactory ?? PhoneSenderService.new;
@@ -50,6 +64,19 @@ class CastSenderController extends ChangeNotifier {
   bool _wrongPin = false;
   String? _pin; // cacheado tras emparejar, para reconexión transparente
   bool _reconnecting = false;
+  List<CastMedia>? _queue; // catálogo para el zapping (lo tiene el móvil)
+  int _index = 0;
+  List<CastTrack> _audioTracks = const [];
+  List<CastTrack> _subtitleTracks = const [];
+
+  List<CastTrack> get audioTracks => List.unmodifiable(_audioTracks);
+  List<CastTrack> get subtitleTracks => List.unmodifiable(_subtitleTracks);
+
+  /// El contenido casteado es en vivo (zap ± aplica).
+  bool get isLive => _media?.contentType == 'live';
+
+  /// Hay más de un canal en el catálogo para hacer zapping.
+  bool get canZap => isLive && _queue != null && _queue!.length > 1;
 
   CastPhase get phase => _phase;
   List<CastDevice> get devices => List.unmodifiable(_devices);
@@ -70,8 +97,11 @@ class CastSenderController extends ChangeNotifier {
 
   /// Comienza a descubrir TVs. El contenido a castear se recuerda para enviarlo
   /// en cuanto el emparejamiento termine.
-  Future<void> beginCast(CastMedia media) async {
+  Future<void> beginCast(CastMedia media,
+      {List<CastMedia>? queue, int index = 0}) async {
     _media = media;
+    _queue = queue;
+    _index = index;
     _wrongPin = false;
     _set(CastPhase.discovering);
     try {
@@ -99,6 +129,7 @@ class CastSenderController extends ChangeNotifier {
     _set(CastPhase.connecting);
     try {
       _sender = _senderFactory()..onDisconnected = _onDisconnected;
+      _sender!.onTracks.listen(_onTracks);
       await _sender!.connect(device.host, device.port);
       _set(CastPhase.pairing);
     } catch (e) {
@@ -125,12 +156,17 @@ class CastSenderController extends ChangeNotifier {
   }
 
   Future<void> _startPlayback() async {
-    final playlist = AppState.currentPlaylist;
-    final media = _media;
-    if (_sender == null || playlist == null || media == null) {
+    if (!await _sendLoad()) {
       _set(CastPhase.error, error: 'no_context');
       return;
     }
+    _set(CastPhase.casting);
+  }
+
+  Future<bool> _sendLoad() async {
+    final playlist = AppState.currentPlaylist;
+    final media = _media;
+    if (_sender == null || playlist == null || media == null) return false;
     await _sender!.sendLoad(
       channelId: media.channelId,
       contentType: media.contentType,
@@ -140,7 +176,7 @@ class CastSenderController extends ChangeNotifier {
       title: media.title,
       ext: media.ext,
     );
-    _set(CastPhase.casting);
+    return true;
   }
 
   /// El socket se cayó: si estábamos transmitiendo, reconecta y reanuda el
@@ -158,17 +194,10 @@ class CastSenderController extends ChangeNotifier {
       await Future<void>.delayed(Duration(seconds: 1 << attempt)); // 1,2,4,8,16s
       try {
         _sender = _senderFactory()..onDisconnected = _onDisconnected;
+        _sender!.onTracks.listen(_onTracks);
         await _sender!.connect(device.host, device.port);
         if (await _sender!.pair(pin)) {
-          await _sender!.sendLoad(
-            channelId: media.channelId,
-            contentType: media.contentType,
-            url: playlist.url ?? '',
-            username: playlist.username ?? '',
-            password: playlist.password ?? '',
-            title: media.title,
-            ext: media.ext,
-          );
+          await _sendLoad();
           _reconnecting = false;
           return; // control recuperado
         }
@@ -177,9 +206,41 @@ class CastSenderController extends ChangeNotifier {
     _reconnecting = false;
   }
 
-  void channelUp() => _sender?.sendCommand(CmdType.channelUp);
-  void channelDown() => _sender?.sendCommand(CmdType.channelDown);
   void playPause() => _sender?.sendCommand(CmdType.playPause);
+
+  /// Zap: el móvil (que tiene el catálogo) reenvía un LOAD del canal
+  /// siguiente/anterior; la TV cambia de canal sin round-trip de comando.
+  Future<void> channelUp() => _zap(1);
+  Future<void> channelDown() => _zap(-1);
+  Future<void> _zap(int dir) async {
+    final q = _queue;
+    if (q == null || !isLive) return;
+    final next = _index + dir;
+    if (next < 0 || next >= q.length) return;
+    _index = next;
+    _media = q[next];
+    _audioTracks = const [];
+    _subtitleTracks = const [];
+    notifyListeners();
+    await _sendLoad();
+  }
+
+  /// Pide a la TV su lista de pistas actuales (audio/subtítulo).
+  void requestTracks() => _sender?.sendCommand(CmdType.getTracks);
+
+  void selectAudio(String id) =>
+      _sender?.sendCommand(CmdType.selectAudio, {'id': id});
+  void selectSubtitle(String id) =>
+      _sender?.sendCommand(CmdType.selectSubtitle, {'id': id});
+
+  void _onTracks(Map<String, dynamic> msg) {
+    List<CastTrack> parse(String key) => ((msg[key] as List?) ?? const [])
+        .map((e) => CastTrack.fromJson(e as Map<String, dynamic>))
+        .toList();
+    _audioTracks = parse('audio');
+    _subtitleTracks = parse('sub');
+    notifyListeners();
+  }
 
   /// Termina el casting y vuelve a idle (la TV libera el stream).
   Future<void> stopCasting() async {
@@ -192,6 +253,10 @@ class CastSenderController extends ChangeNotifier {
     _wrongPin = false;
     _pin = null;
     _reconnecting = false;
+    _queue = null;
+    _index = 0;
+    _audioTracks = const [];
+    _subtitleTracks = const [];
     _set(CastPhase.idle);
   }
 

@@ -33,7 +33,8 @@ class _FakeSender extends PhoneSenderService {
     String ext = '',
   }) async {}
   @override
-  void sendCommand(String cmd) => commands.add(cmd);
+  void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) =>
+      commands.add(cmd);
   @override
   Future<void> close() async {}
 }
@@ -78,10 +79,10 @@ void main() {
     expect(find.text('Sala'), findsOneWidget);
     expect(find.text('Canal'), findsOneWidget);
 
-    // El botón de canal + envía el comando.
-    await tester.tap(find.byIcon(Icons.skip_next));
+    // El botón de play envía el comando play/pausa.
+    await tester.tap(find.byIcon(Icons.play_arrow));
     await tester.pump();
-    expect(fake.commands, contains('ch_up'));
+    expect(fake.commands, contains('play_pause'));
 
     // "Dejar de transmitir" corta el casting.
     await tester.tap(find.byIcon(Icons.stop_circle_outlined));

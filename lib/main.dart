@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:ui' show PlatformDispatcher;
 import 'package:rensi_iptv/controllers/playlist_controller.dart';
 import 'package:rensi_iptv/screens/app_initializer_screen.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/services/service_locator.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -11,6 +10,8 @@ import 'controllers/locale_provider.dart';
 import 'controllers/theme_provider.dart';
 import 'controllers/active_playlist_controller.dart';
 import 'controllers/cast_sender_controller.dart';
+import 'services/app_navigator.dart';
+import 'widgets/cast/cast_mini_controller.dart';
 import 'widgets/cast/tv_receiver_host.dart';
 import 'l10n/app_localizations.dart';
 import 'l10n/supported_languages.dart';
@@ -155,9 +156,15 @@ class MyApp extends StatelessWidget {
       // only land on large screens / Android TV. Phones keep the stock
       // Material 3 look so the heavier strokes never bleed into a touch
       // UI that doesn't need them.
+      navigatorKey: appNavigatorKey,
       builder: (context, child) {
         if (child == null) return const SizedBox.shrink();
-        if (!ResponsiveHelper.isDesktopOrTV(context)) return child;
+        // Mini-control global de casting: persiste sobre cualquier pantalla
+        // mientras se transmite, para seguir navegando. Se auto-oculta si no
+        // hay casting (y en TV, donde la app es receptora).
+        Widget withCast(Widget c) =>
+            Stack(children: [c, const CastMiniController()]);
+        if (!ResponsiveHelper.isDesktopOrTV(context)) return withCast(child);
         final base = Theme.of(context);
         Widget themed = Theme(
           data: AppThemes.applyTvOverrides(base),
@@ -176,7 +183,7 @@ class MyApp extends StatelessWidget {
             child: themed,
           );
         }
-        return themed;
+        return withCast(themed);
       },
       home: TvReceiverHost(child: AppInitializerScreen()),
       debugShowCheckedModeBanner: false,

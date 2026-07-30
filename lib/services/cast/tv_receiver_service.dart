@@ -66,16 +66,22 @@ class TvReceiverService {
 
   HttpServer? _server;
   BonsoirBroadcast? _broadcast;
+  WebSocket? _activeWs; // socket emparejado en curso (para responder a la app)
 
   final _loadController = StreamController<CastLoadRequest>.broadcast();
-  final _commandController = StreamController<String>.broadcast();
+  final _commandController = StreamController<Map<String, dynamic>>.broadcast();
   final _connectController = StreamController<void>.broadcast();
 
   /// LOADs recibidos (tras emparejar). La UI de la TV se suscribe para reproducir.
   Stream<CastLoadRequest> get onLoad => _loadController.stream;
 
-  /// Comandos de control remoto (zap/pausa/…).
-  Stream<String> get onCommand => _commandController.stream;
+  /// Comandos de control remoto (mensaje completo: `c` + campos como `id`).
+  Stream<Map<String, dynamic>> get onCommand => _commandController.stream;
+
+  /// Envía un mensaje a la app emparejada (p. ej. la lista de pistas).
+  void sendMessage(String type, Map<String, dynamic> body) {
+    _activeWs?.add(encodeMsg(type, body));
+  }
 
   /// Se emite cuando un móvil abre el canal (para mostrar el PIN en la TV).
   Stream<void> get onClientConnected => _connectController.stream;
@@ -151,6 +157,7 @@ class TvReceiverService {
             paired =
                 await CastCrypto.verifyProof(sessionKey!, nonce, msg['proof'] as String);
             ws.add(encodeMsg(MsgType.pairResult, {'ok': paired}));
+            if (paired) _activeWs = ws;
             if (!paired && attempts >= 3) {
               ws.add(encodeMsg(MsgType.error, {'e': 'too_many_attempts'}));
               await ws.close();
@@ -179,7 +186,8 @@ class TvReceiverService {
 
           case MsgType.command:
             if (!paired) return;
-            _commandController.add(msg['c'] as String);
+            _activeWs = ws;
+            _commandController.add(msg);
             break;
         }
       } catch (e) {

@@ -21,7 +21,6 @@ import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:provider/provider.dart';
 import 'package:rensi_iptv/controllers/cast_sender_controller.dart';
 import 'package:rensi_iptv/widgets/cast/cast_flow.dart';
-import 'package:rensi_iptv/widgets/cast/casting_screen.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:rensi_iptv/utils/subtitle_configuration.dart';
 import 'package:rensi_iptv/widgets/video_widget.dart';
@@ -71,6 +70,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   StreamSubscription? _externalSubUriSubscription;
   StreamSubscription? _externalSubDataSubscription;
   StreamSubscription? _playbackSpeedSubscription;
+  StreamSubscription? _castPlayPauseSubscription;
   Duration? _seekPos;
   Duration? _seekDur;
   Timer? _seekHideTimer;
@@ -172,22 +172,52 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (now == _wasCasting || !mounted) return;
     _wasCasting = now;
     if (now) {
+      // Handoff: libera el stream local y devuelve al usuario a la navegación;
+      // el control de lo que suena en la TV vive en el mini-control global, así
+      // puede seguir buscando contenido mientras reproduce en la TV.
       _player.stop();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).maybePop();
+      });
     } else {
       _reopenCurrent();
     }
   }
 
+  static String _castType(ContentType t) => switch (t) {
+        ContentType.vod => 'vod',
+        ContentType.series => 'series',
+        ContentType.liveStream => 'live',
+      };
+
   CastMedia get _castMedia => CastMedia(
         channelId: widget.contentItem.id,
-        contentType: switch (widget.contentItem.contentType) {
-          ContentType.vod => 'vod',
-          ContentType.series => 'series',
-          ContentType.liveStream => 'live',
-        },
+        contentType: _castType(widget.contentItem.contentType),
         title: widget.contentItem.name,
         ext: widget.contentItem.containerExtension ?? '',
       );
+
+  /// Catálogo actual mapeado a CastMedia (para el zapping desde el móvil).
+  List<CastMedia>? get _castQueue {
+    final q = _queue;
+    if (q == null || q.length <= 1) return null;
+    return [
+      for (final it in q)
+        CastMedia(
+          channelId: it.id,
+          contentType: _castType(it.contentType),
+          title: it.name,
+          ext: it.containerExtension ?? '',
+        )
+    ];
+  }
+
+  int get _castIndex {
+    final q = _queue;
+    if (q == null) return 0;
+    final i = q.indexWhere((it) => it.id == widget.contentItem.id);
+    return i < 0 ? 0 : i;
+  }
 
   /// Capa de casting sobre el video: botón "Enviar a la TV" (solo en móvil y,
   /// por ahora, en vivo) y, mientras se transmite, la pantalla de control.
@@ -198,24 +228,22 @@ class _PlayerWidgetState extends State<PlayerWidget>
       return const SizedBox.shrink();
     }
     final isTv = ResponsiveHelper.isDesktopOrTV(context);
-    final isLive = widget.contentItem.contentType == ContentType.liveStream;
+    if (isTv) return const SizedBox.shrink();
+    // Solo el botón: al empezar a castear el player se cierra (ver
+    // _onCastChanged) y el control pasa al mini-control global.
     return Consumer<CastSenderController>(
-      builder: (context, cast, _) => Stack(
-        children: [
-          if (!isTv && !cast.isCasting)
-            Positioned(
+      builder: (context, cast, _) => cast.isCasting
+          ? const SizedBox.shrink()
+          : Positioned(
               top: 8,
               right: 8,
               child: Material(
                 color: Colors.black54,
                 shape: const CircleBorder(),
-                child: CastButton(media: _castMedia),
+                child: CastButton(
+                    media: _castMedia, queue: _castQueue, index: _castIndex),
               ),
             ),
-          if (cast.isCasting)
-            Positioned.fill(child: CastingScreen(showChannelControls: isLive)),
-        ],
-      ),
     );
   }
 
@@ -260,6 +288,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _player.setSubtitleTrack(data);
           await UserPreferences.setSubtitleTrack(data.language ?? 'null');
         });
+
+    // Cast: cuando este player es el receptor en la TV, el móvil envía
+    // play/pausa por el canal de control y aquí se aplica.
+    _castPlayPauseSubscription =
+        EventBus().on<bool>('cast_play_pause').listen((_) {
+      _player.playOrPause();
+    });
 
     // External subtitle from a URL (.srt/.ass/.vtt).
     _externalSubUriSubscription = EventBus()
@@ -321,6 +356,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _externalSubUriSubscription?.cancel();
     _externalSubDataSubscription?.cancel();
     _playbackSpeedSubscription?.cancel();
+    _castPlayPauseSubscription?.cancel();
     _seekHideTimer?.cancel();
     contentItemIndexChangedSubscription?.cancel();
     _connectivitySubscription?.cancel();

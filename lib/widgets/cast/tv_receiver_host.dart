@@ -7,6 +7,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart' hide PlayerState, Playlist;
 
 import '../../l10n/localization_extension.dart';
 import '../../models/content_type.dart';
@@ -14,7 +15,10 @@ import '../../models/m3u_item.dart';
 import '../../models/playlist_content_model.dart';
 import '../../models/playlist_model.dart';
 import '../../services/app_state.dart';
+import '../../services/cast/cast_protocol.dart';
 import '../../services/cast/tv_receiver_service.dart';
+import '../../services/event_bus.dart';
+import '../../services/player_state.dart';
 import '../../utils/responsive_helper.dart';
 import '../player_widget.dart';
 
@@ -34,6 +38,7 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
   TvReceiverService? _service;
   StreamSubscription<void>? _connectSub;
   StreamSubscription<CastLoadRequest>? _loadSub;
+  StreamSubscription<Map<String, dynamic>>? _commandSub;
   bool _pinVisible = false;
   bool _playing = false;
 
@@ -62,6 +67,52 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
       if (mounted && !_playing) setState(() => _pinVisible = true);
     });
     _loadSub = service.onLoad.listen(_play);
+    _commandSub = service.onCommand.listen(_handleCommand);
+  }
+
+  /// Aplica en la TV los comandos que envía el móvil (control remoto).
+  void _handleCommand(Map<String, dynamic> msg) {
+    switch (msg['c']) {
+      case CmdType.playPause:
+        EventBus().emit('cast_play_pause', true);
+        break;
+      case CmdType.stop:
+        if (_playing) Navigator.of(context, rootNavigator: true).maybePop();
+        break;
+      case CmdType.getTracks:
+        _service?.sendMessage('tracks', {
+          'audio': _serializeTracks(
+              PlayerState.audios, PlayerState.selectedAudio.id),
+          'sub': _serializeTracks(
+              PlayerState.subtitles, PlayerState.selectedSubtitle.id),
+        });
+        break;
+      case CmdType.selectAudio:
+        final id = msg['id'] as String? ?? '';
+        final t = PlayerState.audios.firstWhere((x) => x.id == id,
+            orElse: () => AudioTrack.auto());
+        EventBus().emit('audio_track_changed', t);
+        break;
+      case CmdType.selectSubtitle:
+        final id = msg['id'] as String? ?? '';
+        final t = id.isEmpty || id == 'no'
+            ? SubtitleTrack.no()
+            : PlayerState.subtitles.firstWhere((x) => x.id == id,
+                orElse: () => SubtitleTrack.no());
+        EventBus().emit('subtitle_track_changed', t);
+        break;
+    }
+  }
+
+  List<Map<String, dynamic>> _serializeTracks(List<dynamic> tracks, String selId) {
+    return [
+      for (final t in tracks)
+        {
+          'id': t.id as String,
+          'label': (t.title ?? t.language ?? t.id) as String,
+          'sel': t.id == selId,
+        }
+    ];
   }
 
   Future<void> _play(CastLoadRequest req) async {
@@ -117,6 +168,7 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
   void dispose() {
     _connectSub?.cancel();
     _loadSub?.cancel();
+    _commandSub?.cancel();
     _service?.stop();
     _service?.dispose();
     super.dispose();
