@@ -1,3 +1,16 @@
+# [2.8.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.8.1...v2.8.2) (2026-07-30)
+
+
+### Features
+
+* **enviar a la TV sin gastar datos:** al abrir un canal, película o episodio en el móvil, antes de empezar a cargar el video aparece un aviso breve para **"Enviar a la TV"** o **"Reproducir aquí"** (con una cuenta atrás corta que reproduce en el teléfono si no eliges). Así puedes mandarlo al televisor sin consumir datos cargándolo primero en el teléfono
+
+
+### Bug Fixes
+
+* el botón de enviar a la TV ya no tapa el botón de configuración del reproductor
+
+
 # [2.8.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.8.0...v2.8.1) (2026-07-30)
 
 
