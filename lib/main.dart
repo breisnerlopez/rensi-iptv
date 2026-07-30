@@ -10,6 +10,8 @@ import 'package:provider/provider.dart';
 import 'controllers/locale_provider.dart';
 import 'controllers/theme_provider.dart';
 import 'controllers/active_playlist_controller.dart';
+import 'controllers/cast_sender_controller.dart';
+import 'widgets/cast/tv_receiver_host.dart';
 import 'l10n/app_localizations.dart';
 import 'l10n/supported_languages.dart';
 import 'utils/app_themes.dart';
@@ -30,6 +32,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => ActivePlaylistController()),
         ChangeNotifierProvider(create: (_) => PlaylistController()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => CastSenderController()),
       ],
       child: const MyApp(),
     ),
@@ -175,7 +178,7 @@ class MyApp extends StatelessWidget {
         }
         return themed;
       },
-      home: AppInitializerScreen(),
+      home: TvReceiverHost(child: AppInitializerScreen()),
       debugShowCheckedModeBanner: false,
     );
   }

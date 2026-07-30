@@ -92,6 +92,7 @@ class PhoneSenderService {
     required String username,
     required String password,
     String title = '',
+    String ext = '',
   }) async {
     if (_sessionKey == null) throw StateError('no emparejado');
     final creds = await CastCrypto.encryptJson(_sessionKey!, {
@@ -103,6 +104,7 @@ class PhoneSenderService {
       'id': channelId,
       'ct': contentType,
       'title': title,
+      'ext': ext,
       'creds': creds,
     }));
   }

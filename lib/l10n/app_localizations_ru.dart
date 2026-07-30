@@ -9,6 +9,49 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get cast_to_tv => 'Транслировать на ТВ';
+
+  @override
+  String get cast_searching => 'Поиск телевизоров в вашей сети…';
+
+  @override
+  String get cast_no_devices =>
+      'Телевизоры не найдены. Убедитесь, что приложение открыто на телевизоре и оба устройства подключены к одной сети Wi-Fi.';
+
+  @override
+  String get cast_choose_device => 'Выберите телевизор';
+
+  @override
+  String get cast_connecting => 'Подключение…';
+
+  @override
+  String get cast_enter_pin => 'Введите код, показанный на телевизоре';
+
+  @override
+  String get cast_pair => 'Связать';
+
+  @override
+  String get cast_pairing => 'Сопряжение…';
+
+  @override
+  String get cast_wrong_pin => 'Неверный код. Попробуйте снова.';
+
+  @override
+  String get cast_playing_on => 'Воспроизводится на';
+
+  @override
+  String get cast_remote_hint => 'Ваш телефон — это пульт';
+
+  @override
+  String get cast_stop => 'Остановить трансляцию';
+
+  @override
+  String get cast_error => 'Не удалось подключиться к телевизору';
+
+  @override
+  String get cast_retry => 'Повторить';
+
+  @override
   String get slogan => 'IPTV-плеер';
 
   @override

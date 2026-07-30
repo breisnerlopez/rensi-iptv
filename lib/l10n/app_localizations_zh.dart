@@ -9,6 +9,48 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get cast_to_tv => '投屏到电视';
+
+  @override
+  String get cast_searching => '正在搜索网络中的电视…';
+
+  @override
+  String get cast_no_devices => '未找到电视。请确保电视上已打开该应用，并连接到同一 Wi-Fi。';
+
+  @override
+  String get cast_choose_device => '选择电视';
+
+  @override
+  String get cast_connecting => '正在连接…';
+
+  @override
+  String get cast_enter_pin => '请输入电视上显示的代码';
+
+  @override
+  String get cast_pair => '配对';
+
+  @override
+  String get cast_pairing => '正在配对…';
+
+  @override
+  String get cast_wrong_pin => '代码错误。请重试。';
+
+  @override
+  String get cast_playing_on => '正在播放于';
+
+  @override
+  String get cast_remote_hint => '你的手机就是遥控器';
+
+  @override
+  String get cast_stop => '停止投屏';
+
+  @override
+  String get cast_error => '无法连接到电视';
+
+  @override
+  String get cast_retry => '重试';
+
+  @override
   String get slogan => 'IPTV 播放器';
 
   @override

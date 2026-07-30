@@ -27,6 +27,10 @@ class CastLoadRequest {
   final String username;
   final String password;
   final String title;
+
+  /// container_extension (mp4/mkv/…) para VOD/series. Vacío en vivo.
+  final String ext;
+
   CastLoadRequest({
     required this.channelId,
     required this.contentType,
@@ -34,15 +38,17 @@ class CastLoadRequest {
     required this.username,
     required this.password,
     required this.title,
+    this.ext = '',
   });
 
   /// URL de stream Xtream (misma forma que lib/utils/build_media_url.dart).
   String get mediaUrl {
+    final suffix = ext.isNotEmpty ? '.$ext' : '';
     switch (contentType) {
       case 'vod':
-        return '$url/movie/$username/$password/$channelId';
+        return '$url/movie/$username/$password/$channelId$suffix';
       case 'series':
-        return '$url/series/$username/$password/$channelId';
+        return '$url/series/$username/$password/$channelId$suffix';
       default:
         return '$url/$username/$password/$channelId';
     }
@@ -63,12 +69,16 @@ class TvReceiverService {
 
   final _loadController = StreamController<CastLoadRequest>.broadcast();
   final _commandController = StreamController<String>.broadcast();
+  final _connectController = StreamController<void>.broadcast();
 
   /// LOADs recibidos (tras emparejar). La UI de la TV se suscribe para reproducir.
   Stream<CastLoadRequest> get onLoad => _loadController.stream;
 
   /// Comandos de control remoto (zap/pausa/…).
   Stream<String> get onCommand => _commandController.stream;
+
+  /// Se emite cuando un móvil abre el canal (para mostrar el PIN en la TV).
+  Stream<void> get onClientConnected => _connectController.stream;
 
   int get port => _server?.port ?? 0;
 
@@ -102,6 +112,7 @@ class TvReceiverService {
   void dispose() {
     _loadController.close();
     _commandController.close();
+    _connectController.close();
   }
 
   Future<void> _handleHttpRequest(HttpRequest req) async {
@@ -115,6 +126,7 @@ class TvReceiverService {
   }
 
   void _handleSocket(WebSocket ws) {
+    if (!_connectController.isClosed) _connectController.add(null);
     // Estado de emparejamiento POR conexión.
     final salt = randomBytes(16);
     final nonce = randomBytes(16);
@@ -160,6 +172,7 @@ class TvReceiverService {
               username: creds['user'] as String,
               password: creds['pass'] as String,
               title: (msg['title'] as String?) ?? '',
+              ext: (msg['ext'] as String?) ?? '',
             ));
             ws.add(encodeMsg(MsgType.state, {'status': 'loading', 'id': msg['id']}));
             break;

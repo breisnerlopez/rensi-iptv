@@ -9,6 +9,49 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get cast_to_tv => 'टीवी पर कास्ट करें';
+
+  @override
+  String get cast_searching => 'आपके नेटवर्क पर टीवी खोजे जा रहे हैं…';
+
+  @override
+  String get cast_no_devices =>
+      'कोई टीवी नहीं मिला। पक्का करें कि आपके टीवी पर ऐप खुला है और दोनों एक ही Wi-Fi पर हैं।';
+
+  @override
+  String get cast_choose_device => 'एक टीवी चुनें';
+
+  @override
+  String get cast_connecting => 'कनेक्ट हो रहा है…';
+
+  @override
+  String get cast_enter_pin => 'अपने टीवी पर दिखाया गया कोड दर्ज करें';
+
+  @override
+  String get cast_pair => 'पेयर करें';
+
+  @override
+  String get cast_pairing => 'पेयर हो रहा है…';
+
+  @override
+  String get cast_wrong_pin => 'गलत कोड। फिर से कोशिश करें।';
+
+  @override
+  String get cast_playing_on => 'अभी चल रहा है:';
+
+  @override
+  String get cast_remote_hint => 'आपका फ़ोन ही रिमोट है';
+
+  @override
+  String get cast_stop => 'कास्ट करना बंद करें';
+
+  @override
+  String get cast_error => 'टीवी से कनेक्ट नहीं हो सका';
+
+  @override
+  String get cast_retry => 'फिर से कोशिश करें';
+
+  @override
   String get slogan => 'आईपीटीवी प्लेयर';
 
   @override

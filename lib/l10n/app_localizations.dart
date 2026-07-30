@@ -114,6 +114,90 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @cast_to_tv.
+  ///
+  /// In en, this message translates to:
+  /// **'Cast to TV'**
+  String get cast_to_tv;
+
+  /// No description provided for @cast_searching.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching for TVs on your network…'**
+  String get cast_searching;
+
+  /// No description provided for @cast_no_devices.
+  ///
+  /// In en, this message translates to:
+  /// **'No TVs found. Make sure your TV has the app open and is on the same Wi-Fi.'**
+  String get cast_no_devices;
+
+  /// No description provided for @cast_choose_device.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a TV'**
+  String get cast_choose_device;
+
+  /// No description provided for @cast_connecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get cast_connecting;
+
+  /// No description provided for @cast_enter_pin.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the code shown on your TV'**
+  String get cast_enter_pin;
+
+  /// No description provided for @cast_pair.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair'**
+  String get cast_pair;
+
+  /// No description provided for @cast_pairing.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing…'**
+  String get cast_pairing;
+
+  /// No description provided for @cast_wrong_pin.
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect code. Try again.'**
+  String get cast_wrong_pin;
+
+  /// No description provided for @cast_playing_on.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing on'**
+  String get cast_playing_on;
+
+  /// No description provided for @cast_remote_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your phone is the remote'**
+  String get cast_remote_hint;
+
+  /// No description provided for @cast_stop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop casting'**
+  String get cast_stop;
+
+  /// No description provided for @cast_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t connect to the TV'**
+  String get cast_error;
+
+  /// No description provided for @cast_retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get cast_retry;
+
   /// No description provided for @slogan.
   ///
   /// In en, this message translates to:

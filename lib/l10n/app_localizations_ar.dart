@@ -9,6 +9,49 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
+  String get cast_to_tv => 'البث إلى التلفزيون';
+
+  @override
+  String get cast_searching => 'جارٍ البحث عن أجهزة تلفزيون على شبكتك…';
+
+  @override
+  String get cast_no_devices =>
+      'لم يتم العثور على أي تلفزيون. تأكد من فتح التطبيق على تلفزيونك واتصالك بنفس شبكة Wi-Fi.';
+
+  @override
+  String get cast_choose_device => 'اختر تلفزيونًا';
+
+  @override
+  String get cast_connecting => 'جارٍ الاتصال…';
+
+  @override
+  String get cast_enter_pin => 'أدخِل الرمز الظاهر على تلفزيونك';
+
+  @override
+  String get cast_pair => 'إقران';
+
+  @override
+  String get cast_pairing => 'جارٍ الإقران…';
+
+  @override
+  String get cast_wrong_pin => 'رمز غير صحيح. حاول مرة أخرى.';
+
+  @override
+  String get cast_playing_on => 'قيد التشغيل على';
+
+  @override
+  String get cast_remote_hint => 'هاتفك هو جهاز التحكم';
+
+  @override
+  String get cast_stop => 'إيقاف البث';
+
+  @override
+  String get cast_error => 'تعذّر الاتصال بالتلفزيون';
+
+  @override
+  String get cast_retry => 'إعادة المحاولة';
+
+  @override
   String get slogan => 'مشغل IPTV';
 
   @override

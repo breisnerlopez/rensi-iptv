@@ -9,6 +9,50 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get cast_to_tv => 'Auf TV streamen';
+
+  @override
+  String get cast_searching => 'Fernseher im Netzwerk werden gesucht…';
+
+  @override
+  String get cast_no_devices =>
+      'Keine Fernseher gefunden. Stelle sicher, dass die App auf deinem TV geöffnet ist und beide im selben WLAN sind.';
+
+  @override
+  String get cast_choose_device => 'Fernseher auswählen';
+
+  @override
+  String get cast_connecting => 'Verbindung wird hergestellt…';
+
+  @override
+  String get cast_enter_pin =>
+      'Gib den Code ein, der auf deinem TV angezeigt wird';
+
+  @override
+  String get cast_pair => 'Koppeln';
+
+  @override
+  String get cast_pairing => 'Wird gekoppelt…';
+
+  @override
+  String get cast_wrong_pin => 'Falscher Code. Versuche es erneut.';
+
+  @override
+  String get cast_playing_on => 'Läuft auf';
+
+  @override
+  String get cast_remote_hint => 'Dein Handy ist die Fernbedienung';
+
+  @override
+  String get cast_stop => 'Streaming beenden';
+
+  @override
+  String get cast_error => 'Verbindung zum TV fehlgeschlagen';
+
+  @override
+  String get cast_retry => 'Erneut versuchen';
+
+  @override
   String get slogan => 'IPTV-Player';
 
   @override

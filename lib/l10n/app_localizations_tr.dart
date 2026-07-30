@@ -9,6 +9,49 @@ class AppLocalizationsTr extends AppLocalizations {
   AppLocalizationsTr([String locale = 'tr']) : super(locale);
 
   @override
+  String get cast_to_tv => 'TV\'ye yayınla';
+
+  @override
+  String get cast_searching => 'Ağınızdaki TV\'ler aranıyor…';
+
+  @override
+  String get cast_no_devices =>
+      'TV bulunamadı. Uygulamanın TV\'nizde açık olduğundan ve ikisinin de aynı Wi-Fi ağında olduğundan emin olun.';
+
+  @override
+  String get cast_choose_device => 'Bir TV seçin';
+
+  @override
+  String get cast_connecting => 'Bağlanıyor…';
+
+  @override
+  String get cast_enter_pin => 'TV\'nizde görünen kodu girin';
+
+  @override
+  String get cast_pair => 'Eşleştir';
+
+  @override
+  String get cast_pairing => 'Eşleştiriliyor…';
+
+  @override
+  String get cast_wrong_pin => 'Yanlış kod. Tekrar deneyin.';
+
+  @override
+  String get cast_playing_on => 'Şurada oynatılıyor:';
+
+  @override
+  String get cast_remote_hint => 'Telefonunuz kumandanızdır';
+
+  @override
+  String get cast_stop => 'Yayını durdur';
+
+  @override
+  String get cast_error => 'TV\'ye bağlanılamadı';
+
+  @override
+  String get cast_retry => 'Yeniden dene';
+
+  @override
   String get slogan => 'IPTV Oynatıcı';
 
   @override

@@ -18,6 +18,10 @@ import 'package:rensi_iptv/l10n/app_localizations.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:provider/provider.dart';
+import 'package:rensi_iptv/controllers/cast_sender_controller.dart';
+import 'package:rensi_iptv/widgets/cast/cast_flow.dart';
+import 'package:rensi_iptv/widgets/cast/casting_screen.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:rensi_iptv/utils/subtitle_configuration.dart';
 import 'package:rensi_iptv/widgets/video_widget.dart';
@@ -143,6 +147,78 @@ class _PlayerWidgetState extends State<PlayerWidget>
   int? _pendingChannelIndex;
   Timer? _channelDebounceTimer;
 
+  // --- Casting (segunda pantalla) ---
+  CastSenderController? _cast;
+  bool _wasCasting = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // El provider de casting solo existe en la app real; en tests aislados que
+    // montan el player sin él, no hacemos nada.
+    try {
+      final cast = context.read<CastSenderController>();
+      if (!identical(cast, _cast)) {
+        _cast?.removeListener(_onCastChanged);
+        _cast = cast..addListener(_onCastChanged);
+      }
+    } catch (_) {/* sin CastSenderController en el árbol */}
+  }
+
+  /// Handoff de conexión: al empezar a castear se libera el stream local (evita
+  /// dos conexiones simultáneas contra el proveedor); al terminar, se reabre.
+  void _onCastChanged() {
+    final now = _cast?.isCasting ?? false;
+    if (now == _wasCasting || !mounted) return;
+    _wasCasting = now;
+    if (now) {
+      _player.stop();
+    } else {
+      _reopenCurrent();
+    }
+  }
+
+  CastMedia get _castMedia => CastMedia(
+        channelId: widget.contentItem.id,
+        contentType: switch (widget.contentItem.contentType) {
+          ContentType.vod => 'vod',
+          ContentType.series => 'series',
+          ContentType.liveStream => 'live',
+        },
+        title: widget.contentItem.name,
+        ext: widget.contentItem.containerExtension ?? '',
+      );
+
+  /// Capa de casting sobre el video: botón "Enviar a la TV" (solo en móvil y,
+  /// por ahora, en vivo) y, mientras se transmite, la pantalla de control.
+  Widget _castLayer(BuildContext context) {
+    try {
+      context.read<CastSenderController>();
+    } catch (_) {
+      return const SizedBox.shrink();
+    }
+    final isTv = ResponsiveHelper.isDesktopOrTV(context);
+    final isLive = widget.contentItem.contentType == ContentType.liveStream;
+    return Consumer<CastSenderController>(
+      builder: (context, cast, _) => Stack(
+        children: [
+          if (!isTv && !cast.isCasting)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Material(
+                color: Colors.black54,
+                shape: const CircleBorder(),
+                child: CastButton(media: _castMedia),
+              ),
+            ),
+          if (cast.isCasting)
+            Positioned.fill(child: CastingScreen(showChannelControls: isLive)),
+        ],
+      ),
+    );
+  }
+
   @override
   void initState() {
     WidgetsBinding.instance.addObserver(this);
@@ -249,6 +325,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     contentItemIndexChangedSubscription?.cancel();
     _connectivitySubscription?.cancel();
     _errorHandler.reset();
+    _cast?.removeListener(_onCastChanged);
     _remoteFocusNode.dispose();
     _pipWidthSubscription?.cancel();
     _pipHeightSubscription?.cancel();
@@ -1979,6 +2056,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
           // Transient TV hint: "Hold OK for audio & subtitles".
           _buildOkHintOverlay(context),
+
+          // Casting: botón "Enviar a la TV" y pantalla de control al transmitir.
+          _castLayer(context),
         ],
       ),
       ),

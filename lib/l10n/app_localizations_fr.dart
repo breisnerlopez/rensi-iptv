@@ -9,6 +9,49 @@ class AppLocalizationsFr extends AppLocalizations {
   AppLocalizationsFr([String locale = 'fr']) : super(locale);
 
   @override
+  String get cast_to_tv => 'Diffuser sur la TV';
+
+  @override
+  String get cast_searching => 'Recherche de téléviseurs sur votre réseau…';
+
+  @override
+  String get cast_no_devices =>
+      'Aucun téléviseur trouvé. Vérifiez que l\'application est ouverte sur votre TV et que vous êtes sur le même Wi-Fi.';
+
+  @override
+  String get cast_choose_device => 'Choisir un téléviseur';
+
+  @override
+  String get cast_connecting => 'Connexion…';
+
+  @override
+  String get cast_enter_pin => 'Saisissez le code affiché sur votre TV';
+
+  @override
+  String get cast_pair => 'Associer';
+
+  @override
+  String get cast_pairing => 'Association…';
+
+  @override
+  String get cast_wrong_pin => 'Code incorrect. Réessayez.';
+
+  @override
+  String get cast_playing_on => 'Lecture sur';
+
+  @override
+  String get cast_remote_hint => 'Votre téléphone est la télécommande';
+
+  @override
+  String get cast_stop => 'Arrêter la diffusion';
+
+  @override
+  String get cast_error => 'Impossible de se connecter au téléviseur';
+
+  @override
+  String get cast_retry => 'Réessayer';
+
+  @override
   String get slogan => 'Lecteur IPTV';
 
   @override

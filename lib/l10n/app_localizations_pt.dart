@@ -9,6 +9,49 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get cast_to_tv => 'Transmitir para a TV';
+
+  @override
+  String get cast_searching => 'Procurando TVs na sua rede…';
+
+  @override
+  String get cast_no_devices =>
+      'Nenhuma TV encontrada. Verifique se o app está aberto na sua TV e se ambos estão no mesmo Wi-Fi.';
+
+  @override
+  String get cast_choose_device => 'Escolha uma TV';
+
+  @override
+  String get cast_connecting => 'Conectando…';
+
+  @override
+  String get cast_enter_pin => 'Digite o código exibido na sua TV';
+
+  @override
+  String get cast_pair => 'Parear';
+
+  @override
+  String get cast_pairing => 'Pareando…';
+
+  @override
+  String get cast_wrong_pin => 'Código incorreto. Tente novamente.';
+
+  @override
+  String get cast_playing_on => 'Reproduzindo em';
+
+  @override
+  String get cast_remote_hint => 'Seu celular é o controle';
+
+  @override
+  String get cast_stop => 'Parar transmissão';
+
+  @override
+  String get cast_error => 'Não foi possível conectar à TV';
+
+  @override
+  String get cast_retry => 'Tentar novamente';
+
+  @override
   String get slogan => 'Player IPTV';
 
   @override

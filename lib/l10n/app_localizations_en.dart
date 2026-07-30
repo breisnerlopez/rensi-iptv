@@ -9,6 +9,49 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get cast_to_tv => 'Cast to TV';
+
+  @override
+  String get cast_searching => 'Searching for TVs on your network…';
+
+  @override
+  String get cast_no_devices =>
+      'No TVs found. Make sure your TV has the app open and is on the same Wi-Fi.';
+
+  @override
+  String get cast_choose_device => 'Choose a TV';
+
+  @override
+  String get cast_connecting => 'Connecting…';
+
+  @override
+  String get cast_enter_pin => 'Enter the code shown on your TV';
+
+  @override
+  String get cast_pair => 'Pair';
+
+  @override
+  String get cast_pairing => 'Pairing…';
+
+  @override
+  String get cast_wrong_pin => 'Incorrect code. Try again.';
+
+  @override
+  String get cast_playing_on => 'Playing on';
+
+  @override
+  String get cast_remote_hint => 'Your phone is the remote';
+
+  @override
+  String get cast_stop => 'Stop casting';
+
+  @override
+  String get cast_error => 'Couldn\'t connect to the TV';
+
+  @override
+  String get cast_retry => 'Retry';
+
+  @override
   String get slogan => 'IPTV Player';
 
   @override
