@@ -1574,4 +1574,26 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get cast_need_wifi =>
       'Подключитесь к той же сети Wi‑Fi, что и TV, чтобы отправить файл.';
+
+  @override
+  String get download_err_http => 'Ошибка HTTP';
+
+  @override
+  String get download_err_start_failed => 'Не удалось начать загрузку';
+
+  @override
+  String get download_err_file_missing => 'Загруженный файл больше недоступен';
+
+  @override
+  String get download_err_canceled => 'Загрузка отменена или не найдена';
+
+  @override
+  String get download_err_server_page =>
+      'Сервер вернул страницу с ошибкой (сеанс истёк или неверный id)';
+
+  @override
+  String get download_err_generic => 'Загрузка не удалась';
+
+  @override
+  String get download_retry => 'Повторить';
 }

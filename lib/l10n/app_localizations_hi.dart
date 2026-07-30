@@ -1570,4 +1570,27 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get cast_need_wifi =>
       'फ़ाइल भेजने के लिए TV के समान Wi‑Fi नेटवर्क से कनेक्ट करें।';
+
+  @override
+  String get download_err_http => 'HTTP त्रुटि';
+
+  @override
+  String get download_err_start_failed => 'डाउनलोड शुरू नहीं हो सका';
+
+  @override
+  String get download_err_file_missing =>
+      'डाउनलोड की गई फ़ाइल अब उपलब्ध नहीं है';
+
+  @override
+  String get download_err_canceled => 'डाउनलोड रद्द किया गया या नहीं मिला';
+
+  @override
+  String get download_err_server_page =>
+      'सर्वर ने एक त्रुटि पृष्ठ लौटाया (सत्र समाप्त हो गया या अमान्य id)';
+
+  @override
+  String get download_err_generic => 'डाउनलोड विफल हो गया';
+
+  @override
+  String get download_retry => 'पुनः प्रयास करें';
 }

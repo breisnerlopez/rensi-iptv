@@ -1590,4 +1590,29 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get cast_need_wifi =>
       'Verbinde dich mit demselben Wi‑Fi-Netzwerk wie die TV, um die Datei zu senden.';
+
+  @override
+  String get download_err_http => 'HTTP-Fehler';
+
+  @override
+  String get download_err_start_failed =>
+      'Der Download konnte nicht gestartet werden';
+
+  @override
+  String get download_err_file_missing =>
+      'Die heruntergeladene Datei ist nicht mehr verfügbar';
+
+  @override
+  String get download_err_canceled =>
+      'Download abgebrochen oder nicht gefunden';
+
+  @override
+  String get download_err_server_page =>
+      'Der Server hat eine Fehlerseite zurückgegeben (Sitzung abgelaufen oder ungültige ID)';
+
+  @override
+  String get download_err_generic => 'Der Download ist fehlgeschlagen';
+
+  @override
+  String get download_retry => 'Wiederholen';
 }

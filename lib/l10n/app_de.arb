@@ -605,5 +605,12 @@
   "tv_ready_subtitle": "Bereit, Inhalte von deinem Telefon zu empfangen",
   "tv_playback_settings": "Wiedergabeeinstellungen",
   "tv_replay_failed": "Dieser Inhalt konnte zum Abspielen nicht abgerufen werden.",
-  "cast_need_wifi": "Verbinde dich mit demselben Wi‑Fi-Netzwerk wie die TV, um die Datei zu senden."
+  "cast_need_wifi": "Verbinde dich mit demselben Wi‑Fi-Netzwerk wie die TV, um die Datei zu senden.",
+  "download_err_http": "HTTP-Fehler",
+  "download_err_start_failed": "Der Download konnte nicht gestartet werden",
+  "download_err_file_missing": "Die heruntergeladene Datei ist nicht mehr verfügbar",
+  "download_err_canceled": "Download abgebrochen oder nicht gefunden",
+  "download_err_server_page": "Der Server hat eine Fehlerseite zurückgegeben (Sitzung abgelaufen oder ungültige ID)",
+  "download_err_generic": "Der Download ist fehlgeschlagen",
+  "download_retry": "Wiederholen"
 }

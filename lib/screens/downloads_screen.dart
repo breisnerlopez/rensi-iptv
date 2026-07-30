@@ -5,6 +5,8 @@
 // argumentos de navegación.
 //
 // Sin claves de i18n todavía (ver reporte): los textos son literales.
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
@@ -136,6 +138,24 @@ class _DownloadTile extends StatelessWidget {
   Future<void> _play(BuildContext context) async {
     final path = download.filePath;
     if (path == null) return;
+
+    // El archivo pudo borrarse fuera de la app (limpieza manual, tarjeta SD
+    // desmontada, etc.): si ya no está, no intentamos reproducirlo — se
+    // marca la fila como fallida (con motivo) para que quede claro y sea
+    // reintentable desde el propio diálogo de fallo.
+    if (!await File(path).exists()) {
+      await DownloadService.instance.markMissing(download.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(context.loc.download_err_file_missing),
+          ),
+        );
+      }
+      return;
+    }
+    if (!context.mounted) return;
+
     final contentType =
         download.contentType == 'series' ? ContentType.series : ContentType.vod;
 
@@ -174,9 +194,65 @@ class _DownloadTile extends StatelessWidget {
     AppState.currentPlaylist = saved;
   }
 
+  /// Diálogo mostrado al tocar una fila 'failed': motivo completo del fallo
+  /// y acción para reintentar (borra la fila y vuelve a encolar).
+  /// Traduce el CÓDIGO de error guardado en la BD al idioma del usuario.
+  /// 'http:<code>' antepone el código HTTP; el resto son claves fijas.
+  String _localizedError(BuildContext context, String code) {
+    final loc = context.loc;
+    if (code.startsWith('http:')) {
+      final c = code.substring(5);
+      return c.isNotEmpty ? '${loc.download_err_http} $c' : loc.download_err_http;
+    }
+    switch (code) {
+      case 'start_failed':
+        return loc.download_err_start_failed;
+      case 'file_missing':
+        return loc.download_err_file_missing;
+      case 'canceled_or_notfound':
+        return loc.download_err_canceled;
+      case 'server_error_page':
+        return loc.download_err_server_page;
+      case 'failed':
+      default:
+        return loc.download_err_generic;
+    }
+  }
+
+  Future<void> _showFailedDialog(BuildContext context) async {
+    final code = download.error;
+    final reason =
+        code == null ? _statusLabel(context) : _localizedError(context, code);
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          download.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        content: Text(reason),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(dialogContext.loc.close),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              DownloadService.instance.retry(download.id);
+            },
+            child: Text(dialogContext.loc.download_retry),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isComplete = download.status == 'complete';
+    final isFailed = download.status == 'failed';
     return ListTile(
       leading: SizedBox(
         width: 56,
@@ -212,6 +288,18 @@ class _DownloadTile extends StatelessWidget {
               padding: const EdgeInsets.only(top: 4),
               child: LinearProgressIndicator(value: _progress),
             ),
+          if (isFailed && (download.error ?? '').isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                _localizedError(context, download.error!),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+              ),
+            ),
         ],
       ),
       trailing: Row(
@@ -220,7 +308,9 @@ class _DownloadTile extends StatelessWidget {
           ..._actionsFor(context),
         ],
       ),
-      onTap: isComplete ? () => _play(context) : null,
+      onTap: isComplete
+          ? () => _play(context)
+          : (isFailed ? () => _showFailedDialog(context) : null),
     );
   }
 
@@ -264,6 +354,11 @@ class _DownloadTile extends StatelessWidget {
       case 'complete':
       default:
         return [
+          if (download.filePath != null)
+            const Padding(
+              padding: EdgeInsets.only(right: 4),
+              child: Icon(Icons.play_arrow),
+            ),
           if (download.filePath != null)
             IconButton(
               tooltip: context.loc.download_send_to_tv,

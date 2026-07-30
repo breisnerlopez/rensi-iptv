@@ -1513,4 +1513,25 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get cast_need_wifi => '连接到与 TV 相同的 Wi‑Fi 网络以发送文件。';
+
+  @override
+  String get download_err_http => 'HTTP 错误';
+
+  @override
+  String get download_err_start_failed => '无法开始下载';
+
+  @override
+  String get download_err_file_missing => '下载的文件已不再可用';
+
+  @override
+  String get download_err_canceled => '下载已取消或未找到';
+
+  @override
+  String get download_err_server_page => '服务器返回了一个错误页面(会话已过期或 id 无效)';
+
+  @override
+  String get download_err_generic => '下载失败';
+
+  @override
+  String get download_retry => '重试';
 }

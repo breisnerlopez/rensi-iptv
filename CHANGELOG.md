@@ -1,3 +1,19 @@
+# [2.10.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.9.0...v2.10.0) (2026-07-30)
+
+
+### Features
+
+* **descargas en segundo plano de verdad:** una descarga sigue aunque salgas de la app o apagues la pantalla —corre como servicio en primer plano con notificación de progreso— y su estado sobrevive a cerrar la app
+* **saber por qué falló una descarga:** cuando una descarga falla ahora se muestra el motivo (página de error del panel, error HTTP, cancelada, archivo no disponible…) y un botón para **Reintentar**
+* **lo que envías a la TV queda en "Continuar viendo":** al reproducir en la TV desde el móvil (en vivo, película o serie) se guarda la posición para retomarlo; nunca reduce el avance que ya tenías en ese título
+
+
+### Bug Fixes
+
+* **contenido que se reproducía pero no se descargaba:** algunos títulos reproducen bien pero el panel sirve una extensión de archivo obsoleta y la descarga bajaba una página de error; ahora la descarga la **auto-corrige** (prueba mp4/mkv/avi) igual que ya hacía el reproductor
+* **reproducir una descarga:** al tocar una descarga completa se abre en el reproductor; si el archivo ya no está en el dispositivo, se avisa y se marca en vez de fallar en silencio
+
+
 # [2.9.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.8.3...v2.9.0) (2026-07-30)
 
 

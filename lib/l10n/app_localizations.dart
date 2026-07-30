@@ -2987,6 +2987,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Connect to the same Wi‑Fi network as the TV to send the file.'**
   String get cast_need_wifi;
+
+  /// No description provided for @download_err_http.
+  ///
+  /// In en, this message translates to:
+  /// **'HTTP error'**
+  String get download_err_http;
+
+  /// No description provided for @download_err_start_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t start the download'**
+  String get download_err_start_failed;
+
+  /// No description provided for @download_err_file_missing.
+  ///
+  /// In en, this message translates to:
+  /// **'The downloaded file is no longer available'**
+  String get download_err_file_missing;
+
+  /// No description provided for @download_err_canceled.
+  ///
+  /// In en, this message translates to:
+  /// **'Download canceled or not found'**
+  String get download_err_canceled;
+
+  /// No description provided for @download_err_server_page.
+  ///
+  /// In en, this message translates to:
+  /// **'The server returned an error page (expired session or invalid id)'**
+  String get download_err_server_page;
+
+  /// No description provided for @download_err_generic.
+  ///
+  /// In en, this message translates to:
+  /// **'The download failed'**
+  String get download_err_generic;
+
+  /// No description provided for @download_retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get download_retry;
 }
 
 class _AppLocalizationsDelegate

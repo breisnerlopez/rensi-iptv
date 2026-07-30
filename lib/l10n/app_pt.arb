@@ -605,5 +605,12 @@
   "tv_ready_subtitle": "Pronto para receber conteúdo do seu celular",
   "tv_playback_settings": "Configurações de reprodução",
   "tv_replay_failed": "Não foi possível recuperar este conteúdo para reproduzi-lo.",
-  "cast_need_wifi": "Conecte-se à mesma rede Wi‑Fi da TV para enviar o arquivo."
+  "cast_need_wifi": "Conecte-se à mesma rede Wi‑Fi da TV para enviar o arquivo.",
+  "download_err_http": "Erro HTTP",
+  "download_err_start_failed": "Não foi possível iniciar o download",
+  "download_err_file_missing": "O arquivo baixado não está mais disponível",
+  "download_err_canceled": "Download cancelado ou não encontrado",
+  "download_err_server_page": "O servidor retornou uma página de erro (sessão expirada ou id inválido)",
+  "download_err_generic": "O download falhou",
+  "download_retry": "Tentar novamente"
 }

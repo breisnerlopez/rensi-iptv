@@ -7,11 +7,14 @@
 // secretos) y viajan cifradas por el canal de control; nunca a un backend.
 import 'package:flutter/foundation.dart';
 
+import '../models/content_type.dart';
+import '../models/watch_history.dart';
 import '../services/app_state.dart';
 import '../services/cast/cast_protocol.dart';
 import '../services/cast/cast_trust_store.dart';
 import '../services/cast/local_file_server.dart';
 import '../services/cast/phone_sender_service.dart';
+import '../services/watch_history_service.dart';
 
 enum CastPhase {
   idle, // sin castear
@@ -26,14 +29,31 @@ enum CastPhase {
 /// Descripción de un contenido a castear (independiente de los modelos de UI).
 class CastMedia {
   final String channelId;
-  final String contentType; // 'live' | 'vod' | 'series'
+  final String contentType; // 'live' | 'vod' | 'series' | 'file'
   final String title;
   final String ext; // container_extension para VOD/series (vacío en vivo)
+
+  // Contexto para reconstruir un WatchHistory en el móvil desde la posición que
+  // reporta la TV (así el cast alimenta "continuar viendo"). Todos opcionales:
+  // un cast de archivo local no tiene playlist (playlistId '').
+  final String imagePath;
+  final String playlistId;
+  final String? seriesId;
+
+  // streamId con el que ESCRIBIR el historial. DEBE coincidir con la clave que
+  // usa el reproductor normal (Xtream: contentItem.id; M3U: m3uItem.id), NO con
+  // channelId (que en M3U es la URL) — si no, se duplican filas de "continuar
+  // viendo". Vacío → se cae a channelId.
+  final String historyId;
   const CastMedia({
     required this.channelId,
     required this.contentType,
     required this.title,
     this.ext = '',
+    this.imagePath = '',
+    this.playlistId = '',
+    this.seriesId,
+    this.historyId = '',
   });
 }
 
@@ -81,6 +101,13 @@ class CastSenderController extends ChangeNotifier {
   int _index = 0;
   List<CastTrack> _audioTracks = const [];
   List<CastTrack> _subtitleTracks = const [];
+
+  // Historial desde la posición que reporta la TV (para "continuar viendo").
+  // Se construye perezosamente al escribir: WatchHistoryService resuelve
+  // AppDatabase de GetIt, que no existe en tests que solo montan el controlador.
+  DateTime? _lastHistoryWrite; // throttle de escrituras a la BD (~10s)
+  int _lastPos = 0; // última posición conocida (ms) reportada por la TV
+  int _lastDur = 0; // última duración conocida (ms) reportada por la TV
 
   List<CastTrack> get audioTracks => List.unmodifiable(_audioTracks);
   List<CastTrack> get subtitleTracks => List.unmodifiable(_subtitleTracks);
@@ -150,6 +177,7 @@ class CastSenderController extends ChangeNotifier {
     try {
       _sender = _senderFactory()..onDisconnected = _onDisconnected;
       _sender!.onTracks.listen(_onTracks);
+      _sender!.onState.listen(_onState);
       await _sender!.connect(device.host, device.port, secure: device.secure);
       // ¿TV de confianza (emparejada en los últimos 7 días)? Reanudar SIN PIN.
       final tvId = _sender!.tvId;
@@ -238,6 +266,7 @@ class CastSenderController extends ChangeNotifier {
     required String contentId,
     required String title,
     String ext = '',
+    String imagePath = '',
   }) async {
     _localFilePath = filePath;
     final server = _fileServer ??= LocalFileServer();
@@ -259,6 +288,7 @@ class CastSenderController extends ChangeNotifier {
         contentType: 'file',
         title: title,
         ext: ext,
+        imagePath: imagePath,
       ),
       localUrl: lanUrl,
     );
@@ -282,6 +312,7 @@ class CastSenderController extends ChangeNotifier {
         contentId: media.channelId,
         title: media.title,
         ext: media.ext,
+        imagePath: media.imagePath,
       );
     } else {
       beginCast(media, queue: _queue, index: _index);
@@ -304,6 +335,7 @@ class CastSenderController extends ChangeNotifier {
       try {
         _sender = _senderFactory()..onDisconnected = _onDisconnected;
         _sender!.onTracks.listen(_onTracks);
+        _sender!.onState.listen(_onState);
         await _sender!.connect(device.host, device.port, secure: device.secure);
         if (await _sender!.pair(pin)) {
           await _sendLoad();
@@ -351,8 +383,78 @@ class CastSenderController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// La TV reporta su posición de reproducción (MsgType.state). La usamos para
+  /// escribir un WatchHistory en el móvil, de modo que lo casteado aparezca en
+  /// "continuar viendo". Throttle a ~1 escritura cada 10s.
+  void _onState(Map<String, dynamic> msg) {
+    final pos = (msg['pos'] as num?)?.toInt() ?? 0;
+    final dur = (msg['dur'] as num?)?.toInt() ?? 0;
+    if (pos <= 0 || dur <= 0) return;
+    _lastPos = pos;
+    _lastDur = dur;
+    final now = DateTime.now();
+    final last = _lastHistoryWrite;
+    if (last != null && now.difference(last) < const Duration(seconds: 10)) {
+      return;
+    }
+    _lastHistoryWrite = now;
+    _writeHistory(pos, dur);
+  }
+
+  /// Persiste un WatchHistory con la posición/duración conocidas del cast.
+  /// Nunca deja que un fallo de BD rompa el casting.
+  Future<void> _writeHistory(int posMs, int durMs) async {
+    final media = _media;
+    if (media == null) return;
+    // Un archivo local no tiene ancla de catálogo (playlistId '') y su id puede
+    // colisionar con la PK {playlist, streamId} del historial real de OTRO
+    // contenido (insertOnConflictUpdate lo pisaría, degradando serie→vod). No
+    // registramos historial para casts de archivo local.
+    if (media.contentType == 'file') return;
+    final contentType = switch (media.contentType) {
+      'series' => ContentType.series,
+      'vod' => ContentType.vod,
+      _ => ContentType.liveStream,
+    };
+    final playlistId = media.playlistId.isNotEmpty
+        ? media.playlistId
+        : (AppState.currentPlaylist?.id ?? '');
+    // streamId = la MISMA clave que usa el reproductor normal (evita duplicar
+    // filas de "continuar viendo", sobre todo en M3U donde channelId es la URL).
+    final streamId = media.historyId.isNotEmpty ? media.historyId : media.channelId;
+    if (playlistId.isEmpty || streamId.isEmpty) return;
+    try {
+      final service = WatchHistoryService();
+      // Avance-solo: la TV arranca desde 0 (el LOAD no lleva posición de
+      // resume), así que el primer reporte llega a ~1%. Si ya había una posición
+      // MAYOR para este título, NO la reducimos — casear un título a medias no
+      // debe resetear su "continuar viendo".
+      final existing = await service.getWatchHistory(playlistId, streamId);
+      final existingMs = existing?.watchDuration?.inMilliseconds ?? 0;
+      if (existingMs > posMs) return;
+      await service.saveWatchHistory(
+        WatchHistory(
+          playlistId: playlistId,
+          contentType: contentType,
+          streamId: streamId,
+          seriesId: media.seriesId,
+          watchDuration: Duration(milliseconds: posMs),
+          totalDuration: Duration(milliseconds: durMs),
+          lastWatched: DateTime.now(),
+          imagePath: media.imagePath,
+          title: media.title,
+        ),
+      );
+    } catch (_) {/* una escritura de historial nunca rompe el casting */}
+  }
+
   /// Termina el casting y vuelve a idle (la TV libera el stream).
   Future<void> stopCasting() async {
+    // Escritura final: si tenemos una última posición conocida, persistirla
+    // (así un título casi terminado se registra con su progreso real).
+    if (_lastPos > 0 && _lastDur > 0) {
+      await _writeHistory(_lastPos, _lastDur);
+    }
     _sender?.sendCommand(CmdType.stop);
     await _sender?.close();
     await _fileServer?.stop();
@@ -369,6 +471,9 @@ class CastSenderController extends ChangeNotifier {
     _index = 0;
     _audioTracks = const [];
     _subtitleTracks = const [];
+    _lastHistoryWrite = null;
+    _lastPos = 0;
+    _lastDur = 0;
     _set(CastPhase.idle);
   }
 

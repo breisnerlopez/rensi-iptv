@@ -197,6 +197,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
         contentType: _castType(widget.contentItem.contentType),
         title: widget.contentItem.name,
         ext: widget.contentItem.containerExtension ?? '',
+        imagePath: widget.contentItem.imagePath,
+        playlistId: AppState.currentPlaylist?.id ?? '',
+        seriesId: widget.contentItem.seriesStream?.seriesId,
+        // Misma clave de historial que _saveWatchHistory (Xtream: id; M3U:
+        // m3uItem.id) para no duplicar "continuar viendo".
+        historyId: isXtreamCode
+            ? widget.contentItem.id
+            : widget.contentItem.m3uItem?.id ?? widget.contentItem.id,
       );
 
   /// Catálogo actual mapeado a CastMedia (para el zapping desde el móvil).
@@ -210,6 +218,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
           contentType: _castType(it.contentType),
           title: it.name,
           ext: it.containerExtension ?? '',
+          imagePath: it.imagePath,
+          playlistId: AppState.currentPlaylist?.id ?? '',
+          seriesId: it.seriesStream?.seriesId,
+          historyId: isXtreamCode ? it.id : it.m3uItem?.id ?? it.id,
         )
     ];
   }
@@ -1099,6 +1111,16 @@ class _PlayerWidgetState extends State<PlayerWidget>
       // Debounce: Save watch history every 5 seconds instead of on every position update
       _pendingWatchDuration = position;
       _pendingTotalDuration = _player.state.duration;
+
+      // Puente de casting: solo la TV receptora reenvía su posición al móvil
+      // para alimentar "continuar viendo". Emitir solo en TV evita trabajo por
+      // tick en el móvil, donde nadie consume el evento.
+      if (ResponsiveHelper.isTelevisionDevice) {
+        EventBus().emit('cast_player_position', {
+          'pos': position.inMilliseconds,
+          'dur': _player.state.duration.inMilliseconds,
+        });
+      }
 
       _watchHistoryTimer?.cancel();
       _watchHistoryTimer = Timer(const Duration(seconds: 5), () {

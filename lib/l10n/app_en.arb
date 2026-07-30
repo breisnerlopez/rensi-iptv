@@ -611,5 +611,12 @@
   "tv_ready_subtitle": "Ready to receive content from your phone",
   "tv_playback_settings": "Playback settings",
   "tv_replay_failed": "Couldn't retrieve this content to play it.",
-  "cast_need_wifi": "Connect to the same Wi‑Fi network as the TV to send the file."
+  "cast_need_wifi": "Connect to the same Wi‑Fi network as the TV to send the file.",
+  "download_err_http": "HTTP error",
+  "download_err_start_failed": "Couldn't start the download",
+  "download_err_file_missing": "The downloaded file is no longer available",
+  "download_err_canceled": "Download canceled or not found",
+  "download_err_server_page": "The server returned an error page (expired session or invalid id)",
+  "download_err_generic": "The download failed",
+  "download_retry": "Retry"
 }

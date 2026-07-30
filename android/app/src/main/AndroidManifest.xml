@@ -14,6 +14,23 @@
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
         android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- background_downloader (offline downloads): Android 13+ requires this
+         to show the 'running'/'complete'/'error'/'paused' notifications
+         configured in DownloadService._configureOnce. Without it, downloads
+         still run but never promote to a foreground service and the OS is
+         more likely to kill them once the app is backgrounded. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- background_downloader (offline downloads): on Android 14+ (API 34+;
+         this app targets API 36), the plugin calls setForeground(..., dataSync)
+         while a download's 'running' notification is active (see its
+         Notifications.kt), to keep the download alive as a foreground service.
+         Android 14 requires the matching FOREGROUND_SERVICE_* permission for
+         whichever type is used at runtime, even though the service itself
+         (WorkManager's SystemForegroundService) is declared by the androidx.work
+         library, not by us. NOTE: on API 35+ dataSync foreground services have a
+         ~6h/24h runtime budget — a very large download could hit it; the plugin
+         resumes from background so this is a soft limit, not data loss. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <!-- In-app file browser (mainly for Android-TV boxes whose stripped
          DocumentsUI can't satisfy the system picker). Scoped to legacy

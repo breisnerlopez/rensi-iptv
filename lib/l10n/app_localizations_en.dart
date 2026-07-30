@@ -1566,4 +1566,27 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get cast_need_wifi =>
       'Connect to the same Wi‑Fi network as the TV to send the file.';
+
+  @override
+  String get download_err_http => 'HTTP error';
+
+  @override
+  String get download_err_start_failed => 'Couldn\'t start the download';
+
+  @override
+  String get download_err_file_missing =>
+      'The downloaded file is no longer available';
+
+  @override
+  String get download_err_canceled => 'Download canceled or not found';
+
+  @override
+  String get download_err_server_page =>
+      'The server returned an error page (expired session or invalid id)';
+
+  @override
+  String get download_err_generic => 'The download failed';
+
+  @override
+  String get download_retry => 'Retry';
 }

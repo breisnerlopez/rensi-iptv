@@ -46,6 +46,13 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
   bool _pinVisible = false;
   bool _playing = false;
 
+  // Reenvío de posición TV→móvil (para "continuar viendo" en el teléfono).
+  StreamSubscription<Map<String, dynamic>>? _positionSub;
+  DateTime? _lastStateSent; // throttle: como mucho 1 envío cada ~5s
+  int _lastPos = 0;
+  int _lastDur = 0;
+  String _currentChannelId = '';
+
   @override
   void initState() {
     super.initState();
@@ -147,7 +154,10 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
         EventBus().emit('cast_play_pause', true);
         break;
       case CmdType.stop:
-        if (_playing) Navigator.of(context, rootNavigator: true).maybePop();
+        if (_playing) {
+          _stopPositionForwarding(sendFinal: true);
+          Navigator.of(context, rootNavigator: true).maybePop();
+        }
         break;
       case CmdType.getTracks:
         _service?.sendMessage('tracks', {
@@ -191,6 +201,8 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
       _pinVisible = false;
       _playing = true;
     });
+    // Empezar a reenviar la posición de reproducción al móvil (throttled).
+    _startPositionForwarding(req.channelId);
 
     // Reproducir la URL EXACTA que envió el móvil (con SUS credenciales), no la
     // del proveedor local: se construye el ContentItem en contexto M3U para que
@@ -232,9 +244,58 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
         ),
       ),
     );
-    // Al cerrar el player, restaurar la playlist del usuario.
+    // Al cerrar el player (fin de reproducción), enviar una última posición y
+    // cortar el reenvío, luego restaurar la playlist del usuario.
+    _stopPositionForwarding(sendFinal: true);
     AppState.currentPlaylist = saved;
     if (mounted) setState(() => _playing = false);
+  }
+
+  /// Suscribe el reenvío de posición mientras un cast está en curso. El player
+  /// (que corre aquí, en la TV) emite 'cast_player_position'; lo mandamos al
+  /// móvil como MsgType.state throttled a como mucho 1 vez cada ~5s.
+  void _startPositionForwarding(String channelId) {
+    _currentChannelId = channelId;
+    _lastStateSent = null;
+    _lastPos = 0;
+    _lastDur = 0;
+    _positionSub?.cancel();
+    _positionSub =
+        EventBus().on<Map<String, dynamic>>('cast_player_position').listen((e) {
+      final pos = (e['pos'] as num?)?.toInt() ?? 0;
+      final dur = (e['dur'] as num?)?.toInt() ?? 0;
+      // Simetría con el receptor en el móvil: sin duración fiable no hay nada
+      // que registrar en "continuar viendo" (evita mandar dur:0 en vivo).
+      if (pos <= 0 || dur <= 0) return;
+      _lastPos = pos;
+      _lastDur = dur;
+      final now = DateTime.now();
+      final last = _lastStateSent;
+      if (last != null && now.difference(last) < const Duration(seconds: 5)) {
+        return;
+      }
+      _lastStateSent = now;
+      _sendState(pos, dur);
+    });
+  }
+
+  /// Corta el reenvío de posición; si [sendFinal], manda una última posición
+  /// (para que un título casi terminado quede bien registrado en el móvil).
+  void _stopPositionForwarding({bool sendFinal = false}) {
+    _positionSub?.cancel();
+    _positionSub = null;
+    if (sendFinal && _lastPos > 0) {
+      _sendState(_lastPos, _lastDur);
+    }
+  }
+
+  void _sendState(int pos, int dur) {
+    _service?.sendMessage(MsgType.state, {
+      'status': 'playing',
+      'pos': pos,
+      'dur': dur,
+      'id': _currentChannelId,
+    });
   }
 
   @override
@@ -242,6 +303,7 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     _connectSub?.cancel();
     _loadSub?.cancel();
     _commandSub?.cancel();
+    _positionSub?.cancel();
     _service?.stop();
     _service?.dispose();
     super.dispose();

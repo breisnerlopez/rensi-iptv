@@ -513,6 +513,13 @@ class Downloads extends Table {
   IntColumn get addedAt => integer()(); // epoch ms
   BoolColumn get watched => boolean().withDefault(const Constant(false))();
   TextColumn get playlistId => text()();
+  // Motivo legible del último fallo (null si nunca falló o si ya no aplica
+  // tras un reinicio/reintento exitoso). Mostrado en DownloadsScreen.
+  TextColumn get error => text().nullable()();
+  // URL de origen (Xtream/M3U) usada al encolar. Persistida para poder
+  // reintentar una descarga fallida sin depender de que el plugin todavía
+  // conserve el DownloadTask original (no lo garantiza una vez 'failed').
+  TextColumn get url => text().nullable()();
 }
 
 @DriftDatabase(
@@ -560,7 +567,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   // === PLAYLIST İŞLEMLERİ ===
 
@@ -1926,6 +1933,15 @@ class AppDatabase extends _$AppDatabase {
       if (from <= 10) {
         // Descargas offline (feat/downloads): tabla aditiva, sin tocar datos.
         await m.createTable(downloads);
+      }
+
+      if (from <= 11) {
+        // Hardening de descargas offline: motivo de fallo (para mostrar en
+        // DownloadsScreen) y URL de origen (para poder reintentar sin
+        // depender de que el plugin retenga el DownloadTask original).
+        // Ambas aditivas y nullable: filas existentes quedan en NULL.
+        await m.addColumn(downloads, downloads.error);
+        await m.addColumn(downloads, downloads.url);
       }
     },
     beforeOpen: (_) async {

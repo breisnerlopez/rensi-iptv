@@ -15,6 +15,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../database/database.dart';
+import '../utils/build_media_url.dart' show kVodExtensionCandidates, swapUrlExtension;
 import '../utils/download_policy.dart';
 
 /// Subcarpeta (bajo `getApplicationSupportDirectory`) donde viven todos los
@@ -38,6 +39,11 @@ class DownloadService {
 
   StreamSubscription<TaskUpdate>? _sub;
   bool _listening = false;
+  // Future COMPARTIDO de la config nativa (una sola ejecución). Se guarda el
+  // future — no un bool — para que el primer enqueue pueda ESPERAR a que
+  // trackTasks/resumeFromBackground terminen antes de encolar (si no, la
+  // persistencia podría no aplicarse a la primera descarga).
+  Future<void>? _configureFuture;
 
   /// Se suscribe a los updates de `background_downloader` (una sola vez). Es
   /// LAZY a propósito: renderizar `DownloadButton`/`DownloadsScreen` solo
@@ -49,6 +55,41 @@ class DownloadService {
     if (_listening) return;
     _listening = true;
     _sub = FileDownloader().updates.listen(_onUpdate, onError: (_) {});
+    // Fire-and-forget en el arranque: no debe bloquear a main.dart. El primer
+    // enqueue SÍ espera este mismo future (ver enqueue) para no encolar antes
+    // de que la persistencia esté activa.
+    unawaited(_ensureConfigured());
+  }
+
+  /// Devuelve (y lanza una sola vez) el future de la config nativa.
+  Future<void> _ensureConfigured() => _configureFuture ??= _configureOnce();
+
+  /// Configura notificaciones (una sola vez) y activa la persistencia de
+  /// `background_downloader` para que las descargas sobrevivan tanto a que
+  /// la app pase a segundo plano como a que el proceso muera y la OS lo
+  /// mate: la notificación 'running' con progressBar promueve la descarga a
+  /// foreground service de Android; `trackTasks`+`resumeFromBackground`
+  /// persisten el estado y lo recuperan al reabrir. Envuelto en try/catch:
+  /// en tests (sin platform channel real) o en plataformas sin soporte esto
+  /// no debe tumbar la app.
+  Future<void> _configureOnce() async {
+    try {
+      FileDownloader().configureNotification(
+        running:
+            const TaskNotification('Descargando', '{filename}'),
+        complete:
+            const TaskNotification('Descarga completa', '{filename}'),
+        error: const TaskNotification('Descarga fallida', '{filename}'),
+        paused: const TaskNotification('Descarga en pausa', '{filename}'),
+        progressBar: true,
+      );
+      await FileDownloader().trackTasks();
+      await FileDownloader().resumeFromBackground();
+    } catch (_) {
+      // Best-effort: no hay red de seguridad mejor posible aquí — si esto
+      // falla, las descargas siguen funcionando en primer plano (solo se
+      // pierde la persistencia/foreground service).
+    }
   }
 
   AppDatabase get _db => GetIt.instance<AppDatabase>();
@@ -97,6 +138,19 @@ class DownloadService {
     assert(contentType == 'vod' || contentType == 'series',
         'DownloadService.enqueue: solo vod|series, se recibió "$contentType"');
     ensureListening();
+    // Esperar a que la config nativa (trackTasks/resumeFromBackground) termine
+    // antes de encolar la PRIMERA descarga, para que la persistencia/foreground
+    // service apliquen desde la primera tarea. Idempotente y ~instantáneo tras
+    // la primera vez.
+    await _ensureConfigured();
+
+    // Best-effort: sin este permiso (Android 13+) la notificación 'running'
+    // no se muestra y por tanto no hay foreground service — la descarga
+    // igual se encola, solo con más riesgo de que la OS la mate en segundo
+    // plano. Nunca debe impedir encolar.
+    try {
+      await FileDownloader().permissions.request(PermissionType.notifications);
+    } catch (_) {}
 
     // Best-effort: si ya hay una fila para este contenido en curso o
     // completa, no duplicar. Una fila 'failed' previa, en cambio, se limpia
@@ -128,6 +182,7 @@ class DownloadService {
             status: const Value('queued'),
             addedAt: now,
             playlistId: playlistId,
+            url: Value(url),
           ),
         );
 
@@ -142,6 +197,18 @@ class DownloadService {
       // falla igualmente el enqueue de abajo fallará de forma visible.
     }
 
+    await _startTaskForRow(rowId, contentId: contentId, url: url, ext: ext);
+  }
+
+  /// Construye y encola la DownloadTask de una fila (reusado por [enqueue] y por
+  /// la auto-corrección de extensión). Marca la fila 'failed' si el plugin no
+  /// acepta el encolado.
+  Future<bool> _startTaskForRow(
+    int rowId, {
+    required String contentId,
+    required String url,
+    String? ext,
+  }) async {
     final safeId = contentId.replaceAll(RegExp(r'[^A-Za-z0-9_.-]'), '_');
     final filename =
         (ext != null && ext.isNotEmpty) ? '$safeId.$ext' : safeId;
@@ -166,9 +233,39 @@ class DownloadService {
 
     final ok = await FileDownloader().enqueue(task);
     if (!ok) {
-      await (_db.update(_db.downloads)..where((d) => d.id.equals(rowId)))
-          .write(const DownloadsCompanion(status: Value('failed')));
+      await _setStatus(rowId, 'failed', error: const Value('start_failed'));
     }
+    return ok;
+  }
+
+  /// Auto-corrección de extensión: el panel Xtream puede servir una
+  /// `container_extension` obsoleta — el contenido REPRODUCE (el player ya la
+  /// auto-corrige) pero la descarga baja una página HTML de error. Al detectarla,
+  /// reintenta la descarga con la SIGUIENTE extensión candidata
+  /// ([kVodExtensionCandidates]) antes de rendirse. Acotado: avanza por la lista
+  /// (mp4→mkv→avi) y devuelve false cuando se agota. Devuelve true si relanzó.
+  Future<bool> _retryWithNextExtension(int rowId) async {
+    final row = await _rowById(rowId);
+    final baseUrl = row?.url;
+    if (row == null || baseUrl == null || baseUrl.isEmpty) return false;
+    final current = (row.ext ?? '').toLowerCase();
+    final nextIdx = kVodExtensionCandidates.indexOf(current) + 1;
+    if (nextIdx >= kVodExtensionCandidates.length) return false; // agotado
+    final nextExt = kVodExtensionCandidates[nextIdx];
+    final newUrl = swapUrlExtension(baseUrl, nextExt);
+    await (_db.update(_db.downloads)..where((d) => d.id.equals(rowId))).write(
+      DownloadsCompanion(
+        ext: Value(nextExt),
+        url: Value(newUrl),
+        status: const Value('queued'),
+        filePath: const Value(null),
+        bytesDownloaded: const Value(0),
+        error: const Value(null),
+      ),
+    );
+    await _startTaskForRow(rowId,
+        contentId: row.contentId, url: newUrl, ext: nextExt);
+    return true;
   }
 
   /// HEAD best-effort para conocer el tamaño antes de encolar (para la purga
@@ -267,6 +364,50 @@ class DownloadService {
     await _deleteRow(id);
   }
 
+  /// Reintenta una descarga 'failed': borra la fila (y cualquier archivo
+  /// parcial que hubiera quedado) y vuelve a encolar desde cero con los
+  /// mismos datos originales, incluida la `url` guardada en la fila — el
+  /// plugin no garantiza conservar el `DownloadTask` de una tarea que ya
+  /// falló, así que no puede reutilizarse vía `taskForId`. No-op si la fila
+  /// no existe o no tiene una `url` guardada (filas de antes de esta
+  /// migración, que quedaron con `url` null).
+  Future<void> retry(int id) async {
+    final row = await _rowById(id);
+    if (row == null) return;
+    final url = row.url;
+    if (url == null || url.isEmpty) {
+      // Fila anterior a la migración (sin url persistida): no es reintentable.
+      // Borrarla da feedback visible (desaparece) en vez de un no-op mudo; el
+      // usuario la vuelve a descargar desde la ficha.
+      await _deleteRow(id);
+      return;
+    }
+    await _deleteRow(id);
+    await enqueue(
+      contentId: row.contentId,
+      contentType: row.contentType,
+      title: row.title,
+      imagePath: row.imagePath,
+      ext: row.ext,
+      url: url,
+      playlistId: row.playlistId,
+    );
+  }
+
+  /// Marca una descarga 'complete' como 'failed' porque su archivo local ya
+  /// no existe en disco (borrado fuera de la app, almacenamiento externo
+  /// desmontado, etc.). Llamado por `DownloadsScreen` justo antes de
+  /// reproducir, para no intentar abrir un archivo inexistente.
+  Future<void> markMissing(int id) async {
+    await (_db.update(_db.downloads)..where((d) => d.id.equals(id))).write(
+      const DownloadsCompanion(
+        status: Value('failed'),
+        error: Value('file_missing'),
+        filePath: Value(null),
+      ),
+    );
+  }
+
   bool _isFinalStatus(String status) =>
       status == 'complete' || status == 'failed';
 
@@ -300,6 +441,7 @@ class DownloadService {
       const DownloadsCompanion(
         status: Value('queued'),
         bytesDownloaded: Value(0),
+        error: Value(null),
       ),
     );
     await FileDownloader().enqueue(task);
@@ -362,7 +504,9 @@ class DownloadService {
       switch (update.status) {
         case TaskStatus.enqueued:
         case TaskStatus.running:
-          await _setStatus(rowId, 'downloading');
+          // Un reintento nativo (o resume()) volvió a progresar: cualquier
+          // error previo mostrado en la UI ya no aplica.
+          await _setStatus(rowId, 'downloading', error: const Value(null));
           break;
         case TaskStatus.paused:
           await _setStatus(rowId, 'paused');
@@ -375,7 +519,11 @@ class DownloadService {
           break;
         case TaskStatus.notFound:
         case TaskStatus.canceled:
-          await _setStatus(rowId, 'failed');
+          await _setStatus(
+            rowId,
+            'failed',
+            error: const Value('canceled_or_notfound'),
+          );
           break;
         case TaskStatus.waitingToRetry:
           break;
@@ -383,9 +531,13 @@ class DownloadService {
     }
   }
 
-  Future<void> _setStatus(int rowId, String status) async {
+  Future<void> _setStatus(
+    int rowId,
+    String status, {
+    Value<String?> error = const Value.absent(),
+  }) async {
     await (_db.update(_db.downloads)..where((d) => d.id.equals(rowId)))
-        .write(DownloadsCompanion(status: Value(status)));
+        .write(DownloadsCompanion(status: Value(status), error: error));
   }
 
   Future<void> _handleFailed(int rowId, TaskStatusUpdate update) async {
@@ -401,20 +553,39 @@ class DownloadService {
         return;
       }
     }
-    await _setStatus(rowId, 'failed');
+    // Extensión obsoleta que da 404 (algunos paneles no devuelven la página
+    // HTML sino un "no encontrado"): probar la siguiente extensión candidata,
+    // como en _finalizeComplete. Solo 404 — no reintentar en throttle/auth/5xx.
+    if (update.responseStatusCode == 404 &&
+        await _retryWithNextExtension(rowId)) {
+      return;
+    }
+    await _setStatus(rowId, 'failed', error: Value(_failureReason(update)));
+  }
+
+  /// Motivo legible de un `TaskStatus.failed`: prioriza la descripción de la
+  /// excepción del plugin; si no hay, intenta con el código HTTP de
+  /// respuesta; si tampoco hay código, un mensaje genérico.
+  // El motivo se guarda como CÓDIGO estable (no texto), para que la UI lo
+  // traduzca al idioma del usuario al mostrarlo. 'http:<code>' lleva el código
+  // HTTP; el resto son claves fijas.
+  String _failureReason(TaskStatusUpdate update) {
+    final code = update.responseStatusCode;
+    if (code != null && code > 0) return 'http:$code';
+    return 'failed';
   }
 
   Future<void> _finalizeComplete(int rowId, TaskStatusUpdate update) async {
     final task = update.task;
     if (task is! DownloadTask) {
-      await _setStatus(rowId, 'failed');
+      await _setStatus(rowId, 'failed', error: const Value('failed'));
       return;
     }
     String path;
     try {
       path = await task.filePath();
     } catch (_) {
-      await _setStatus(rowId, 'failed');
+      await _setStatus(rowId, 'failed', error: const Value('failed'));
       return;
     }
 
@@ -423,10 +594,15 @@ class DownloadService {
         final f = File(path);
         if (await f.exists()) await f.delete();
       } catch (_) {}
+      // El contenido puede reproducir pero descargar una página de error si el
+      // panel sirve una extensión obsoleta: probar la siguiente candidata antes
+      // de rendirse (mismo criterio que la auto-corrección del player).
+      if (await _retryWithNextExtension(rowId)) return;
       await (_db.update(_db.downloads)..where((d) => d.id.equals(rowId)))
           .write(const DownloadsCompanion(
         status: Value('failed'),
         filePath: Value(null),
+        error: Value('server_error_page'),
       ));
       return;
     }
@@ -443,6 +619,7 @@ class DownloadService {
         filePath: Value(path),
         bytesDownloaded: Value(size ?? 0),
         totalBytes: size != null ? Value(size) : const Value.absent(),
+        error: const Value(null),
       ),
     );
   }
@@ -481,5 +658,6 @@ class DownloadService {
     await _sub?.cancel();
     _sub = null;
     _listening = false;
+    _configureFuture = null;
   }
 }

@@ -1589,4 +1589,28 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get cast_need_wifi =>
       'Connectez-vous au même réseau Wi‑Fi que la TV pour envoyer le fichier.';
+
+  @override
+  String get download_err_http => 'Erreur HTTP';
+
+  @override
+  String get download_err_start_failed =>
+      'Impossible de démarrer le téléchargement';
+
+  @override
+  String get download_err_file_missing =>
+      'Le fichier téléchargé n\'est plus disponible';
+
+  @override
+  String get download_err_canceled => 'Téléchargement annulé ou introuvable';
+
+  @override
+  String get download_err_server_page =>
+      'Le serveur a renvoyé une page d\'erreur (session expirée ou identifiant invalide)';
+
+  @override
+  String get download_err_generic => 'Le téléchargement a échoué';
+
+  @override
+  String get download_retry => 'Réessayer';
 }

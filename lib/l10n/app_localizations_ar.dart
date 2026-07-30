@@ -1562,4 +1562,26 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get cast_need_wifi =>
       'اتصل بنفس شبكة Wi‑Fi المتصلة بها TV لإرسال الملف.';
+
+  @override
+  String get download_err_http => 'خطأ HTTP';
+
+  @override
+  String get download_err_start_failed => 'تعذّر بدء التنزيل';
+
+  @override
+  String get download_err_file_missing => 'الملف الذي تم تنزيله لم يعد متاحًا';
+
+  @override
+  String get download_err_canceled => 'تم إلغاء التنزيل أو لم يتم العثور عليه';
+
+  @override
+  String get download_err_server_page =>
+      'أعاد الخادم صفحة خطأ (انتهت صلاحية الجلسة أو المعرف غير صالح)';
+
+  @override
+  String get download_err_generic => 'فشل التنزيل';
+
+  @override
+  String get download_retry => 'إعادة المحاولة';
 }

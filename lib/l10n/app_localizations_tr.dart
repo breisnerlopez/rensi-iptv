@@ -1568,4 +1568,26 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get cast_need_wifi =>
       'Dosyayı göndermek için TV ile aynı Wi‑Fi ağına bağlanın.';
+
+  @override
+  String get download_err_http => 'HTTP hatası';
+
+  @override
+  String get download_err_start_failed => 'İndirme başlatılamadı';
+
+  @override
+  String get download_err_file_missing => 'İndirilen dosya artık mevcut değil';
+
+  @override
+  String get download_err_canceled => 'İndirme iptal edildi veya bulunamadı';
+
+  @override
+  String get download_err_server_page =>
+      'Sunucu bir hata sayfası döndürdü (oturum süresi doldu veya geçersiz id)';
+
+  @override
+  String get download_err_generic => 'İndirme başarısız oldu';
+
+  @override
+  String get download_retry => 'Yeniden dene';
 }

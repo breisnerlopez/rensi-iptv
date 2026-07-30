@@ -611,5 +611,12 @@
   "tv_ready_subtitle": "Listo para recibir contenido desde tu móvil",
   "tv_playback_settings": "Ajustes de reproducción",
   "tv_replay_failed": "No se pudo recuperar este contenido para reproducirlo.",
-  "cast_need_wifi": "Conéctate a la misma red Wi‑Fi que la TV para enviar el archivo."
+  "cast_need_wifi": "Conéctate a la misma red Wi‑Fi que la TV para enviar el archivo.",
+  "download_err_http": "Error HTTP",
+  "download_err_start_failed": "No se pudo iniciar la descarga",
+  "download_err_file_missing": "El archivo descargado ya no está disponible",
+  "download_err_canceled": "Descarga cancelada o no encontrada",
+  "download_err_server_page": "El servidor devolvió una página de error (sesión caducada o id inválido)",
+  "download_err_generic": "La descarga falló",
+  "download_retry": "Reintentar"
 }
