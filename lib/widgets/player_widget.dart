@@ -229,8 +229,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Timer? _castGateTimer;
   int _castGateSecs = 8;
 
-  bool _needsCastGate() =>
-      !ResponsiveHelper.isTelevisionDevice && _cast != null && !_cast!.isCasting;
+  bool _needsCastGate() {
+    if (ResponsiveHelper.isTelevisionDevice || !mounted) return false;
+    try {
+      // Leer el provider directamente (no depender del orden de
+      // didChangeDependencies respecto a la init asíncrona).
+      final cast = context.read<CastSenderController>();
+      _cast ??= cast;
+      return !cast.isCasting;
+    } catch (_) {
+      return false; // sin provider de casting (p. ej. tests aislados del player)
+    }
+  }
 
   void _startCastGateCountdown() {
     _castGateSecs = 8;
@@ -306,34 +316,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
           ),
         ),
       ),
-    );
-  }
-
-  /// Capa de casting sobre el video: botón "Enviar a la TV" (solo en móvil y,
-  /// por ahora, en vivo) y, mientras se transmite, la pantalla de control.
-  Widget _castLayer(BuildContext context) {
-    try {
-      context.read<CastSenderController>();
-    } catch (_) {
-      return const SizedBox.shrink();
-    }
-    final isTv = ResponsiveHelper.isDesktopOrTV(context);
-    if (isTv) return const SizedBox.shrink();
-    // Solo el botón: al empezar a castear el player se cierra (ver
-    // _onCastChanged) y el control pasa al mini-control global.
-    return Consumer<CastSenderController>(
-      builder: (context, cast, _) => cast.isCasting
-          ? const SizedBox.shrink()
-          : Positioned(
-              top: 8,
-              right: 8,
-              child: Material(
-                color: Colors.black54,
-                shape: const CircleBorder(),
-                child: CastButton(
-                    media: _castMedia, queue: _castQueue, index: _castIndex),
-              ),
-            ),
     );
   }
 
@@ -1992,27 +1974,43 @@ class _PlayerWidgetState extends State<PlayerWidget>
       playerWidget = SizedBox(
         width: double.infinity,
         height: double.infinity,
-        child: isLoading
-            ? Container(
-                color: Colors.black,
-                child: const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                ),
-              )
-            : _buildPlayerContent(),
+        child: Stack(
+          fit: StackFit.passthrough,
+          children: [
+            isLoading
+                ? Container(
+                    color: Colors.black,
+                    child: const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                  )
+                : _buildPlayerContent(),
+            // Gate de casting por encima (también durante la carga), para poder
+            // enviar a la TV sin esperar a que cargue el stream.
+            _buildCastGate(context),
+          ],
+        ),
       );
     } else {
       // Diğer içerikler için aspect ratio kullan
       playerWidget = AspectRatio(
         aspectRatio: calculateAspectRatio(),
-        child: isLoading
-            ? Container(
-                color: Colors.black,
-                child: const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                ),
-              )
-            : _buildPlayerContent(),
+        child: Stack(
+          fit: StackFit.passthrough,
+          children: [
+            isLoading
+                ? Container(
+                    color: Colors.black,
+                    child: const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                  )
+                : _buildPlayerContent(),
+            // Gate de casting por encima (también durante la carga), para poder
+            // enviar a la TV sin esperar a que cargue el stream.
+            _buildCastGate(context),
+          ],
+        ),
       );
 
       if (isTablet) {
@@ -2194,11 +2192,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
           // Transient TV hint: "Hold OK for audio & subtitles".
           _buildOkHintOverlay(context),
 
-          // Casting: botón "Enviar a la TV" y pantalla de control al transmitir.
-          _castLayer(context),
-
-          // Gate pre-reproducción (móvil): enviar a la TV sin gastar datos.
-          _buildCastGate(context),
         ],
       ),
       ),
