@@ -84,9 +84,30 @@ void main() {
     await tester.pump();
     expect(fake.commands, contains('play_pause'));
 
-    // "Dejar de transmitir" corta el casting.
+    // "Dejar de transmitir" corta el casting: la UI pasa a idle al instante...
     await tester.tap(find.byIcon(Icons.stop_circle_outlined));
     await tester.pump();
     expect(c.isCasting, isFalse);
+    // ...y el teardown del socket (envío del 'stop' + cierre) ocurre después,
+    // con un pequeño delay; drenarlo para no dejar timers pendientes.
+    await tester.pump(const Duration(milliseconds: 200));
+  });
+
+  test('la TV avisa "ended" → el móvil sale de casting a idle sin reconectar',
+      () async {
+    final fake = _FakeSender(
+        devices: [CastDevice(name: 'Sala', host: '10.0.0.5', port: 5000)]);
+    final c = CastSenderController(senderFactory: () => fake);
+    await c.beginCast(
+        const CastMedia(channelId: '6519', contentType: 'live', title: 'Canal'));
+    await c.submitPin('123456');
+    expect(c.isCasting, isTrue);
+    // La TV cierra/para (BACK o stop en la TV) y envía 'ended': el móvil debe
+    // ir a idle de inmediato, NO quedar colgado en casting ni reconectar.
+    fake.onEnded?.call();
+    expect(c.phase, CastPhase.idle);
+    expect(c.isCasting, isFalse);
+    // Drenar el teardown del socket en segundo plano (delay de 150ms).
+    await Future<void>.delayed(const Duration(milliseconds: 200));
   });
 }

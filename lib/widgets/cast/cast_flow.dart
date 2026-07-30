@@ -108,6 +108,7 @@ class _CastSheet extends StatefulWidget {
 
 class _CastSheetState extends State<_CastSheet> {
   final _pinCtrl = TextEditingController();
+  bool _popScheduled = false; // el auto-cierre se programa UNA sola vez
 
   @override
   void dispose() {
@@ -120,10 +121,15 @@ class _CastSheetState extends State<_CastSheet> {
     final loc = context.loc;
     return Consumer<CastSenderController>(
       builder: (context, c, _) {
-        // En cuanto empieza a transmitir, cerrar el modal (el control pasa al player).
-        if (c.isCasting) {
+        // En cuanto empieza a transmitir, cerrar el modal (el control pasa al
+        // player). Una sola vez: el builder del Consumer se re-ejecuta en cada
+        // notifyListeners (p. ej. al llegar las pistas) y sin este guard se
+        // programaría otro pop dentro de la animación de salida → se cerraría
+        // también la pantalla del reproductor (over-pop).
+        if (c.isCasting && !_popScheduled) {
+          _popScheduled = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (Navigator.canPop(context)) Navigator.pop(context);
+            if (mounted && Navigator.canPop(context)) Navigator.pop(context);
           });
         }
         return Padding(

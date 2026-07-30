@@ -61,6 +61,11 @@ class PhoneSenderService {
   /// Se invoca si el socket se cierra (para que el controlador reconecte).
   void Function()? onDisconnected;
 
+  /// Se invoca cuando la TV avisa que la reproducción se detuvo/cerró en su
+  /// lado (mensaje `ended`), para que el móvil pase a idle en vez de intentar
+  /// reconectar contra una TV que ya no reproduce nada.
+  void Function()? onEnded;
+
   /// Descubre TVs anunciando [kCastServiceType] durante [timeout].
   Future<List<CastDevice>> discover(
       {Duration timeout = const Duration(seconds: 4)}) async {
@@ -192,6 +197,9 @@ class PhoneSenderService {
         break;
       case MsgType.tracks:
         _tracksController.add(msg);
+        break;
+      case MsgType.ended:
+        onEnded?.call();
         break;
     }
   }

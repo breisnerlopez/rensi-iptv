@@ -220,16 +220,29 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
   }
 
   Widget _waitingHeader(BuildContext context) {
+    final titleSize = AppThemes.tenFoot(context, AppThemes.displaySize);
     return Column(
       children: [
-        Text(
-          '📺 Rensi TV',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: AppThemes.tenFoot(context, AppThemes.displaySize),
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Logo de la app (la "R"), en vez del emoji de TV genérico.
+            Image.asset(
+              'assets/logo_foreground.png',
+              height: titleSize * 1.35,
+              filterQuality: FilterQuality.medium,
+            ),
+            SizedBox(width: titleSize * 0.28),
+            Text(
+              'Rensi TV',
+              style: TextStyle(
+                fontSize: titleSize,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         Text(

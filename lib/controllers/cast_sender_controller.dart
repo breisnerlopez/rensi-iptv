@@ -5,6 +5,8 @@
 //
 // Las credenciales del proveedor salen de la playlist activa (hidratada con
 // secretos) y viajan cifradas por el canal de control; nunca a un backend.
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/content_type.dart';
@@ -175,7 +177,9 @@ class CastSenderController extends ChangeNotifier {
     _device = device;
     _set(CastPhase.connecting);
     try {
-      _sender = _senderFactory()..onDisconnected = _onDisconnected;
+      _sender = _senderFactory()
+        ..onDisconnected = _onDisconnected
+        ..onEnded = _onEnded;
       _sender!.onTracks.listen(_onTracks);
       _sender!.onState.listen(_onState);
       await _sender!.connect(device.host, device.port, secure: device.secure);
@@ -325,6 +329,16 @@ class CastSenderController extends ChangeNotifier {
     if (_phase == CastPhase.casting && !_reconnecting) _reconnect();
   }
 
+  /// La TV avisó que dejó de reproducir (BACK en la TV, fin del contenido o
+  /// stop en su lado): salir de "casting" hacia idle SIN reconectar.
+  void _onEnded() {
+    if (_phase == CastPhase.idle) return;
+    // Bloquea SÍNCRONAMENTE que el cierre de socket que sigue dispare
+    // _reconnect (stopCasting es async y aún no ha puesto phase=idle).
+    _reconnecting = true;
+    unawaited(stopCasting());
+  }
+
   Future<void> _reconnect() async {
     final device = _device, pin = _pin, media = _media;
     final playlist = AppState.currentPlaylist;
@@ -333,7 +347,9 @@ class CastSenderController extends ChangeNotifier {
     for (var attempt = 0; attempt < 5 && _phase == CastPhase.casting; attempt++) {
       await Future<void>.delayed(Duration(seconds: 1 << attempt)); // 1,2,4,8,16s
       try {
-        _sender = _senderFactory()..onDisconnected = _onDisconnected;
+        _sender = _senderFactory()
+          ..onDisconnected = _onDisconnected
+          ..onEnded = _onEnded;
         _sender!.onTracks.listen(_onTracks);
         _sender!.onState.listen(_onState);
         await _sender!.connect(device.host, device.port, secure: device.secure);
@@ -345,6 +361,10 @@ class CastSenderController extends ChangeNotifier {
       } catch (_) {/* reintentar con backoff */}
     }
     _reconnecting = false;
+    // Agotados los reintentos sin recuperar el control: la TV se fue de verdad.
+    // No dejar el móvil colgado en "casting" (mini-control fantasma / círculo de
+    // carga infinito): terminar limpio.
+    if (_phase == CastPhase.casting) await stopCasting();
   }
 
   void playPause() => _sender?.sendCommand(CmdType.playPause);
@@ -455,12 +475,14 @@ class CastSenderController extends ChangeNotifier {
     if (_lastPos > 0 && _lastDur > 0) {
       await _writeHistory(_lastPos, _lastDur);
     }
-    _sender?.sendCommand(CmdType.stop);
-    await _sender?.close();
-    await _fileServer?.stop();
+    final sender = _sender;
+    sender?.sendCommand(CmdType.stop);
+    // Pasar a idle YA: la UI (mini-control) refleja el stop al instante, sin
+    // esperar al teardown del socket. El _sender se conserva en una local para
+    // cerrarlo en segundo plano tras dejar salir el frame 'stop'.
+    _sender = null;
     _localUrl = null;
     _localFilePath = null;
-    _sender = null;
     _device = null;
     _media = null;
     _devices = const [];
@@ -475,6 +497,14 @@ class CastSenderController extends ChangeNotifier {
     _lastPos = 0;
     _lastDur = 0;
     _set(CastPhase.idle);
+    await _fileServer?.stop();
+    // Teardown del socket en segundo plano: dar un instante a que el frame
+    // 'stop' salga ANTES de cerrar (cerrar de inmediato podía descartarlo y
+    // dejar la TV reproduciendo mientras el móvil ya está en idle).
+    if (sender != null) {
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await sender.close();
+    }
   }
 
   /// Cancela un flujo a medias (descubrimiento/pairing) sin dejar sockets abiertos.

@@ -174,16 +174,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (now == _wasCasting || !mounted) return;
     _wasCasting = now;
     if (now) {
-      // Handoff: libera el stream local y devuelve al usuario a la navegación;
-      // el control de lo que suena en la TV vive en el mini-control global, así
-      // puede seguir buscando contenido mientras reproduce en la TV.
+      // Handoff: liberar el stream local (evita dos conexiones al proveedor y
+      // que el audio suene en el móvil). El CIERRE de la pantalla lo hace
+      // _onGateSendToTv DESPUÉS de que el modal de casting se cierre — si se
+      // hiciera aquí (con el modal aún encima) el maybePop cerraría el modal en
+      // vez del reproductor, dejando el player montado.
       _player.stop();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) Navigator.of(context).maybePop();
-      });
-    } else {
-      _reopenCurrent();
     }
+    // Importante: al TERMINAR el cast NO se reabre la reproducción local. Antes
+    // se hacía `_reopenCurrent()`, lo que provocaba que al detener en la TV el
+    // móvil empezara a reproducir solo (audio fantasma). Parar es parar; si el
+    // usuario quiere ver en el móvil, vuelve a abrir el contenido.
   }
 
   static String _castType(ContentType t) => switch (t) {
@@ -281,7 +282,25 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
       _preBuffer!.add(PreBufferSample(buf, spd, _preBufferClock.elapsed));
       if (mounted) setState(() {});
-      if (_preBuffer!.isReady) _finishPreBuffer(); // auto-inicia al haber colchón
+      final elapsed = _preBufferClock.elapsed;
+      final tv = ResponsiveHelper.isTelevisionDevice;
+      // Piso (solo TV): mostrar "preparando" al menos 1.5s tras enviar el
+      // contenido; con buena conexión el colchón se llena en 1-2 ticks y no se
+      // llegaba a ver el estado. En el móvil se inicia en cuanto hay colchón.
+      final minShown = !tv || elapsed >= const Duration(milliseconds: 1500);
+      // TECHO de seguridad: NUNCA retener el vídeo indefinidamente. En algunos
+      // backends (p. ej. cajas de TV) la caché no reporta duración con el vídeo
+      // en pausa, o un live pausado no la llena, así que 'isReady' no llegaría
+      // nunca y el vídeo quedaría retenido → "círculo de carga infinito" al
+      // castear. Pasado el máximo, reproducir igual (mejor un arranque sin
+      // colchón que un cuelgue eterno).
+      final maxWaited = elapsed >= const Duration(seconds: 8);
+      // Sin datos (stalled): no tiene sentido seguir reteniendo — soltar y dejar
+      // que el player normal (buffering/stall-watchdog/error) tome el control.
+      final stalled = _preBuffer!.phase == BufferPhase.stalled;
+      if ((_preBuffer!.isReady && minShown) || stalled || maxWaited) {
+        _finishPreBuffer(); // arranca: colchón listo, o sin datos, o techo agotado
+      }
     });
   }
 
@@ -400,9 +419,16 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (mounted) setState(() => _castGateActive = false);
     await startCastFlow(context, _castMedia, queue: _castQueue, index: _castIndex);
     if (!mounted) return;
-    // Si el usuario no llegó a castear (canceló), reproducir local; si casteó,
-    // el player se cierra solo (ver _onCastChanged).
-    _resolveCastGate(!(_cast?.isCasting ?? false));
+    final casting = _cast?.isCasting ?? false;
+    // No abrir el stream local (si casteó) o abrirlo (si canceló).
+    _resolveCastGate(!casting);
+    if (casting) {
+      // El modal de casting ya se cerró (startCastFlow retornó), así que ahora
+      // el reproductor ES la ruta superior: cerrarlo devuelve al usuario a la
+      // navegación mientras la TV reproduce (el control vive en el mini-control).
+      _player.stop();
+      Navigator.of(context).maybePop();
+    }
   }
 
   Widget _buildCastGate(BuildContext context) {

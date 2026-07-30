@@ -29,6 +29,7 @@ class MsgType {
   static const command = 'command'; // móvil -> TV: pausa/track/stop
   static const state = 'state'; // TV -> móvil: playing/pos
   static const tracks = 'tracks'; // TV -> móvil: pistas de audio/subtítulo
+  static const ended = 'ended'; // TV -> móvil: reproducción detenida/cerrada en la TV
   static const error = 'error';
 }
 

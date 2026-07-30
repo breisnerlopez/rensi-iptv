@@ -244,9 +244,12 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
         ),
       ),
     );
-    // Al cerrar el player (fin de reproducción), enviar una última posición y
-    // cortar el reenvío, luego restaurar la playlist del usuario.
+    // Al cerrar el player (fin de reproducción o BACK en la TV), enviar una
+    // última posición, avisar al móvil que la TV DEJÓ de reproducir (para que
+    // salga de "casting" y no entre en bucle de reconexión), cortar el reenvío,
+    // y restaurar la playlist del usuario.
     _stopPositionForwarding(sendFinal: true);
+    _service?.sendMessage(MsgType.ended, const {});
     AppState.currentPlaylist = saved;
     if (mounted) setState(() => _playing = false);
   }

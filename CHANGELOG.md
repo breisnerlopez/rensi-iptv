@@ -1,3 +1,14 @@
+# [2.10.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.10.0...v2.10.1) (2026-07-30)
+
+
+### Bug Fixes
+
+* **enviar a la TV se quedaba en carga infinita:** el televisor esperaba a llenar un colchón que en algunas cajas de TV nunca se confirmaba, y el vídeo quedaba retenido para siempre; ahora, si no hay datos o pasa un máximo, arranca igual (y se muestra un breve "preparando" al recibir el contenido)
+* **cruce móvil↔TV al detener:** al parar (o cerrar con el mando en la TV) ahora el televisor avisa al móvil, que sale de "transmitiendo" al instante — se acabó el círculo de carga colgado en el celular y el audio fantasma de la película sonando en el móvil tras detener en la TV
+* **el "stop" no siempre detenía la TV:** se garantiza que la orden de detener salga antes de cerrar la conexión, y el reproductor local se cierra correctamente al enviar a la TV (antes se cerraba el diálogo en vez del reproductor)
+* **icono de la pantalla de la TV:** se reemplaza el emoji de televisor por el logo de la app (la "R")
+
+
 # [2.10.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.9.0...v2.10.0) (2026-07-30)
 
 
