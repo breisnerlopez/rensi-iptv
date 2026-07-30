@@ -455,6 +455,799 @@ class PlaylistsCompanion extends UpdateCompanion<PlaylistData> {
   }
 }
 
+class $DownloadsTable extends Downloads
+    with TableInfo<$DownloadsTable, Download> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DownloadsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _contentIdMeta = const VerificationMeta(
+    'contentId',
+  );
+  @override
+  late final GeneratedColumn<String> contentId = GeneratedColumn<String>(
+    'content_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _contentTypeMeta = const VerificationMeta(
+    'contentType',
+  );
+  @override
+  late final GeneratedColumn<String> contentType = GeneratedColumn<String>(
+    'content_type',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _imagePathMeta = const VerificationMeta(
+    'imagePath',
+  );
+  @override
+  late final GeneratedColumn<String> imagePath = GeneratedColumn<String>(
+    'image_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _filePathMeta = const VerificationMeta(
+    'filePath',
+  );
+  @override
+  late final GeneratedColumn<String> filePath = GeneratedColumn<String>(
+    'file_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _extMeta = const VerificationMeta('ext');
+  @override
+  late final GeneratedColumn<String> ext = GeneratedColumn<String>(
+    'ext',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _taskIdMeta = const VerificationMeta('taskId');
+  @override
+  late final GeneratedColumn<String> taskId = GeneratedColumn<String>(
+    'task_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bytesDownloadedMeta = const VerificationMeta(
+    'bytesDownloaded',
+  );
+  @override
+  late final GeneratedColumn<int> bytesDownloaded = GeneratedColumn<int>(
+    'bytes_downloaded',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _totalBytesMeta = const VerificationMeta(
+    'totalBytes',
+  );
+  @override
+  late final GeneratedColumn<int> totalBytes = GeneratedColumn<int>(
+    'total_bytes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('queued'),
+  );
+  static const VerificationMeta _addedAtMeta = const VerificationMeta(
+    'addedAt',
+  );
+  @override
+  late final GeneratedColumn<int> addedAt = GeneratedColumn<int>(
+    'added_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _watchedMeta = const VerificationMeta(
+    'watched',
+  );
+  @override
+  late final GeneratedColumn<bool> watched = GeneratedColumn<bool>(
+    'watched',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("watched" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _playlistIdMeta = const VerificationMeta(
+    'playlistId',
+  );
+  @override
+  late final GeneratedColumn<String> playlistId = GeneratedColumn<String>(
+    'playlist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    contentId,
+    contentType,
+    title,
+    imagePath,
+    filePath,
+    ext,
+    taskId,
+    bytesDownloaded,
+    totalBytes,
+    status,
+    addedAt,
+    watched,
+    playlistId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'downloads';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Download> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('content_id')) {
+      context.handle(
+        _contentIdMeta,
+        contentId.isAcceptableOrUnknown(data['content_id']!, _contentIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_contentIdMeta);
+    }
+    if (data.containsKey('content_type')) {
+      context.handle(
+        _contentTypeMeta,
+        contentType.isAcceptableOrUnknown(
+          data['content_type']!,
+          _contentTypeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_contentTypeMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('image_path')) {
+      context.handle(
+        _imagePathMeta,
+        imagePath.isAcceptableOrUnknown(data['image_path']!, _imagePathMeta),
+      );
+    }
+    if (data.containsKey('file_path')) {
+      context.handle(
+        _filePathMeta,
+        filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta),
+      );
+    }
+    if (data.containsKey('ext')) {
+      context.handle(
+        _extMeta,
+        ext.isAcceptableOrUnknown(data['ext']!, _extMeta),
+      );
+    }
+    if (data.containsKey('task_id')) {
+      context.handle(
+        _taskIdMeta,
+        taskId.isAcceptableOrUnknown(data['task_id']!, _taskIdMeta),
+      );
+    }
+    if (data.containsKey('bytes_downloaded')) {
+      context.handle(
+        _bytesDownloadedMeta,
+        bytesDownloaded.isAcceptableOrUnknown(
+          data['bytes_downloaded']!,
+          _bytesDownloadedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_bytes')) {
+      context.handle(
+        _totalBytesMeta,
+        totalBytes.isAcceptableOrUnknown(data['total_bytes']!, _totalBytesMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('added_at')) {
+      context.handle(
+        _addedAtMeta,
+        addedAt.isAcceptableOrUnknown(data['added_at']!, _addedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_addedAtMeta);
+    }
+    if (data.containsKey('watched')) {
+      context.handle(
+        _watchedMeta,
+        watched.isAcceptableOrUnknown(data['watched']!, _watchedMeta),
+      );
+    }
+    if (data.containsKey('playlist_id')) {
+      context.handle(
+        _playlistIdMeta,
+        playlistId.isAcceptableOrUnknown(data['playlist_id']!, _playlistIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_playlistIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Download map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Download(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      contentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_id'],
+      )!,
+      contentType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}content_type'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      imagePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}image_path'],
+      )!,
+      filePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_path'],
+      ),
+      ext: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}ext'],
+      ),
+      taskId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}task_id'],
+      ),
+      bytesDownloaded: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}bytes_downloaded'],
+      )!,
+      totalBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}total_bytes'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      addedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}added_at'],
+      )!,
+      watched: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}watched'],
+      )!,
+      playlistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}playlist_id'],
+      )!,
+    );
+  }
+
+  @override
+  $DownloadsTable createAlias(String alias) {
+    return $DownloadsTable(attachedDatabase, alias);
+  }
+}
+
+class Download extends DataClass implements Insertable<Download> {
+  final int id;
+  final String contentId;
+  final String contentType;
+  final String title;
+  final String imagePath;
+  final String? filePath;
+  final String? ext;
+  final String? taskId;
+  final int bytesDownloaded;
+  final int? totalBytes;
+  final String status;
+  final int addedAt;
+  final bool watched;
+  final String playlistId;
+  const Download({
+    required this.id,
+    required this.contentId,
+    required this.contentType,
+    required this.title,
+    required this.imagePath,
+    this.filePath,
+    this.ext,
+    this.taskId,
+    required this.bytesDownloaded,
+    this.totalBytes,
+    required this.status,
+    required this.addedAt,
+    required this.watched,
+    required this.playlistId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['content_id'] = Variable<String>(contentId);
+    map['content_type'] = Variable<String>(contentType);
+    map['title'] = Variable<String>(title);
+    map['image_path'] = Variable<String>(imagePath);
+    if (!nullToAbsent || filePath != null) {
+      map['file_path'] = Variable<String>(filePath);
+    }
+    if (!nullToAbsent || ext != null) {
+      map['ext'] = Variable<String>(ext);
+    }
+    if (!nullToAbsent || taskId != null) {
+      map['task_id'] = Variable<String>(taskId);
+    }
+    map['bytes_downloaded'] = Variable<int>(bytesDownloaded);
+    if (!nullToAbsent || totalBytes != null) {
+      map['total_bytes'] = Variable<int>(totalBytes);
+    }
+    map['status'] = Variable<String>(status);
+    map['added_at'] = Variable<int>(addedAt);
+    map['watched'] = Variable<bool>(watched);
+    map['playlist_id'] = Variable<String>(playlistId);
+    return map;
+  }
+
+  DownloadsCompanion toCompanion(bool nullToAbsent) {
+    return DownloadsCompanion(
+      id: Value(id),
+      contentId: Value(contentId),
+      contentType: Value(contentType),
+      title: Value(title),
+      imagePath: Value(imagePath),
+      filePath: filePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(filePath),
+      ext: ext == null && nullToAbsent ? const Value.absent() : Value(ext),
+      taskId: taskId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taskId),
+      bytesDownloaded: Value(bytesDownloaded),
+      totalBytes: totalBytes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(totalBytes),
+      status: Value(status),
+      addedAt: Value(addedAt),
+      watched: Value(watched),
+      playlistId: Value(playlistId),
+    );
+  }
+
+  factory Download.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Download(
+      id: serializer.fromJson<int>(json['id']),
+      contentId: serializer.fromJson<String>(json['contentId']),
+      contentType: serializer.fromJson<String>(json['contentType']),
+      title: serializer.fromJson<String>(json['title']),
+      imagePath: serializer.fromJson<String>(json['imagePath']),
+      filePath: serializer.fromJson<String?>(json['filePath']),
+      ext: serializer.fromJson<String?>(json['ext']),
+      taskId: serializer.fromJson<String?>(json['taskId']),
+      bytesDownloaded: serializer.fromJson<int>(json['bytesDownloaded']),
+      totalBytes: serializer.fromJson<int?>(json['totalBytes']),
+      status: serializer.fromJson<String>(json['status']),
+      addedAt: serializer.fromJson<int>(json['addedAt']),
+      watched: serializer.fromJson<bool>(json['watched']),
+      playlistId: serializer.fromJson<String>(json['playlistId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'contentId': serializer.toJson<String>(contentId),
+      'contentType': serializer.toJson<String>(contentType),
+      'title': serializer.toJson<String>(title),
+      'imagePath': serializer.toJson<String>(imagePath),
+      'filePath': serializer.toJson<String?>(filePath),
+      'ext': serializer.toJson<String?>(ext),
+      'taskId': serializer.toJson<String?>(taskId),
+      'bytesDownloaded': serializer.toJson<int>(bytesDownloaded),
+      'totalBytes': serializer.toJson<int?>(totalBytes),
+      'status': serializer.toJson<String>(status),
+      'addedAt': serializer.toJson<int>(addedAt),
+      'watched': serializer.toJson<bool>(watched),
+      'playlistId': serializer.toJson<String>(playlistId),
+    };
+  }
+
+  Download copyWith({
+    int? id,
+    String? contentId,
+    String? contentType,
+    String? title,
+    String? imagePath,
+    Value<String?> filePath = const Value.absent(),
+    Value<String?> ext = const Value.absent(),
+    Value<String?> taskId = const Value.absent(),
+    int? bytesDownloaded,
+    Value<int?> totalBytes = const Value.absent(),
+    String? status,
+    int? addedAt,
+    bool? watched,
+    String? playlistId,
+  }) => Download(
+    id: id ?? this.id,
+    contentId: contentId ?? this.contentId,
+    contentType: contentType ?? this.contentType,
+    title: title ?? this.title,
+    imagePath: imagePath ?? this.imagePath,
+    filePath: filePath.present ? filePath.value : this.filePath,
+    ext: ext.present ? ext.value : this.ext,
+    taskId: taskId.present ? taskId.value : this.taskId,
+    bytesDownloaded: bytesDownloaded ?? this.bytesDownloaded,
+    totalBytes: totalBytes.present ? totalBytes.value : this.totalBytes,
+    status: status ?? this.status,
+    addedAt: addedAt ?? this.addedAt,
+    watched: watched ?? this.watched,
+    playlistId: playlistId ?? this.playlistId,
+  );
+  Download copyWithCompanion(DownloadsCompanion data) {
+    return Download(
+      id: data.id.present ? data.id.value : this.id,
+      contentId: data.contentId.present ? data.contentId.value : this.contentId,
+      contentType: data.contentType.present
+          ? data.contentType.value
+          : this.contentType,
+      title: data.title.present ? data.title.value : this.title,
+      imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
+      filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      ext: data.ext.present ? data.ext.value : this.ext,
+      taskId: data.taskId.present ? data.taskId.value : this.taskId,
+      bytesDownloaded: data.bytesDownloaded.present
+          ? data.bytesDownloaded.value
+          : this.bytesDownloaded,
+      totalBytes: data.totalBytes.present
+          ? data.totalBytes.value
+          : this.totalBytes,
+      status: data.status.present ? data.status.value : this.status,
+      addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
+      watched: data.watched.present ? data.watched.value : this.watched,
+      playlistId: data.playlistId.present
+          ? data.playlistId.value
+          : this.playlistId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Download(')
+          ..write('id: $id, ')
+          ..write('contentId: $contentId, ')
+          ..write('contentType: $contentType, ')
+          ..write('title: $title, ')
+          ..write('imagePath: $imagePath, ')
+          ..write('filePath: $filePath, ')
+          ..write('ext: $ext, ')
+          ..write('taskId: $taskId, ')
+          ..write('bytesDownloaded: $bytesDownloaded, ')
+          ..write('totalBytes: $totalBytes, ')
+          ..write('status: $status, ')
+          ..write('addedAt: $addedAt, ')
+          ..write('watched: $watched, ')
+          ..write('playlistId: $playlistId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    contentId,
+    contentType,
+    title,
+    imagePath,
+    filePath,
+    ext,
+    taskId,
+    bytesDownloaded,
+    totalBytes,
+    status,
+    addedAt,
+    watched,
+    playlistId,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Download &&
+          other.id == this.id &&
+          other.contentId == this.contentId &&
+          other.contentType == this.contentType &&
+          other.title == this.title &&
+          other.imagePath == this.imagePath &&
+          other.filePath == this.filePath &&
+          other.ext == this.ext &&
+          other.taskId == this.taskId &&
+          other.bytesDownloaded == this.bytesDownloaded &&
+          other.totalBytes == this.totalBytes &&
+          other.status == this.status &&
+          other.addedAt == this.addedAt &&
+          other.watched == this.watched &&
+          other.playlistId == this.playlistId);
+}
+
+class DownloadsCompanion extends UpdateCompanion<Download> {
+  final Value<int> id;
+  final Value<String> contentId;
+  final Value<String> contentType;
+  final Value<String> title;
+  final Value<String> imagePath;
+  final Value<String?> filePath;
+  final Value<String?> ext;
+  final Value<String?> taskId;
+  final Value<int> bytesDownloaded;
+  final Value<int?> totalBytes;
+  final Value<String> status;
+  final Value<int> addedAt;
+  final Value<bool> watched;
+  final Value<String> playlistId;
+  const DownloadsCompanion({
+    this.id = const Value.absent(),
+    this.contentId = const Value.absent(),
+    this.contentType = const Value.absent(),
+    this.title = const Value.absent(),
+    this.imagePath = const Value.absent(),
+    this.filePath = const Value.absent(),
+    this.ext = const Value.absent(),
+    this.taskId = const Value.absent(),
+    this.bytesDownloaded = const Value.absent(),
+    this.totalBytes = const Value.absent(),
+    this.status = const Value.absent(),
+    this.addedAt = const Value.absent(),
+    this.watched = const Value.absent(),
+    this.playlistId = const Value.absent(),
+  });
+  DownloadsCompanion.insert({
+    this.id = const Value.absent(),
+    required String contentId,
+    required String contentType,
+    required String title,
+    this.imagePath = const Value.absent(),
+    this.filePath = const Value.absent(),
+    this.ext = const Value.absent(),
+    this.taskId = const Value.absent(),
+    this.bytesDownloaded = const Value.absent(),
+    this.totalBytes = const Value.absent(),
+    this.status = const Value.absent(),
+    required int addedAt,
+    this.watched = const Value.absent(),
+    required String playlistId,
+  }) : contentId = Value(contentId),
+       contentType = Value(contentType),
+       title = Value(title),
+       addedAt = Value(addedAt),
+       playlistId = Value(playlistId);
+  static Insertable<Download> custom({
+    Expression<int>? id,
+    Expression<String>? contentId,
+    Expression<String>? contentType,
+    Expression<String>? title,
+    Expression<String>? imagePath,
+    Expression<String>? filePath,
+    Expression<String>? ext,
+    Expression<String>? taskId,
+    Expression<int>? bytesDownloaded,
+    Expression<int>? totalBytes,
+    Expression<String>? status,
+    Expression<int>? addedAt,
+    Expression<bool>? watched,
+    Expression<String>? playlistId,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (contentId != null) 'content_id': contentId,
+      if (contentType != null) 'content_type': contentType,
+      if (title != null) 'title': title,
+      if (imagePath != null) 'image_path': imagePath,
+      if (filePath != null) 'file_path': filePath,
+      if (ext != null) 'ext': ext,
+      if (taskId != null) 'task_id': taskId,
+      if (bytesDownloaded != null) 'bytes_downloaded': bytesDownloaded,
+      if (totalBytes != null) 'total_bytes': totalBytes,
+      if (status != null) 'status': status,
+      if (addedAt != null) 'added_at': addedAt,
+      if (watched != null) 'watched': watched,
+      if (playlistId != null) 'playlist_id': playlistId,
+    });
+  }
+
+  DownloadsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? contentId,
+    Value<String>? contentType,
+    Value<String>? title,
+    Value<String>? imagePath,
+    Value<String?>? filePath,
+    Value<String?>? ext,
+    Value<String?>? taskId,
+    Value<int>? bytesDownloaded,
+    Value<int?>? totalBytes,
+    Value<String>? status,
+    Value<int>? addedAt,
+    Value<bool>? watched,
+    Value<String>? playlistId,
+  }) {
+    return DownloadsCompanion(
+      id: id ?? this.id,
+      contentId: contentId ?? this.contentId,
+      contentType: contentType ?? this.contentType,
+      title: title ?? this.title,
+      imagePath: imagePath ?? this.imagePath,
+      filePath: filePath ?? this.filePath,
+      ext: ext ?? this.ext,
+      taskId: taskId ?? this.taskId,
+      bytesDownloaded: bytesDownloaded ?? this.bytesDownloaded,
+      totalBytes: totalBytes ?? this.totalBytes,
+      status: status ?? this.status,
+      addedAt: addedAt ?? this.addedAt,
+      watched: watched ?? this.watched,
+      playlistId: playlistId ?? this.playlistId,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (contentId.present) {
+      map['content_id'] = Variable<String>(contentId.value);
+    }
+    if (contentType.present) {
+      map['content_type'] = Variable<String>(contentType.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (imagePath.present) {
+      map['image_path'] = Variable<String>(imagePath.value);
+    }
+    if (filePath.present) {
+      map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (ext.present) {
+      map['ext'] = Variable<String>(ext.value);
+    }
+    if (taskId.present) {
+      map['task_id'] = Variable<String>(taskId.value);
+    }
+    if (bytesDownloaded.present) {
+      map['bytes_downloaded'] = Variable<int>(bytesDownloaded.value);
+    }
+    if (totalBytes.present) {
+      map['total_bytes'] = Variable<int>(totalBytes.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (addedAt.present) {
+      map['added_at'] = Variable<int>(addedAt.value);
+    }
+    if (watched.present) {
+      map['watched'] = Variable<bool>(watched.value);
+    }
+    if (playlistId.present) {
+      map['playlist_id'] = Variable<String>(playlistId.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DownloadsCompanion(')
+          ..write('id: $id, ')
+          ..write('contentId: $contentId, ')
+          ..write('contentType: $contentType, ')
+          ..write('title: $title, ')
+          ..write('imagePath: $imagePath, ')
+          ..write('filePath: $filePath, ')
+          ..write('ext: $ext, ')
+          ..write('taskId: $taskId, ')
+          ..write('bytesDownloaded: $bytesDownloaded, ')
+          ..write('totalBytes: $totalBytes, ')
+          ..write('status: $status, ')
+          ..write('addedAt: $addedAt, ')
+          ..write('watched: $watched, ')
+          ..write('playlistId: $playlistId')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $CategoriesTable extends Categories
     with TableInfo<$CategoriesTable, CategoriesData> {
   @override
@@ -10373,6 +11166,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $PlaylistsTable playlists = $PlaylistsTable(this);
+  late final $DownloadsTable downloads = $DownloadsTable(this);
   late final $CategoriesTable categories = $CategoriesTable(this);
   late final $UserInfosTable userInfos = $UserInfosTable(this);
   late final $ServerInfosTable serverInfos = $ServerInfosTable(this);
@@ -10393,6 +11187,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     playlists,
+    downloads,
     categories,
     userInfos,
     serverInfos,
@@ -10646,6 +11441,373 @@ typedef $$PlaylistsTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $PlaylistsTable, PlaylistData>,
       ),
       PlaylistData,
+      PrefetchHooks Function()
+    >;
+typedef $$DownloadsTableCreateCompanionBuilder =
+    DownloadsCompanion Function({
+      Value<int> id,
+      required String contentId,
+      required String contentType,
+      required String title,
+      Value<String> imagePath,
+      Value<String?> filePath,
+      Value<String?> ext,
+      Value<String?> taskId,
+      Value<int> bytesDownloaded,
+      Value<int?> totalBytes,
+      Value<String> status,
+      required int addedAt,
+      Value<bool> watched,
+      required String playlistId,
+    });
+typedef $$DownloadsTableUpdateCompanionBuilder =
+    DownloadsCompanion Function({
+      Value<int> id,
+      Value<String> contentId,
+      Value<String> contentType,
+      Value<String> title,
+      Value<String> imagePath,
+      Value<String?> filePath,
+      Value<String?> ext,
+      Value<String?> taskId,
+      Value<int> bytesDownloaded,
+      Value<int?> totalBytes,
+      Value<String> status,
+      Value<int> addedAt,
+      Value<bool> watched,
+      Value<String> playlistId,
+    });
+
+class $$DownloadsTableFilterComposer
+    extends Composer<_$AppDatabase, $DownloadsTable> {
+  $$DownloadsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentId => $composableBuilder(
+    column: $table.contentId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get contentType => $composableBuilder(
+    column: $table.contentType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get imagePath => $composableBuilder(
+    column: $table.imagePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ext => $composableBuilder(
+    column: $table.ext,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get bytesDownloaded => $composableBuilder(
+    column: $table.bytesDownloaded,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get totalBytes => $composableBuilder(
+    column: $table.totalBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get watched => $composableBuilder(
+    column: $table.watched,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get playlistId => $composableBuilder(
+    column: $table.playlistId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DownloadsTableOrderingComposer
+    extends Composer<_$AppDatabase, $DownloadsTable> {
+  $$DownloadsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentId => $composableBuilder(
+    column: $table.contentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get contentType => $composableBuilder(
+    column: $table.contentType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get imagePath => $composableBuilder(
+    column: $table.imagePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ext => $composableBuilder(
+    column: $table.ext,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get taskId => $composableBuilder(
+    column: $table.taskId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get bytesDownloaded => $composableBuilder(
+    column: $table.bytesDownloaded,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get totalBytes => $composableBuilder(
+    column: $table.totalBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get watched => $composableBuilder(
+    column: $table.watched,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get playlistId => $composableBuilder(
+    column: $table.playlistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DownloadsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DownloadsTable> {
+  $$DownloadsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get contentId =>
+      $composableBuilder(column: $table.contentId, builder: (column) => column);
+
+  GeneratedColumn<String> get contentType => $composableBuilder(
+    column: $table.contentType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get imagePath =>
+      $composableBuilder(column: $table.imagePath, builder: (column) => column);
+
+  GeneratedColumn<String> get filePath =>
+      $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<String> get ext =>
+      $composableBuilder(column: $table.ext, builder: (column) => column);
+
+  GeneratedColumn<String> get taskId =>
+      $composableBuilder(column: $table.taskId, builder: (column) => column);
+
+  GeneratedColumn<int> get bytesDownloaded => $composableBuilder(
+    column: $table.bytesDownloaded,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get totalBytes => $composableBuilder(
+    column: $table.totalBytes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<int> get addedAt =>
+      $composableBuilder(column: $table.addedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get watched =>
+      $composableBuilder(column: $table.watched, builder: (column) => column);
+
+  GeneratedColumn<String> get playlistId => $composableBuilder(
+    column: $table.playlistId,
+    builder: (column) => column,
+  );
+}
+
+class $$DownloadsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DownloadsTable,
+          Download,
+          $$DownloadsTableFilterComposer,
+          $$DownloadsTableOrderingComposer,
+          $$DownloadsTableAnnotationComposer,
+          $$DownloadsTableCreateCompanionBuilder,
+          $$DownloadsTableUpdateCompanionBuilder,
+          (Download, BaseReferences<_$AppDatabase, $DownloadsTable, Download>),
+          Download,
+          PrefetchHooks Function()
+        > {
+  $$DownloadsTableTableManager(_$AppDatabase db, $DownloadsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DownloadsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DownloadsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DownloadsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> contentId = const Value.absent(),
+                Value<String> contentType = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> imagePath = const Value.absent(),
+                Value<String?> filePath = const Value.absent(),
+                Value<String?> ext = const Value.absent(),
+                Value<String?> taskId = const Value.absent(),
+                Value<int> bytesDownloaded = const Value.absent(),
+                Value<int?> totalBytes = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<int> addedAt = const Value.absent(),
+                Value<bool> watched = const Value.absent(),
+                Value<String> playlistId = const Value.absent(),
+              }) => DownloadsCompanion(
+                id: id,
+                contentId: contentId,
+                contentType: contentType,
+                title: title,
+                imagePath: imagePath,
+                filePath: filePath,
+                ext: ext,
+                taskId: taskId,
+                bytesDownloaded: bytesDownloaded,
+                totalBytes: totalBytes,
+                status: status,
+                addedAt: addedAt,
+                watched: watched,
+                playlistId: playlistId,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String contentId,
+                required String contentType,
+                required String title,
+                Value<String> imagePath = const Value.absent(),
+                Value<String?> filePath = const Value.absent(),
+                Value<String?> ext = const Value.absent(),
+                Value<String?> taskId = const Value.absent(),
+                Value<int> bytesDownloaded = const Value.absent(),
+                Value<int?> totalBytes = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                required int addedAt,
+                Value<bool> watched = const Value.absent(),
+                required String playlistId,
+              }) => DownloadsCompanion.insert(
+                id: id,
+                contentId: contentId,
+                contentType: contentType,
+                title: title,
+                imagePath: imagePath,
+                filePath: filePath,
+                ext: ext,
+                taskId: taskId,
+                bytesDownloaded: bytesDownloaded,
+                totalBytes: totalBytes,
+                status: status,
+                addedAt: addedAt,
+                watched: watched,
+                playlistId: playlistId,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DownloadsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DownloadsTable,
+      Download,
+      $$DownloadsTableFilterComposer,
+      $$DownloadsTableOrderingComposer,
+      $$DownloadsTableAnnotationComposer,
+      $$DownloadsTableCreateCompanionBuilder,
+      $$DownloadsTableUpdateCompanionBuilder,
+      (Download, BaseReferences<_$AppDatabase, $DownloadsTable, Download>),
+      Download,
       PrefetchHooks Function()
     >;
 typedef $$CategoriesTableCreateCompanionBuilder =
@@ -15363,6 +16525,8 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$PlaylistsTableTableManager get playlists =>
       $$PlaylistsTableTableManager(_db, _db.playlists);
+  $$DownloadsTableTableManager get downloads =>
+      $$DownloadsTableTableManager(_db, _db.downloads);
   $$CategoriesTableTableManager get categories =>
       $$CategoriesTableTableManager(_db, _db.categories);
   $$UserInfosTableTableManager get userInfos =>

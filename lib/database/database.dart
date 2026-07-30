@@ -496,9 +496,29 @@ class Favorites extends Table {
   ];
 }
 
+/// Descargas offline (VOD/series). Una fila por contenido descargado o en cola.
+class Downloads extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get contentId => text()(); // stream/episode id de Xtream
+  TextColumn get contentType => text()(); // 'vod' | 'series'
+  TextColumn get title => text()();
+  TextColumn get imagePath => text().withDefault(const Constant(''))();
+  TextColumn get filePath => text().nullable()(); // ruta local al completar
+  TextColumn get ext => text().nullable()(); // container_extension
+  TextColumn get taskId => text().nullable()(); // id de background_downloader
+  IntColumn get bytesDownloaded => integer().withDefault(const Constant(0))();
+  IntColumn get totalBytes => integer().nullable()();
+  TextColumn get status =>
+      text().withDefault(const Constant('queued'))(); // queued|downloading|paused|complete|failed
+  IntColumn get addedAt => integer()(); // epoch ms
+  BoolColumn get watched => boolean().withDefault(const Constant(false))();
+  TextColumn get playlistId => text()();
+}
+
 @DriftDatabase(
   tables: [
     Playlists,
+    Downloads,
     Categories,
     UserInfos,
     ServerInfos,
@@ -540,7 +560,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   // === PLAYLIST İŞLEMLERİ ===
 
@@ -1901,6 +1921,11 @@ class AppDatabase extends _$AppDatabase {
         // it from the bulk list. No data is touched or lost.
         await m.addColumn(vodStreams, vodStreams.tmdbId);
         await m.addColumn(seriesStreams, seriesStreams.tmdbId);
+      }
+
+      if (from <= 10) {
+        // Descargas offline (feat/downloads): tabla aditiva, sin tocar datos.
+        await m.createTable(downloads);
       }
     },
     beforeOpen: (_) async {
