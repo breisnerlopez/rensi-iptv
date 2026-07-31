@@ -172,7 +172,11 @@ jobs:
           allowUpdates: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  build-android:
+  # Los APK van en un job PROPIO y se suben en cuanto están firmados, SIN
+  # esperar al aab (que es lo lento y solo sirve para Google Play). Así el
+  # usuario tiene los APK instalables lo antes posible. build-apks, build-aab y
+  # build-linux corren en PARALELO (todos solo dependen de create-release).
+  build-apks:
     needs: create-release
     runs-on: ubuntu-latest
     env:
@@ -208,24 +212,75 @@ jobs:
           EOF
       - name: Build Android APKs (split per ABI)
         run: flutter build apk --release --split-per-abi
-      - name: Build Android App Bundle
-        run: flutter build appbundle --release
-      - name: Rename release assets
+      - name: Rename APKs
         run: |
           for abi in arm64-v8a armeabi-v7a x86_64; do
             cp build/app/outputs/flutter-apk/app-${abi}-release.apk \
                rensi-iptv-android-${abi}-${{ github.ref_name }}.apk
           done
+      - name: Remove signing material
+        if: always()
+        run: rm -f android/keystore.jks android/key.properties
+      - name: Upload APK Release Assets
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          artifacts: rensi-iptv-android-*-${{ github.ref_name }}.apk
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # El App Bundle (Google Play) va aparte y en paralelo: es lo más lento y NO
+  # bloquea la disponibilidad de los APK.
+  build-aab:
+    needs: create-release
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: 'stable'
+      - name: Install dependencies
+        run: flutter pub get
+      - name: Generate files
+        run: flutter packages pub run build_runner build --delete-conflicting-outputs
+      - name: Decode release keystore
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/keystore.jks
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=../keystore.jks
+          EOF
+      - name: Build Android App Bundle
+        run: flutter build appbundle --release
+      - name: Rename aab
+        run: |
           cp build/app/outputs/bundle/release/app-release.aab \
              rensi-iptv-android-${{ github.ref_name }}.aab
       - name: Remove signing material
         if: always()
         run: rm -f android/keystore.jks android/key.properties
-      - name: Upload Android Release Assets
+      - name: Upload aab Release Asset
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
-          artifacts: rensi-iptv-android-*-${{ github.ref_name }}.apk,rensi-iptv-android-${{ github.ref_name }}.aab
+          artifacts: rensi-iptv-android-${{ github.ref_name }}.aab
           allowUpdates: true
           omitBodyDuringUpdate: true
           omitNameDuringUpdate: true

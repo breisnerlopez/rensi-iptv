@@ -1,3 +1,11 @@
+# [2.11.3](https://github.com/breisnerlopez/rensi-iptv/compare/v2.11.2...v2.11.3) (2026-07-31)
+
+
+### Bug Fixes
+
+* **"Ver todo" en las categorías del inicio:** ahora sí aparece cuando una categoría tiene más títulos de los que caben en el carrusel — antes el inicio solo cargaba 10 por categoría y nunca detectaba que había más, así que el botón no salía nunca (aunque la categoría tuviera cientos)
+
+
 # [2.11.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.11.1...v2.11.2) (2026-07-31)
 
 

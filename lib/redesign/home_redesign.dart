@@ -267,9 +267,11 @@ class _CategoryRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     RedesignHome.debugRailBuilds++; // instrumentation for the deferral test
-    final items = category.contentItems.take(18).toList();
-    // Only surface "Ver todo" when there's more than the rail shows, so the
-    // extra content past 18 is actually reachable (was silently truncated).
+    // Muestra hasta 12 en el carrusel; el inicio carga 13 por categoría (12 +1
+    // "centinela") para poder DETECTAR que hay más y así mostrar "Ver todo".
+    // Antes mostraba 18 pero solo se cargaban 10 → length nunca superaba lo
+    // mostrado y "Ver todo" no aparecía jamás pese a haber cientos de títulos.
+    final items = category.contentItems.take(12).toList();
     final hasMore =
         onSeeAll != null && category.contentItems.length > items.length;
     return Column(
