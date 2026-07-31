@@ -262,6 +262,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   // error — el caso reportado en algunas cajas de TV.
   Timer? _loadTicker;
   final Stopwatch _loadClock = Stopwatch();
+  bool _autoRetried = false; // un solo auto-reintento del primer arranque
   // Fase de la carga (audio/open/ready), para diagnosticar dónde se cuelga.
   String _loadStage = '';
 
@@ -814,9 +815,15 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // attempt a seek-to-0 on reopen, which fires the non-fatal
     // "Cannot seek … --force-seekable=yes" error (triggered by the 15s stall
     // watchdog). Omit start entirely for live; VOD/series keep their resume.
+    // VOD/series: reanudar desde la posición REAL del player (no
+    // _pendingWatchDuration, que se pone a null tras cada guardado de historial
+    // → reabría en 0 y "reiniciaba desde el principio"). Live no lleva start.
+    final livePos = _player.state.position;
     final Duration? start = contentItem.contentType == ContentType.liveStream
         ? null
-        : (_pendingWatchDuration ?? Duration.zero);
+        : (livePos > Duration.zero
+            ? livePos
+            : (_pendingWatchDuration ?? Duration.zero));
     // Preserve a multi-item VOD queue: reopening a bare Media would collapse the
     // native Playlist to a single item and break jump/next for the rest of the
     // session. The current item's url is read live (it may have been healed).
@@ -963,6 +970,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // Arranca el watchdog de carga: refresca el indicador cada segundo mientras
     // dure "Preparando…", para mostrar el tiempo transcurrido y, pasado un
     // umbral, ofrecer Reintentar si la apertura se cuelga.
+    _autoRetried = false;
     _loadClock
       ..reset()
       ..start();
@@ -970,6 +978,16 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _loadTicker = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted || !isLoading) {
         t.cancel();
+        return;
+      }
+      // Auto-reintento UNA vez: si el PRIMER intento sigue en "Preparando…" tras
+      // 8s (típico en algunas cajas de TV donde el primer arranque se atasca), se
+      // reintenta solo — como el usuario tenía que pulsar Reintentar a mano, que
+      // sí funciona. Luego, si vuelve a colgarse, aparece el botón manual a los 12s.
+      if (!_autoRetried && _loadClock.elapsed >= const Duration(seconds: 8)) {
+        _autoRetried = true;
+        t.cancel();
+        _retryPlayback();
         return;
       }
       setState(() {});
@@ -1187,9 +1205,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
               ),
             );
 
-            // Reconnect: live restarts from the edge; VOD/series resume from
-            // the last saved position.
-            await _reopenCurrent();
+            // Reabrir SOLO si la reproducción se rompió de verdad (parada o
+            // atascada en buffering): un blip breve de red que no cortó el
+            // stream no debe forzar un reopen (rebuffer/reinicio sin motivo).
+            if (!_player.state.playing || _player.state.buffering) {
+              // Live vuelve al borde; VOD/series reanudan en su posición real.
+              await _reopenCurrent();
+            }
           } catch (e) {
             debugPrint('Error reopening media after reconnect: ${scrubCredentials(e)}');
           }

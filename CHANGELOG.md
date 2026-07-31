@@ -1,3 +1,13 @@
+# [2.11.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.11.0...v2.11.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* **el vídeo ya no se reinicia desde el principio a media reproducción:** un pequeño corte de conexión reabría el stream sin necesidad y a veces perdía la posición; ahora solo se reabre si la reproducción se rompe de verdad y siempre reanuda donde ibas
+* **primer envío a la TV:** si el primer arranque se atasca, ahora reintenta solo a los pocos segundos (antes había que pulsar Reintentar a mano)
+* **el control de casting ya no tapa la barra inferior:** el mini-control se muestra por encima de los iconos de navegación mientras exploras
+
+
 # [2.11.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.10.4...v2.11.0) (2026-07-31)
 
 

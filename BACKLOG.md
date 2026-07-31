@@ -82,3 +82,19 @@ Reportado probando en la caja de TV + móvil reales (el casting NO es reproducib
   horizontal sirve, pero con muchos ítems preferir una **cuadrícula completa** vía
   "Ver todos" (o una flechita a la derecha), INCLUYENDO las reproducciones recientes.
   Evaluar con especialista en experiencia/diseño.
+
+## Feedback tras v2.11.0 (2026-07-31)
+- **[ARREGLADO v2.11.1] Reproducción VOD se reinicia desde el principio a mitad**: el
+  listener de conectividad reabría el stream en cada reconexión (aunque siguiera bien),
+  y `_reopenCurrent` reanudaba desde `_pendingWatchDuration` (que se pone a null tras
+  guardar historial) → reabría en 0. Fix: reabrir SOLO si la repro está rota
+  (buffering/parada), y reanudar desde `_player.state.position` real.
+- **[ARREGLADO v2.11.1] Primer envío a la TV aún falla, el reintento funciona**: auto-
+  reintento del primer arranque a los 8s (automatiza el Reintentar que sí funciona).
+- **[ARREGLADO v2.11.1] Mini-control de casting tapa la barra inferior/explorar**:
+  levantado por encima de `kBottomNavigationBarHeight`. (El usuario sugirió que sea una
+  notificación del sistema — mejora futura: media notification vía audio_service.)
+- **[PENDIENTE CONFIRMAR] "Continuar viendo" no se ve**: la carga/refresh parece correcta
+  (init + cambio de pestaña). Puede ser: sin ítems resumibles (todo en vivo/<2%/>95%), o
+  no refresca al volver del reproductor sin cambiar de pestaña. Confirmar con el usuario
+  antes de tocar la lógica.

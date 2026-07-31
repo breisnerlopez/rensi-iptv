@@ -29,7 +29,11 @@ class CastMiniController extends StatelessWidget {
       child: SafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+          // Levantar el mini-control POR ENCIMA de la barra de navegación
+          // inferior para no tapar los iconos de explorar/inferiores mientras
+          // se navega durante el casting.
+          padding: const EdgeInsets.fromLTRB(
+              8, 0, 8, 8 + kBottomNavigationBarHeight),
           child: Material(
             color: const Color(0xFF1A1A20),
             elevation: 10,
