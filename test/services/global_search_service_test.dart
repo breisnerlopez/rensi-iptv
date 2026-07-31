@@ -579,6 +579,53 @@ void main() {
       );
     });
 
+    test('a copy in another playlist whose LOCAL name never matched the query '
+        'still attaches via the TMDb ORIGINAL title', () async {
+      // Real repro: the show is "Rick y Morty" in list 3 (Spanish) and "Rick and
+      // Morty" in list 5 (English). Searching "rick y" returns ONLY list 3 —
+      // "rick y" is not a substring of "Rick and Morty" — so list 5's copy never
+      // enters the typed results and the query-scoped fold has nothing to plug.
+      // Scanning the FULL cross-playlist catalogue and matching on the card's
+      // original-language title ("Rick and Morty") is what recovers it.
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'list3', name: 'LopezCueto3', type: PlaylistType.xtream,
+          url: 'https://x.com', username: 'u', password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'list5', name: 'LopezCueto5', type: PlaylistType.xtream,
+          url: 'https://x.com', username: 'u', password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await _insertSeries(database, 'Rick y Morty', 'list3', seriesId: 'rm3');
+      await _insertSeries(database, 'Rick and Morty', 'list5', seriesId: 'rm5');
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+            id: 200,
+            mediaType: TmdbMediaType.tv,
+            title: 'Rick y Morty',
+            originalTitle: 'Rick and Morty',
+            voteAverage: 9,
+          ),
+        ]),
+      );
+      final r = await service.search('rick y');
+
+      expect(r.withLocal, hasLength(1),
+          reason: 'one logical title → one card');
+      final matches = r.withLocal.single.localMatches;
+      expect(matches.map((m) => m.playlist.id).toSet(), {'list3', 'list5'},
+          reason: 'the English list-5 copy is attached via the original title');
+      expect(matches.map((m) => m.dedupKey).toSet(), hasLength(2));
+      expect(r.localOnly, isEmpty);
+    });
+
     test('classify returns exact > fuzzy > none', () {
       expect(
         GlobalSearchService.classify('Dune', 'Dune'),
@@ -963,6 +1010,48 @@ void main() {
           reason: 'the owned movie stays in its own catalogue');
       expect(r.tmdbOnly, hasLength(1),
           reason: 'the unrelated TV result stays a Discover card');
+    });
+  });
+
+  group('season count (robust to gaps and specials)', () {
+    test('declared 9 seasons but episodes only cover 1..8 → 9', () {
+      // The shipped off-by-one: the provider announces 9 seasons, the last of
+      // which has no episodes loaded in get_series_info; counting distinct
+      // episode seasons alone reported 8.
+      final declared = [for (var s = 1; s <= 9; s++) s];
+      final episodes = [for (var s = 1; s <= 8; s++) s];
+      expect(
+        GlobalSearchService.seasonCountFromNumbers(episodes, declared),
+        9,
+      );
+    });
+
+    test('a season 0 (specials) entry never inflates the count', () {
+      // 8 real seasons plus a specials bucket (0); episodes span 0..8.
+      final declared = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+      final episodes = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+      expect(
+        GlobalSearchService.seasonCountFromNumbers(episodes, declared),
+        8,
+      );
+    });
+
+    test('non-contiguous numbering uses the highest real season number', () {
+      expect(
+        GlobalSearchService.seasonCountFromNumbers([1, 3], const []),
+        3,
+      );
+    });
+
+    test('null when no real (>=1) season is present', () {
+      expect(
+        GlobalSearchService.seasonCountFromNumbers([0], [0]),
+        isNull,
+      );
+      expect(
+        GlobalSearchService.seasonCountFromNumbers(const [], const []),
+        isNull,
+      );
     });
   });
 

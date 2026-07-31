@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:meta/meta.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/global_search_result.dart';
 import 'package:rensi_iptv/models/m3u_item.dart';
@@ -97,6 +98,31 @@ class GlobalSearchService {
     return keys;
   }
 
+  /// The grouping keys that identify a withLocal CARD, so a copy in any playlist
+  /// can be recognised as belonging to it: the card's TMDb id, its (localized)
+  /// title AND its ORIGINAL-language title — the last is what catches an English
+  /// "Rick and Morty" copy when the card itself is the localized "Rick y Morty"
+  /// — plus the keys of every copy already attached. Keyed in the same shape as
+  /// [_variantKeys] (type-scoped) so the two meet.
+  static Iterable<String> _cardVariantKeys(GlobalSearchResult card) {
+    final t = card.tmdb;
+    final type = t.mediaType == TmdbMediaType.tv
+        ? ContentType.series
+        : ContentType.vod;
+    final keys = <String>{
+      'id:${t.id}|$type',
+      'title:${_normalizeTitle(t.title)}|$type',
+    };
+    final original = t.originalTitle;
+    if (original != null && original.trim().isNotEmpty) {
+      keys.add('title:${_normalizeTitle(original)}|$type');
+    }
+    for (final m in card.localMatches) {
+      keys.addAll(_variantKeys(m));
+    }
+    return keys;
+  }
+
   // --- Search --------------------------------------------------------------
 
   Future<UnifiedSearchResults> search(
@@ -136,11 +162,21 @@ class GlobalSearchService {
     final localResults = _filterLocal(await localFuture, filter)
         .toList(growable: false);
 
+    // The full cross-playlist catalogue lets a card claim a same-title copy in a
+    // playlist whose name never matched the typed query (e.g. an English "Rick
+    // and Morty" in another list). Only needed when there is a TMDb card to fold
+    // into, so skip the (memoized, but first-time heavy) load otherwise — an
+    // offline/local-only/live search never pays for it. globalCatalogue() is the
+    // same memoized read Browse uses, so the cost is shared, not doubled.
+    final crossPlaylist =
+        tmdbResults.isEmpty ? null : await globalCatalogue();
+
     return _crossReference(
       tmdbResults,
       localResults,
       wishlistKeys,
       failure: failure,
+      crossPlaylistCatalogue: crossPlaylist,
     );
   }
 
@@ -160,6 +196,7 @@ class GlobalSearchService {
     int withLocalCap = 15,
     int tmdbOnlyCap = 10,
     int localOnlyCap = 15,
+    List<LocalContentMatch>? crossPlaylistCatalogue,
   }) {
     final withLocal = <GlobalSearchResult>[];
     final tmdbOnly = <GlobalSearchResult>[];
@@ -259,14 +296,24 @@ class GlobalSearchService {
     if (withLocal.isNotEmpty) {
       final cardForKey = <String, GlobalSearchResult>{};
       for (final entry in withLocal) {
-        for (final m in entry.localMatches) {
-          for (final k in _variantKeys(m)) {
-            cardForKey.putIfAbsent(k, () => entry);
-          }
+        for (final k in _cardVariantKeys(entry)) {
+          cardForKey.putIfAbsent(k, () => entry);
         }
       }
       final folded = <GlobalSearchResult, List<LocalContentMatch>>{};
-      for (final result in localResults) {
+      // Query results first (already loaded), THEN the full cross-playlist
+      // catalogue when supplied: a copy can live in a playlist whose local name
+      // never matched what the user typed — an English "Rick and Morty" in list
+      // 5 does not contain "rick y", so the typed search never returns it, yet
+      // it must still surface under the card. Scanning the whole catalogue (only
+      // series/movies; [globalCatalogue] already drops live) and matching on the
+      // card's id/title/original-title keys attaches it. NB: a playlist that was
+      // never synced has no rows in the DB, so neither the query nor this scan
+      // can reach it — an unsynced list's copies simply cannot be attached.
+      final candidates = crossPlaylistCatalogue == null
+          ? localResults
+          : <LocalContentMatch>[...localResults, ...crossPlaylistCatalogue];
+      for (final result in candidates) {
         if (matchedKeys.contains(result.dedupKey)) continue;
         if (result.content.contentType == ContentType.liveStream) continue;
         GlobalSearchResult? card;
@@ -1090,16 +1137,41 @@ class GlobalSearchService {
     return count;
   }
 
-  /// Distinct playable seasons in a fetched series-info response: prefer the set
-  /// of season numbers the episodes actually carry (the source of truth for what
-  /// plays, and robust to providers that ship a "specials"/season-0 entry in the
-  /// declared list), falling back to the declared seasons list, else null.
+  /// The season count for a fetched series-info response, drawn from BOTH the
+  /// declared `seasons` and the loaded `episodes`. Null when neither carries a
+  /// real season.
   static int? _seasonCount(SeriesDetailResponse? info) {
     if (info == null) return null;
-    final fromEpisodes = info.episodes.map((e) => e.season).toSet();
-    if (fromEpisodes.isNotEmpty) return fromEpisodes.length;
-    if (info.seasons.isNotEmpty) return info.seasons.length;
-    return null;
+    return seasonCountFromNumbers(
+      info.episodes.map((e) => e.season),
+      info.seasons.map((s) => s.seasonNumber),
+    );
+  }
+
+  /// Robust season count from the season numbers a provider exposes on its
+  /// episodes and its declared seasons. Two failure modes of a naive
+  /// "distinct episode seasons" count are fixed here:
+  ///  - **Season 0 (specials)** is excluded, so a specials entry never inflates
+  ///    "9 temporadas" to 10 nor is mistaken for a real season.
+  ///  - **Gaps / an announced-but-empty last season**: a provider can declare 9
+  ///    seasons while only 1..8 have episodes loaded in get_series_info, which
+  ///    made the old `episodes.toSet().length` report 8. Taking the MAX of the
+  ///    distinct episode-season count, the distinct declared-season count and
+  ///    the HIGHEST season number seen anywhere reflects the provider's real
+  ///    number (9) and is robust to non-contiguous numbering.
+  /// Returns null when no real (>=1) season is present in either source.
+  @visibleForTesting
+  static int? seasonCountFromNumbers(
+    Iterable<int> episodeSeasons,
+    Iterable<int> declaredSeasonNumbers,
+  ) {
+    final eps = episodeSeasons.where((n) => n >= 1).toSet();
+    final declared = declaredSeasonNumbers.where((n) => n >= 1).toSet();
+    if (eps.isEmpty && declared.isEmpty) return null;
+    final highest =
+        [...eps, ...declared].fold<int>(0, (m, n) => n > m ? n : m);
+    return [eps.length, declared.length, highest]
+        .reduce((a, b) => a > b ? a : b);
   }
 
   Future<TmdbDetailResult> getDetail(

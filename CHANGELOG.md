@@ -1,3 +1,12 @@
+# [2.13.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.13.0...v2.13.1) (2026-07-31)
+
+
+### Bug Fixes
+
+* **nº de temporadas correcto al elegir una copia:** ya no se queda corto (contaba solo las temporadas con episodios cargados; ahora refleja el total real del proveedor y no cuenta los "especiales")
+* **copias en otras listas con nombre distinto:** al elegir dónde reproducir una serie, ahora también aparecen las copias de tus otras listas aunque estén con otro nombre (p. ej. el título en inglés), buscándolas por su ficha en todas tus listas. (Si una lista no la has abierto/sincronizado aún, su contenido no está disponible para buscar hasta que entres a ella)
+
+
 # [2.13.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.12.2...v2.13.0) (2026-07-31)
 
 
