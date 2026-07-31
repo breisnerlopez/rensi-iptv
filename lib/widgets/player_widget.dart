@@ -289,6 +289,16 @@ class _PlayerWidgetState extends State<PlayerWidget>
   bool _autoRetried = false; // un solo auto-reintento del primer arranque
   // Fase de la carga (audio/open/ready), para diagnosticar dónde se cuelga.
   String _loadStage = '';
+  // Watchdog de "buffering sin arrancar" para VOD/serie: el botón Reintentar
+  // vivía SOLO dentro del indicador de carga (gated por isLoading). Cuando la
+  // init termina (isLoading=false) pero el stream se queda en buffering sin
+  // llegar NUNCA a reproducir (cuelgue silencioso en algunas cajas de TV),
+  // desaparecía el Reintentar y quedaba el círculo pelado de media_kit sin
+  // salida. Este watchdog repone el Reintentar en ese caso (en vivo ya lo cubre
+  // _stallTimer, que reabre solo).
+  Timer? _vodStuckTimer;
+  bool _stuckBuffering = false; // muestra el overlay de Reintentar
+  bool _hasStartedPlaying = false; // ¿alguna vez llegó a reproducir?
 
   void _startPreBuffer() {
     final isLive = widget.contentItem.contentType == ContentType.liveStream;
@@ -417,6 +427,55 @@ class _PlayerWidgetState extends State<PlayerWidget>
                 ),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Overlay de "atascado": VOD/serie que se queda en buffering sin arrancar
+  /// nunca (cuelgue silencioso). El watchdog `_vodStuckTimer` lo activa tras
+  /// ~12s; repone el botón Reintentar (que antes solo vivía dentro del indicador
+  /// de carga y desaparecía al terminar la init). Se auto-oculta al reproducir.
+  Widget _buildStuckRetry(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    return Container(
+      color: Colors.black,
+      alignment: Alignment.center,
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Color(0xFFD2603A)),
+            const SizedBox(height: 18),
+            Text(
+              'Está tardando más de lo normal. Puede que no se logre abrir el '
+              'stream.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.orangeAccent,
+                fontSize: AppThemes.tenFoot(context, 13),
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              autofocus: ResponsiveHelper.isTelevisionDevice,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFD2603A),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+              ),
+              onPressed: () {
+                setState(() => _stuckBuffering = false);
+                _retryPlayback();
+              },
+              icon: const Icon(Icons.refresh),
+              label: Text(
+                loc?.cast_retry ?? 'Reintentar',
+                style: TextStyle(fontSize: AppThemes.tenFoot(context, 14)),
+              ),
+            ),
           ],
         ),
       ),
@@ -792,6 +851,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _seekHideTimer?.cancel();
     _seekCommitTimer?.cancel();
     _seekGraceTimer?.cancel();
+    _vodStuckTimer?.cancel();
     contentItemIndexChangedSubscription?.cancel();
     _connectivitySubscription?.cancel();
     _errorHandler.reset();
@@ -1494,6 +1554,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _playingSubscription = _player.stream.playing.listen((playing) {
       if (playing) {
         WakelockPlus.enable();
+        // Arrancó de verdad: matar el watchdog de "buffering sin arrancar" y
+        // quitar el overlay de Reintentar si estaba puesto.
+        _hasStartedPlaying = true;
+        _vodStuckTimer?.cancel();
+        if (_stuckBuffering && mounted) {
+          setState(() => _stuckBuffering = false);
+        }
         // Resuming hides the rich pause panel.
         if (_showPausePanel && mounted) {
           // If the D-pad ring was on the "Siguiente episodio" button, its node
@@ -1544,13 +1611,37 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // recovers it. If we stay buffering for 15s on a live stream, reopen it.
     _bufferingSubscription = _player.stream.buffering.listen((buffering) {
       _stallTimer?.cancel();
-      if (buffering &&
-          contentItem.contentType == ContentType.liveStream &&
-          contentItem.url.isNotEmpty) {
+      _vodStuckTimer?.cancel();
+      if (!buffering) return;
+      final isLiveContent = contentItem.contentType == ContentType.liveStream;
+      if (isLiveContent && contentItem.url.isNotEmpty) {
         _stallTimer = Timer(const Duration(seconds: 15), () {
           if (!mounted || _playerDisposed) return;
           if (_player.state.buffering) {
             _reopenCurrent();
+          }
+        });
+      } else if (!isLiveContent) {
+        // VOD/serie que se queda buffering SIN haber arrancado nunca: tras ~12s
+        // exponer el botón Reintentar (no hay error que dispare la pantalla de
+        // error, y la init ya puso isLoading=false). No aplica una vez que sí
+        // reprodujo (_hasStartedPlaying) — eso es un stall a mitad, no un cuelgue.
+        _vodStuckTimer = Timer(const Duration(seconds: 12), () {
+          if (!mounted || _playerDisposed) return;
+          // Cacheado POR DELANTE de la posición (≈ demuxer-cache-duration). OJO:
+          // _player.state.buffer es demuxer-cache-TIME (timestamp absoluto), así
+          // que en contenido reanudado (p. ej. min 20) salta a ~1200s aunque esté
+          // colgado; hay que restar la posición para obtener la magnitud relativa.
+          final bufferedAhead = _player.state.buffer - _player.state.position;
+          if (_player.state.buffering &&
+              !_player.state.playing &&
+              !_hasStartedPlaying &&
+              // ~nada por delante = apertura colgada, NO "lento pero descargando"
+              // (un stream lento acumula buffer y no debe disparar el overlay).
+              bufferedAhead < const Duration(seconds: 1) &&
+              !hasError &&
+              !isLoading) {
+            setState(() => _stuckBuffering = true);
           }
         });
       }
@@ -1591,6 +1682,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
       // Cambió el episodio (salto manual O auto-avance nativo de EOF): invalidar
       // cualquier seek acumulado, cuya posición era del episodio anterior.
       _cancelPendingSeek();
+      // Rearmar el watchdog de "buffering sin arrancar" para el episodio nuevo:
+      // sin esto, tras reproducir el episodio 1 quedaría desactivado y un
+      // episodio 2 colgado no repondría el Reintentar.
+      _hasStartedPlaying = false;
 
       _currentItemIndex = playlist.index;
       currentItemIndex = _currentItemIndex;
@@ -2101,6 +2196,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
     final anyOverlayOpen = _showChannelList ||
         PlayerState.showVideoSettings ||
         PlayerState.showVideoInfo;
+
+    // Overlay "atascado" (VOD/serie que no arranca): es ADITIVO sobre el player,
+    // así que el foco lo conserva _remoteFocusNode y el autofocus del botón es
+    // no-op → interceptar OK aquí para que el mando pueda reintentar (si no,
+    // quedaría visible pero inalcanzable en una caja de TV solo-mando).
+    if (_stuckBuffering && isOkKey) {
+      if (event is KeyUpEvent) {
+        setState(() => _stuckBuffering = false);
+        _retryPlayback();
+      }
+      return KeyEventResult.handled;
+    }
 
     // TV pause panel: while the focus ring sits on the "Siguiente episodio"
     // button, OK skips to the next episode instead of resuming. Consume every
@@ -2753,6 +2860,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
             _buildCastGate(context),
             // Pre-buffer: velocidad/buffer/estado (por encima de la carga).
             _buildPreBuffer(context),
+            // Atascado (VOD/serie que no arranca): repone el Reintentar.
+            if (_stuckBuffering && !isLoading && !hasError)
+              Positioned.fill(child: _buildStuckRetry(context)),
           ],
         ),
       );
@@ -2769,6 +2879,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
             _buildCastGate(context),
             // Pre-buffer: velocidad/buffer/estado (por encima de la carga).
             _buildPreBuffer(context),
+            // Atascado (VOD/serie que no arranca): repone el Reintentar.
+            if (_stuckBuffering && !isLoading && !hasError)
+              Positioned.fill(child: _buildStuckRetry(context)),
           ],
         ),
       );

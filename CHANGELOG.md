@@ -1,3 +1,11 @@
+# [2.12.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.12.1...v2.12.2) (2026-07-31)
+
+
+### Bug Fixes
+
+* **la reproducción en TV ya no se queda "colgada" sin salida:** cuando un contenido abría pero no llegaba a reproducir (buffering infinito en algunas TV), te quedabas en el círculo girando sin ninguna opción. Ahora, si tras unos segundos no arranca, vuelve a aparecer el botón **Reintentar** (alcanzable con el mando) — también entre episodios de una serie. Un stream solo lento (que sí va descargando) no lo dispara
+
+
 # [2.12.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.12.0...v2.12.1) (2026-07-31)
 
 
