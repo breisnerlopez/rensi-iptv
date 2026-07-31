@@ -68,6 +68,7 @@
         android:icon="@mipmap/ic_launcher"
         android:banner="@drawable/tv_banner"
         android:isGame="false"
+        android:usesCleartextTraffic="true"
         android:allowBackup="false"
         android:fullBackupContent="false"
         tools:replace="android:allowBackup"><!-- Local DB (rensi-iptv.sqlite) may hold Xtream creds; keep it out of

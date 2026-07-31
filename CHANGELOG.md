@@ -1,3 +1,11 @@
+# [2.13.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.13.1...v2.13.2) (2026-07-31)
+
+
+### Bug Fixes
+
+* **las descargas ya funcionan (arreglo definitivo):** Android bloqueaba las descargas por HTTP (los proveedores IPTV usan HTTP, no HTTPS) mientras que la reproducción no se veía afectada — de ahí el "se reproduce pero no descarga". Se habilitó el tráfico HTTP para el descargador. Reproducido y verificado contra un proveedor real en emulador (descarga real de más de 1 GB sin errores)
+
+
 # [2.13.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.13.0...v2.13.1) (2026-07-31)
 
 
