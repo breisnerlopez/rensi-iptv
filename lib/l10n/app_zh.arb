@@ -337,6 +337,7 @@
   "support_on_github_description": "在 GitHub 上为项目做出贡献",
   "select_channel": "选择频道",
   "episodes": "剧集",
+  "next_episode": "下一集",
   "categories": "分类",
   "seasons": "季",
   "season_number_format": "第 {number} 季",

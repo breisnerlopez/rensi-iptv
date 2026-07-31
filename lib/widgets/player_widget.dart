@@ -14,6 +14,7 @@ import 'package:rensi_iptv/utils/channel_order.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
 import 'package:rensi_iptv/widgets/channel_number_overlay.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_info_widget.dart';
+import 'package:rensi_iptv/widgets/player-buttons/video_next_episode_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_settings_widget.dart';
 import 'package:rensi_iptv/l10n/app_localizations.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
@@ -77,6 +78,19 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Duration? _seekPos;
   Duration? _seekDur;
   Timer? _seekHideTimer;
+  // Seek acumulado + acelerado (mando de TV). Pulsaciones consecutivas en la
+  // misma dirección crecen el paso (15s → 1min → 3min → 5min) y ACUMULAN sobre
+  // un objetivo pendiente; el seek real se hace UNA sola vez ~350ms tras la
+  // última pulsación (patrón de _changeChannel) para no re-bufferizar en cada
+  // paso, y se reanuda con play() para no quedar en el spinner de carga.
+  Duration? _pendingSeekTarget;
+  Timer? _seekCommitTimer;
+  Timer? _seekGraceTimer;
+  int _seekStreak = 0;
+  bool _seekForward = true;
+  bool _seekWasPlaying = true;
+  bool _seekInProgress = false; // ventana de gracia del re-buffer tras el seek
+  DateTime? _lastSeekPressAt;
   // Rich pause panel (TV only): while paused, show title + synopsis + cast.
   bool _showPausePanel = false;
   // Nullable (not `late`): they're assigned inside the async _initializePlayer,
@@ -121,6 +135,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Duration? _pendingWatchDuration;
   Duration? _pendingTotalDuration;
   final FocusNode _remoteFocusNode = FocusNode(debugLabel: 'PlayerRemote');
+  // Focus target for the "Siguiente episodio" button inside the TV pause panel.
+  // The panel normally keeps focus on [_remoteFocusNode] (so OK resumes); D-pad
+  // DOWN hands focus here to reveal the ring, and UP/BACK returns it.
+  final FocusNode _nextEpisodeFocusNode =
+      FocusNode(debugLabel: 'PlayerNextEpisode');
   // OK/center long-press → open player options (audio/subtitles). Short press
   // stays play/pause. This is the universal remote route to those panels.
   Timer? _okHoldTimer;
@@ -701,6 +720,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // play/pausa por el canal de control y aquí se aplica.
     _castPlayPauseSubscription =
         EventBus().on<bool>('cast_play_pause').listen((_) {
+      _settleSeekForManualToggle(); // la pausa remota gana a un seek local pendiente
       _player.playOrPause();
       // The phone toggled play/pause: reveal the info bar so the TV viewer sees
       // the title + progress react to the remote press.
@@ -770,6 +790,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _playbackSpeedSubscription?.cancel();
     _castPlayPauseSubscription?.cancel();
     _seekHideTimer?.cancel();
+    _seekCommitTimer?.cancel();
+    _seekGraceTimer?.cancel();
     contentItemIndexChangedSubscription?.cancel();
     _connectivitySubscription?.cancel();
     _errorHandler.reset();
@@ -778,6 +800,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _preBufferTimer?.cancel();
     _loadTicker?.cancel();
     _remoteFocusNode.dispose();
+    _nextEpisodeFocusNode.dispose();
     _pipWidthSubscription?.cancel();
     _pipHeightSubscription?.cancel();
     PipService.instance.isInPip.removeListener(_onPipModeChanged);
@@ -811,6 +834,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Future<void> _disposePlayer() async {
     if (_playerDisposed) return;
     _playerDisposed = true;
+    // Cubre el camino AppLifecycleState.detached (no pasa por State.dispose):
+    // un seek diferido no debe dispararse sobre un player ya liberado.
+    _seekCommitTimer?.cancel();
+    _seekGraceTimer?.cancel();
     await _player.dispose();
   }
 
@@ -824,6 +851,35 @@ class _PlayerWidgetState extends State<PlayerWidget>
     final newIndex = clamped - 1;
     if (newIndex == _currentItemIndex) return;
     EventBus().emit('player_content_item_index_changed', newIndex);
+  }
+
+  /// True when the queue has an episode after the current one to skip to.
+  /// Never for live (a bare Media with no queue advance), never without a
+  /// queue, and never on the last item. Single source of truth shared with the
+  /// mobile [VideoNextEpisodeWidget] so both agree on when to show the control.
+  bool get _hasNextEpisode => hasNextEpisode(
+        contentType: contentItem.contentType,
+        queue: _queue,
+        currentIndex: _currentItemIndex,
+      );
+
+  /// Jump to the next queue item without waiting for the current one's credits.
+  ///
+  /// Advances through the EXACT same path the in-app episode picker uses: it
+  /// emits `player_content_item_index_changed`, which the existing subscription
+  /// turns into `_player.jump(index)` for non-live content (see the listener in
+  /// initState). That jump drives media_kit's `stream.playlist` — the very same
+  /// listener the end-of-file auto-advance fires — so `_currentItemIndex`,
+  /// `contentItem`, `PlayerState` and the history save all update through one
+  /// consistent code path, and the casting guard on that subscription is
+  /// honoured too. No-op when there is no next episode.
+  void _skipToNextEpisode() {
+    if (!_hasNextEpisode) return;
+    // El seek acumulado (si lo hay) se descarta centralizadamente en la
+    // suscripción a 'player_content_item_index_changed' (rama no-live), que cubre
+    // este salto y el resto de emisores.
+    EventBus()
+        .emit('player_content_item_index_changed', _currentItemIndex + 1);
   }
 
   /// Maps a [LogicalKeyboardKey] to its 0-9 digit value, including the
@@ -1440,6 +1496,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
         WakelockPlus.enable();
         // Resuming hides the rich pause panel.
         if (_showPausePanel && mounted) {
+          // If the D-pad ring was on the "Siguiente episodio" button, its node
+          // is about to unmount — hand focus back to the player node first so
+          // key handling never lands on a stale/scope node.
+          if (_nextEpisodeFocusNode.hasFocus) {
+            _remoteFocusNode.requestFocus();
+          }
           setState(() => _showPausePanel = false);
         }
         // A heal that reached "playing" is confirmed good: persist the winning
@@ -1464,6 +1526,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
             !isLoading &&
             !_preBuffering &&
             !hasError &&
+            // No durante un seek: el 'playing=false' es el re-buffer transitorio
+            // del salto (o la acumulación en curso), no una pausa del usuario.
+            !_seekInProgress &&
+            _pendingSeekTarget == null &&
             // No al FINAL del archivo: al completar un episodio, 'playing' pasa a
             // false justo antes del swap al siguiente → el panel parpadearía.
             !_player.state.completed &&
@@ -1521,6 +1587,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
       if (contentItem.contentType == ContentType.liveStream) {
         return;
       }
+
+      // Cambió el episodio (salto manual O auto-avance nativo de EOF): invalidar
+      // cualquier seek acumulado, cuya posición era del episodio anterior.
+      _cancelPendingSeek();
 
       _currentItemIndex = playlist.index;
       currentItemIndex = _currentItemIndex;
@@ -1596,6 +1666,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
               setState(() {});
             }
           } else {
+            // Cambiar de título (serie/VOD) invalida cualquier seek acumulado:
+            // su posición pertenece al episodio anterior. Centralizado aquí para
+            // cubrir TODOS los emisores del evento (botón siguiente, selector de
+            // episodios, salto por número), no solo uno.
+            _cancelPendingSeek();
             _player.jump(index);
           }
         });
@@ -1741,12 +1816,125 @@ class _PlayerWidgetState extends State<PlayerWidget>
     });
   }
 
+  /// Avance/retroceso ACELERADO en la TV (solo VOD). Cada pulsación consecutiva
+  /// en la misma dirección crece el paso (15s → 1min → 3min → 5min) y ACUMULA
+  /// sobre un objetivo pendiente que se muestra en la barra; el seek real ocurre
+  /// UNA vez ~350ms tras la última pulsación. Ventajas: (1) para contenido largo
+  /// se recorre rápido manteniendo pulsado mientras se ve el tiempo proyectado;
+  /// (2) no hay un re-buffer por cada paso (antes cada pulsación hacía un seek);
+  /// (3) al comprometer se reanuda con play() — algunas cajas de TV dejan el
+  /// stream buffering-sin-reanudar tras un seek (parecía pausado con spinner y
+  /// exigía un OK). Cambiar de dirección o una pausa larga reinicia la racha al
+  /// paso fino.
+  void _seekBy(bool forward) {
+    final dur = _player.state.duration;
+    if (dur <= Duration.zero) return; // sin duración fiable (no es VOD)
+    final now = DateTime.now();
+    final gap =
+        _lastSeekPressAt == null ? null : now.difference(_lastSeekPressAt!);
+    _lastSeekPressAt = now;
+    if (_pendingSeekTarget == null ||
+        _seekForward != forward ||
+        (gap != null && gap > const Duration(milliseconds: 900))) {
+      _seekStreak = 0;
+      _seekForward = forward;
+      _seekWasPlaying = _player.state.playing || _seekInProgress;
+      _pendingSeekTarget = _player.state.position;
+    }
+    _seekStreak++;
+    final step = _seekStepFor(_seekStreak);
+    var target = _pendingSeekTarget! + (forward ? step : -step);
+    // Tope 1s antes del final: evita seek EXACTO a EOF (que carreraría con el
+    // evento `completed`/auto-avance de serie) y deja algo que reproducir.
+    final cap =
+        dur > const Duration(seconds: 1) ? dur - const Duration(seconds: 1) : dur;
+    if (target > cap) target = cap;
+    if (target < Duration.zero) target = Duration.zero;
+    _pendingSeekTarget = target;
+    _showSeekFeedback(target, dur); // la barra muestra el objetivo proyectado
+    _seekCommitTimer?.cancel();
+    _seekCommitTimer =
+        Timer(const Duration(milliseconds: 350), _commitPendingSeek);
+  }
+
+  /// Paso incremental por racha: arranca fino (15s) y escala a minutos.
+  Duration _seekStepFor(int streak) {
+    if (streak <= 2) return const Duration(seconds: 15);
+    if (streak <= 4) return const Duration(minutes: 1);
+    if (streak <= 6) return const Duration(minutes: 3);
+    return const Duration(minutes: 5);
+  }
+
+  void _commitPendingSeek() => _commitSeek(resume: _seekWasPlaying);
+
+  /// Ejecuta el seek acumulado una sola vez. [resume]=true reanuda con play()
+  /// (arregla el "buffering sin reanudar" de algunas cajas de TV tras un seek);
+  /// se pasa false cuando el usuario tomó control explícito de la pausa alrededor
+  /// del seek, para NO revertir su pausa.
+  void _commitSeek({required bool resume}) {
+    final target = _pendingSeekTarget;
+    _seekCommitTimer?.cancel();
+    _seekCommitTimer = null;
+    _pendingSeekTarget = null;
+    _seekStreak = 0;
+    if (target == null) return;
+    // El timer pudo sobrevivir a un dispose (p.ej. AppLifecycleState.detached):
+    // no tocar un player liberado.
+    if (!mounted || _playerDisposed) return;
+    _player.seek(target);
+    if (resume) {
+      _player.play();
+      // Gracia: ignorar el 'playing=false' del re-buffer para no levantar el
+      // panel de pausa mientras el stream se recompone.
+      _seekInProgress = true;
+      _seekGraceTimer?.cancel();
+      _seekGraceTimer = Timer(const Duration(milliseconds: 1200), () {
+        _seekInProgress = false;
+      });
+    } else {
+      _seekInProgress = false;
+      _seekGraceTimer?.cancel();
+    }
+  }
+
+  /// El usuario pulsa play/pausa alrededor de un seek: cerrar el seek pendiente
+  /// SIN reanudar y soltar la supresión del panel de pausa, para que su toggle
+  /// mande sobre la reanudación automática del commit.
+  void _settleSeekForManualToggle() {
+    if (_pendingSeekTarget == null && !_seekInProgress) return;
+    _seekWasPlaying = false;
+    _seekGraceTimer?.cancel();
+    _seekInProgress = false;
+    if (_pendingSeekTarget != null) _commitSeek(resume: false);
+  }
+
+  /// Descarta un seek acumulado SIN ejecutarlo ni tocar el player. Para cuando la
+  /// posición pendiente deja de tener sentido (p.ej. al saltar de episodio).
+  void _cancelPendingSeek() {
+    _seekCommitTimer?.cancel();
+    _seekCommitTimer = null;
+    _seekGraceTimer?.cancel();
+    _pendingSeekTarget = null;
+    _seekStreak = 0;
+    _seekInProgress = false;
+    if (mounted) setState(() => _seekPos = null); // oculta la barra del objetivo
+  }
+
   /// Short OK during playback. First press reveals the playback info bar (the
   /// TITLE, and for seekable content the progress + current/total time) without
   /// pausing — so the viewer can see WHAT is playing and how far in. Pressing OK
   /// again while the bar is showing toggles play/pause. Live has no duration, so
   /// the bar shows just the title; a second OK still toggles.
   void _handleOkTap() {
+    // OK alrededor de un seek: cerrar el seek pendiente y que ESTE OK gobierne
+    // play/pausa (la reanudación automática del commit no debe revertirlo). Deja
+    // el estado estable para que un 'playing=false' de pausa levante el panel.
+    if (_pendingSeekTarget != null || _seekInProgress) {
+      _settleSeekForManualToggle();
+      _player.playOrPause();
+      _revealInfoBar(hold: const Duration(seconds: 4));
+      return;
+    }
     // Paused (rich panel up, or otherwise not playing): OK resumes directly —
     // don't force a second press.
     if (_showPausePanel || !_player.state.playing) {
@@ -1914,6 +2102,20 @@ class _PlayerWidgetState extends State<PlayerWidget>
         PlayerState.showVideoSettings ||
         PlayerState.showVideoInfo;
 
+    // TV pause panel: while the focus ring sits on the "Siguiente episodio"
+    // button, OK skips to the next episode instead of resuming. Consume every
+    // phase (down/repeat/up) so the generic OK handler below never also fires,
+    // and act on the up so a single press equals one skip.
+    if (isOkKey &&
+        _showPausePanel &&
+        _hasNextEpisode &&
+        _nextEpisodeFocusNode.hasFocus &&
+        !anyOverlayOpen &&
+        !_channelBuffer.isActive) {
+      if (event is KeyUpEvent) _skipToNextEpisode();
+      return KeyEventResult.handled;
+    }
+
     // OK/center: SHORT press = reveal the progress/time info bar first, then
     // pause on a second press (see _handleOkTap); LONG press (≈450ms) = open the
     // player options panel (audio/subtitles). On a basic Android TV remote this is the
@@ -1963,6 +2165,34 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // the controls instead.
     final isLive =
         PlayerState.currentContent?.contentType == ContentType.liveStream;
+
+    // TV pause panel next-episode ring: DOWN moves the focus ring onto the
+    // "Siguiente episodio" button (revealing its highlight); UP or BACK returns
+    // the ring to the player so OK resumes as usual. Only while the panel is up
+    // and a next episode exists — otherwise these keys fall through unchanged
+    // (DOWN is a no-op on non-live, BACK still exits).
+    if (_showPausePanel && _hasNextEpisode) {
+      if (!_nextEpisodeFocusNode.hasFocus &&
+          key == LogicalKeyboardKey.arrowDown) {
+        _nextEpisodeFocusNode.requestFocus();
+        return KeyEventResult.handled;
+      }
+      if (_nextEpisodeFocusNode.hasFocus &&
+          key == LogicalKeyboardKey.arrowUp) {
+        _remoteFocusNode.requestFocus();
+        return KeyEventResult.handled;
+      }
+      if (_nextEpisodeFocusNode.hasFocus &&
+          (key == LogicalKeyboardKey.escape ||
+              key == LogicalKeyboardKey.goBack ||
+              key == LogicalKeyboardKey.browserBack)) {
+        // BACK con el foco en el botón: devolver el ring al player pero NO
+        // consumir, para que BACK salga del reproductor en UNA sola pulsación
+        // (como antes de existir el botón), no en dos.
+        _remoteFocusNode.requestFocus();
+        return KeyEventResult.ignored;
+      }
+    }
 
     // Channel-number entry: digit keys accumulate, Enter commits, Backspace
     // deletes. Only meaningful when there's a queue to jump within.
@@ -2053,6 +2283,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         key == LogicalKeyboardKey.mediaPlayPause ||
         key == LogicalKeyboardKey.mediaPlay ||
         key == LogicalKeyboardKey.mediaPause) {
+      _settleSeekForManualToggle(); // la pausa explícita gana al seek pendiente
       _player.playOrPause();
       // Dedicated play/pause keys reveal the info bar (title + progress) too.
       _revealInfoBar();
@@ -2078,31 +2309,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
       return KeyEventResult.handled;
     }
 
-    // Seek (for VOD / non-live content). Live streams ignore seek calls.
+    // Seek ACELERADO (solo VOD; live ignora el seek). Ver _seekBy: acumula +
+    // escala el paso y comprometa un único seek al soltar.
     if (key == LogicalKeyboardKey.arrowRight ||
         key == LogicalKeyboardKey.mediaFastForward ||
         key == LogicalKeyboardKey.mediaStepForward) {
-      if (!isLive) {
-        final pos = _player.state.position;
-        final dur = _player.state.duration;
-        final target = pos + const Duration(seconds: 10);
-        final clamped = target > dur ? dur : target;
-        _player.seek(clamped);
-        _showSeekFeedback(clamped, dur);
-      }
+      if (!isLive) _seekBy(true);
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowLeft ||
         key == LogicalKeyboardKey.mediaRewind ||
         key == LogicalKeyboardKey.mediaStepBackward) {
-      if (!isLive) {
-        final pos = _player.state.position;
-        final dur = _player.state.duration;
-        final target = pos - const Duration(seconds: 10);
-        final clamped = target < Duration.zero ? Duration.zero : target;
-        _player.seek(clamped);
-        _showSeekFeedback(clamped, dur);
-      }
+      if (!isLive) _seekBy(false);
       return KeyEventResult.handled;
     }
 
@@ -2728,20 +2946,25 @@ class _PlayerWidgetState extends State<PlayerWidget>
           // Channel-number entry overlay (TV remote).
           ChannelNumberOverlay(buffer: _channelBuffer.buffer),
 
-          // Rich pause panel (TV): title + synopsis + cast while paused. Wrapped
-          // in ExcludeFocus so it never steals the D-pad from the player — OK
-          // still reaches _handleRemoteKey to resume. Hidden while another
-          // overlay (channel list / settings / info) is open.
+          // Rich pause panel (TV): title + synopsis + cast while paused. Not
+          // wrapped in ExcludeFocus because it now hosts the focusable
+          // "Siguiente episodio" button — but that button never autofocuses, so
+          // the player keeps the D-pad by default and OK still reaches
+          // _handleRemoteKey to resume; the ring only moves here on D-pad DOWN.
+          // (The cast rail's InkWells are disabled in this panel — no onActorTap
+          // — so nothing else can steal focus.) Hidden while another overlay
+          // (channel list / settings / info) is open.
           if (_showPausePanel &&
               !_anyOverlayOpen &&
               contentItem.contentType != ContentType.liveStream)
-            ExcludeFocus(
-              child: PauseInfoPanel(
-                title: contentItem.name,
-                contentType: contentItem.contentType,
-                position: _player.state.position,
-                duration: _player.state.duration,
-              ),
+            PauseInfoPanel(
+              title: contentItem.name,
+              contentType: contentItem.contentType,
+              position: _player.state.position,
+              duration: _player.state.duration,
+              hasNext: _hasNextEpisode,
+              onNext: _skipToNextEpisode,
+              nextFocusNode: _nextEpisodeFocusNode,
             ),
 
           // Transient seek progress bar (D-pad ±10s feedback).

@@ -343,6 +343,7 @@
   "last_channel": "Last channel",
   "select_channel": "Select Channel",
   "episodes": "Episodes",
+  "next_episode": "Next episode",
   "categories": "Categories",
   "seasons": "Seasons",
   "season_number_format": "Season {number}",

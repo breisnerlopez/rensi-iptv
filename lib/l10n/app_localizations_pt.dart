@@ -1026,6 +1026,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get episodes => 'Episódios';
 
   @override
+  String get next_episode => 'Próximo episódio';
+
+  @override
   String get categories => 'Categorias';
 
   @override

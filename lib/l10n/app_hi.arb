@@ -337,6 +337,7 @@
   "support_on_github_description": "GitHub पर प्रोजेक्ट में योगदान दें",
   "select_channel": "चैनल चुनें",
   "episodes": "एपिसोड",
+  "next_episode": "अगला एपिसोड",
   "categories": "श्रेणियां",
   "seasons": "सीज़न",
   "season_number_format": "सीज़न {number}",

@@ -337,6 +337,7 @@
   "support_on_github_description": "ساهم في المشروع على GitHub",
   "select_channel": "اختر القناة",
   "episodes": "حلقات",
+  "next_episode": "الحلقة التالية",
   "categories": "الفئات",
   "seasons": "المواسم",
   "season_number_format": "الموسم {number}",

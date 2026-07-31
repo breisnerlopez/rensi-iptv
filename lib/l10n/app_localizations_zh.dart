@@ -987,6 +987,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get episodes => '剧集';
 
   @override
+  String get next_episode => '下一集';
+
+  @override
   String get categories => '分类';
 
   @override

@@ -1032,6 +1032,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get episodes => 'Épisodes';
 
   @override
+  String get next_episode => 'Épisode suivant';
+
+  @override
   String get categories => 'Catégories';
 
   @override

@@ -1024,6 +1024,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get episodes => 'Эпизоды';
 
   @override
+  String get next_episode => 'Следующий эпизод';
+
+  @override
   String get categories => 'Категории';
 
   @override

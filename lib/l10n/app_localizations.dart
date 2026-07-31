@@ -1998,6 +1998,12 @@ abstract class AppLocalizations {
   /// **'Episodes'**
   String get episodes;
 
+  /// No description provided for @next_episode.
+  ///
+  /// In en, this message translates to:
+  /// **'Next episode'**
+  String get next_episode;
+
   /// No description provided for @categories.
   ///
   /// In en, this message translates to:

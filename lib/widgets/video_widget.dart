@@ -6,6 +6,7 @@ import 'package:rensi_iptv/widgets/player-buttons/back_button_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_channel_selector_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_favorite_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_info_widget.dart';
+import 'package:rensi_iptv/widgets/player-buttons/video_next_episode_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/sleep_timer_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_settings_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_title_widget.dart';
@@ -92,6 +93,7 @@ class _VideoWidgetState extends State<VideoWidget> {
               queue: PlayerState.queue,
               currentIndex: PlayerState.currentIndex,
             ),
+            const VideoNextEpisodeWidget(),
             VideoFavoriteWidget(),
             SleepTimerWidget(),
             VideoSettingsWidget(),
@@ -121,6 +123,7 @@ class _VideoWidgetState extends State<VideoWidget> {
               queue: PlayerState.queue,
               currentIndex: PlayerState.currentIndex,
             ),
+            const VideoNextEpisodeWidget(),
             VideoFavoriteWidget(),
             SleepTimerWidget(),
             VideoSettingsWidget(),
@@ -155,6 +158,7 @@ class _VideoWidgetState extends State<VideoWidget> {
                 queue: PlayerState.queue,
                 currentIndex: PlayerState.currentIndex,
               ),
+              const VideoNextEpisodeWidget(),
               VideoFavoriteWidget(),
               SleepTimerWidget(),
               VideoSettingsWidget(),
@@ -171,6 +175,7 @@ class _VideoWidgetState extends State<VideoWidget> {
                 queue: PlayerState.queue,
                 currentIndex: PlayerState.currentIndex,
               ),
+              const VideoNextEpisodeWidget(),
               VideoFavoriteWidget(),
               SleepTimerWidget(),
               VideoSettingsWidget(),

@@ -337,6 +337,7 @@
   "support_on_github_description": "Внести вклад в проект на GitHub",
   "select_channel": "Выбрать Канал",
   "episodes": "Эпизоды",
+  "next_episode": "Следующий эпизод",
   "categories": "Категории",
   "seasons": "Сезоны",
   "season_number_format": "Сезон {number}",

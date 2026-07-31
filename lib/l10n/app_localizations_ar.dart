@@ -1016,6 +1016,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get episodes => 'حلقات';
 
   @override
+  String get next_episode => 'الحلقة التالية';
+
+  @override
   String get categories => 'الفئات';
 
   @override

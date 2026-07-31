@@ -1019,6 +1019,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get episodes => 'Bölümler';
 
   @override
+  String get next_episode => 'Sonraki bölüm';
+
+  @override
   String get categories => 'Kategoriler';
 
   @override

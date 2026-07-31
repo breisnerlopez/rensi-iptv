@@ -1,3 +1,17 @@
+# [2.12.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.12.0...v2.12.1) (2026-07-31)
+
+
+### Features
+
+* **Avance rápido incremental en la TV:** al adelantar/retroceder con el mando, mantener pulsado (o pulsar seguido) hace saltos cada vez más grandes — empieza en 15s, luego 1 min, 3 min y 5 min — para recorrer rápido películas y episodios largos. La barra muestra el punto al que vas a saltar y el salto se aplica al soltar (ya no recarga en cada pulsación)
+* **"Siguiente episodio" en el reproductor:** botón para pasar al próximo episodio sin esperar a los créditos. En la TV aparece al pausar (baja con el mando y pulsa OK); en el móvil, en la barra de controles. Solo cuando hay un episodio siguiente
+
+
+### Bug Fixes
+
+* **tras adelantar ya no se queda "cargando":** al terminar de avanzar reanuda solo, sin tener que pulsar OK para que siga (algunas TV dejaban el vídeo en el icono de carga como si estuviera en pausa)
+
+
 # [2.12.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.11.4...v2.12.0) (2026-07-31)
 
 

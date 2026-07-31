@@ -7,10 +7,12 @@
 // Pensado para 10 pies: todos los tamaños de fuente pasan por AppThemes.tenFoot.
 import 'package:flutter/material.dart';
 
+import '../../l10n/localization_extension.dart';
 import '../../models/content_type.dart';
 import '../../models/tmdb_search_result.dart';
 import '../../utils/app_themes.dart';
 import '../tmdb_enrichment.dart';
+import '../tv/focus_highlight.dart';
 
 class PauseInfoPanel extends StatelessWidget {
   const PauseInfoPanel({
@@ -19,6 +21,9 @@ class PauseInfoPanel extends StatelessWidget {
     required this.contentType,
     required this.position,
     required this.duration,
+    this.hasNext = false,
+    this.onNext,
+    this.nextFocusNode,
   });
 
   final String title;
@@ -26,11 +31,64 @@ class PauseInfoPanel extends StatelessWidget {
   final Duration position;
   final Duration duration;
 
+  /// Whether a next episode exists — controls whether the "Siguiente episodio"
+  /// button is shown. Threaded from PlayerWidget's `_hasNextEpisode`.
+  final bool hasNext;
+
+  /// Invoked when the "Siguiente episodio" button is activated (touch or, on
+  /// TV, the D-pad — see PlayerWidget._handleRemoteKey).
+  final VoidCallback? onNext;
+
+  /// Focus target for the "Siguiente episodio" button so the player can move
+  /// the D-pad ring onto it with DOWN. Null → the button is touch-only.
+  final FocusNode? nextFocusNode;
+
   static String _fmt(Duration d) {
     final h = d.inHours;
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
     return h > 0 ? '$h:$m:$s' : '$m:$s';
+  }
+
+  /// D-pad-focusable "Siguiente episodio ›" button. Uses the same
+  /// [FocusHighlight] language as the rest of the 10-foot UI: the [InkWell] is
+  /// the real focus target (fed the shared [nextFocusNode]) and the wrapper
+  /// paints the focus ring. It never autofocuses — the player hands the ring
+  /// here on D-pad DOWN.
+  Widget _buildNextButton(BuildContext context) {
+    return FocusHighlight(
+      borderRadius: BorderRadius.circular(10),
+      child: Material(
+        color: const Color(0x33FFFFFF),
+        borderRadius: BorderRadius.circular(10),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          focusNode: nextFocusNode,
+          onTap: onNext,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.skip_next, color: Colors.white, size: 24),
+                const SizedBox(width: 10),
+                Text(
+                  context.loc.next_episode,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: AppThemes.tenFoot(context, 16),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.chevron_right,
+                    color: Colors.white70, size: 22),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -109,6 +167,10 @@ class PauseInfoPanel extends StatelessWidget {
                               fontSize: AppThemes.tenFoot(context, 13))),
                     ],
                   ),
+                ],
+                if (hasNext && onNext != null) ...[
+                  const SizedBox(height: 20),
+                  _buildNextButton(context),
                 ],
                 const SizedBox(height: 20),
                 // Enriquecimiento TMDb: sinopsis + reparto. Se auto-oculta

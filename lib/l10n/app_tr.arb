@@ -337,6 +337,7 @@
   "support_on_github_description": "Projeye GitHub üzerinden katkıda bulunun",
   "select_channel": "Kanal Seç",
   "episodes": "Bölümler",
+  "next_episode": "Sonraki bölüm",
   "categories": "Kategoriler",
   "seasons": "Sezonlar",
   "season_number_format": "Sezon {number}",

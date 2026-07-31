@@ -1019,6 +1019,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get episodes => 'एपिसोड';
 
   @override
+  String get next_episode => 'अगला एपिसोड';
+
+  @override
   String get categories => 'श्रेणियां';
 
   @override

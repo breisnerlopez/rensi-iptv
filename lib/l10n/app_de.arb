@@ -337,6 +337,7 @@
   "support_on_github_description": "Zum Projekt auf GitHub beitragen",
   "select_channel": "Kanal Auswählen",
   "episodes": "Episoden",
+  "next_episode": "Nächste Folge",
   "categories": "Kategorien",
   "seasons": "Staffeln",
   "season_number_format": "Staffel {number}",
