@@ -969,11 +969,20 @@ class _PlayerWidgetState extends State<PlayerWidget>
       setState(() {});
     });
 
-    PlayerState.subtitleConfiguration = await getSubtitleConfiguration();
+    // Cada await de la preparación va con timeout: en algunas cajas de TV uno
+    // de estos se colgaba en el PRIMER intento (sin lanzar error) y dejaba el
+    // arranque en "Preparando…" para siempre; el reintento funcionaba porque se
+    // los salta. Con timeout, si uno tarda, se usa un valor por defecto y el
+    // arranque continúa igual (auto-recuperación del primer intento).
+    PlayerState.subtitleConfiguration = await getSubtitleConfiguration()
+        .timeout(const Duration(seconds: 6),
+            onTimeout: () => const SubtitleViewConfiguration());
 
-    PlayerState.backgroundPlay = await UserPreferences.getBackgroundPlay();
+    PlayerState.backgroundPlay = await UserPreferences.getBackgroundPlay()
+        .timeout(const Duration(seconds: 4), onTimeout: () => true);
     _audioHandler.setPlayer(_player);
-    final decoderMode = await UserPreferences.getVideoDecoder();
+    final decoderMode = await UserPreferences.getVideoDecoder()
+        .timeout(const Duration(seconds: 4), onTimeout: () => 'auto');
     _videoController = _createVideoController(decoderMode);
 
     // Gate de casting (solo móvil): ofrecer enviar a la TV ANTES de cargar el
@@ -999,10 +1008,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // Channel-number entry (TV remote): jump to channel queue[N-1] on commit.
     _channelBufferSubscription = _channelBuffer.onCommit.listen(_jumpToChannel);
 
-    var watchHistory = await watchHistoryService.getWatchHistory(
-      AppState.currentPlaylist!.id,
-      isXtreamCode ? contentItem.id : contentItem.m3uItem?.id ?? contentItem.id,
-    );
+    var watchHistory = await watchHistoryService
+        .getWatchHistory(
+          AppState.currentPlaylist!.id,
+          isXtreamCode
+              ? contentItem.id
+              : contentItem.m3uItem?.id ?? contentItem.id,
+        )
+        .timeout(const Duration(seconds: 4), onTimeout: () => null);
 
     List<MediaItem> mediaItems = [];
     var currentItemIndex = 0;
@@ -1010,10 +1023,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (_queue != null) {
       for (int i = 0; i < _queue!.length; i++) {
         final item = _queue![i];
-        final itemWatchHistory = await watchHistoryService.getWatchHistory(
-          AppState.currentPlaylist!.id,
-          isXtreamCode ? item.id : item.m3uItem?.id ?? item.id,
-        );
+        final itemWatchHistory = await watchHistoryService
+            .getWatchHistory(
+              AppState.currentPlaylist!.id,
+              isXtreamCode ? item.id : item.m3uItem?.id ?? item.id,
+            )
+            .timeout(const Duration(seconds: 4), onTimeout: () => null);
 
         mediaItems.add(
           MediaItem(
@@ -1063,7 +1078,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
 
       _loadStage = 'audio';
-      await _audioHandler.setQueue(mediaItems, initialIndex: currentItemIndex);
+      await _audioHandler
+          .setQueue(mediaItems, initialIndex: currentItemIndex)
+          .timeout(const Duration(seconds: 8), onTimeout: () {});
 
       _loadStage = 'open';
       if (contentItem.contentType != ContentType.liveStream) {
@@ -1099,8 +1116,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
       //   liveStreamContentItem = contentItem;
       // }
 
-      await _audioHandler.setQueue([mediaItem]);
+      _loadStage = 'audio';
+      await _audioHandler
+          .setQueue([mediaItem]).timeout(const Duration(seconds: 8),
+              onTimeout: () {});
 
+      _loadStage = 'open';
       await _player.open(
         Playlist([
           Media(
@@ -1110,6 +1131,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         ]),
         play: true,
       );
+      _loadStage = 'ready';
     }
 
     // Pre-buffer: pausa el video y llena caché; muestra velocidad/buffer/estado

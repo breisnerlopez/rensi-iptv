@@ -1,3 +1,16 @@
+# [2.10.4](https://github.com/breisnerlopez/rensi-iptv/compare/v2.10.3...v2.10.4) (2026-07-31)
+
+
+### Bug Fixes
+
+* **la reproducción en la TV ya no se cuelga en el primer intento:** cada paso de la preparación (config de subtítulos, historial, cola de audio…) tiene ahora un tiempo límite; si uno tarda en tu caja de TV —lo que dejaba "Preparando…" colgado y obligaba a pulsar Reintentar— continúa igual con un valor por defecto, así arranca a la primera
+
+
+### Features
+
+* **versión de la app visible** en la pantalla de espera de la TV
+
+
 # [2.10.3](https://github.com/breisnerlopez/rensi-iptv/compare/v2.10.2...v2.10.3) (2026-07-31)
 
 

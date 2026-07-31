@@ -8,6 +8,7 @@
 // and showing the pairing PIN — this widget only renders the passive content
 // underneath it.
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../l10n/localization_extension.dart';
 import '../../models/content_type.dart';
@@ -35,6 +36,16 @@ class TvReceiverHome extends StatefulWidget {
 class _TvReceiverHomeState extends State<TvReceiverHome> {
   final _historyService = WatchHistoryService();
   late final Future<List<WatchHistory>> _historyFuture = _loadHistory();
+  late final Future<String> _versionFuture = _loadVersion();
+
+  Future<String> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      return 'v${info.version}';
+    } catch (_) {
+      return '';
+    }
+  }
 
   // Guards against overlapping `_replay` calls: `AppState.currentPlaylist` is
   // a shared static field that gets swapped-then-restored during replay, so a
@@ -212,6 +223,19 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
               ),
               const SizedBox(height: 32),
               Expanded(child: _historySection(context)),
+              FutureBuilder<String>(
+                future: _versionFuture,
+                builder: (context, snap) => Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                    snap.data ?? '',
+                    style: TextStyle(
+                      color: Colors.white38,
+                      fontSize: AppThemes.tenFoot(context, 11),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
