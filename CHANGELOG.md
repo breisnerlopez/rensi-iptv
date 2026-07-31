@@ -1,3 +1,11 @@
+# [2.11.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.11.1...v2.11.2) (2026-07-31)
+
+
+### Bug Fixes
+
+* **"Continuar viendo" se actualiza al instante:** en cuanto ves algo (en el móvil) o lo envías a la TV, la sección "Continuar viendo" del inicio se refresca sin tener que cambiar de pestaña — antes podía parecer que se "perdía" hasta recargar. Recuerda: ahí solo aparece lo que dejaste **a la mitad** (lo terminado y el vivo no)
+
+
 # [2.11.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.11.0...v2.11.1) (2026-07-31)
 
 

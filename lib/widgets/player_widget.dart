@@ -799,6 +799,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
       _pendingWatchDuration = null;
       _pendingTotalDuration = null;
+      // Avisar que el historial cambió → "Continuar viendo" se refresca en cuanto
+      // ves algo, sin depender de cambiar de pestaña.
+      EventBus().emit('history_changed', null);
     } catch (e) {
       // Silently handle database errors to prevent crashes
       // The next save attempt will retry

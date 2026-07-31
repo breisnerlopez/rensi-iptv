@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import '../models/content_type.dart';
 import '../models/watch_history.dart';
 import '../services/app_state.dart';
+import '../services/event_bus.dart';
 import '../services/cast/cast_protocol.dart';
 import '../services/cast/cast_trust_store.dart';
 import '../services/cast/local_file_server.dart';
@@ -500,6 +501,8 @@ class CastSenderController extends ChangeNotifier {
           title: media.title,
         ),
       );
+      // "Continuar viendo" del móvil se refresca con lo casteado a la TV.
+      EventBus().emit('history_changed', null);
     } catch (_) {/* una escritura de historial nunca rompe el casting */}
   }
 

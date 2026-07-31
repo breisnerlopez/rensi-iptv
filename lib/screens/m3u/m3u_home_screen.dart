@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
+import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/controllers/watch_history_controller.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:rensi_iptv/screens/m3u/m3u_playlist_settings_screen.dart';
@@ -46,6 +49,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
   /// do, so leaving the rail wired on only one of them would have made the
   /// feature depend on which kind of list you happened to add.
   final WatchHistoryController _history = WatchHistoryController();
+  StreamSubscription<dynamic>? _historyChangedSub;
 
   /// Drives the rail's dimming: full strength only while it holds the focus.
   bool _railHasFocus = false;
@@ -94,6 +98,10 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
     _initializeController();
     _history.addListener(_onHistoryChanged);
     _history.loadWatchHistory();
+    // Refrescar "Continuar viendo" al guardar historial (ver algo o castear).
+    _historyChangedSub = EventBus()
+        .on<dynamic>('history_changed')
+        .listen((_) => mounted ? _history.loadWatchHistory() : null);
   }
 
 
@@ -116,6 +124,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
 
   @override
   void dispose() {
+    _historyChangedSub?.cancel();
     _controller.removeListener(_onTabChanged);
     _history.removeListener(_onHistoryChanged);
     _history.dispose();

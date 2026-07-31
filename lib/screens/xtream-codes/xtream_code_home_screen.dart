@@ -17,6 +17,7 @@ import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/screens/category_detail_screen.dart';
 import 'package:rensi_iptv/screens/xtream-codes/xtream_code_playlist_settings_screen.dart';
 import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/confirm_exit_scope.dart';
@@ -59,6 +60,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
   /// never once appeared: `continueWatching` defaulted to an empty list and no
   /// caller ever passed anything, so the feature shipped inert.
   final WatchHistoryController _history = WatchHistoryController();
+  StreamSubscription<dynamic>? _historyChangedSub;
 
   /// Drives the rail's dimming: full strength only while it holds the focus.
   bool _railHasFocus = false;
@@ -94,6 +96,11 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeController();
+    // Refrescar "Continuar viendo" en cuanto se guarda historial (ver algo local
+    // o castear a la TV), sin depender de cambiar de pestaña.
+    _historyChangedSub = EventBus()
+        .on<dynamic>('history_changed')
+        .listen((_) => mounted ? _history.loadWatchHistory() : null);
     // Also check on first mount: a cold start into a stale last-playlist should
     // freshen too, not only an app resume.
     WidgetsBinding.instance
@@ -154,6 +161,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _historyChangedSub?.cancel();
     _controller.removeListener(_onTabChanged);
     _history.removeListener(_onHistoryChanged);
     _history.dispose();
