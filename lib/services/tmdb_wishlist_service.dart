@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/tmdb_search_result.dart';
+import 'event_bus.dart';
 
 class TmdbWishlistService {
   static const _key = 'tmdb.wishlist';
@@ -63,5 +64,9 @@ class TmdbWishlistService {
       _key,
       jsonEncode(items.map((item) => item.toJson()).toList()),
     );
+    // Every mutation (toggle add/remove, remove) funnels through here, so a
+    // single emit keeps every surface that shows the wishlist — "Mi lista",
+    // the search wishlist browse — in sync, mirroring `favorites_changed`.
+    EventBus().emit('tmdb_wishlist_changed', null);
   }
 }

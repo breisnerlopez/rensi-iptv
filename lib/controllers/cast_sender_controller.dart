@@ -48,6 +48,13 @@ class CastMedia {
   // channelId (que en M3U es la URL) — si no, se duplican filas de "continuar
   // viendo". Vacío → se cae a channelId.
   final String historyId;
+
+  // Metadatos TMDb OPCIONALES (sinopsis + reparto) que el móvil resolvió para
+  // este contenido. Viajan con el LOAD para que el panel de pausa de la TV los
+  // muestre sin que la TV necesite clave TMDb. Null → LOAD sin `meta` (idéntico
+  // a antes). Para series todos los episodios de la cola comparten el mismo meta
+  // (el de la SERIE), así el auto-avance sigue mostrando la ficha correcta.
+  final CastMeta? meta;
   const CastMedia({
     required this.channelId,
     required this.contentType,
@@ -57,6 +64,7 @@ class CastMedia {
     this.playlistId = '',
     this.seriesId,
     this.historyId = '',
+    this.meta,
   });
 }
 
@@ -265,6 +273,7 @@ class CastSenderController extends ChangeNotifier {
       password: pass,
       title: media.title,
       ext: media.ext,
+      meta: media.meta,
     );
     return true;
   }

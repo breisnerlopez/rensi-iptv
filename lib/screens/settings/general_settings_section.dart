@@ -27,6 +27,7 @@ import '../../services/app_state.dart';
 import '../../services/m3u_parser.dart';
 import '../../widgets/dropdown_tile_widget.dart';
 import '../../widgets/section_title_widget.dart';
+import '../developer_screen.dart';
 import '../downloads_screen.dart';
 import '../m3u/m3u_data_loader_screen.dart';
 import '../playlist_screen.dart';
@@ -892,6 +893,20 @@ String _videoDecoder = 'auto';
                         _appVersion.isNotEmpty ? _appVersion : 'Loading...',
                       ),
                       dense: true,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.developer_mode),
+                      title: Text(context.loc.developer),
+                      trailing: const Icon(Icons.chevron_right, size: 18),
+                      dense: true,
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const DeveloperScreen(),
+                          ),
+                        );
+                      },
                     ),
                     const Divider(height: 1),
                     ListTile(

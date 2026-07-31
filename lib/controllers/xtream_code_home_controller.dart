@@ -10,6 +10,7 @@ import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/models/view_state.dart';
 import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/services/event_bus.dart';
 import '../repositories/user_preferences.dart';
 import '../screens/xtream-codes/xtream_code_data_loader_screen.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
@@ -158,6 +159,11 @@ class XtreamCodeHomeController extends ChangeNotifier {
       // All three landed: rebuild the rails from fresh data and stamp success.
       await _loadCategories(_all);
       await UserPreferences.setLastSync(pid, DateTime.now());
+      // The DB catalogue rows just changed (rows added/removed for the SAME
+      // playlist), which Explorar's id-set-keyed global cache can't detect on
+      // its own — tell it to invalidate and reload so a deleted title stops
+      // showing without an app restart.
+      EventBus().emit('catalogue_changed', null);
     } catch (_) {
       // Silent: keep the old, perfectly usable data.
     } finally {
@@ -269,8 +275,9 @@ class XtreamCodeHomeController extends ChangeNotifier {
       await _prependAllCategory(
         list: tmpMovie,
         type: CategoryType.vod,
-        // Fetch a small SQL-limited, newest-first slice (a buffer above 10 to
-        // survive the empty-name filter) instead of the whole VOD table.
+        // Fetch a small SQL-limited, newest-first slice (a buffer well above
+        // the 13-item preview cap so the empty-name filter can't starve it)
+        // instead of the whole VOD table.
         previewLoader: () => _repository.getRecentMovies(limit: 24),
         toItem: (m) => ContentItem(
           m.streamId,
@@ -325,7 +332,7 @@ class XtreamCodeHomeController extends ChangeNotifier {
       await _prependAllCategory(
         list: tmpSeries,
         type: CategoryType.series,
-        previewLoader: () => _repository.getSeries(top: 10),
+        previewLoader: () => _repository.getSeries(top: 24),
         toItem: (s) => ContentItem(
           s.seriesId,
           s.name,
@@ -430,7 +437,9 @@ class XtreamCodeHomeController extends ChangeNotifier {
     if (preview == null || preview.isEmpty) return;
 
     // Build the full mapped list, drop junk entries, sort newest-first by
-    // date-added, and keep only the first 10 for the preview strip.
+    // date-added, and keep the first 13 for the preview strip. The rail shows
+    // take(12), so a 13th item is what makes contentItems.length > shown → the
+    // "Ver todo" chevron appears (parity with real categories that load top:13).
     //
     // The repository ignores `top:` when called without a categoryId
     // (the SQL path returns every row for the playlist), so a catalogue
@@ -446,7 +455,7 @@ class XtreamCodeHomeController extends ChangeNotifier {
       final tsB = CategoryDetailController.dateAddedFor(b);
       return tsB.compareTo(tsA);
     });
-    final previewItems = mapped.take(10).toList();
+    final previewItems = mapped.take(13).toList();
     // The SQL-limited preview buffer can be all junk-named rows; don't insert an
     // empty "View all" strip (the destination still aggregates the full type).
     if (previewItems.isEmpty) return;

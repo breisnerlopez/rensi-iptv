@@ -1603,4 +1603,91 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get tv_cast_replay_hint =>
       'Watched by casting from your phone. Send it again from your phone to play it here.';
+
+  @override
+  String get developer => 'Geliştirici';
+
+  @override
+  String get dev_account => 'Hesap';
+
+  @override
+  String get dev_server => 'Sunucu';
+
+  @override
+  String get dev_application => 'Uygulama';
+
+  @override
+  String get dev_catalogue => 'Katalog';
+
+  @override
+  String get dev_playlist => 'Oynatma listesi';
+
+  @override
+  String get dev_expires => 'Son kullanma tarihi';
+
+  @override
+  String get dev_trial => 'Deneme hesabı';
+
+  @override
+  String get dev_active_connections => 'Aktif bağlantılar';
+
+  @override
+  String get dev_max_connections => 'Maksimum bağlantı';
+
+  @override
+  String get dev_created => 'Oluşturulma tarihi';
+
+  @override
+  String get dev_output_formats => 'İzin verilen biçimler';
+
+  @override
+  String get dev_server_url => 'Sunucu URL\'si';
+
+  @override
+  String get dev_port => 'Port';
+
+  @override
+  String get dev_https_port => 'HTTPS portu';
+
+  @override
+  String get dev_protocol => 'Protokol';
+
+  @override
+  String get dev_rtmp_port => 'RTMP portu';
+
+  @override
+  String get dev_server_time => 'Sunucu saati';
+
+  @override
+  String get dev_build_number => 'Yapı numarası';
+
+  @override
+  String get dev_schema_version => 'Veritabanı şeması';
+
+  @override
+  String get dev_last_sync => 'Son senkronizasyon';
+
+  @override
+  String get dev_never => 'Hiçbir zaman';
+
+  @override
+  String get dev_source_url => 'Kaynak URL';
+
+  @override
+  String get dev_series => 'Diziler';
+
+  @override
+  String get dev_items => 'Öğeler';
+
+  @override
+  String get dev_yes => 'Evet';
+
+  @override
+  String get dev_no => 'Hayır';
+
+  @override
+  String get dev_no_data => 'Veri yok';
+
+  @override
+  String get dev_status => 'Durum';
 }

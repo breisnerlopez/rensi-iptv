@@ -1628,4 +1628,91 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get tv_cast_replay_hint =>
       'Watched by casting from your phone. Send it again from your phone to play it here.';
+
+  @override
+  String get developer => 'Entwickler';
+
+  @override
+  String get dev_account => 'Konto';
+
+  @override
+  String get dev_server => 'Server';
+
+  @override
+  String get dev_application => 'Anwendung';
+
+  @override
+  String get dev_catalogue => 'Katalog';
+
+  @override
+  String get dev_playlist => 'Wiedergabeliste';
+
+  @override
+  String get dev_expires => 'Ablaufdatum';
+
+  @override
+  String get dev_trial => 'Testkonto';
+
+  @override
+  String get dev_active_connections => 'Aktive Verbindungen';
+
+  @override
+  String get dev_max_connections => 'Maximale Verbindungen';
+
+  @override
+  String get dev_created => 'Erstellt';
+
+  @override
+  String get dev_output_formats => 'Zulässige Formate';
+
+  @override
+  String get dev_server_url => 'Server-URL';
+
+  @override
+  String get dev_port => 'Port';
+
+  @override
+  String get dev_https_port => 'HTTPS-Port';
+
+  @override
+  String get dev_protocol => 'Protokoll';
+
+  @override
+  String get dev_rtmp_port => 'RTMP-Port';
+
+  @override
+  String get dev_server_time => 'Serverzeit';
+
+  @override
+  String get dev_build_number => 'Build-Nummer';
+
+  @override
+  String get dev_schema_version => 'Datenbankschema';
+
+  @override
+  String get dev_last_sync => 'Letzte Synchronisierung';
+
+  @override
+  String get dev_never => 'Nie';
+
+  @override
+  String get dev_source_url => 'Quell-URL';
+
+  @override
+  String get dev_series => 'Serien';
+
+  @override
+  String get dev_items => 'Elemente';
+
+  @override
+  String get dev_yes => 'Ja';
+
+  @override
+  String get dev_no => 'Nein';
+
+  @override
+  String get dev_no_data => 'Keine Daten verfügbar';
+
+  @override
+  String get dev_status => 'Status';
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/global_search_result.dart';
 import 'package:rensi_iptv/models/tmdb_search_result.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
@@ -21,19 +22,25 @@ import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 /// once; while it resolves (or if it throws) the header — poster, title, year,
 /// rating, type — still renders from the already-known [TmdbSearchResult], so
 /// the sheet is never a blank loader and never a hard error.
-/// Collapses a title's owned matches to one per playlist, preserving order.
+/// Collapses a title's owned matches to the DISTINCT playable copies, dropping
+/// only truly-identical rows — never one row per playlist.
 ///
-/// The "Reproducir desde" list shows one row per playlist that carries the
-/// title; two owned streams from the SAME playlist (duplicate copies, or the
-/// same stream reconciled twice) must not paint the playlist name twice. The
-/// service already orders matches strongest-first, so keeping the FIRST match
-/// seen for each playlist id keeps the most playable copy. Pure and order-
-/// stable so it is unit-testable without a widget pump.
-List<LocalContentMatch> dedupMatchesByPlaylist(List<LocalContentMatch> matches) {
+/// A single logical title is often owned as several distinct streams: two
+/// playlists that both carry it, OR several series_ids inside ONE playlist that
+/// pack different season ranges (a 1-, a 6- and a 7-season copy of the same
+/// show). Each is independently playable and must appear as its own "Reproducir
+/// desde" row so the user can pick the copy they want (e.g. the 7-season one);
+/// collapsing to one-per-playlist hid the extras and the user could never reach
+/// them. Only a stream reconciled into the list twice — same
+/// [LocalContentMatch.dedupKey] (same playlist AND same stream id AND type) — is
+/// folded. The service orders matches strongest-first, so the first occurrence
+/// kept is the most playable. Pure and order-stable so it is unit-testable
+/// without a widget pump.
+List<LocalContentMatch> dedupMatchesByStream(List<LocalContentMatch> matches) {
   final seen = <String>{};
   final out = <LocalContentMatch>[];
   for (final m in matches) {
-    if (seen.add(m.playlist.id)) out.add(m);
+    if (seen.add(m.dedupKey)) out.add(m);
   }
   return out;
 }
@@ -458,11 +465,12 @@ class _SheetBodyState extends State<_SheetBody> {
 
   Widget _playFromSection(BuildContext context, RensiColors r, bool tv) {
     final loc = context.loc;
-    // One row per playlist. A title can carry more than one owned stream inside
-    // the SAME playlist (two copies, or the same stream matched twice), which
-    // rendered the playlist name duplicated in this list. Collapse to the first
-    // (strongest — the service orders exact-first) match per playlist id.
-    final matches = dedupMatchesByPlaylist(widget.result.localMatches);
+    // One row per DISTINCT owned copy — every season-pack variant within a
+    // playlist AND every playlist that carries the title — so the user can pick
+    // the exact copy (e.g. the 7-season one). Only a stream reconciled into the
+    // list twice (identical dedupKey) is folded; the service orders matches
+    // strongest-first, so the kept copy is the most playable.
+    final matches = dedupMatchesByStream(widget.result.localMatches);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -480,7 +488,12 @@ class _SheetBodyState extends State<_SheetBody> {
           Padding(
             padding: EdgeInsets.only(bottom: i == matches.length - 1 ? 0 : 10),
             child: _PlayFromRow(
+              // Keyed by the stream identity so each variant keeps its own
+              // async season-count state across rebuilds (two rows for the same
+              // show must not share or overwrite each other's label).
+              key: ValueKey(matches[i].dedupKey),
               match: matches[i],
+              service: widget.service,
               // First row grabs focus on TV so the D-pad lands somewhere.
               autofocus: tv && i == 0,
               onTap: () => _play(matches[i]),
@@ -588,21 +601,73 @@ class _Header extends StatelessWidget {
 }
 
 /// A single "play from `<playlist>`" row: focusable, RTL-safe.
-class _PlayFromRow extends StatelessWidget {
+///
+/// The primary line is the origin playlist's name; a secondary line labels the
+/// copy so two variants of the same show are distinguishable — for a SERIES it
+/// shows the season count fetched lazily from the origin playlist's
+/// `get_series_info` (a placeholder while it resolves, nothing when the count is
+/// unknown). Movies/M3U carry no season line. The fetch is per-variant, cached
+/// in the service, and resilient: a failure leaves the row playable with no
+/// season label and never blocks the sheet.
+class _PlayFromRow extends StatefulWidget {
   const _PlayFromRow({
+    super.key,
     required this.match,
+    required this.service,
     required this.onTap,
     this.autofocus = false,
   });
 
   final LocalContentMatch match;
+  final GlobalSearchService service;
   final VoidCallback onTap;
   final bool autofocus;
+
+  @override
+  State<_PlayFromRow> createState() => _PlayFromRowState();
+}
+
+class _PlayFromRowState extends State<_PlayFromRow> {
+  // null while a series count is still loading; resolved to the count or, on an
+  // unknown/failed fetch, stays absent (no season line). Movies never load.
+  int? _seasons;
+  bool _loadingSeasons = false;
+
+  bool get _isSeries =>
+      widget.match.content.contentType == ContentType.series;
+
+  @override
+  void initState() {
+    super.initState();
+    // Kick off the per-variant season fetch lazily as the row mounts. Only for
+    // series; the service short-circuits movies/M3U to null anyway, but avoiding
+    // the await keeps the row from ever showing a spinner for a movie.
+    if (_isSeries) {
+      _loadingSeasons = true;
+      widget.service.seasonCountFor(widget.match).then((count) {
+        if (!mounted) return;
+        setState(() {
+          _seasons = count;
+          _loadingSeasons = false;
+        });
+      });
+    }
+  }
+
+  /// The secondary label: "N Temporadas" once known, a soft placeholder while a
+  /// series count loads, and null (line hidden) for movies or an unknown count —
+  /// so a failed fetch degrades to just the playlist name, never a stuck spinner.
+  String? _seasonLabel(BuildContext context) {
+    if (_seasons != null) return '$_seasons ${context.loc.seasons}';
+    if (_isSeries && _loadingSeasons) return '… ${context.loc.seasons}';
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
     final theme = Theme.of(context);
+    final seasonLabel = _seasonLabel(context);
     return FocusHighlight(
       borderRadius: BorderRadius.circular(14),
       child: Material(
@@ -613,8 +678,8 @@ class _PlayFromRow extends StatelessWidget {
           side: BorderSide(color: r.hairline),
         ),
         child: InkWell(
-          onTap: onTap,
-          autofocus: autofocus,
+          onTap: widget.onTap,
+          autofocus: widget.autofocus,
           child: Padding(
             padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 14, 14),
             child: Row(
@@ -634,15 +699,34 @@ class _PlayFromRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: Text(
-                    match.playlist.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: AppThemes.bodySize,
-                      fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.onSurface,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.match.playlist.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: AppThemes.bodySize,
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      if (seasonLabel != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          seasonLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: AppThemes.bodySmallSize,
+                            fontWeight: FontWeight.w600,
+                            color: r.text3,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),

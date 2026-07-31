@@ -1606,4 +1606,91 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get tv_cast_replay_hint =>
       'Watched by casting from your phone. Send it again from your phone to play it here.';
+
+  @override
+  String get developer => 'डेवलपर';
+
+  @override
+  String get dev_account => 'खाता';
+
+  @override
+  String get dev_server => 'सर्वर';
+
+  @override
+  String get dev_application => 'एप्लिकेशन';
+
+  @override
+  String get dev_catalogue => 'कैटलॉग';
+
+  @override
+  String get dev_playlist => 'प्लेलिस्ट';
+
+  @override
+  String get dev_expires => 'समाप्ति तिथि';
+
+  @override
+  String get dev_trial => 'ट्रायल खाता';
+
+  @override
+  String get dev_active_connections => 'सक्रिय कनेक्शन';
+
+  @override
+  String get dev_max_connections => 'अधिकतम कनेक्शन';
+
+  @override
+  String get dev_created => 'बनाया गया';
+
+  @override
+  String get dev_output_formats => 'अनुमत प्रारूप';
+
+  @override
+  String get dev_server_url => 'सर्वर URL';
+
+  @override
+  String get dev_port => 'पोर्ट';
+
+  @override
+  String get dev_https_port => 'HTTPS पोर्ट';
+
+  @override
+  String get dev_protocol => 'प्रोटोकॉल';
+
+  @override
+  String get dev_rtmp_port => 'RTMP पोर्ट';
+
+  @override
+  String get dev_server_time => 'सर्वर समय';
+
+  @override
+  String get dev_build_number => 'बिल्ड नंबर';
+
+  @override
+  String get dev_schema_version => 'डेटाबेस स्कीमा';
+
+  @override
+  String get dev_last_sync => 'अंतिम सिंक';
+
+  @override
+  String get dev_never => 'कभी नहीं';
+
+  @override
+  String get dev_source_url => 'स्रोत URL';
+
+  @override
+  String get dev_series => 'सीरीज़';
+
+  @override
+  String get dev_items => 'आइटम';
+
+  @override
+  String get dev_yes => 'हाँ';
+
+  @override
+  String get dev_no => 'नहीं';
+
+  @override
+  String get dev_no_data => 'कोई डेटा उपलब्ध नहीं';
+
+  @override
+  String get dev_status => 'स्थिति';
 }

@@ -51,7 +51,7 @@ void main() {
       BrowseRedesign(
         movieCategories: cats,
         seriesCategories: const [],
-        onOpen: (_) {},
+        onOpen: (_) async {},
       ),
     );
     await settle(tester);

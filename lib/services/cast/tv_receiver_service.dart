@@ -32,6 +32,12 @@ class CastLoadRequest {
   /// container_extension (mp4/mkv/…) para VOD/series. Vacío en vivo.
   final String ext;
 
+  /// Metadatos TMDb OPCIONALES que el móvil resolvió y envió con el LOAD
+  /// (sinopsis + reparto para el panel de pausa). Null cuando el móvil no envió
+  /// nada (build vieja, sin clave TMDb o sin coincidencia): la TV cae al
+  /// comportamiento actual (TmdbEnrichment/solo-título).
+  final CastMeta? meta;
+
   CastLoadRequest({
     required this.channelId,
     required this.contentType,
@@ -40,6 +46,7 @@ class CastLoadRequest {
     required this.password,
     required this.title,
     this.ext = '',
+    this.meta,
   });
 
   /// URL de stream Xtream (misma forma que lib/utils/build_media_url.dart).
@@ -266,6 +273,20 @@ class TvReceiverService {
             // Credenciales cifradas con la clave de sesión (nunca en claro).
             final creds =
                 await CastCrypto.decryptJson(sessionKey!, msg['creds'] as Map<String, dynamic>);
+            // Metadatos TMDb opcionales (público, sin cifrar). Se parsea en su
+            // PROPIO try/catch: un `meta` malformado (tipos inválidos de un peer)
+            // NUNCA debe abortar el LOAD — sin meta ese mismo LOAD sí reproduce.
+            // Ante cualquier fallo → meta null y el LOAD sigue normal. (Defensa en
+            // profundidad: CastMeta.fromJson ya es tolerante de por sí.)
+            CastMeta? meta;
+            final rawMeta = msg['meta'];
+            if (rawMeta is Map<String, dynamic>) {
+              try {
+                meta = CastMeta.fromJson(rawMeta);
+              } catch (_) {
+                meta = null;
+              }
+            }
             _loadController.add(CastLoadRequest(
               channelId: msg['id'] as String,
               contentType: (msg['ct'] as String?) ?? 'live',
@@ -274,6 +295,7 @@ class TvReceiverService {
               password: creds['pass'] as String,
               title: (msg['title'] as String?) ?? '',
               ext: (msg['ext'] as String?) ?? '',
+              meta: meta,
             ));
             ws.add(encodeMsg(MsgType.state, {'status': 'loading', 'id': msg['id']}));
             break;

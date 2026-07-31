@@ -104,12 +104,13 @@ void main() {
     String playlistId, {
     int? tmdbId,
     String cast = '',
+    String? seriesId,
   }) async {
     await db
         .into(db.seriesStreams)
         .insert(
           SeriesStream(
-            seriesId: 'series-${name.hashCode}',
+            seriesId: seriesId ?? 'series-${name.hashCode}',
             name: name,
             cover: '',
             categoryId: 'series',
@@ -519,6 +520,63 @@ void main() {
       expect(r.withLocal.single.localMatches.single.content.name,
           'Rick y Morty');
       expect(r.localOnly, isEmpty);
+    });
+
+    test('same-title variants across playlists collapse to ONE card exposing '
+        'every distinct copy (incl. a copy that only matches by title)',
+        () async {
+      // The shipped "Rick y Morty" bug: the show is owned as several distinct
+      // streams — two series_ids inside list 3 that pack different season ranges,
+      // plus a copy in list 5 — but the user saw one card and one play-from row.
+      // Only the id-tagged copies string-reconcile to the English TMDb title; the
+      // untagged list-5 copy matches nothing and used to scatter into localOnly.
+      // All of them must fold into the SINGLE owned card so the detail sheet can
+      // list every playable variant.
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'list3', name: 'LopezCueto3', type: PlaylistType.xtream,
+          url: 'https://x.com', username: 'u', password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'list5', name: 'LopezCueto5', type: PlaylistType.xtream,
+          url: 'https://x.com', username: 'u', password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      // list 3: two season-pack variants, both tagged with the TMDb id.
+      await _insertSeries(database, 'Rick y Morty', 'list3',
+          tmdbId: 100, seriesId: 'rm3-s1');
+      await _insertSeries(database, 'Rick y Morty', 'list3',
+          tmdbId: 100, seriesId: 'rm3-s7');
+      // list 5: untagged, English-vs-localized name mismatch → no id, no title
+      // match against "Rick and Morty"; reachable only through the title fold.
+      await _insertSeries(database, 'Rick y Morty', 'list5',
+          seriesId: 'rm5');
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+              id: 100, mediaType: TmdbMediaType.tv, title: 'Rick and Morty',
+              voteAverage: 9),
+        ]),
+      );
+      final r = await service.search('morty');
+
+      expect(r.withLocal, hasLength(1),
+          reason: 'one logical title → one result card');
+      final matches = r.withLocal.single.localMatches;
+      expect(matches.map((m) => m.dedupKey).toSet(), hasLength(3),
+          reason: 'all three distinct streams are attached to the one card');
+      expect(matches.map((m) => m.playlist.id).toSet(), {'list3', 'list5'},
+          reason: 'both playlists are represented, distinctly labelable');
+      expect(
+        r.localOnly.where((m) => m.content.name == 'Rick y Morty'),
+        isEmpty,
+        reason: 'no variant leaks out as a separate localOnly card',
+      );
     });
 
     test('classify returns exact > fuzzy > none', () {

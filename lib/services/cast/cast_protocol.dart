@@ -46,6 +46,113 @@ class CmdType {
   static const selectSubtitle = 'sel_sub'; // + campo 'id' ('' = off)
 }
 
+/// String tolerante: cualquier valor no-String del wire → ''. El `meta` viene de
+/// un PEER emparejado; un tipo inesperado NUNCA debe lanzar (rompería el LOAD).
+String _wireString(dynamic v) => v is String ? v : '';
+
+/// Un miembro del reparto TMDb enviado con el LOAD (ver [CastMeta]). Lleva el
+/// `profile_path` CRUDO de TMDb (no la URL completa) a propósito: el receptor lo
+/// reconstruye a un `TmdbCredit` y reutiliza EXACTAMENTE el mismo `TmdbCastRail`
+/// que las pantallas de detalle (que derivan la URL w185 del path). Enviar el
+/// path evita acoplar el protocolo a un tamaño de imagen concreto y —a diferencia
+/// de una URL completa— no permite al emisor apuntar a un host arbitrario.
+class CastMetaMember {
+  final String name;
+  final String character; // '' si el rol es desconocido
+  final String? profilePath; // path TMDb crudo, p.ej. '/abc.jpg'
+  const CastMetaMember({
+    required this.name,
+    this.character = '',
+    this.profilePath,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'n': name,
+        if (character.isNotEmpty) 'c': character,
+        if (profilePath != null && profilePath!.isNotEmpty) 'p': profilePath,
+      };
+
+  /// DEFENSIVO: tolera tipos inválidos del wire (todo cast con fallback), nunca
+  /// lanza. Un `p` no-String → null.
+  factory CastMetaMember.fromJson(Map<String, dynamic> j) => CastMetaMember(
+        name: _wireString(j['n']),
+        character: _wireString(j['c']),
+        profilePath: j['p'] is String ? j['p'] as String : null,
+      );
+}
+
+/// Metadatos TMDb OPCIONALES que el móvil resuelve y adjunta al LOAD para que el
+/// panel de pausa de la TV (PauseInfoPanel) muestre sinopsis + reparto SIN que la
+/// TV necesite su propia clave TMDb (la clave es por-usuario y vive solo en el
+/// almacenamiento seguro del móvil). Todo es opcional: un LOAD sin `meta`
+/// reproduce EXACTAMENTE igual que siempre (compat. hacia atrás — la TV puede
+/// correr una build más vieja/nueva). Datos PÚBLICOS de TMDb, así que —a
+/// diferencia de las credenciales— NO se cifran (el `title` ya viaja en claro en
+/// el mismo envelope; sobre wss el canal ya va cifrado por TLS).
+///
+/// NO transporta poster/backdrop: el panel solo usa `overview` + `cast`, y una
+/// URL de imagen controlable por el emisor sería un footgun (SSRF/carga de host
+/// arbitrario el día que alguien la pintara en un NetworkImage). Las fotos de
+/// reparto viajan como `profile_path` crudo, reconstruido contra un host fijo.
+class CastMeta {
+  // Tope duro de miembros que se materializan/serializan (defensa en profundidad
+  // contra un peer que envíe un `cast` gigante para forzar memoria en la TV; el
+  // rail ya muestra ≤20).
+  static const int _maxCast = 30;
+  // Tope de la sinopsis (unos pocos KB): una sinopsis TMDb real cabe de sobra.
+  static const int _maxOverview = 4000;
+
+  final String overview;
+  final List<CastMetaMember> cast;
+  final String title; // título TMDb resuelto (puede diferir del del catálogo)
+  final int? year;
+
+  const CastMeta({
+    this.overview = '',
+    this.cast = const [],
+    this.title = '',
+    this.year,
+  });
+
+  /// Sin nada que mostrar (ni sinopsis ni reparto): el emisor NO adjunta el meta
+  /// y el receptor cae al comportamiento actual (TmdbEnrichment/solo-título).
+  bool get isEmpty => overview.isEmpty && cast.isEmpty;
+
+  Map<String, dynamic> toJson() => {
+        if (overview.isNotEmpty) 'o': overview,
+        if (cast.isNotEmpty)
+          'cast': [for (final m in cast.take(_maxCast)) m.toJson()],
+        if (title.isNotEmpty) 'title': title,
+        if (year != null) 'year': year,
+      };
+
+  /// DEFENSIVO: todo cast del wire es tolerante (fallback), los miembros no-Map se
+  /// SALTAN (no lanzan), el reparto se capa a [_maxCast] y la sinopsis a
+  /// [_maxOverview]. Un `meta` malformado nunca debe abortar el LOAD.
+  factory CastMeta.fromJson(Map<String, dynamic> j) {
+    final rawCast = j['cast'];
+    final members = <CastMetaMember>[];
+    if (rawCast is List) {
+      for (final e in rawCast) {
+        if (e is Map) {
+          members.add(CastMetaMember.fromJson(Map<String, dynamic>.from(e)));
+        }
+        if (members.length >= _maxCast) break;
+      }
+    }
+    var overview = _wireString(j['o']);
+    if (overview.length > _maxOverview) {
+      overview = overview.substring(0, _maxOverview);
+    }
+    return CastMeta(
+      overview: overview,
+      cast: members,
+      title: _wireString(j['title']),
+      year: j['year'] is num ? (j['year'] as num).toInt() : null,
+    );
+  }
+}
+
 String encodeMsg(String type, Map<String, dynamic> body) =>
     jsonEncode({'t': type, ...body});
 

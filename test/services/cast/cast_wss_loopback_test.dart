@@ -4,6 +4,7 @@
 // al fingerprint. Es la prueba headless del camino real de seguridad (el que
 // los senders falsos de los otros tests no ejercitan).
 import 'package:flutter_test/flutter_test.dart';
+import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/cast/cast_tls.dart';
 import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
 import 'package:rensi_iptv/services/cast/tv_receiver_service.dart';
@@ -33,7 +34,42 @@ void main() {
     final req = await loadFut.timeout(const Duration(seconds: 3));
     expect(req.username, 'u123');
     expect(req.password, 's3cr3t'); // credenciales descifradas intactas
+    expect(req.meta, isNull, reason: 'un LOAD sin meta llega con meta null');
     await sender.close();
+
+    // Un 2º LOAD que SÍ lleva meta TMDb: llega decodificado extremo a extremo
+    // por el camino real del receptor (mismo socket wss ya emparejado).
+    final sender2 = PhoneSenderService();
+    await sender2.connect('127.0.0.1', port, secure: true);
+    expect(await sender2.pair('123456'), isTrue);
+    final loadFut2 = receiver.onLoad.first;
+    await sender2.sendLoad(
+      channelId: '7001',
+      contentType: 'vod',
+      url: 'http://host:8080',
+      username: 'u123',
+      password: 's3cr3t',
+      title: 'Marea negra',
+      ext: 'mp4',
+      meta: const CastMeta(
+        overview: 'Sinopsis',
+        cast: [
+          CastMetaMember(
+              name: 'Mark Wahlberg',
+              character: 'Mike Williams',
+              profilePath: '/mw.jpg'),
+        ],
+        title: 'Marea negra',
+        year: 2016,
+      ),
+    );
+    final req2 = await loadFut2.timeout(const Duration(seconds: 3));
+    expect(req2.meta, isNotNull, reason: 'el meta viaja con el LOAD');
+    expect(req2.meta!.overview, 'Sinopsis');
+    expect(req2.meta!.cast.single.name, 'Mark Wahlberg');
+    expect(req2.meta!.cast.single.profilePath, '/mw.jpg');
+    expect(req2.meta!.year, 2016);
+    await sender2.close();
 
     // PIN incorrecto → rechazado también sobre wss.
     final bad = PhoneSenderService();

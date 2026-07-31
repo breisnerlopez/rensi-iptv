@@ -22,6 +22,9 @@ import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:provider/provider.dart';
 import 'package:rensi_iptv/controllers/cast_sender_controller.dart';
+import 'package:rensi_iptv/models/tmdb_search_result.dart';
+import 'package:rensi_iptv/services/cast/cast_protocol.dart';
+import 'package:rensi_iptv/services/tmdb_cast_resolver.dart';
 import 'package:rensi_iptv/utils/pre_buffer_monitor.dart';
 import 'package:rensi_iptv/widgets/cast/cast_flow.dart';
 import 'package:rensi_iptv/widgets/cast/pause_info_panel.dart';
@@ -52,6 +55,13 @@ class PlayerWidget extends StatefulWidget {
   final VoidCallback? onFullscreen;
   final List<ContentItem>? queue;
 
+  /// Metadatos TMDb (sinopsis + reparto) que el MÓVIL resolvió y envió con el
+  /// LOAD de casting. Solo lo rellena el host receptor de la TV
+  /// (tv_receiver_host) con lo que llegó en el LOAD; el panel de pausa los
+  /// muestra en vez de llamar a TMDb (la TV no tiene clave). Null en la
+  /// reproducción normal → comportamiento de siempre.
+  final CastMeta? castMeta;
+
   const PlayerWidget({
     super.key,
     required this.contentItem,
@@ -60,6 +70,7 @@ class PlayerWidget extends StatefulWidget {
     this.showInfo = false,
     this.onFullscreen,
     this.queue,
+    this.castMeta,
   });
 
   @override
@@ -175,6 +186,16 @@ class _PlayerWidgetState extends State<PlayerWidget>
   CastSenderController? _cast;
   bool _wasCasting = false;
 
+  // Metadatos TMDb resueltos EN EL MÓVIL para adjuntarlos al LOAD de casting
+  // (sinopsis + reparto para el panel de pausa de la TV, que no tiene clave
+  // TMDb). Best-effort: si no resuelve a tiempo o no hay coincidencia, el LOAD va
+  // sin meta y el panel degrada a solo-título (como hoy). Se resuelve UNA vez por
+  // contenido (guardado por id); para series es el meta de la SERIE, que se
+  // reutiliza en todos los episodios de la cola (auto-avance).
+  CastMeta? _castMeta;
+  String? _castMetaForId; // id de contenido al que pertenece _castMeta
+  Future<CastMeta?>? _castMetaFuture;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -215,6 +236,77 @@ class _PlayerWidgetState extends State<PlayerWidget>
         ContentType.liveStream => 'live',
       };
 
+  /// Lanza (una vez por contenido) la resolución TMDb del meta a adjuntar al
+  /// LOAD. No bloquea nada: guarda el resultado en [_castMeta] cuando llega. Solo
+  /// para VOD/serie (el panel de pausa no aplica a vivo). Idempotente por id.
+  void _kickoffCastMeta() {
+    final item = widget.contentItem;
+    if (item.contentType == ContentType.liveStream) return;
+    if (_castMetaForId == item.id && (_castMeta != null || _castMetaFuture != null)) {
+      return;
+    }
+    _castMetaForId = item.id;
+    _castMeta = null;
+    // Leer el locale AQUÍ (sync, con contexto válido); la resolución es async y
+    // no debe tocar el BuildContext tras el await.
+    final locale = Localizations.localeOf(context);
+    final future = _resolveCastMeta(item, locale);
+    _castMetaFuture = future;
+    future.then((m) {
+      // Ignorar si el contenido cambió mientras resolvía (evita pisar el meta del
+      // título entrante con el del saliente).
+      if (!mounted || _castMetaForId != item.id) return;
+      if (m != null) _castMeta = m;
+    });
+  }
+
+  /// Espera (acotado) a que [_kickoffCastMeta] termine, para que el LOAD que se
+  /// va a enviar incluya el meta si ya resolvió. NUNCA retrasa el LOAD más que
+  /// este techo corto: si TMDb tarda, se envía sin meta (degrada a solo-título).
+  Future<void> _ensureCastMeta() async {
+    if (widget.contentItem.contentType == ContentType.liveStream) return;
+    if (_castMeta != null && _castMetaForId == widget.contentItem.id) return;
+    _kickoffCastMeta();
+    final f = _castMetaFuture;
+    if (f == null) return;
+    final m = await f.timeout(const Duration(milliseconds: 2500),
+        onTimeout: () => null);
+    if (!mounted) return;
+    if (m != null && _castMetaForId == widget.contentItem.id) _castMeta = m;
+  }
+
+  /// Resuelve el meta TMDb del contenido actual (best-effort). Para SERIE usa el
+  /// nombre de la SERIE (no el del episodio) y su tmdbId de serie; para película,
+  /// el título de la peli y su tmdbId. Locale del contexto. Devuelve null ante
+  /// cualquier fallo (sin clave, sin coincidencia, red…): el LOAD irá sin meta.
+  Future<CastMeta?> _resolveCastMeta(ContentItem item, Locale locale) async {
+    try {
+      final isSeries = item.contentType == ContentType.series;
+      // Serie → nombre de la SERIE (el episodio no coincide en TMDb); película →
+      // título de la peli. Sin nombre de serie, cae al nombre del item.
+      final title = isSeries
+          ? (item.seriesStream?.name.trim().isNotEmpty ?? false
+              ? item.seriesStream!.name
+              : item.name)
+          : item.name;
+      final year = isSeries ? _yearFrom(item.seriesStream?.releaseDate) : null;
+      return TmdbCastResolver().resolve(
+        title: title,
+        mediaType: isSeries ? TmdbMediaType.tv : TmdbMediaType.movie,
+        locale: locale,
+        year: year,
+        tmdbId: item.tmdbId,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static int? _yearFrom(String? date) {
+    if (date == null || date.length < 4) return null;
+    return int.tryParse(date.substring(0, 4));
+  }
+
   CastMedia get _castMedia => CastMedia(
         channelId: widget.contentItem.id,
         contentType: _castType(widget.contentItem.contentType),
@@ -228,12 +320,19 @@ class _PlayerWidgetState extends State<PlayerWidget>
         historyId: isXtreamCode
             ? widget.contentItem.id
             : widget.contentItem.m3uItem?.id ?? widget.contentItem.id,
+        // Meta TMDb resuelto en el móvil (sinopsis/reparto) para el panel de
+        // pausa de la TV. Null si aún no resolvió → LOAD sin meta (como hoy).
+        meta: _castMeta,
       );
 
   /// Catálogo actual mapeado a CastMedia (para el zapping desde el móvil).
   List<CastMedia>? get _castQueue {
     final q = _queue;
     if (q == null || q.length <= 1) return null;
+    // Para una serie todos los episodios comparten la misma ficha (la de la
+    // serie), así que se adjunta el MISMO _castMeta a cada item: el auto-avance
+    // de episodio sigue mostrando el reparto/sinopsis correctos. Para vivo el
+    // panel no aplica y _castMeta es null.
     return [
       for (final it in q)
         CastMedia(
@@ -245,6 +344,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
           playlistId: AppState.currentPlaylist?.id ?? '',
           seriesId: it.seriesStream?.seriesId,
           historyId: isXtreamCode ? it.id : it.m3uItem?.id ?? it.id,
+          meta: _castMeta,
         )
     ];
   }
@@ -586,6 +686,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Future<void> _recastToTv(CastSenderController cast) async {
     final url = contentItem.url;
     final isLocalFile = !url.startsWith('http');
+    // Solo un stream normal lleva ficha TMDb; el archivo local no. Resolver
+    // (acotado) antes del re-LOAD para que el meta viaje si está disponible.
+    if (!isLocalFile) await _ensureCastMeta();
     bool ok;
     try {
       ok = isLocalFile
@@ -655,6 +758,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _loadTicker?.cancel();
     _loadClock.stop();
     if (mounted) setState(() => _castGateActive = false);
+    // Asegurar (acotado) que el meta TMDb esté listo antes de armar el CastMedia,
+    // para que el LOAD lo incluya. Ya se lanzó al activar el gate, así que aquí
+    // normalmente ya resolvió y no añade espera.
+    await _ensureCastMeta();
+    if (!mounted) return; // el player pudo cerrarse durante la espera del meta
     var casting = false;
     try {
       await startCastFlow(context, _castMedia, queue: _castQueue, index: _castIndex);
@@ -1245,6 +1353,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (_needsCastGate()) {
       _castGateActive = true;
       if (mounted) setState(() {});
+      // Resolver el meta TMDb en paralelo mientras el usuario decide/empareja:
+      // así, si elige "Enviar a la TV", el LOAD ya lo lleva sin añadir latencia.
+      _kickoffCastMeta();
       _startCastGateCountdown();
       if (!await _castGate!.future) return;
     }
@@ -3078,6 +3189,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
               hasNext: _hasNextEpisode,
               onNext: _skipToNextEpisode,
               nextFocusNode: _nextEpisodeFocusNode,
+              // Metadatos TMDb que envió el móvil (la TV no tiene clave). Null en
+              // reproducción local → el panel cae a TmdbEnrichment como hoy.
+              sentMeta: widget.castMeta,
             ),
 
           // Transient seek progress bar (D-pad ±10s feedback).

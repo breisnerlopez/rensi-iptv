@@ -1,3 +1,23 @@
+# [2.13.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.12.2...v2.13.0) (2026-07-31)
+
+
+### Features
+
+* **Buscar y Explorar en TODAS tus listas a la vez:** la búsqueda y el apartado Explorar ahora fusionan el contenido de todas tus listas y lo de-duplican, en vez de mirar solo la lista activa. Al abrir un título se reproduce con las credenciales de la lista a la que pertenece
+* **Elegir entre copias duplicadas:** cuando una serie está repetida (varias listas, o varios paquetes de temporadas), al abrirla ves TODAS las copias con su número de temporadas para elegir la que quieras (p. ej. la de 7 temporadas)
+* **"Populares por género" en Explorar:** al elegir un género (p. ej. Animación) aparece un carrusel de populares de ese género — de este mes, de este año o de todo el tiempo
+* **"Ver todo" en Todas las películas y nueva sección Todas las series** en el inicio
+* **Orden por más recientes** (fecha de añadido a la lista) en Explorar
+* **"Mi lista" ahora incluye tu Lista de deseos de TMDb:** los títulos que guardas desde el buscador aparecen junto a tus favoritos de IPTV
+* **Sección Desarrollador** (Ajustes → Acerca de): todo el detalle técnico del proveedor — estado y caducidad de la cuenta, conexiones activas/máximas, datos del servidor, versión y más
+* **Sinopsis y reparto en la TV al pausar:** ahora los envía el móvil junto a la orden de reproducción, así se ven aunque la TV no tenga configurada la clave de TMDb (y para series usa el nombre de la serie, no el del episodio)
+
+
+### Bug Fixes
+
+* **las descargas que fallaban:** ahora la descarga se identifica como un reproductor (User-Agent), que es lo que muchos proveedores exigen — antes rechazaban la conexión y la descarga fallaba sin llegar a bajar nada. Además, si vuelve a fallar, el detalle del error es más específico
+
+
 # [2.12.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.12.1...v2.12.2) (2026-07-31)
 
 

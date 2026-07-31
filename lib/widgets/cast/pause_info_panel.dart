@@ -10,7 +10,9 @@ import 'package:flutter/material.dart';
 import '../../l10n/localization_extension.dart';
 import '../../models/content_type.dart';
 import '../../models/tmdb_search_result.dart';
+import '../../services/cast/cast_protocol.dart';
 import '../../utils/app_themes.dart';
+import '../tmdb_cast_rail.dart';
 import '../tmdb_enrichment.dart';
 import '../tv/focus_highlight.dart';
 
@@ -24,12 +26,20 @@ class PauseInfoPanel extends StatelessWidget {
     this.hasNext = false,
     this.onNext,
     this.nextFocusNode,
+    this.sentMeta,
   });
 
   final String title;
   final ContentType contentType;
   final Duration position;
   final Duration duration;
+
+  /// Metadatos TMDb (sinopsis + reparto) que el MÓVIL resolvió y envió con el
+  /// LOAD de casting. Cuando llega (y no está vacío) el panel muestra ESTOS datos
+  /// —la TV no tiene clave TMDb— en vez de llamar a [TmdbEnrichment]. Null (cast
+  /// desde una build vieja, reproducción local en la TV, o sin coincidencia) →
+  /// se cae al comportamiento actual: TmdbEnrichment/solo-título.
+  final CastMeta? sentMeta;
 
   /// Whether a next episode exists — controls whether the "Siguiente episodio"
   /// button is shown. Threaded from PlayerWidget's `_hasNextEpisode`.
@@ -173,23 +183,107 @@ class PauseInfoPanel extends StatelessWidget {
                   _buildNextButton(context),
                 ],
                 const SizedBox(height: 20),
-                // Enriquecimiento TMDb: sinopsis + reparto. Se auto-oculta
-                // (SizedBox.shrink) si no hay clave TMDb o no hay coincidencia,
-                // dejando el panel con solo el título/progreso. Nunca bloquea.
+                // Sinopsis + reparto. Preferimos los metadatos que el MÓVIL
+                // resolvió y ENVIÓ con el LOAD ([sentMeta]) — la TV no tiene
+                // clave TMDb, así que llamar a TmdbEnrichment aquí no traería
+                // reparto. Si no llegó meta (build vieja / reproducción local /
+                // sin coincidencia) caemos a TmdbEnrichment (que a su vez degrada
+                // a solo-título). Ninguna de las dos ramas bloquea nunca.
                 Flexible(
                   child: SingleChildScrollView(
-                    child: TmdbEnrichment(
-                      title: title,
-                      mediaType: mediaType,
-                      locale: Localizations.localeOf(context),
-                      existingOverview: '',
-                    ),
+                    child: (sentMeta != null && !sentMeta!.isEmpty)
+                        ? _SentMetaSection(meta: sentMeta!)
+                        : TmdbEnrichment(
+                            title: title,
+                            mediaType: mediaType,
+                            locale: Localizations.localeOf(context),
+                            existingOverview: '',
+                          ),
                   ),
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Sinopsis + reparto a partir de los metadatos TMDb que el móvil ENVIÓ con el
+/// LOAD. Reutiliza el mismo [TmdbCastRail] que las pantallas de detalle (la
+/// lista enviada se reconstruye a [TmdbCredit] desde el `profile_path` crudo). No
+/// llama a TMDb: pinta lo recibido. Todos los tamaños pasan por AppThemes.tenFoot
+/// (UI de 10 pies). Se auto-oculta si no hay nada que mostrar.
+class _SentMetaSection extends StatelessWidget {
+  const _SentMetaSection({required this.meta});
+
+  final CastMeta meta;
+
+  @override
+  Widget build(BuildContext context) {
+    final overview = meta.overview.trim();
+    // Capado a 20 (lo que el rail muestra): un peer con un `cast` gigante no debe
+    // materializar una lista enorme en memoria en la TV.
+    final members = meta.cast.where((m) => m.name.isNotEmpty).take(20).toList();
+    final cast = <TmdbCredit>[
+      for (var i = 0; i < members.length; i++)
+        TmdbCredit(
+          id: i,
+          name: members[i].name,
+          character:
+              members[i].character.isEmpty ? null : members[i].character,
+          profilePath: members[i].profilePath,
+        )
+    ];
+    final showOverview = overview.isNotEmpty;
+    if (!showOverview && cast.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (showOverview) ...[
+            Text(
+              context.loc.description,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Colors.white70,
+                fontSize: AppThemes.tenFoot(context, AppThemes.bodySmallSize),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              overview,
+              style: TextStyle(
+                color: Colors.white,
+                height: 1.5,
+                fontSize: AppThemes.tenFoot(context, AppThemes.bodySize),
+              ),
+            ),
+            if (cast.isNotEmpty) const SizedBox(height: 24),
+          ],
+          if (cast.isNotEmpty) ...[
+            Text(
+              context.loc.cast,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Colors.white70,
+                fontSize: AppThemes.tenFoot(context, AppThemes.bodySmallSize),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Mismo rail que las pantallas de detalle; blanco explícito para el
+            // fondo oscuro del scrim. Sin onActorTap → avatares inertes/no
+            // enfocables (nada roba el foco al reproductor en pausa).
+            TmdbCastRail(
+              cast: cast,
+              nameColor: Colors.white,
+              characterColor: Colors.white54,
+            ),
+          ],
+        ],
       ),
     );
   }

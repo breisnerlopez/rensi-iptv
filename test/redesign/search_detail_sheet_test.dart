@@ -23,33 +23,54 @@ LocalContentMatch _match(Playlist pl, String streamId, MatchStrength s) =>
     );
 
 void main() {
-  group('dedupMatchesByPlaylist ("Reproducir desde" rows)', () {
-    test('collapses two owned streams from the SAME playlist to one row', () {
+  group('dedupMatchesByStream ("Reproducir desde" rows)', () {
+    test('keeps EVERY distinct season-pack variant within one playlist', () {
+      // A title owned as three series_ids in the SAME playlist (a 1-, 6- and
+      // 7-season copy). All three must be offered so the user can pick the copy
+      // they want — the old one-row-per-playlist collapse hid two of them.
       final pl = _pl('pl1', 'LopezCueto3');
-      final result = dedupMatchesByPlaylist([
-        _match(pl, 'stream-a', MatchStrength.exact),
-        _match(pl, 'stream-b', MatchStrength.fuzzy),
+      final result = dedupMatchesByStream([
+        _match(pl, 'series-1season', MatchStrength.exact),
+        _match(pl, 'series-6season', MatchStrength.fuzzy),
+        _match(pl, 'series-7season', MatchStrength.fuzzy),
       ]);
-      expect(result, hasLength(1),
-          reason: 'the same playlist id must not appear twice');
-      expect(result.single.playlist.id, 'pl1');
-      expect(result.single.content.id, 'stream-a',
-          reason: 'keeps the first (strongest) match seen for the playlist');
+      expect(result, hasLength(3),
+          reason: 'distinct streams in one playlist are distinct copies');
+      expect(
+        result.map((m) => m.content.id).toList(),
+        ['series-1season', 'series-6season', 'series-7season'],
+      );
     });
 
-    test('keeps one row per DISTINCT playlist, order preserved', () {
+    test('folds only TRULY identical rows (same playlist + stream id + type)',
+        () {
+      final pl = _pl('pl1', 'LopezCueto3');
+      final result = dedupMatchesByStream([
+        _match(pl, 'stream-a', MatchStrength.exact),
+        _match(pl, 'stream-a', MatchStrength.fuzzy), // same stream, matched twice
+      ]);
+      expect(result, hasLength(1),
+          reason: 'the same stream reconciled twice is one row');
+      expect(result.single.strength, MatchStrength.exact,
+          reason: 'keeps the first (strongest) occurrence');
+    });
+
+    test('keeps every distinct playlist AND variant, order preserved', () {
       final a = _pl('pl1', 'LopezCueto3');
       final b = _pl('pl2', 'LopezCueto4');
-      final result = dedupMatchesByPlaylist([
+      final result = dedupMatchesByStream([
         _match(a, 'stream-a', MatchStrength.exact),
         _match(b, 'stream-b', MatchStrength.exact),
         _match(a, 'stream-a2', MatchStrength.fuzzy),
       ]);
-      expect(result.map((m) => m.playlist.id).toList(), ['pl1', 'pl2']);
+      expect(
+        result.map((m) => '${m.playlist.id}:${m.content.id}').toList(),
+        ['pl1:stream-a', 'pl2:stream-b', 'pl1:stream-a2'],
+      );
     });
 
     test('empty in, empty out', () {
-      expect(dedupMatchesByPlaylist(const []), isEmpty);
+      expect(dedupMatchesByStream(const []), isEmpty);
     });
   });
 }

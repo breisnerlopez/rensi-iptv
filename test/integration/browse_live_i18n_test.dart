@@ -23,7 +23,7 @@ void main() {
       BrowseRedesign(
         movieCategories: const [],
         seriesCategories: const [],
-        onOpen: (_) {},
+        onOpen: (_) async {},
       ),
       size: const Size(960, 540),
       locale: const Locale('de'),

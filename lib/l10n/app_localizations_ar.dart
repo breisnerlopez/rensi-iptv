@@ -1597,4 +1597,91 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get tv_cast_replay_hint =>
       'Watched by casting from your phone. Send it again from your phone to play it here.';
+
+  @override
+  String get developer => 'المطوّر';
+
+  @override
+  String get dev_account => 'الحساب';
+
+  @override
+  String get dev_server => 'الخادم';
+
+  @override
+  String get dev_application => 'التطبيق';
+
+  @override
+  String get dev_catalogue => 'الكتالوج';
+
+  @override
+  String get dev_playlist => 'قائمة التشغيل';
+
+  @override
+  String get dev_expires => 'تاريخ الانتهاء';
+
+  @override
+  String get dev_trial => 'حساب تجريبي';
+
+  @override
+  String get dev_active_connections => 'الاتصالات النشطة';
+
+  @override
+  String get dev_max_connections => 'الحد الأقصى للاتصالات';
+
+  @override
+  String get dev_created => 'تاريخ الإنشاء';
+
+  @override
+  String get dev_output_formats => 'الصيغ المسموح بها';
+
+  @override
+  String get dev_server_url => 'عنوان URL للخادم';
+
+  @override
+  String get dev_port => 'المنفذ';
+
+  @override
+  String get dev_https_port => 'منفذ HTTPS';
+
+  @override
+  String get dev_protocol => 'البروتوكول';
+
+  @override
+  String get dev_rtmp_port => 'منفذ RTMP';
+
+  @override
+  String get dev_server_time => 'وقت الخادم';
+
+  @override
+  String get dev_build_number => 'رقم الإصدار';
+
+  @override
+  String get dev_schema_version => 'مخطط قاعدة البيانات';
+
+  @override
+  String get dev_last_sync => 'آخر مزامنة';
+
+  @override
+  String get dev_never => 'أبدًا';
+
+  @override
+  String get dev_source_url => 'عنوان URL للمصدر';
+
+  @override
+  String get dev_series => 'المسلسلات';
+
+  @override
+  String get dev_items => 'العناصر';
+
+  @override
+  String get dev_yes => 'نعم';
+
+  @override
+  String get dev_no => 'لا';
+
+  @override
+  String get dev_no_data => 'لا توجد بيانات متاحة';
+
+  @override
+  String get dev_status => 'الحالة';
 }

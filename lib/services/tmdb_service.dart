@@ -53,6 +53,14 @@ class TmdbService {
   static const _discoverCacheMaxEntries = 60;
   static const _discoverCacheIndexKey = 'tmdb.discover.index.v1';
 
+  // Genre-list cache — the localized `/genre/{movie|tv}/list` map (name→id).
+  // A tiny, near-static payload, so unlike the search/detail/discover caches it
+  // needs no LRU index: there is at most one key per (segment, language), ≈20
+  // total across the shipped locales. Refreshes on its own 30-day TTL. Powers
+  // Browse's genre-chip → TMDb-id resolution ([genreIdForName]).
+  static const _genreCachePrefix = 'tmdb.genres.';
+  static const _genreCacheTtl = Duration(days: 30);
+
   // Curated networks merged into [searchCompany] results by case-insensitive
   // substring: TMDb has NO network search endpoint, only company search, yet
   // users type the streaming brands ("HBO", "Apple TV+"…) far more than the
@@ -535,14 +543,23 @@ class TmdbService {
   /// each other's page and a re-view is offline-instant. Same dual auth / 8s
   /// timeout / typed [TmdbException] as the other calls. [year] defaults to the
   /// current year for [PopularWindow.year]; pass it explicitly from tests.
+  ///
+  /// [genreId] (optional, Browse's "Populares por género") adds `with_genres` to
+  /// the discover branches. Because `trending/movie/week` has NO `with_genres`
+  /// filter, a genre-scoped month window switches to `discover/movie` windowed
+  /// to the last ~90 days (`primary_release_date.gte`); the genre-LESS month
+  /// path is unchanged (still trending). Genre-scoped pages get their own cache
+  /// key suffix (`.g<id>`), so they never evict the all-genres pages.
   Future<List<TmdbSearchResult>> popularMovies(
     PopularWindow window, {
     int? year,
+    int? genreId,
     Locale? locale,
   }) async {
     final languageTag = _languageTagFor(locale);
     final resolvedYear = year ?? DateTime.now().year;
-    final cacheKey = _popularCacheKey(window, languageTag, resolvedYear);
+    final cacheKey =
+        _popularCacheKey(window, languageTag, resolvedYear, genreId);
     final cached = await _readDiscoverCacheByKey(cacheKey);
     if (cached != null) return cached;
 
@@ -552,13 +569,31 @@ class TmdbService {
     }
 
     // trending carries media_type; the discover branches do not, so those two
-    // inject it before parsing.
-    final bool isTrending = window == PopularWindow.month;
+    // inject it before parsing. The month window normally rides
+    // `trending/movie/week`, but trending has NO `with_genres` filter — so when
+    // a [genreId] is requested the month window switches to a `discover/movie`
+    // query windowed to the last ~90 days. That is the cleaner of the two
+    // options (the alternative, post-filtering trending on each result's
+    // `genre_ids`, would need the model to parse a field it does not, and would
+    // silently thin the row below 20). Only the genre-LESS month path stays on
+    // trending, so `isTrending` gates on both the window and a null genreId.
+    final bool isTrending = window == PopularWindow.month && genreId == null;
     final String path;
     final params = <String, String>{'language': languageTag};
     switch (window) {
       case PopularWindow.month:
-        path = 'trending/movie/week';
+        if (genreId == null) {
+          path = 'trending/movie/week';
+        } else {
+          path = 'discover/movie';
+          params['sort_by'] = 'popularity.desc';
+          params['include_adult'] = 'false';
+          final since = DateTime.now().subtract(const Duration(days: 90));
+          final y = since.year.toString().padLeft(4, '0');
+          final m = since.month.toString().padLeft(2, '0');
+          final d = since.day.toString().padLeft(2, '0');
+          params['primary_release_date.gte'] = '$y-$m-$d';
+        }
         break;
       case PopularWindow.year:
         path = 'discover/movie';
@@ -572,6 +607,11 @@ class TmdbService {
         params['include_adult'] = 'false';
         params['vote_count.gte'] = '5000';
         break;
+    }
+    // `with_genres` is valid on all three discover branches (and only those —
+    // the genre-less month path is trending, which ignores it). Added once here.
+    if (genreId != null) {
+      params['with_genres'] = '$genreId';
     }
     if (!_looksLikeBearerToken(credential)) {
       params['api_key'] = credential;
@@ -605,6 +645,109 @@ class TmdbService {
         .toList();
     await _writeDiscoverCacheByKey(cacheKey, results);
     return results;
+  }
+
+  /// Resolves a localized genre NAME (a Browse chip label like "Animación") to
+  /// its TMDb genre id for [mediaType], via the localized
+  /// `/genre/{movie|tv}/list?language=` map. The match is accent- AND
+  /// case-insensitive — same folding as the search cache key ([_foldForCache]) —
+  /// so "animacion" and "Animación" both resolve to 16. Returns null when the
+  /// name maps to no TMDb genre in that language; the Browse popular-by-genre
+  /// section treats null as "degrade — show only the local grid". Throws
+  /// [TmdbException] (e.g. [TmdbFailure.noKey]) so the caller degrades a missing
+  /// key exactly as it degrades a missing match. The fetched map is cached for
+  /// [_genreCacheTtl] per (segment, language).
+  Future<int?> genreIdForName(
+    String name, {
+    TmdbMediaType mediaType = TmdbMediaType.movie,
+    Locale? locale,
+  }) async {
+    final needle = _foldForCache(name.trim());
+    if (needle.isEmpty) return null;
+    final segment = mediaType == TmdbMediaType.movie ? 'movie' : 'tv';
+    final languageTag = _languageTagFor(locale);
+    final map = await _genreMap(segment, languageTag);
+    return map[needle];
+  }
+
+  /// The localized name→id genre map for [segment] ('movie'|'tv'), with keys
+  /// FOLDED (lowercased, diacritics stripped) so lookups are accent-insensitive.
+  /// Cache-first; on a miss fetches `/genre/{segment}/list?language=` and stores
+  /// it. A malformed payload yields (and caches) an empty map, so a bad response
+  /// degrades to "no id" rather than throwing past the typed HTTP guards.
+  Future<Map<String, int>> _genreMap(String segment, String languageTag) async {
+    final key = '$_genreCachePrefix$languageTag.$segment';
+    final cached = await _readCachedGenres(key);
+    if (cached != null) return cached;
+
+    final credential = await TmdbCredentialsService.getCredential();
+    if (credential == null) {
+      throw const TmdbException(TmdbFailure.noKey, 'TMDb credential is not configured');
+    }
+    final params = <String, String>{'language': languageTag};
+    if (!_looksLikeBearerToken(credential)) {
+      params['api_key'] = credential;
+    }
+    final uri = Uri.parse('$_baseUrl/genre/$segment/list')
+        .replace(queryParameters: params);
+    final response = await _client
+        .get(uri, headers: _buildHeaders(credential))
+        .timeout(const Duration(seconds: 8),
+            onTimeout: () => throw const TmdbException(
+                TmdbFailure.network, 'TMDb request timed out'));
+    if (response.statusCode == 401) {
+      throw const TmdbException(TmdbFailure.rejected, 'TMDb credential was rejected');
+    }
+    if (response.statusCode == 429) {
+      throw const TmdbException(TmdbFailure.rateLimited, 'TMDb rate limit reached. Try again later.');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw TmdbException(TmdbFailure.httpError, 'TMDb request failed: ${response.statusCode}');
+    }
+    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+    final map = <String, int>{};
+    for (final raw in (decoded['genres'] as List<dynamic>? ?? [])) {
+      if (raw is! Map<String, dynamic>) continue;
+      final id = (raw['id'] as num?)?.toInt();
+      final gName = raw['name'] as String?;
+      if (id == null || gName == null) continue;
+      final folded = _foldForCache(gName.trim());
+      if (folded.isEmpty) continue;
+      map[folded] = id;
+    }
+    await _writeCachedGenres(key, map);
+    return map;
+  }
+
+  Future<Map<String, int>?> _readCachedGenres(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(key);
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      final cachedAt = DateTime.tryParse(decoded['cachedAt'] as String? ?? '');
+      if (cachedAt == null ||
+          DateTime.now().difference(cachedAt) > _genreCacheTtl) {
+        await prefs.remove(key);
+        return null;
+      }
+      final genres = decoded['genres'] as Map<String, dynamic>? ?? const {};
+      return genres.map((k, v) => MapEntry(k, (v as num).toInt()));
+    } catch (_) {
+      await prefs.remove(key);
+      return null;
+    }
+  }
+
+  Future<void> _writeCachedGenres(String key, Map<String, int> map) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      key,
+      jsonEncode({
+        'cachedAt': DateTime.now().toIso8601String(),
+        'genres': map,
+      }),
+    );
   }
 
   /// Removes expired entries and trims the cache to [_cacheMaxEntries].
@@ -951,14 +1094,19 @@ class TmdbService {
   /// Cache key for a [popularMovies] page. Keyed by window (+ year for the
   /// year window) and language, in the SAME discover index so the three chips
   /// and any studio browse share one LRU without a fourth cache.
-  String _popularCacheKey(PopularWindow window, String languageTag, int year) {
+  String _popularCacheKey(
+      PopularWindow window, String languageTag, int year, int? genreId) {
+    // A genre-scoped page is a distinct set from the all-genres one, so it gets
+    // its own key suffix; genre-less callers (the Home rail) keep the original
+    // keys untouched so their cache is unaffected by this feature.
+    final g = genreId == null ? '' : '.g$genreId';
     switch (window) {
       case PopularWindow.month:
-        return '$_discoverCachePrefix$languageTag.pop.month';
+        return '$_discoverCachePrefix$languageTag.pop.month$g';
       case PopularWindow.year:
-        return '$_discoverCachePrefix$languageTag.pop.year.$year';
+        return '$_discoverCachePrefix$languageTag.pop.year.$year$g';
       case PopularWindow.allTime:
-        return '$_discoverCachePrefix$languageTag.pop.alltime';
+        return '$_discoverCachePrefix$languageTag.pop.alltime$g';
     }
   }
 

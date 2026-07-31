@@ -3053,6 +3053,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Watched by casting from your phone. Send it again from your phone to play it here.'**
   String get tv_cast_replay_hint;
+
+  /// No description provided for @developer.
+  ///
+  /// In en, this message translates to:
+  /// **'Developer'**
+  String get developer;
+
+  /// No description provided for @dev_account.
+  ///
+  /// In en, this message translates to:
+  /// **'Account'**
+  String get dev_account;
+
+  /// No description provided for @dev_server.
+  ///
+  /// In en, this message translates to:
+  /// **'Server'**
+  String get dev_server;
+
+  /// No description provided for @dev_application.
+  ///
+  /// In en, this message translates to:
+  /// **'Application'**
+  String get dev_application;
+
+  /// No description provided for @dev_catalogue.
+  ///
+  /// In en, this message translates to:
+  /// **'Catalogue'**
+  String get dev_catalogue;
+
+  /// No description provided for @dev_playlist.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist'**
+  String get dev_playlist;
+
+  /// No description provided for @dev_expires.
+  ///
+  /// In en, this message translates to:
+  /// **'Expiration'**
+  String get dev_expires;
+
+  /// No description provided for @dev_trial.
+  ///
+  /// In en, this message translates to:
+  /// **'Trial account'**
+  String get dev_trial;
+
+  /// No description provided for @dev_active_connections.
+  ///
+  /// In en, this message translates to:
+  /// **'Active connections'**
+  String get dev_active_connections;
+
+  /// No description provided for @dev_max_connections.
+  ///
+  /// In en, this message translates to:
+  /// **'Max connections'**
+  String get dev_max_connections;
+
+  /// No description provided for @dev_created.
+  ///
+  /// In en, this message translates to:
+  /// **'Created'**
+  String get dev_created;
+
+  /// No description provided for @dev_output_formats.
+  ///
+  /// In en, this message translates to:
+  /// **'Allowed formats'**
+  String get dev_output_formats;
+
+  /// No description provided for @dev_server_url.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL'**
+  String get dev_server_url;
+
+  /// No description provided for @dev_port.
+  ///
+  /// In en, this message translates to:
+  /// **'Port'**
+  String get dev_port;
+
+  /// No description provided for @dev_https_port.
+  ///
+  /// In en, this message translates to:
+  /// **'HTTPS port'**
+  String get dev_https_port;
+
+  /// No description provided for @dev_protocol.
+  ///
+  /// In en, this message translates to:
+  /// **'Protocol'**
+  String get dev_protocol;
+
+  /// No description provided for @dev_rtmp_port.
+  ///
+  /// In en, this message translates to:
+  /// **'RTMP port'**
+  String get dev_rtmp_port;
+
+  /// No description provided for @dev_server_time.
+  ///
+  /// In en, this message translates to:
+  /// **'Server time'**
+  String get dev_server_time;
+
+  /// No description provided for @dev_build_number.
+  ///
+  /// In en, this message translates to:
+  /// **'Build number'**
+  String get dev_build_number;
+
+  /// No description provided for @dev_schema_version.
+  ///
+  /// In en, this message translates to:
+  /// **'Database schema'**
+  String get dev_schema_version;
+
+  /// No description provided for @dev_last_sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Last sync'**
+  String get dev_last_sync;
+
+  /// No description provided for @dev_never.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get dev_never;
+
+  /// No description provided for @dev_source_url.
+  ///
+  /// In en, this message translates to:
+  /// **'Source URL'**
+  String get dev_source_url;
+
+  /// No description provided for @dev_series.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get dev_series;
+
+  /// No description provided for @dev_items.
+  ///
+  /// In en, this message translates to:
+  /// **'Items'**
+  String get dev_items;
+
+  /// No description provided for @dev_yes.
+  ///
+  /// In en, this message translates to:
+  /// **'Yes'**
+  String get dev_yes;
+
+  /// No description provided for @dev_no.
+  ///
+  /// In en, this message translates to:
+  /// **'No'**
+  String get dev_no;
+
+  /// No description provided for @dev_no_data.
+  ///
+  /// In en, this message translates to:
+  /// **'No data available'**
+  String get dev_no_data;
+
+  /// No description provided for @dev_status.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get dev_status;
 }
 
 class _AppLocalizationsDelegate

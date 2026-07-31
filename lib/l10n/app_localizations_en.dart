@@ -1602,4 +1602,91 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get tv_cast_replay_hint =>
       'Watched by casting from your phone. Send it again from your phone to play it here.';
+
+  @override
+  String get developer => 'Developer';
+
+  @override
+  String get dev_account => 'Account';
+
+  @override
+  String get dev_server => 'Server';
+
+  @override
+  String get dev_application => 'Application';
+
+  @override
+  String get dev_catalogue => 'Catalogue';
+
+  @override
+  String get dev_playlist => 'Playlist';
+
+  @override
+  String get dev_expires => 'Expiration';
+
+  @override
+  String get dev_trial => 'Trial account';
+
+  @override
+  String get dev_active_connections => 'Active connections';
+
+  @override
+  String get dev_max_connections => 'Max connections';
+
+  @override
+  String get dev_created => 'Created';
+
+  @override
+  String get dev_output_formats => 'Allowed formats';
+
+  @override
+  String get dev_server_url => 'Server URL';
+
+  @override
+  String get dev_port => 'Port';
+
+  @override
+  String get dev_https_port => 'HTTPS port';
+
+  @override
+  String get dev_protocol => 'Protocol';
+
+  @override
+  String get dev_rtmp_port => 'RTMP port';
+
+  @override
+  String get dev_server_time => 'Server time';
+
+  @override
+  String get dev_build_number => 'Build number';
+
+  @override
+  String get dev_schema_version => 'Database schema';
+
+  @override
+  String get dev_last_sync => 'Last sync';
+
+  @override
+  String get dev_never => 'Never';
+
+  @override
+  String get dev_source_url => 'Source URL';
+
+  @override
+  String get dev_series => 'Series';
+
+  @override
+  String get dev_items => 'Items';
+
+  @override
+  String get dev_yes => 'Yes';
+
+  @override
+  String get dev_no => 'No';
+
+  @override
+  String get dev_no_data => 'No data available';
+
+  @override
+  String get dev_status => 'Status';
 }

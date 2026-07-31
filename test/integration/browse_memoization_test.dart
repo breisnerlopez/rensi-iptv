@@ -60,7 +60,7 @@ void main() {
         return BrowseRedesign(
           movieCategories: movieCats,
           seriesCategories: seriesCats,
-          onOpen: (_) {},
+          onOpen: (_) async {},
         );
       }),
     );

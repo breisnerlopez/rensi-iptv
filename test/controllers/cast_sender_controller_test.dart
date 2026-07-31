@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rensi_iptv/controllers/cast_sender_controller.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
 
 class _FakeSender extends PhoneSenderService {
@@ -16,6 +17,7 @@ class _FakeSender extends PhoneSenderService {
   final String correctPin;
   final bool failConnect;
   final List<Map<String, String>> loads = [];
+  final List<CastMeta?> loadMetas = [];
   final List<String> commands = [];
   bool closed = false;
 
@@ -37,8 +39,10 @@ class _FakeSender extends PhoneSenderService {
     required String password,
     String title = '',
     String ext = '',
+    CastMeta? meta,
   }) async {
     loads.add({'id': channelId, 'url': url, 'user': username, 'pass': password});
+    loadMetas.add(meta);
   }
   @override
   void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) =>
@@ -242,6 +246,26 @@ void main() {
     expect(fake.loads.last['id'], '7001');
     // Las credenciales siguen saliendo de la playlist activa.
     expect(fake.loads.last['user'], 'u123');
+  });
+
+  test('el meta TMDb del CastMedia se reenvía con el LOAD', () async {
+    final fake = _FakeSender(devices: [oneTv], correctPin: '123456');
+    final c = make(fake);
+    const withMeta = CastMedia(
+      channelId: '7001',
+      contentType: 'vod',
+      title: 'Peli',
+      meta: CastMeta(overview: 'Sinopsis', title: 'Peli'),
+    );
+    await c.beginCast(withMeta);
+    await c.submitPin('123456');
+    expect(c.isCasting, isTrue);
+    expect(fake.loadMetas.single?.overview, 'Sinopsis');
+
+    // Un CastMedia sin meta → LOAD sin meta (compat. hacia atrás).
+    await c.castNext(const CastMedia(
+        channelId: '8', contentType: 'vod', title: 'Otra'));
+    expect(fake.loadMetas.last, isNull);
   });
 
   test('castNext: no-op si no se está casteando', () async {

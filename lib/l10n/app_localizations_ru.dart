@@ -1609,4 +1609,91 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get tv_cast_replay_hint =>
       'Watched by casting from your phone. Send it again from your phone to play it here.';
+
+  @override
+  String get developer => 'Разработчик';
+
+  @override
+  String get dev_account => 'Аккаунт';
+
+  @override
+  String get dev_server => 'Сервер';
+
+  @override
+  String get dev_application => 'Приложение';
+
+  @override
+  String get dev_catalogue => 'Каталог';
+
+  @override
+  String get dev_playlist => 'Плейлист';
+
+  @override
+  String get dev_expires => 'Срок действия';
+
+  @override
+  String get dev_trial => 'Пробный аккаунт';
+
+  @override
+  String get dev_active_connections => 'Активные подключения';
+
+  @override
+  String get dev_max_connections => 'Максимум подключений';
+
+  @override
+  String get dev_created => 'Создан';
+
+  @override
+  String get dev_output_formats => 'Разрешённые форматы';
+
+  @override
+  String get dev_server_url => 'URL сервера';
+
+  @override
+  String get dev_port => 'Порт';
+
+  @override
+  String get dev_https_port => 'Порт HTTPS';
+
+  @override
+  String get dev_protocol => 'Протокол';
+
+  @override
+  String get dev_rtmp_port => 'Порт RTMP';
+
+  @override
+  String get dev_server_time => 'Время сервера';
+
+  @override
+  String get dev_build_number => 'Номер сборки';
+
+  @override
+  String get dev_schema_version => 'Схема базы данных';
+
+  @override
+  String get dev_last_sync => 'Последняя синхронизация';
+
+  @override
+  String get dev_never => 'Никогда';
+
+  @override
+  String get dev_source_url => 'URL источника';
+
+  @override
+  String get dev_series => 'Сериалы';
+
+  @override
+  String get dev_items => 'Элементы';
+
+  @override
+  String get dev_yes => 'Да';
+
+  @override
+  String get dev_no => 'Нет';
+
+  @override
+  String get dev_no_data => 'Нет доступных данных';
+
+  @override
+  String get dev_status => 'Статус';
 }

@@ -1547,4 +1547,91 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get tv_cast_replay_hint =>
       'Watched by casting from your phone. Send it again from your phone to play it here.';
+
+  @override
+  String get developer => '开发者';
+
+  @override
+  String get dev_account => '账户';
+
+  @override
+  String get dev_server => '服务器';
+
+  @override
+  String get dev_application => '应用程序';
+
+  @override
+  String get dev_catalogue => '目录';
+
+  @override
+  String get dev_playlist => '播放列表';
+
+  @override
+  String get dev_expires => '到期时间';
+
+  @override
+  String get dev_trial => '试用账户';
+
+  @override
+  String get dev_active_connections => '活动连接数';
+
+  @override
+  String get dev_max_connections => '最大连接数';
+
+  @override
+  String get dev_created => '创建时间';
+
+  @override
+  String get dev_output_formats => '允许的格式';
+
+  @override
+  String get dev_server_url => '服务器 URL';
+
+  @override
+  String get dev_port => '端口';
+
+  @override
+  String get dev_https_port => 'HTTPS 端口';
+
+  @override
+  String get dev_protocol => '协议';
+
+  @override
+  String get dev_rtmp_port => 'RTMP 端口';
+
+  @override
+  String get dev_server_time => '服务器时间';
+
+  @override
+  String get dev_build_number => '内部版本号';
+
+  @override
+  String get dev_schema_version => '数据库架构';
+
+  @override
+  String get dev_last_sync => '上次同步';
+
+  @override
+  String get dev_never => '从未';
+
+  @override
+  String get dev_source_url => '源 URL';
+
+  @override
+  String get dev_series => '剧集';
+
+  @override
+  String get dev_items => '项目';
+
+  @override
+  String get dev_yes => '是';
+
+  @override
+  String get dev_no => '否';
+
+  @override
+  String get dev_no_data => '无可用数据';
+
+  @override
+  String get dev_status => '状态';
 }

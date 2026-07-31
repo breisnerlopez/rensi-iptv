@@ -7,6 +7,7 @@ import 'package:rensi_iptv/controllers/cast_sender_controller.dart';
 import 'package:rensi_iptv/l10n/app_localizations.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
 import 'package:rensi_iptv/widgets/cast/casting_screen.dart';
 
@@ -31,6 +32,7 @@ class _FakeSender extends PhoneSenderService {
     required String password,
     String title = '',
     String ext = '',
+    CastMeta? meta,
   }) async {}
   @override
   void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) =>

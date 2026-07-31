@@ -16,6 +16,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../database/database.dart';
 import '../utils/build_media_url.dart' show kVodExtensionCandidates, swapUrlExtension;
+import '../utils/credential_scrubber.dart';
 import '../utils/download_policy.dart';
 
 /// Subcarpeta (bajo `getApplicationSupportDirectory`) donde viven todos los
@@ -27,6 +28,17 @@ const String _downloadsSubdir = 'downloads';
 /// Grupo de tareas de background_downloader reservado para descargas offline,
 /// para no interferir con otros usos futuros del plugin en la app.
 const String _taskGroup = 'rensi_offline_downloads';
+
+/// User-Agent que se envía en cada descarga. FIX de bloqueo por UA de
+/// proveedores (validado en dispositivo): muchos paneles Xtream rechazan al
+/// cliente HTTP "no-player" del downloader y cortan la conexión SIN respuesta
+/// HTTP (0 bytes, sin código) — el mismo contenido REPRODUCE porque el player
+/// va con el UA por defecto de libmpv/ffmpeg. Enviar un UA tipo reproductor,
+/// ampliamente aceptado por los paneles, evita ese corte. VLC es una elección
+/// segura y muy whitelisted; cámbialo aquí si algún panel exige otro. Para
+/// contenido M3U que trae su propio `user-agent` se respeta ese (ver
+/// [_resolveUserAgent]), igual que hace la reproducción.
+const String kDownloadUserAgent = 'VLC/3.0.20 LibVLC/3.0.20';
 
 class DownloadService {
   DownloadService._internal();
@@ -232,10 +244,16 @@ class DownloadService {
         (ext != null && ext.isNotEmpty) ? '$uniqueName.$ext' : uniqueName;
     final taskId = 'dl_$rowId';
 
+    // UA tipo reproductor para no ser rechazados por el panel (ver
+    // [kDownloadUserAgent]); si el contenido es M3U con su propio user-agent,
+    // se usa ESE para casar exactamente con la ruta de reproducción.
+    final userAgent = await _resolveUserAgent(url);
+
     final task = DownloadTask(
       taskId: taskId,
       url: url,
       filename: filename,
+      headers: {'User-Agent': userAgent},
       baseDirectory: BaseDirectory.applicationSupport,
       directory: _downloadsSubdir,
       group: _taskGroup,
@@ -256,12 +274,37 @@ class DownloadService {
     return ok;
   }
 
+  /// UA a enviar en la descarga de [url]. Best-effort: si [url] corresponde a
+  /// un item de una lista M3U que declaró su propio `user-agent`
+  /// (`M3uItems.userAgent`), se respeta ESE —el mismo con el que reproduce— para
+  /// no chocar con paneles que solo aceptan un UA concreto. Para Xtream (sin
+  /// fila M3U) o M3U sin UA propio, cae al [kDownloadUserAgent] tipo reproductor.
+  /// Cualquier fallo de consulta cae también al default: nunca debe impedir
+  /// encolar.
+  Future<String> _resolveUserAgent(String url) async {
+    try {
+      final item = await (_db.select(_db.m3uItems)
+            ..where((i) => i.url.equals(url))
+            ..limit(1))
+          .getSingleOrNull();
+      final ua = item?.userAgent;
+      if (ua != null && ua.trim().isNotEmpty) return ua.trim();
+    } catch (_) {
+      // Consulta best-effort: el default cubre el caso.
+    }
+    return kDownloadUserAgent;
+  }
+
   /// Auto-corrección de extensión: el panel Xtream puede servir una
   /// `container_extension` obsoleta — el contenido REPRODUCE (el player ya la
   /// auto-corrige) pero la descarga baja una página HTML de error. Al detectarla,
   /// reintenta la descarga con la SIGUIENTE extensión candidata
   /// ([kVodExtensionCandidates]) antes de rendirse. Acotado: avanza por la lista
   /// (mp4→mkv→avi) y devuelve false cuando se agota. Devuelve true si relanzó.
+  /// LIMITACIÓN: solo sana contenedores dentro de [kVodExtensionCandidates]
+  /// (mp4/mkv/avi). Un contenedor real fuera de ese set (p. ej. .ts, .m4v, .mov,
+  /// .flv) no se puede auto-corregir por aquí; ampliar el set vive en el
+  /// compartido `build_media_url.dart` y no se toca desde este fix.
   Future<bool> _retryWithNextExtension(int rowId) async {
     final row = await _rowById(rowId);
     final baseUrl = row?.url;
@@ -590,6 +633,24 @@ class DownloadService {
   String _failureReason(TaskStatusUpdate update) {
     final code = update.responseStatusCode;
     if (code != null && code > 0) return 'http:$code';
+    // Sin código HTTP == rechazo a nivel de transporte (connection reset /
+    // timeout / DNS), justo el síntoma del bloqueo por UA. 'failed' a secas no
+    // dice nada al diagnosticar, así que adjuntamos la descripción de la
+    // excepción del plugin cuando la haya. SCRUBBED: la excepción suele repetir
+    // la URL con user/pass. La clave sigue empezando por 'failed' (con ':' y el
+    // detalle detrás) para que el `_localizedError` de la UI la mapee por su
+    // rama default al mensaje genérico existente — nada se rompe; el detalle
+    // queda en la BD para diagnóstico y una futura UI puede mostrarlo atenuado.
+    final detail = update.exception?.description;
+    if (detail != null && detail.trim().isNotEmpty) {
+      final scrubbed =
+          scrubCredentials(detail).replaceAll(RegExp(r'\s+'), ' ').trim();
+      if (scrubbed.isNotEmpty) {
+        final short =
+            scrubbed.length > 120 ? '${scrubbed.substring(0, 120)}…' : scrubbed;
+        return 'failed:$short';
+      }
+    }
     return 'failed';
   }
 

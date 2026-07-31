@@ -5,6 +5,7 @@ import 'package:rensi_iptv/models/global_search_result.dart';
 import 'package:rensi_iptv/models/m3u_item.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/models/series_response.dart';
 import 'package:rensi_iptv/models/tmdb_search_result.dart';
 import 'package:rensi_iptv/repositories/m3u_repository.dart';
 import 'package:rensi_iptv/repositories/iptv_repository.dart';
@@ -80,6 +81,20 @@ class GlobalSearchService {
         // so it is a correctness defect, not the TV-keyboard ceiling.
         .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
         .trim();
+  }
+
+  /// The grouping keys that make two local streams "the same logical title":
+  /// its normalized title AND, when the stream carries a persisted tmdb id, that
+  /// id — both, so a copy matched only by id and a copy matched only by title
+  /// still land in the same group. The content type is folded into each key so a
+  /// movie and a show sharing a name never group. Used by [_crossReference] to
+  /// attach a title's scattered owned copies to the one card that represents it.
+  static List<String> _variantKeys(LocalContentMatch m) {
+    final type = m.content.contentType;
+    final keys = <String>['title:${_normalizeTitle(m.content.name)}|$type'];
+    final id = m.tmdbId;
+    if (id != null && id > 0) keys.add('id:$id|$type');
+    return keys;
   }
 
   // --- Search --------------------------------------------------------------
@@ -223,6 +238,58 @@ class GlobalSearchService {
       withLocal
         ..clear()
         ..addAll(keptWithLocal);
+    }
+
+    // Fold same-title local variants into the card a sibling already claimed.
+    // A single logical title is often owned as several DISTINCT streams: two
+    // playlists that both carry it, or several series_ids inside ONE playlist
+    // that pack different season ranges (a 1-, a 6- and a 7-season copy of the
+    // same show). Only some of those copies string-match the TMDb result — a
+    // sibling may have matched only by its persisted tmdb_id, or by the TMDb
+    // original-language title, so a copy with a slightly different local name
+    // (a "(Latino)" suffix, a localized-vs-original spelling) matches nothing
+    // and scatters into localOnly as a separate card, vanishing from the owned
+    // title's "Reproducir desde" list. Group the still-unmatched local streams
+    // by the SAME keys search dedups by — normalized title AND persisted tmdb id
+    // (both, so an id-matched sibling and a title-only variant still meet) — and
+    // when a withLocal card already owns a stream in that group, attach the rest
+    // to it. Marked matched so they are not ALSO emitted as a duplicate
+    // localOnly/Discover row. Type is baked into the key so a movie "Rick" never
+    // folds into a show "Rick".
+    if (withLocal.isNotEmpty) {
+      final cardForKey = <String, GlobalSearchResult>{};
+      for (final entry in withLocal) {
+        for (final m in entry.localMatches) {
+          for (final k in _variantKeys(m)) {
+            cardForKey.putIfAbsent(k, () => entry);
+          }
+        }
+      }
+      final folded = <GlobalSearchResult, List<LocalContentMatch>>{};
+      for (final result in localResults) {
+        if (matchedKeys.contains(result.dedupKey)) continue;
+        if (result.content.contentType == ContentType.liveStream) continue;
+        GlobalSearchResult? card;
+        for (final k in _variantKeys(result)) {
+          card = cardForKey[k];
+          if (card != null) break;
+        }
+        if (card == null) continue;
+        (folded[card] ??= <LocalContentMatch>[])
+            .add(result.withStrength(MatchStrength.fuzzy));
+        matchedKeys.add(result.dedupKey);
+      }
+      if (folded.isNotEmpty) {
+        for (var i = 0; i < withLocal.length; i++) {
+          final add = folded[withLocal[i]];
+          if (add == null) continue;
+          withLocal[i] = GlobalSearchResult(
+            tmdb: withLocal[i].tmdb,
+            localMatches: [...withLocal[i].localMatches, ...add],
+            isWishlisted: withLocal[i].isWishlisted,
+          );
+        }
+      }
     }
 
     // tmdb-id dedup: the id-vs-title reconciliation is done inside
@@ -441,6 +508,121 @@ class GlobalSearchService {
     }
     _catalogueCache = out;
     _catalogueCacheKey = playlist.id;
+    return out;
+  }
+
+  // Memoized GLOBAL catalogue (every playlist), keyed by the set of playlist
+  // ids. Browse fans out over ALL playlists' full VOD+series catalogue; without
+  // this each Browse rebuild would re-read every row of every playlist on the UI
+  // isolate. The key is the playlist-id set, NOT the active playlist: the global
+  // catalogue is the same regardless of which playlist is active, so merely
+  // switching the active playlist does not invalidate it. Adding/removing a
+  // playlist changes the key → reload. (A content re-sync of an existing
+  // playlist does NOT change the key — same staleness contract as
+  // [_currentPlaylistCatalogue].)
+  List<LocalContentMatch>? _globalCatalogueCache;
+  String? _globalCatalogueCacheKey;
+
+  /// The FULL VOD + series catalogue across ALL playlists, each item wrapped as
+  /// a [LocalContentMatch] carrying its ORIGIN playlist — the exact shape
+  /// [_searchAllLocal] returns, so a caller can play any item through
+  /// [openLocalMatch] with the origin playlist's credentials. Fans out per
+  /// playlist exactly like [_searchAllLocal] (Xtream reads the DB directly by
+  /// playlist id; M3U reads its stored items), and memoizes the merged result.
+  ///
+  /// Cost: O(sum of every playlist's VOD+series rows) DB reads on first call,
+  /// then cached. Live channels are excluded — Browse is movies+series only.
+  /// Returns an empty list (never throws) when there are no playlists.
+  Future<List<LocalContentMatch>> globalCatalogue() async {
+    final playlists = await PlaylistService.getPlaylists();
+    final key = playlists.map((p) => p.id).join('|');
+    if (_globalCatalogueCacheKey == key && _globalCatalogueCache != null) {
+      return _globalCatalogueCache!;
+    }
+    final jobs = <Future<List<LocalContentMatch>>>[];
+    for (final playlist in playlists) {
+      jobs.add(playlist.type == PlaylistType.xtream
+          ? _xtreamCatalogue(playlist)
+          : _m3uCatalogue(playlist));
+    }
+    final results = await Future.wait(jobs);
+    final out = results.expand((e) => e).toList();
+    _globalCatalogueCache = out;
+    _globalCatalogueCacheKey = key;
+    return out;
+  }
+
+  /// Drops the memoized global catalogue so the next [globalCatalogue] call
+  /// re-reads every playlist from the DB. Called when a playlist's catalogue is
+  /// re-synced (rows added/removed with the SAME playlist-id set, which the
+  /// id-set cache key alone can't detect) so Browse never shows a title whose
+  /// stream was deleted upstream until an app restart.
+  void invalidateGlobalCatalogue() {
+    _globalCatalogueCache = null;
+    _globalCatalogueCacheKey = null;
+  }
+
+  /// One playlist's full Xtream VOD + series catalogue, wrapped as
+  /// [LocalContentMatch] exactly like [_currentPlaylistCatalogue] and
+  /// [_searchXtream] (so genre/date/tmdbId read the same `vodStream`/
+  /// `seriesStream` the rest of the app builds). Reads the DB directly by
+  /// playlist id, so it does NOT require the origin playlist to be the active
+  /// one — the fan-out never repoints AppState.
+  Future<List<LocalContentMatch>> _xtreamCatalogue(Playlist playlist) async {
+    final db = DatabaseService.database;
+    final out = <LocalContentMatch>[];
+    final movies = await db.getVodStreamsByPlaylistId(playlist.id);
+    for (final movie in movies) {
+      out.add(LocalContentMatch(
+        playlist: playlist,
+        content: _contentForPlaylist(
+          playlist,
+          () => ContentItem(
+            movie.streamId,
+            movie.name,
+            movie.streamIcon,
+            ContentType.vod,
+            containerExtension: movie.containerExtension,
+            vodStream: movie,
+          ),
+        ),
+      ));
+    }
+    final series = await db.getSeriesStreamsByPlaylistId(playlist.id);
+    for (final serie in series) {
+      out.add(LocalContentMatch(
+        playlist: playlist,
+        content: _contentForPlaylist(
+          playlist,
+          () => ContentItem(
+            serie.seriesId,
+            serie.name,
+            serie.cover ?? '',
+            ContentType.series,
+            seriesStream: serie,
+          ),
+        ),
+      ));
+    }
+    return out;
+  }
+
+  /// One M3U playlist's VOD + series items, wrapped as [LocalContentMatch] via
+  /// the same [_m3uContent] the search path uses. Live channels are dropped
+  /// (Browse is movies+series). M3U items carry no genre/tmdbId/createdAt, so
+  /// downstream they degrade gracefully (no genre chip, no id-dedup, no date
+  /// sort) — they still show and still play through the same M3U route.
+  Future<List<LocalContentMatch>> _m3uCatalogue(Playlist playlist) async {
+    final items =
+        await DatabaseService.database.getM3uItemsByPlaylist(playlist.id);
+    final out = <LocalContentMatch>[];
+    for (final item in items) {
+      if (item.contentType == ContentType.liveStream) continue;
+      out.add(LocalContentMatch(
+        playlist: playlist,
+        content: _contentForPlaylist(playlist, () => _m3uContent(item)),
+      ));
+    }
     return out;
   }
 
@@ -771,25 +953,154 @@ class GlobalSearchService {
     } on TmdbException {
       return const [];
     }
-    if (movies.isEmpty) return const [];
+    return _rankPreservingCrossRef(movies);
+  }
 
+  /// Browse's "Populares por género": [popular], scoped to one genre chip.
+  /// Resolves the localized [genreName] to a TMDb MOVIE genre id, then runs the
+  /// SAME rank-preserving cross-reference as [popular]. MOVIES-ONLY, exactly
+  /// like the Home rail (see [TmdbService.popularMovies]); a series-only genre
+  /// name simply resolves to no movie id and degrades. Degrades to an EMPTY list
+  /// — which the Browse section renders as "no popular row, just the local grid"
+  /// — on every soft-failure path: no TMDb key, a chip name that maps to no TMDb
+  /// genre in this language, an empty TMDb page, or any [TmdbException].
+  Future<List<GlobalSearchResult>> popularByGenre(
+    String genreName,
+    PopularWindow window, {
+    int? year,
+    Locale? locale,
+  }) async {
+    int? genreId;
+    try {
+      genreId = await _tmdbService.genreIdForName(
+        genreName,
+        mediaType: TmdbMediaType.movie,
+        locale: locale,
+      );
+    } on TmdbException {
+      return const [];
+    }
+    if (genreId == null) return const [];
+
+    List<TmdbSearchResult> movies;
+    try {
+      movies = await _tmdbService.popularMovies(
+        window,
+        year: year,
+        genreId: genreId,
+        locale: locale,
+      );
+    } on TmdbException {
+      return const [];
+    }
+    return _rankPreservingCrossRef(movies);
+  }
+
+  /// Cross-references an ORDERED TMDb list against the local catalogue WITHOUT
+  /// reshuffling (unlike [_crossReference]): each title keeps its TMDb rank,
+  /// gains its owned local matches (if any) and its wishlist flag. Shared by
+  /// [popular] and [popularByGenre] so both rails match identically.
+  Future<List<GlobalSearchResult>> _rankPreservingCrossRef(
+    List<TmdbSearchResult> tmdbItems,
+  ) async {
+    if (tmdbItems.isEmpty) return const [];
     final wishlistKeys = await TmdbWishlistService.getKeys();
     final out = <GlobalSearchResult>[];
-    for (final tmdb in movies) {
-      final matches = _findMatchesFor(tmdb, await _searchAllLocal(tmdb.title));
-      final isWishlisted =
-          wishlistKeys.contains('${tmdb.id}|${tmdb.mediaType.name}');
+    for (final tmdb in tmdbItems) {
+      final local = await _searchAllLocal(tmdb.title);
+      final matches = _findMatchesFor(tmdb, local);
       out.add(GlobalSearchResult(
         tmdb: tmdb,
-        localMatches: matches,
-        isWishlisted: isWishlisted,
+        localMatches: _foldSameTitleVariants(matches, local),
+        isWishlisted:
+            wishlistKeys.contains('${tmdb.id}|${tmdb.mediaType.name}'),
       ));
+    }
+    return out;
+  }
+
+  /// Attaches to [matched] the still-unmatched local streams that are the SAME
+  /// logical title (share a [_variantKeys] key with a matched copy). The Popular
+  /// rails cross-reference each title on its OWN local search, so unlike
+  /// [_crossReference] they had no variant-folding step: a title owned as
+  /// several distinct streams (two playlists, or several season-pack series_ids)
+  /// showed only the copy that string/id-matched, and the others vanished from
+  /// the detail sheet's "Reproducir desde" list. Fold them in the same way so a
+  /// sheet opened from "Populares por género" lists ALL owned copies, exactly
+  /// like search. Live streams are never folded (no TMDb counterpart).
+  List<LocalContentMatch> _foldSameTitleVariants(
+    List<LocalContentMatch> matched,
+    List<LocalContentMatch> local,
+  ) {
+    if (matched.isEmpty) return matched;
+    final keys = <String>{for (final m in matched) ..._variantKeys(m)};
+    final have = <String>{for (final m in matched) m.dedupKey};
+    final out = List<LocalContentMatch>.from(matched);
+    for (final cand in local) {
+      if (cand.content.contentType == ContentType.liveStream) continue;
+      if (have.contains(cand.dedupKey)) continue;
+      if (_variantKeys(cand).any(keys.contains)) {
+        out.add(cand.withStrength(MatchStrength.fuzzy));
+        have.add(cand.dedupKey);
+      }
     }
     return out;
   }
 
   Future<List<TmdbSearchResult>> getWishlist() =>
       TmdbWishlistService.getItems();
+
+  // Per-variant season-count cache, keyed by playlist id + series id (NOT by
+  // title): a logical title can be owned as several series_ids that each pack a
+  // different season range, so the count is fetched and cached per stream. A
+  // cached null means "fetched, but unknown" — it is not refetched.
+  final Map<String, int?> _seasonCountCache = {};
+
+  /// The number of seasons an owned SERIES variant packs, read from the origin
+  /// playlist's Xtream `get_series_info`. Lets the search detail sheet label
+  /// each "Reproducir desde" row with its season count so a user can tell the
+  /// 7-season copy from the 1-season one and pick deliberately. Returns null — an
+  /// unknown count the row renders as a plain playlist label — for movies, M3U
+  /// or live content, an empty query, or ANY fetch that fails or comes back
+  /// empty; it NEVER throws, so a slow or dead provider leaves the row playable
+  /// instead of blocking the sheet. Cached per playlist+series id, so reopening
+  /// the sheet (or a second variant of the same stream) does not refetch.
+  Future<int?> seasonCountFor(LocalContentMatch match) async {
+    if (match.content.contentType != ContentType.series) return null;
+    if (match.playlist.type != PlaylistType.xtream) return null;
+    final seriesId = match.content.id.toString();
+    if (seriesId.isEmpty) return null;
+    final key = '${match.playlist.id}|$seriesId';
+    if (_seasonCountCache.containsKey(key)) return _seasonCountCache[key];
+    int? count;
+    try {
+      final repo = IptvRepository(
+        ApiConfig(
+          baseUrl: match.playlist.url ?? '',
+          username: match.playlist.username ?? '',
+          password: match.playlist.password ?? '',
+        ),
+        match.playlist.id,
+      );
+      count = _seasonCount(await repo.getSeriesInfo(seriesId));
+    } catch (_) {
+      count = null;
+    }
+    _seasonCountCache[key] = count;
+    return count;
+  }
+
+  /// Distinct playable seasons in a fetched series-info response: prefer the set
+  /// of season numbers the episodes actually carry (the source of truth for what
+  /// plays, and robust to providers that ship a "specials"/season-0 entry in the
+  /// declared list), falling back to the declared seasons list, else null.
+  static int? _seasonCount(SeriesDetailResponse? info) {
+    if (info == null) return null;
+    final fromEpisodes = info.episodes.map((e) => e.season).toSet();
+    if (fromEpisodes.isNotEmpty) return fromEpisodes.length;
+    if (info.seasons.isNotEmpty) return info.seasons.length;
+    return null;
+  }
 
   Future<TmdbDetailResult> getDetail(
     TmdbSearchResult item, {
@@ -807,16 +1118,24 @@ class GlobalSearchService {
   /// correct repository when the caller navigates next. This is a synchronous
   /// method by design — the caller is expected to call it and navigate in
   /// the same event-loop tick so two rapid taps cannot interleave.
-  void openLocalMatch(LocalContentMatch match) {
-    AppState.currentPlaylist = match.playlist;
-    if (match.playlist.type == PlaylistType.xtream) {
+  void openLocalMatch(LocalContentMatch match) => repointTo(match.playlist);
+
+  /// Points the global AppState (current playlist + its repository) at
+  /// [playlist]. Extracted from [openLocalMatch] so a caller that temporarily
+  /// repointed to an item's ORIGIN playlist to play it can RESTORE the active
+  /// playlist afterwards (rebuilding the repo too) — e.g. Browse restores the
+  /// user's active playlist when the player route pops, so Home's
+  /// continue-watching reload and a favorite toggle target the right list.
+  void repointTo(Playlist playlist) {
+    AppState.currentPlaylist = playlist;
+    if (playlist.type == PlaylistType.xtream) {
       AppState.xtreamCodeRepository = IptvRepository(
         ApiConfig(
-          baseUrl: match.playlist.url ?? '',
-          username: match.playlist.username ?? '',
-          password: match.playlist.password ?? '',
+          baseUrl: playlist.url ?? '',
+          username: playlist.username ?? '',
+          password: playlist.password ?? '',
         ),
-        match.playlist.id,
+        playlist.id,
       );
     } else {
       AppState.m3uRepository = M3uRepository();

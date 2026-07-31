@@ -421,6 +421,9 @@ class _CastPlayerScreen extends StatelessWidget {
             key: ValueKey('cast-$seq'),
             contentItem: item,
             queue: [item],
+            // Ficha TMDb (sinopsis + reparto) que envió el móvil con el LOAD; el
+            // panel de pausa la pinta sin llamar a TMDb (la TV no tiene clave).
+            castMeta: req.meta,
           ),
         );
       },

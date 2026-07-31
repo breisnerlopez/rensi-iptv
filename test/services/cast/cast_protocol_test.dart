@@ -168,4 +168,121 @@ void main() {
       expect(randomBytes(16), isNot(randomBytes(16)));
     });
   });
+
+  group('CastMeta — metadatos TMDb opcionales del LOAD', () {
+    final meta = const CastMeta(
+      overview: 'Un desastre en una plataforma petrolífera.',
+      cast: [
+        CastMetaMember(
+            name: 'Mark Wahlberg',
+            character: 'Mike Williams',
+            profilePath: '/mw.jpg'),
+        CastMetaMember(name: 'Kurt Russell'), // sin personaje ni foto
+      ],
+      title: 'Marea negra',
+      year: 2016,
+    );
+
+    test('round-trip: toJson→fromJson conserva todos los campos', () {
+      final r = CastMeta.fromJson(meta.toJson());
+      expect(r.overview, meta.overview);
+      expect(r.title, meta.title);
+      expect(r.year, 2016);
+      expect(r.cast.length, 2);
+      expect(r.cast[0].name, 'Mark Wahlberg');
+      expect(r.cast[0].character, 'Mike Williams');
+      expect(r.cast[0].profilePath, '/mw.jpg');
+      // El 2º miembro no tenía personaje ni foto → campos vacíos/null, no crash.
+      expect(r.cast[1].name, 'Kurt Russell');
+      expect(r.cast[1].character, '');
+      expect(r.cast[1].profilePath, isNull);
+    });
+
+    test('NO transporta poster/backdrop (footgun de URL de host arbitrario)', () {
+      // Ni el emisor los puebla ni el wire debe llevarlos.
+      expect(meta.toJson().containsKey('poster'), isFalse);
+      expect(meta.toJson().containsKey('backdrop'), isFalse);
+    });
+
+    test('DEFENSIVO: un meta de tipos INVÁLIDOS no lanza y da valores benignos',
+        () {
+      // Exactamente lo que el receptor haría con el meta de un LOAD malformado
+      // (peer malicioso / version-skew). Antes esto lanzaba y ABORTABA el LOAD.
+      late CastMeta r;
+      expect(
+        () => r = CastMeta.fromJson({
+          'o': 123, // no-String
+          'title': ['x'], // no-String
+          'year': 'abc', // no-num
+          'cast': [
+            null, // no-Map → se salta
+            42, // no-Map → se salta
+            {'n': 999, 'c': true, 'p': 7}, // campos de tipos inválidos
+            {'n': 'Válido'},
+          ],
+        }),
+        returnsNormally,
+      );
+      expect(r.overview, '');
+      expect(r.title, '');
+      expect(r.year, isNull);
+      // Los dos no-Map se saltaron; los dos Map se conservaron (nombre tolerante).
+      expect(r.cast.length, 2);
+      expect(r.cast[0].name, ''); // 'n' era num → ''
+      expect(r.cast[0].profilePath, isNull); // 'p' era num → null
+      expect(r.cast[1].name, 'Válido');
+    });
+
+    test('DEFENSIVO: capa el reparto y la sinopsis (memoria en la TV)', () {
+      final huge = CastMeta.fromJson({
+        'o': 'x' * 10000,
+        'cast': [for (var i = 0; i < 200; i++) {'n': 'A$i'}],
+      });
+      expect(huge.cast.length, lessThanOrEqualTo(30));
+      expect(huge.overview.length, lessThanOrEqualTo(4000));
+    });
+
+    test('un LOAD con meta INVÁLIDO se decodifica sin lanzar (no aborta el LOAD)',
+        () {
+      // Simula el paso de parseo del receptor sobre un envelope malformado.
+      final raw = encodeMsg(MsgType.load, {
+        'id': '9',
+        'ct': 'vod',
+        'meta': {'o': 123, 'cast': [null], 'year': 'abc'},
+      });
+      final msg = decodeMsg(raw);
+      expect(() => CastMeta.fromJson(msg['meta'] as Map<String, dynamic>),
+          returnsNormally);
+    });
+
+    test('isEmpty: sin sinopsis ni reparto', () {
+      expect(const CastMeta().isEmpty, isTrue);
+      expect(const CastMeta(overview: 'x').isEmpty, isFalse);
+      expect(
+          const CastMeta(cast: [CastMetaMember(name: 'A')]).isEmpty, isFalse);
+    });
+
+    test('un LOAD que lleva meta round-trips por el envelope del protocolo', () {
+      // Exactamente lo que arma phone_sender_service.sendLoad al adjuntar meta.
+      final raw = encodeMsg(MsgType.load, {
+        'id': '7001',
+        'ct': 'vod',
+        'title': 'Marea negra',
+        'ext': 'mp4',
+        'meta': meta.toJson(),
+      });
+      final msg = decodeMsg(raw);
+      expect(msg['t'], MsgType.load);
+      final decoded = CastMeta.fromJson(msg['meta'] as Map<String, dynamic>);
+      expect(decoded.title, 'Marea negra');
+      expect(decoded.cast.first.name, 'Mark Wahlberg');
+    });
+
+    test('compat. hacia atrás: un LOAD SIN meta decodifica sin `meta` (null)', () {
+      final raw = encodeMsg(MsgType.load, {'id': '9', 'ct': 'live'});
+      final msg = decodeMsg(raw);
+      expect(msg.containsKey('meta'), isFalse,
+          reason: 'una build vieja no incluye meta → el receptor lo trata null');
+    });
+  });
 }
