@@ -1,3 +1,20 @@
+# [2.12.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.11.4...v2.12.0) (2026-07-31)
+
+
+### Features
+
+* **La TV la controla un móvil a la vez (toma de control):** si envías contenido desde un segundo móvil, ese pasa a mandar la TV y el móvil anterior deja de mostrar los controles de reproducción sin avisos molestos — simplemente su sesión termina (nada de notificaciones ni errores). Pensado para varios móviles en casa
+* **Convivencia móvil↔TV — el casting manda:** mientras estás casteando, darle a "reproducir" a otro contenido en el móvil lo **envía a la TV** en vez de abrir doble reproducción; ya no se desincronizan los controles ni se queda "pegado" el contenido anterior
+* **Descargas con nombre entendible:** los archivos se guardan con el **título del contenido** (p. ej. `Rick and Morty S01E01`) en vez de un código, y las descargas fallidas tienen un botón **Reintentar** directo en la lista
+
+
+### Bug Fixes
+
+* **Buscar "rick" ya encuentra "Rick and Morty":** al escribir el principio del título los resultados que coinciden por **nombre** salen primero — antes el orden alfabético + el límite de resultados podían dejar fuera la serie propia aunque la tuvieras
+* **"Mi lista" se actualiza al marcar favoritos:** al guardar (o quitar) algo en tu lista aparece/desaparece al instante sin cambiar de pestaña, incluido "borrar todo"
+* **Casting más fiable:** ya no se pide el código de emparejamiento de más (se recuerda el dispositivo de confianza aunque no reinicies la TV), no hay doble reproducción por la cuenta atrás de envío, y el envío no se queda colgado si algo falla al conectar
+
+
 # [2.11.4](https://github.com/breisnerlopez/rensi-iptv/compare/v2.11.3...v2.11.4) (2026-07-31)
 
 

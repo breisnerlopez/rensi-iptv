@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
+import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 
@@ -21,11 +24,23 @@ class ListRedesign extends StatefulWidget {
 class _ListRedesignState extends State<ListRedesign> {
   final _repo = FavoritesRepository();
   late Future<List<ContentItem>> _future;
+  StreamSubscription<dynamic>? _favSub;
 
   @override
   void initState() {
     super.initState();
     _future = _load();
+    // "Mi lista" vive en un IndexedStack (montada, no recarga al cambiar de
+    // pestaña): recargar cuando se marca/desmarca un favorito.
+    _favSub = EventBus()
+        .on<dynamic>('favorites_changed')
+        .listen((_) => mounted ? setState(() => _future = _load()) : null);
+  }
+
+  @override
+  void dispose() {
+    _favSub?.cancel();
+    super.dispose();
   }
 
   Future<List<ContentItem>> _load() async {

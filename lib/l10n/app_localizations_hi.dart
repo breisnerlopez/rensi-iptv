@@ -33,6 +33,12 @@ class AppLocalizationsHi extends AppLocalizations {
   String get cast_to_tv => 'टीवी पर कास्ट करें';
 
   @override
+  String get cast_sent_to_tv => 'टीवी पर भेजा गया';
+
+  @override
+  String get cast_send_failed => 'टीवी पर नहीं भेजा जा सका';
+
+  @override
   String get cast_searching => 'आपके नेटवर्क पर टीवी खोजे जा रहे हैं…';
 
   @override

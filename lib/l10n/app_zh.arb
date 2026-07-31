@@ -7,6 +7,8 @@
   "cast_gate_prompt": "发送到电视？",
   "cast_gate_play_now": "在此播放",
   "cast_to_tv": "投屏到电视",
+  "cast_sent_to_tv": "已发送到电视",
+  "cast_send_failed": "无法发送到电视",
   "cast_searching": "正在搜索网络中的电视…",
   "cast_no_devices": "未找到电视。请确保电视上已打开该应用，并连接到同一 Wi-Fi。",
   "cast_choose_device": "选择电视",

@@ -33,6 +33,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cast_to_tv => '投屏到电视';
 
   @override
+  String get cast_sent_to_tv => '已发送到电视';
+
+  @override
+  String get cast_send_failed => '无法发送到电视';
+
+  @override
   String get cast_searching => '正在搜索网络中的电视…';
 
   @override

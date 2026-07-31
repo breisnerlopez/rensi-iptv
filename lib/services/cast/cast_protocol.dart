@@ -31,6 +31,7 @@ class MsgType {
   static const tracks = 'tracks'; // TV -> móvil: pistas de audio/subtítulo
   static const ended = 'ended'; // TV -> móvil: reproducción detenida/cerrada en la TV
   static const completed = 'completed'; // TV -> móvil: el título terminó (fin de archivo) → el móvil puede auto-avanzar
+  static const superseded = 'superseded'; // TV -> móvil: OTRO dispositivo tomó el control (cesión silenciosa; NO es caída ni fin)
   static const error = 'error';
 }
 

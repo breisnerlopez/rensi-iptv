@@ -33,6 +33,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get cast_to_tv => 'Enviar a la TV';
 
   @override
+  String get cast_sent_to_tv => 'Enviado a la TV';
+
+  @override
+  String get cast_send_failed => 'No se pudo enviar a la TV';
+
+  @override
   String get cast_searching => 'Buscando televisores en tu red…';
 
   @override

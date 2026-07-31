@@ -68,7 +68,13 @@ class TvReceiverService {
     this.tvId = '',
     this.knownTokens = const [],
     this.onIssueToken,
-  }) : pin = pin ?? _genPin();
+  })  : pin = pin ?? _genPin(),
+        // Conjunto VIVO de tokens que esta sesión honra sin PIN: parte de los
+        // persistidos y CRECE al emitir uno nuevo (ver pairProof). Sin esto, un
+        // móvil emparejado por PIN durante ESTE arranque de la TV volvería a
+        // pedir PIN en su siguiente conexión (el token recién emitido no estaba
+        // en la lista fija cargada al arrancar), rompiendo la confianza de 7 días.
+        _liveTokens = [...knownTokens];
 
   final String deviceName;
 
@@ -86,6 +92,10 @@ class TvReceiverService {
   /// capa de UI lo persista.
   final void Function(String token)? onIssueToken;
 
+  /// Tokens que ESTA sesión acepta sin PIN: los persistidos + los emitidos en
+  /// este arranque. Se consulta al validar un `resume` (ver [_handleSocket]).
+  final List<String> _liveTokens;
+
   /// Cert TLS para servir wss:// con cert-pinning. Si es null, sirve ws:// plano
   /// (útil en pruebas por loopback; el fingerprint atado al proof queda vacío).
   final CastTls? tls;
@@ -95,6 +105,10 @@ class TvReceiverService {
   HttpServer? _server;
   BonsoirBroadcast? _broadcast;
   WebSocket? _activeWs; // socket emparejado en curso (para responder a la app)
+  // Socket que CONTROLA la reproducción (el del último LOAD válido). Modelo
+  // last-load-wins: cuando OTRO socket toma el control, al anterior se le manda
+  // `superseded` y se le cierra → soporte multi-dispositivo (toma de control).
+  WebSocket? _controllingWs;
 
   final _loadController = StreamController<CastLoadRequest>.broadcast();
   final _commandController = StreamController<Map<String, dynamic>>.broadcast();
@@ -199,12 +213,19 @@ class TvReceiverService {
               paired = true;
               sessionKey = pinKey;
               final token = base64.encode(randomBytes(32));
+              // Persistir (para próximos arranques) Y honrarlo YA en esta sesión:
+              // así una reconexión posterior del mismo móvil reanuda sin PIN.
               onIssueToken?.call(token);
+              _liveTokens.add(token);
               _activeWs = ws;
               ws.add(encodeMsg(MsgType.pairResult, {'ok': true, 'token': token}));
             } else {
-              // 2) Intento con los tokens de confianza vigentes (sin PIN).
-              for (final t in knownTokens) {
+              // 2) Intento con los tokens de confianza vigentes (sin PIN):
+              //    los persistidos MÁS los emitidos en este arranque. Se itera
+              //    sobre una COPIA: hay `await` en el cuerpo y otro socket puede
+              //    hacer `_liveTokens.add` en paralelo → sin la copia saltaría
+              //    ConcurrentModificationError (pairing espurio fallido).
+              for (final t in [..._liveTokens]) {
                 final tk = await CastCrypto.deriveSessionKey(t, salt);
                 if (await CastCrypto.verifyProof(tk, nonce, proofB64, _certfp)) {
                   paired = true;
@@ -226,6 +247,22 @@ class TvReceiverService {
               ws.add(encodeMsg(MsgType.error, {'e': 'not_paired'}));
               return;
             }
+            // Toma de control multi-dispositivo (last-load-wins): si OTRO socket
+            // controlaba, este LOAD se lo arrebata. Avisar al anterior con
+            // `superseded` ANTES de cerrarlo, para que su móvil vaya a idle en
+            // silencio (no lo trata como caída → no dispara reconexión). Un
+            // pequeño respiro deja salir el frame antes del cierre.
+            final prev = _controllingWs;
+            if (prev != null && !identical(prev, ws)) {
+              try {
+                prev.add(encodeMsg(MsgType.superseded, const {}));
+              } catch (_) {/* socket ya cerrado */}
+              Future<void>.delayed(const Duration(milliseconds: 150), () {
+                prev.close().catchError((_) {});
+              });
+            }
+            _controllingWs = ws;
+            _activeWs = ws; // el control (state/tracks) va al dueño actual
             // Credenciales cifradas con la clave de sesión (nunca en claro).
             final creds =
                 await CastCrypto.decryptJson(sessionKey!, msg['creds'] as Map<String, dynamic>);

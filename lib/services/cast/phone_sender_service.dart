@@ -72,6 +72,16 @@ class PhoneSenderService {
   /// aquí la sesión SIGUE viva y el móvil decide si reenvía un LOAD.
   void Function()? onCompleted;
 
+  /// Se invoca cuando la TV avisa que OTRO dispositivo tomó el control
+  /// (mensaje `superseded`): esta sesión quedó cedida. El móvil debe pasar a
+  /// idle EN SILENCIO (sin error, sin reconectar) — el cierre de socket que
+  /// llega justo después NO debe tratarse como caída.
+  void Function()? onSuperseded;
+
+  /// true tras recibir `superseded`: el `onDone` posterior del socket no debe
+  /// disparar [onDisconnected] (evita que el móvil pelee por recuperar la TV).
+  bool _superseded = false;
+
   /// Descubre TVs anunciando [kCastServiceType] durante [timeout].
   Future<List<CastDevice>> discover(
       {Duration timeout = const Duration(seconds: 4)}) async {
@@ -115,6 +125,9 @@ class PhoneSenderService {
     }
     _sub = _ws!.listen(_onMessage, onDone: () {
       if (_pairResult?.isCompleted == false) _pairResult!.complete(false);
+      // Tras `superseded` el cierre es esperado (nos cedieron el control): NO
+      // notificar caída, o el controlador intentaría reconectar contra la TV.
+      if (_superseded) return;
       onDisconnected?.call();
     });
     await _challengeReady.future
@@ -209,6 +222,10 @@ class PhoneSenderService {
         break;
       case MsgType.completed:
         onCompleted?.call();
+        break;
+      case MsgType.superseded:
+        _superseded = true;
+        onSuperseded?.call();
         break;
     }
   }

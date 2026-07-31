@@ -1561,7 +1561,17 @@ class AppDatabase extends _$AppDatabase {
                     (tbl.name.contains(query) |
                         tbl.genre.contains(query)),
               )
-              ..orderBy([(tbl) => OrderingTerm.asc(tbl.name)])
+              // A title whose NAME matches must rank ABOVE one that only matches
+              // on genre metadata: otherwise a common query that appears in many
+              // genres pushes the actual name-match past the limit(30) cap and it
+              // vanishes from search. Name-match rows first, then alphabetical.
+              ..orderBy([
+                (tbl) => OrderingTerm(
+                      expression: tbl.name.contains(query),
+                      mode: OrderingMode.desc,
+                    ),
+                (tbl) => OrderingTerm.asc(tbl.name),
+              ])
               ..limit(30))
             .get();
 
@@ -1584,7 +1594,20 @@ class AppDatabase extends _$AppDatabase {
                         tbl.cast.contains(query) |
                         tbl.director.contains(query)),
               )
-              ..orderBy([(tbl) => OrderingTerm.asc(tbl.name)])
+              // A title whose NAME matches must rank ABOVE one that only matches
+              // via cast / director / genre. "rick" is a substring of countless
+              // cast names (Patrick, Frederick, Kendrick…); without this, those
+              // metadata-only matches — sorted alphabetically — fill the limit(30)
+              // cap and bury the actual owned show ("Rick y Morty"), so searching
+              // a common first word found nothing while a rarer word still hit.
+              // Name-match rows first, then alphabetical within each group.
+              ..orderBy([
+                (tbl) => OrderingTerm(
+                      expression: tbl.name.contains(query),
+                      mode: OrderingMode.desc,
+                    ),
+                (tbl) => OrderingTerm.asc(tbl.name),
+              ])
               ..limit(30))
             .get();
 

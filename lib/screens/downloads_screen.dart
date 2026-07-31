@@ -346,6 +346,11 @@ class _DownloadTile extends StatelessWidget {
       case 'failed':
         return [
           IconButton(
+            tooltip: context.loc.download_retry,
+            icon: const Icon(Icons.refresh),
+            onPressed: () => DownloadService.instance.retry(download.id),
+          ),
+          IconButton(
             tooltip: context.loc.download_delete,
             icon: const Icon(Icons.delete_outline),
             onPressed: () => DownloadService.instance.delete(download.id),

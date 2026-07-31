@@ -243,7 +243,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
   // local. En la TV (receptora) o si ya se está casteando, no aparece.
   Completer<bool>? _castGate;
   bool _castGateActive = false;
-  bool _castGateResolved = false;
+  // El usuario pulsó "Enviar a la TV": desde ese momento y mientras el flujo de
+  // cast (descubrir/emparejar) sigue en curso, el gate NO debe resolver JAMÁS a
+  // reproducción local — ni por la cuenta atrás ni por una carrera del timer.
+  // Solo un cancel EXPLÍCITO del modal de cast (startCastFlow retorna sin
+  // castear) permite volver a local, y para entonces este flag ya se limpió.
+  bool _castCommitted = false;
   Timer? _castGateTimer;
   int _castGateSecs = 8;
 
@@ -481,31 +486,116 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
   }
 
+  /// Devuelve el controlador SI ya se está casteando (política "casting manda"):
+  /// abrir un título mientras se castea NO debe reproducirlo en el móvil, sino
+  /// reenviarlo a la TV. null en la TV receptora, sin provider, o si no castea.
+  CastSenderController? _castingController() {
+    if (ResponsiveHelper.isTelevisionDevice || !mounted) return null;
+    try {
+      final cast = context.read<CastSenderController>();
+      _cast ??= cast;
+      return cast.isCasting ? cast : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Coexistencia móvil↔TV: reenvía el título que se iba a abrir localmente a la
+  /// TV (re-LOAD sobre la sesión viva, sin re-emparejar) y vuelve a la
+  /// navegación. Evita la doble reproducción y deja el mini-control reflejando
+  /// el nuevo contenido. Las descargas OFFLINE (url no http) van por el camino
+  /// de archivo local (servidas por la LAN).
+  Future<void> _recastToTv(CastSenderController cast) async {
+    final url = contentItem.url;
+    final isLocalFile = !url.startsWith('http');
+    bool ok;
+    try {
+      ok = isLocalFile
+          ? await cast.castNextLocalFile(
+              filePath: url,
+              contentId: contentItem.id,
+              title: contentItem.name,
+              ext: contentItem.containerExtension ?? '',
+              imagePath: contentItem.imagePath,
+            )
+          : await cast.castNext(_castMedia, queue: _castQueue, index: _castIndex);
+    } catch (_) {
+      // El recast nunca debe propagar a _initializePlayer: eso dejaría el player
+      // colgado antes del stop/pop (ni local ni TV). Se trata como fallo.
+      ok = false;
+    }
+    if (!mounted) return;
+    // Pase lo que pase, NO abrir el player local (política "casting manda"):
+    // parar el (aún sin abrir) player y volver a la navegación. El mini-control
+    // sigue reflejando lo que la TV reproduce. Si el recast falló (sesión
+    // reconectándose), avisar — sin dejar el player atascado.
+    _player.stop();
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    Navigator.of(context).maybePop();
+    messenger?.showSnackBar(
+      SnackBar(
+        content: Text(ok ? context.loc.cast_sent_to_tv : context.loc.cast_send_failed),
+      ),
+    );
+  }
+
   void _startCastGateCountdown() {
     _castGateSecs = 8;
     _castGateTimer?.cancel();
     _castGateTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) return t.cancel();
+      // Una vez comprometido a la TV, la cuenta atrás queda MUERTA: ni decrementa
+      // ni puede disparar reproducción local (cubre la carrera en la que este
+      // callback ya estaba encolado cuando el usuario pulsó "Enviar a la TV").
+      if (_castCommitted) return t.cancel();
       setState(() => _castGateSecs--);
       if (_castGateSecs <= 0) _resolveCastGate(true);
     });
   }
 
   void _resolveCastGate(bool playLocal) {
+    // Blindaje de la política "casting manda": si el usuario ya comprometió el
+    // envío a la TV, NUNCA resolvemos a reproducción local mientras el flujo de
+    // cast sigue vivo. El único camino legítimo a local tras comprometer es el
+    // cancel explícito del modal, que limpia _castCommitted ANTES de llamar aquí.
+    if (playLocal && _castCommitted) return;
     _castGateTimer?.cancel();
-    _castGateResolved = true;
     _castGateActive = false;
     if (_castGate?.isCompleted == false) _castGate!.complete(playLocal);
     if (mounted) setState(() {});
   }
 
   Future<void> _onGateSendToTv() async {
+    // Comprometer el envío a la TV: mata la cuenta atrás y bloquea cualquier
+    // resolución a reproducción local mientras se descubre/empareja.
+    _castCommitted = true;
     _castGateTimer?.cancel();
+    // Matar el watchdog de carga: su auto-reintento a los 8s reabriría el stream
+    // LOCAL (doble reproducción móvil+TV) mientras el usuario lee el PIN / elige
+    // la TV (el gate mantiene isLoading=true todo el rato, así que el disparo es
+    // casi seguro si el flujo tarda >8s). _reopenCurrent además queda blindado.
+    _loadTicker?.cancel();
+    _loadClock.stop();
     if (mounted) setState(() => _castGateActive = false);
-    await startCastFlow(context, _castMedia, queue: _castQueue, index: _castIndex);
+    var casting = false;
+    try {
+      await startCastFlow(context, _castMedia, queue: _castQueue, index: _castIndex);
+      if (mounted) casting = _cast?.isCasting ?? false;
+    } catch (_) {
+      // El flujo de cast lanzó. Derivar de isCasting (no forzar false): si la
+      // sesión de TV YA quedó viva antes del throw, forzar local abriría el
+      // stream en el móvil con la TV reproduciendo (doble-play) — el open
+      // inicial no pasa por el blindaje de _reopenCurrent.
+      casting = _cast?.isCasting ?? false;
+    } finally {
+      // Pase lo que pase (incluido que startCastFlow lance), limpiar el
+      // compromiso: si no, _resolveCastGate(true) quedaría bloqueado PARA
+      // SIEMPRE y el player colgado en "Preparando…". Se limpia ANTES de
+      // resolver para que la rama de cancelado sí pueda caer a local.
+      if (mounted) _castCommitted = false;
+    }
     if (!mounted) return;
-    final casting = _cast?.isCasting ?? false;
-    // No abrir el stream local (si casteó) o abrirlo (si canceló).
+    // No abrir el stream local (si casteó) o abrirlo (si canceló/falló).
     _resolveCastGate(!casting);
     if (casting) {
       // El modal de casting ya se cerró (startCastFlow retornó), así que ahora
@@ -814,6 +904,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
   /// error retry and the stall watchdog.
   Future<void> _reopenCurrent() async {
     if (_playerDisposed || contentItem.url.isEmpty) return;
+    // Coexistencia con casting (política "casting manda"): mientras se castea, o
+    // el usuario ya se comprometió a enviar a la TV, NUNCA reabrir el stream
+    // local. Cierra TODOS los caminos de reopen a la vez (watchdog de carga,
+    // handler de conectividad, watchdog de stall, error-handler, ext-heal) →
+    // ninguno puede provocar doble reproducción móvil+TV. En la TV receptora
+    // _castingController() es null y _castCommitted false, así que su reopen de
+    // stall en vivo queda intacto.
+    if (_castCommitted || _castingController() != null) return;
     // Live streams are not seekable: passing start:Duration.zero makes libmpv
     // attempt a seek-to-0 on reopen, which fires the non-fatal
     // "Cannot seek … --force-seekable=yes" error (triggered by the 15s stall
@@ -1011,6 +1109,20 @@ class _PlayerWidgetState extends State<PlayerWidget>
     final decoderMode = await UserPreferences.getVideoDecoder()
         .timeout(const Duration(seconds: 4), onTimeout: () => 'auto');
     _videoController = _createVideoController(decoderMode);
+
+    // Coexistencia móvil↔TV — política "el casting manda": si YA se está
+    // casteando, NO reproducir aquí (evita doble reproducción y controles
+    // desincronizados). Reenviar el título a la TV reutilizando la sesión y
+    // volver a la navegación; el mini-control refleja el nuevo título.
+    final castingNow = _castingController();
+    if (castingNow != null) {
+      // Matar el watchdog de carga antes del await del recast: si no, su
+      // auto-reintento a 8s reabriría el stream LOCAL mientras se reenvía a la TV.
+      _loadTicker?.cancel();
+      _loadClock.stop();
+      await _recastToTv(castingNow);
+      return;
+    }
 
     // Gate de casting (solo móvil): ofrecer enviar a la TV ANTES de cargar el
     // stream aquí (para no gastar datos). Si se elige enviar, no abrimos local.
@@ -1449,6 +1561,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
     contentItemIndexChangedSubscription = EventBus()
         .on<int>('player_content_item_index_changed')
         .listen((int index) async {
+          // Casting activo: el zap lo gobierna el CastSenderController (manda el
+          // comando a la TV). NO revivir el reproductor local aquí — abriría un
+          // stream con audio en el móvil mientras la TV reproduce (doble-play).
+          if (_castCommitted || _castingController() != null) return;
           if (contentItem.contentType == ContentType.liveStream) {
             // Queue'yu PlayerState'ten al (kategori değiştiğinde güncellenmiş olabilir)
             final updatedQueue = PlayerState.queue ?? _queue;

@@ -221,6 +221,88 @@ void main() {
     expect(fake.loads.length, before + 1);
   });
 
+  test('castNext: mientras castea, re-LOAD de un nuevo título sin re-emparejar',
+      () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    await c.beginCast(media); // 'live' 6519
+    await c.submitPin('123456');
+    expect(c.isCasting, isTrue);
+    final before = fake.loads.length;
+
+    // El usuario abre OTRO título en el móvil mientras castea: se reenvía a la
+    // TV (política "casting manda"), NO se reproduce local.
+    const next =
+        CastMedia(channelId: '7001', contentType: 'vod', title: 'Peli', ext: 'mp4');
+    await c.castNext(next);
+
+    expect(c.isCasting, isTrue, reason: 'sigue la MISMA sesión (sin re-pairing)');
+    expect(c.media?.channelId, '7001');
+    expect(fake.loads.length, before + 1, reason: 're-LOAD del nuevo título');
+    expect(fake.loads.last['id'], '7001');
+    // Las credenciales siguen saliendo de la playlist activa.
+    expect(fake.loads.last['user'], 'u123');
+  });
+
+  test('castNext: no-op si no se está casteando', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    final sent = await c.castNext(
+        const CastMedia(channelId: 'x', contentType: 'vod', title: 'X'));
+    expect(sent, isFalse);
+    expect(fake.loads, isEmpty);
+    expect(c.phase, CastPhase.idle);
+  });
+
+  test('castNext: no-op SEGURO mientras se reconecta (socket muerto en backoff)',
+      () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    await c.beginCast(media);
+    await c.submitPin('123456');
+    expect(c.isCasting, isTrue);
+    final before = fake.loads.length;
+
+    // Caída del socket → arranca _reconnect y queda _reconnecting=true (backoff).
+    fake.onDisconnected?.call();
+
+    // Un recast AHORA no debe tocar el socket muerto: no-op, devuelve false.
+    final sent = await c.castNext(
+        const CastMedia(channelId: '9', contentType: 'vod', title: 'X'));
+    expect(sent, isFalse);
+    expect(fake.loads.length, before, reason: 'sin re-LOAD sobre socket en backoff');
+    expect(c.media?.channelId, media.channelId, reason: 'el media no cambió');
+
+    await c.stopCasting(); // corta el bucle de reconexión pendiente
+  });
+
+  test('superseded: OTRO dispositivo toma el control → idle silencioso, sin '
+      'error y sin reconectar', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    await c.beginCast(media);
+    await c.submitPin('123456');
+    expect(c.isCasting, isTrue);
+    final loadsAtTakeover = fake.loads.length;
+
+    // La TV avisa que otro móvil tomó el control.
+    fake.onSuperseded?.call();
+    await Future<void>.delayed(Duration.zero); // dejar correr el teardown async
+
+    expect(c.phase, CastPhase.idle);
+    expect(c.error, isNull, reason: 'cesión SILENCIOSA: sin fase de error');
+    expect(c.media, isNull);
+    expect(fake.commands, isNot(contains('stop')),
+        reason: 'NO enviar stop: la TV la controla ahora el nuevo dispositivo');
+
+    // El cierre de socket que llega justo después NO debe reconectar.
+    fake.onDisconnected?.call();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(c.phase, CastPhase.idle, reason: 'no pelea por recuperar la TV');
+    expect(fake.loads.length, loadsAtTakeover,
+        reason: 'no reenvió LOAD (no reconectó)');
+  });
+
   test('completar NO auto-avanza para VOD (solo series)', () async {
     final fake = _FakeSender(devices: [oneTv]);
     final c = make(fake);

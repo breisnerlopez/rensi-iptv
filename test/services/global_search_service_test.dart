@@ -103,6 +103,7 @@ void main() {
     String name,
     String playlistId, {
     int? tmdbId,
+    String cast = '',
   }) async {
     await db
         .into(db.seriesStreams)
@@ -113,7 +114,7 @@ void main() {
             cover: '',
             categoryId: 'series',
             plot: '',
-            cast: '',
+            cast: cast,
             director: '',
             genre: '',
             releaseDate: '',
@@ -440,6 +441,56 @@ void main() {
       );
       expect(r.tmdbOnly.map((e) => e.tmdb.title), contains('Rick'),
           reason: 'the unrelated TMDb movie remains its own Discover card');
+    });
+
+    test('a common first word buried under cast/genre matches still surfaces '
+        'the owned show (real-device repro)', () async {
+      // The SHIPPED bug: searching "rick" does NOT surface owned "Rick y Morty"
+      // while "morty" does. Root cause is NOT the TMDb hijack the prior fix
+      // addressed — it is the LOCAL DB search. searchSeriesBroad matches name |
+      // genre | cast | director, ordered name ASC, capped at 30; then localOnly
+      // is capped at 15. "rick" is a substring of countless cast names
+      // (Patrick, Frederick, Kendrick, Rick...), so it matches many owned titles
+      // and, sorted alphabetically, buries/truncates "Rick y Morty" past the
+      // cap. "morty" is rare, so it survives — exactly the reported asymmetry.
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'pl1', name: 'X', type: PlaylistType.xtream,
+          url: 'https://x.com', username: 'u', password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      // 30 decoys that only match via a cast member ("Patrick" contains "rick")
+      // and whose names all sort alphabetically BEFORE "Rick y Morty".
+      for (var i = 0; i < 30; i++) {
+        await _insertSeries(
+          database,
+          'Aaa Decoy ${i.toString().padLeft(2, '0')}',
+          'pl1',
+          cast: 'Patrick Star',
+        );
+      }
+      await _insertSeries(database, 'Rick y Morty', 'pl1');
+
+      final service = GlobalSearchService(tmdbService: _FakeTmdbService([]));
+
+      // "morty" (rare token) finds it — the working half of the report.
+      final morty = await service.search('morty');
+      expect(
+        [...morty.localOnly.map((e) => e.content.name),
+         ...morty.withLocal.expand((e) => e.localMatches.map((m) => m.content.name))],
+        contains('Rick y Morty'),
+        reason: '"morty" must surface the owned show',
+      );
+
+      // "rick" (common token) must ALSO find it — the failing half of the report.
+      final rick = await service.search('rick');
+      expect(
+        [...rick.localOnly.map((e) => e.content.name),
+         ...rick.withLocal.expand((e) => e.localMatches.map((m) => m.content.name))],
+        contains('Rick y Morty'),
+        reason: 'searching a common first word must still surface the owned show',
+      );
     });
 
     test('a later, unambiguous word still promotes the owned show to withLocal',

@@ -33,6 +33,12 @@ class AppLocalizationsPt extends AppLocalizations {
   String get cast_to_tv => 'Transmitir para a TV';
 
   @override
+  String get cast_sent_to_tv => 'Enviado para a TV';
+
+  @override
+  String get cast_send_failed => 'Não foi possível enviar para a TV';
+
+  @override
   String get cast_searching => 'Procurando TVs na sua rede…';
 
   @override

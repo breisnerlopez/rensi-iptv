@@ -33,6 +33,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get cast_to_tv => 'Транслировать на ТВ';
 
   @override
+  String get cast_sent_to_tv => 'Отправлено на ТВ';
+
+  @override
+  String get cast_send_failed => 'Не удалось отправить на ТВ';
+
+  @override
   String get cast_searching => 'Поиск телевизоров в вашей сети…';
 
   @override

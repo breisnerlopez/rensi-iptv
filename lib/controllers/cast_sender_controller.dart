@@ -100,6 +100,10 @@ class CastSenderController extends ChangeNotifier {
   bool _wrongPin = false;
   String? _pin; // cacheado tras emparejar, para reconexión transparente
   bool _reconnecting = false;
+  // true tras que OTRO dispositivo tomara el control de la TV (mensaje
+  // `superseded`): la sesión se cedió en silencio y NO debe reconectar. Se
+  // rearma en cada beginCast (un cast nuevo puede volver a reconectar).
+  bool _superseded = false;
   List<CastMedia>? _queue; // catálogo para el zapping (lo tiene el móvil)
   int _index = 0;
   List<CastTrack> _audioTracks = const [];
@@ -153,6 +157,7 @@ class CastSenderController extends ChangeNotifier {
     _queue = queue;
     _index = index;
     _wrongPin = false;
+    _superseded = false; // un cast nuevo puede volver a reconectar
     _set(CastPhase.discovering);
     try {
       final finder = _senderFactory();
@@ -181,7 +186,8 @@ class CastSenderController extends ChangeNotifier {
       _sender = _senderFactory()
         ..onDisconnected = _onDisconnected
         ..onEnded = _onEnded
-        ..onCompleted = _onCompleted;
+        ..onCompleted = _onCompleted
+        ..onSuperseded = _onSuperseded;
       _sender!.onTracks.listen(_onTracks);
       _sender!.onState.listen(_onState);
       await _sender!.connect(device.host, device.port, secure: device.secure);
@@ -305,6 +311,100 @@ class CastSenderController extends ChangeNotifier {
     }
   }
 
+  /// Coexistencia móvil↔TV — política "el casting manda". Reemplaza EN CALIENTE
+  /// lo que reproduce la TV por [media], reutilizando la sesión de casting YA
+  /// abierta (sin redescubrir ni volver a emparejar). Lo usa el móvil cuando el
+  /// usuario abre un título MIENTRAS castea: en vez de reproducirlo en el
+  /// teléfono (doble reproducción + controles desincronizados), se reenvía a la
+  /// TV como un re-LOAD sobre la sesión viva. No-op si no hay sesión activa.
+  /// Devuelve true si el re-LOAD se envió; false si no había sesión utilizable
+  /// (idle, o reconectándose con el socket muerto) o si el envío falló.
+  Future<bool> castNext(CastMedia media,
+      {List<CastMedia>? queue, int index = 0}) async {
+    // No tocar durante _reconnect: `_phase` sigue `casting` pero `_sender`
+    // apunta a un socket muerto en pleno backoff → un `_sendLoad` ahora
+    // lanzaría. No-op seguro; el usuario reintenta cuando la sesión estabilice.
+    if (_phase != CastPhase.casting || _sender == null || _reconnecting) {
+      return false;
+    }
+    // Un re-LOAD de stream normal suelta cualquier archivo local previo: el
+    // nuevo título arma su URL con las credenciales de la playlist activa, no
+    // con una URL de archivo caduca (misma limpieza que hace beginCast).
+    await _fileServer?.stop();
+    _fileServer = null;
+    _localUrl = null;
+    _localFilePath = null;
+    _media = media;
+    _queue = queue;
+    _index = index;
+    _audioTracks = const [];
+    _subtitleTracks = const [];
+    // Cortar el arrastre de posición del título anterior (la TV arranca el nuevo
+    // en 0); si no, un 'state' rezagado escribiría su posición sobre el entrante.
+    _lastPos = 0;
+    _lastDur = 0;
+    _lastHistoryWrite = null;
+    notifyListeners();
+    try {
+      await _sendLoad();
+      return true;
+    } catch (_) {
+      // El socket se cayó justo al enviar: no romper la sesión. Si esto disparó
+      // onDisconnected, _reconnect reenviará este `_media` (ya actualizado).
+      return false;
+    }
+  }
+
+  /// Igual que [castNext] pero para una descarga OFFLINE: sirve el archivo por
+  /// la LAN (con Range para seek) y hace un re-LOAD con la URL local sobre la
+  /// sesión de casting ya abierta (sin re-emparejar). No-op si no hay sesión o
+  /// si el archivo no se puede servir / no hay IP LAN (deja la TV como estaba).
+  /// Devuelve true si el re-LOAD del archivo se envió; false si no había sesión
+  /// utilizable (idle/reconectando), no hay Wi-Fi, o el servido/envío falló.
+  Future<bool> castNextLocalFile({
+    required String filePath,
+    required String contentId,
+    required String title,
+    String ext = '',
+    String imagePath = '',
+  }) async {
+    // Mismo blindaje que castNext: no re-LOAD sobre un socket muerto en backoff.
+    if (_phase != CastPhase.casting || _sender == null || _reconnecting) {
+      return false;
+    }
+    final server = _fileServer ??= LocalFileServer();
+    final String lanUrl;
+    try {
+      lanUrl = await server.serve(filePath);
+    } catch (_) {
+      return false; // no se pudo servir: no romper la sesión en curso
+    }
+    if (await server.lanIp() == null) return false; // sin Wi-Fi utilizable
+    _localFilePath = filePath;
+    _localUrl = lanUrl;
+    _media = CastMedia(
+      channelId: contentId,
+      contentType: 'file',
+      title: title,
+      ext: ext,
+      imagePath: imagePath,
+    );
+    _queue = null;
+    _index = 0;
+    _audioTracks = const [];
+    _subtitleTracks = const [];
+    _lastPos = 0;
+    _lastDur = 0;
+    _lastHistoryWrite = null;
+    notifyListeners();
+    try {
+      await _sendLoad();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Reintenta el último cast tras un error, eligiendo el camino correcto:
   /// re-sirve el archivo local si era un cast de archivo, o redescubre TVs si
   /// era un cast normal de la playlist.
@@ -328,7 +428,49 @@ class CastSenderController extends ChangeNotifier {
   /// El socket se cayó: si estábamos transmitiendo, reconecta y reanuda el
   /// control sin volver a pedir el PIN (lo tenemos cacheado).
   void _onDisconnected() {
+    // Si nos cedieron el control (superseded), el cierre es esperado: NO pelear
+    // por recuperar la TV (la controla ahora otro dispositivo).
+    if (_superseded) return;
     if (_phase == CastPhase.casting && !_reconnecting) _reconnect();
+  }
+
+  /// OTRO dispositivo tomó el control de la TV. Cesión SILENCIOSA: ni error, ni
+  /// reconexión, ni comando `stop` (eso mataría la reproducción del nuevo
+  /// dueño). Solo soltamos nuestros recursos y vamos a idle; el mini-control y
+  /// la UI de cast desaparecen solos al no estar ya en `casting`.
+  void _onSuperseded() {
+    if (_phase == CastPhase.idle) return;
+    _superseded = true;
+    // Bloquea SÍNCRONAMENTE que el cierre de socket que sigue dispare _reconnect
+    // (mismo patrón que _onEnded; el teardown es async y aún no puso idle).
+    _reconnecting = true;
+    unawaited(_teardownSilently());
+  }
+
+  /// Teardown sin efectos hacia la TV (a diferencia de [stopCasting], NO envía
+  /// `stop`): la TV ya la controla otro dispositivo.
+  Future<void> _teardownSilently() async {
+    final sender = _sender;
+    _sender = null;
+    _localUrl = null;
+    _localFilePath = null;
+    _device = null;
+    _media = null;
+    _devices = const [];
+    _wrongPin = false;
+    _pin = null;
+    _reconnecting = false;
+    _queue = null;
+    _index = 0;
+    _audioTracks = const [];
+    _subtitleTracks = const [];
+    _lastHistoryWrite = null;
+    _lastPos = 0;
+    _lastDur = 0;
+    _set(CastPhase.idle); // SIN error → la UI de cast/mini-control se retira sola
+    await _fileServer?.stop();
+    _fileServer = null;
+    await sender?.close();
   }
 
   /// La TV avisó que dejó de reproducir (BACK en la TV, fin del contenido o
@@ -370,6 +512,7 @@ class CastSenderController extends ChangeNotifier {
   }
 
   Future<void> _reconnect() async {
+    if (_superseded) return; // cedido a otro dispositivo: no reconectar
     final device = _device, pin = _pin, media = _media;
     final playlist = AppState.currentPlaylist;
     if (device == null || pin == null || media == null || playlist == null) return;
@@ -380,7 +523,8 @@ class CastSenderController extends ChangeNotifier {
         _sender = _senderFactory()
           ..onDisconnected = _onDisconnected
           ..onEnded = _onEnded
-          ..onCompleted = _onCompleted;
+          ..onCompleted = _onCompleted
+          ..onSuperseded = _onSuperseded;
         _sender!.onTracks.listen(_onTracks);
         _sender!.onState.listen(_onState);
         await _sender!.connect(device.host, device.port, secure: device.secure);

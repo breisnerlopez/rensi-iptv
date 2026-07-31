@@ -162,6 +162,18 @@ abstract class AppLocalizations {
   /// **'Cast to TV'**
   String get cast_to_tv;
 
+  /// No description provided for @cast_sent_to_tv.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent to TV'**
+  String get cast_sent_to_tv;
+
+  /// No description provided for @cast_send_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t send to TV'**
+  String get cast_send_failed;
+
   /// No description provided for @cast_searching.
   ///
   /// In en, this message translates to:

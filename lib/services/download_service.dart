@@ -209,9 +209,27 @@ class DownloadService {
     required String url,
     String? ext,
   }) async {
+    // Nombre de archivo LEGIBLE a partir del título del contenido (p. ej.
+    // "Rick and Morty S01E01.mkv") en vez del id de stream. La reproducción
+    // resuelve por la columna `filePath`, no por el filename, así que esto es
+    // puramente cosmético en disco. Si el título no está disponible, se cae al
+    // comportamiento anterior (id saneado) para no producir nunca un nombre
+    // vacío.
     final safeId = contentId.replaceAll(RegExp(r'[^A-Za-z0-9_.-]'), '_');
+    final row = await _rowById(rowId);
+    final safeTitle = (row?.title ?? '')
+        .replaceAll(RegExp(r'[^A-Za-z0-9 _.-]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    // Cap ~80 chars (recortando y re-trim por si el corte deja un espacio).
+    final cappedTitle =
+        safeTitle.length > 80 ? safeTitle.substring(0, 80).trim() : safeTitle;
+    final baseName = cappedTitle.isEmpty ? safeId : cappedTitle;
+    // Sufijo con el rowId SIEMPRE presente: dos contenidos distintos pueden
+    // compartir título, y el filePath en disco debe ser único.
+    final uniqueName = '$baseName ($rowId)';
     final filename =
-        (ext != null && ext.isNotEmpty) ? '$safeId.$ext' : safeId;
+        (ext != null && ext.isNotEmpty) ? '$uniqueName.$ext' : uniqueName;
     final taskId = 'dl_$rowId';
 
     final task = DownloadTask(

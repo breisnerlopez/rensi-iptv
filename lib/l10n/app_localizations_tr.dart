@@ -33,6 +33,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get cast_to_tv => 'TV\'ye yayınla';
 
   @override
+  String get cast_sent_to_tv => 'TV\'ye gönderildi';
+
+  @override
+  String get cast_send_failed => 'TV\'ye gönderilemedi';
+
+  @override
   String get cast_searching => 'Ağınızdaki TV\'ler aranıyor…';
 
   @override

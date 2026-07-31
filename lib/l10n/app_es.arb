@@ -7,6 +7,8 @@
   "cast_gate_prompt": "¿Enviar esto a tu TV?",
   "cast_gate_play_now": "Reproducir aquí",
   "cast_to_tv": "Enviar a la TV",
+  "cast_sent_to_tv": "Enviado a la TV",
+  "cast_send_failed": "No se pudo enviar a la TV",
   "cast_searching": "Buscando televisores en tu red…",
   "cast_no_devices": "No se encontraron televisores. Asegúrate de tener la app abierta en la TV y de estar en el mismo Wi-Fi.",
   "cast_choose_device": "Elige un televisor",

@@ -3,6 +3,7 @@ import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/favorite.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/services/service_locator.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:rensi_iptv/repositories/m3u_repository.dart';
@@ -41,6 +42,9 @@ class FavoritesRepository {
     );
 
     await _database.insertFavorite(favorite);
+    // "Mi lista" vive en un IndexedStack (montada, no recarga sola): avisar para
+    // que se refresque al marcar un favorito.
+    EventBus().emit('favorites_changed', null);
   }
 
   Future<void> removeFavorite(
@@ -60,6 +64,7 @@ class FavoritesRepository {
     );
 
     await _database.deleteFavorite(favorite.id);
+    EventBus().emit('favorites_changed', null);
   }
 
   Future<bool> isFavorite(
@@ -145,6 +150,7 @@ class FavoritesRepository {
     for (final favorite in favorites) {
       await _database.deleteFavorite(favorite.id);
     }
+    if (favorites.isNotEmpty) EventBus().emit('favorites_changed', null);
   }
 
   Future<ContentItem?> getContentItemFromFavorite(Favorite favorite) async {

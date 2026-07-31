@@ -98,3 +98,18 @@ Reportado probando en la caja de TV + móvil reales (el casting NO es reproducib
   (init + cambio de pestaña). Puede ser: sin ítems resumibles (todo en vivo/<2%/>95%), o
   no refresca al volver del reproductor sin cambiar de pestaña. Confirmar con el usuario
   antes de tocar la lógica.
+
+## Feedback tras v2.11.3/2.11.4 (2026-07-31) — requiere diseño + adversarial
+- **Búsqueda "rick" sigue sin devolver "Rick y Morty"** (morty sí). El fix de v2.11.0
+  (type-gate anti-hijack) NO lo resolvió del todo. Re-diagnosticar adversarialmente.
+- **Series: no continúa al siguiente capítulo** — terminó un episodio y no avanzó
+  (¿auto-avance local? ¿"continuar viendo" debe ofrecer el SIGUIENTE episodio?).
+- **Pide el código de emparejamiento más de una vez** — el trusted-device de 7 días no
+  persiste/aplica. Revisar cast_trust_store + resume(token) + onIssueToken.
+- **Convivencia móvil↔TV (DECISIÓN DE DISEÑO)**: mientras castea a la TV, abrir contenido
+  lo reproduce EN EL MÓVIL → doble reproducción + controles desincronizados, y luego no
+  puede enviar el nuevo a la TV (se queda con el anterior). Usuario propone: si reproduce
+  en TV no poder reproducir en móvil, y si reproduce en móvil detener la TV — salvo
+  convivencia fiable. DECISIÓN elegida: "el casting manda" — al dar Play mientras casteas,
+  se ENVÍA a la TV (re-LOAD), no se reproduce local; para ver en el móvil, detener el
+  casting. Reproducción única = sin desync ni doble-play. Estresar con retador.
