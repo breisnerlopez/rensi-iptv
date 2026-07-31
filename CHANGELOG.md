@@ -1,3 +1,11 @@
+# [2.10.3](https://github.com/breisnerlopez/rensi-iptv/compare/v2.10.2...v2.10.3) (2026-07-31)
+
+
+### Bug Fixes
+
+* **la carga en la TV ya no se queda en un círculo infinito sin salida:** la pantalla "Preparando…" ahora muestra el tiempo transcurrido y, si tarda demasiado, un aviso indicando en qué fase se quedó (conectando audio / abriendo el stream) y un botón **Reintentar** usable con el mando — así se puede recuperar en vez de quedarse colgado, y ayuda a diagnosticar dónde falla
+
+
 # [2.10.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.10.1...v2.10.2) (2026-07-30)
 
 

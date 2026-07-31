@@ -254,6 +254,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
   bool _preBuffering = false;
   final Stopwatch _preBufferClock = Stopwatch();
 
+  // Watchdog de la carga inicial: cuenta el tiempo en "Preparando…" para poder
+  // avisar (y ofrecer Reintentar) si la apertura del stream se cuelga sin lanzar
+  // error — el caso reportado en algunas cajas de TV.
+  Timer? _loadTicker;
+  final Stopwatch _loadClock = Stopwatch();
+  // Fase de la carga (audio/open/ready), para diagnosticar dónde se cuelga.
+  String _loadStage = '';
+
   void _startPreBuffer() {
     final isLive = widget.contentItem.contentType == ContentType.liveStream;
     final tv = ResponsiveHelper.isTelevisionDevice;
@@ -328,25 +336,61 @@ class _PlayerWidgetState extends State<PlayerWidget>
   /// pre-buffer tome métricas): "Preparando…" en vez de un círculo mudo, para
   /// que en la TV el usuario sepa que está conectando y no vea solo una rueda.
   Widget _buildLoadingIndicator(BuildContext context) {
+    // Null-safe: durante la carga el árbol puede no tener aún los delegados de
+    // localización (p. ej. en tests) → fallback.
+    final loc = AppLocalizations.of(context);
+    final secs = _loadClock.elapsed.inSeconds;
+    // Umbral: si sigue "Preparando…" pasado un tiempo, probablemente la TV no
+    // logra abrir el stream (cuelgue silencioso, sin error) → avisar + Reintentar.
+    final tooLong = secs >= 12;
     return Container(
       color: Colors.black,
       alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(color: Color(0xFFD2603A)),
-          const SizedBox(height: 18),
-          Text(
-            // Null-safe: durante la carga el árbol puede no tener aún los
-            // delegados de localización (p. ej. en tests) → fallback.
-            AppLocalizations.of(context)?.prebuffer_preparing ?? 'Preparando…',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: AppThemes.tenFoot(context, 16),
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Color(0xFFD2603A)),
+            const SizedBox(height: 18),
+            Text(
+              '${loc?.prebuffer_preparing ?? 'Preparando…'}'
+              '${secs > 0 ? '  ·  ${secs}s' : ''}',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: AppThemes.tenFoot(context, 16),
+              ),
             ),
-          ),
-        ],
+            if (tooLong) ...[
+              const SizedBox(height: 14),
+              Text(
+                'Está tardando más de lo normal. Puede que la TV no esté '
+                'logrando abrir el stream.'
+                '${_loadStage.isNotEmpty ? '  (fase: $_loadStage)' : ''}',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.orangeAccent,
+                  fontSize: AppThemes.tenFoot(context, 13),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                autofocus: ResponsiveHelper.isTelevisionDevice,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFD2603A),
+                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                ),
+                onPressed: _retryPlayback,
+                icon: const Icon(Icons.refresh),
+                label: Text(
+                  loc?.cast_retry ?? 'Reintentar',
+                  style: TextStyle(fontSize: AppThemes.tenFoot(context, 14)),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -635,6 +679,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _cast?.removeListener(_onCastChanged);
     _castGateTimer?.cancel();
     _preBufferTimer?.cancel();
+    _loadTicker?.cancel();
     _remoteFocusNode.dispose();
     _pipWidthSubscription?.cancel();
     _pipHeightSubscription?.cancel();
@@ -851,6 +896,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
   /// User-triggered retry from the error screen.
   void _retryPlayback() {
     _errorHandler.reset();
+    // Reiniciar el watchdog de carga para el nuevo intento.
+    _loadClock
+      ..reset()
+      ..start();
+    _loadTicker?.cancel();
+    _loadTicker = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted || !isLoading) {
+        t.cancel();
+        return;
+      }
+      setState(() {});
+    });
     if (mounted) {
       setState(() {
         hasError = false;
@@ -858,6 +915,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
       });
     }
     _reopenCurrent().whenComplete(() {
+      _loadTicker?.cancel();
+      _loadClock.stop();
       if (mounted) setState(() => isLoading = false);
     });
   }
@@ -894,6 +953,21 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   Future<void> _initializePlayer() async {
     if (!mounted) return;
+
+    // Arranca el watchdog de carga: refresca el indicador cada segundo mientras
+    // dure "Preparando…", para mostrar el tiempo transcurrido y, pasado un
+    // umbral, ofrecer Reintentar si la apertura se cuelga.
+    _loadClock
+      ..reset()
+      ..start();
+    _loadTicker?.cancel();
+    _loadTicker = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted || !isLoading) {
+        t.cancel();
+        return;
+      }
+      setState(() {});
+    });
 
     PlayerState.subtitleConfiguration = await getSubtitleConfiguration();
 
@@ -988,8 +1062,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
         }
       }
 
+      _loadStage = 'audio';
       await _audioHandler.setQueue(mediaItems, initialIndex: currentItemIndex);
 
+      _loadStage = 'open';
       if (contentItem.contentType != ContentType.liveStream) {
         var playlist = mediaItems.map((mediaItem) {
           final url = mediaItem.extras!['url'] as String;
@@ -1004,6 +1080,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       } else {
         await _player.open(Media(contentItem.url));
       }
+      _loadStage = 'ready';
     } else {
       final mediaItem = MediaItem(
         id: contentItem.id.toString(),
@@ -1359,6 +1436,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
     });
 
+    _loadTicker?.cancel();
+    _loadClock.stop();
     if (mounted) {
       setState(() {
         isLoading = false;
