@@ -6,6 +6,7 @@ import 'package:rensi_iptv/models/global_search_result.dart';
 import 'package:rensi_iptv/models/m3u_item.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/models/tmdb_search_result.dart';
+import 'package:rensi_iptv/models/series.dart';
 import 'package:rensi_iptv/models/vod_streams.dart';
 import 'package:rensi_iptv/services/global_search_service.dart';
 import 'package:rensi_iptv/services/playlist_service.dart';
@@ -92,6 +93,33 @@ void main() {
             playlistId: playlistId,
             createdAt: DateTime(2026),
             genre: genre,
+            tmdbId: tmdbId,
+          ).toDriftCompanion(),
+        );
+  }
+
+  Future<void> _insertSeries(
+    AppDatabase db,
+    String name,
+    String playlistId, {
+    int? tmdbId,
+  }) async {
+    await db
+        .into(db.seriesStreams)
+        .insert(
+          SeriesStream(
+            seriesId: 'series-${name.hashCode}',
+            name: name,
+            cover: '',
+            categoryId: 'series',
+            plot: '',
+            cast: '',
+            director: '',
+            genre: '',
+            releaseDate: '',
+            rating: '',
+            rating5based: 0,
+            playlistId: playlistId,
             tmdbId: tmdbId,
           ).toDriftCompanion(),
         );
@@ -370,6 +398,75 @@ void main() {
       expect(r.withLocal, hasLength(1),
           reason: 'the case-variant union must find the owned Cyrillic title');
       expect(r.tmdbOnly, isEmpty);
+      expect(r.localOnly, isEmpty);
+    });
+
+    test('first-word query does not let a cross-type TMDb title hijack an '
+        'owned show', () async {
+      // Real-phone bug: searching "Rick" did not surface owned "Rick y Morty"
+      // while "morty" did. TMDb returns a movie literally titled "Rick" for the
+      // first token; the owned SERIES fuzzy-matched that MOVIE
+      // ("rick y morty".contains("rick")) and was swallowed into the movie's
+      // Discover card, vanishing as itself. A title match must agree on media
+      // type, so the series now stays findable.
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'pl1', name: 'X', type: PlaylistType.xtream,
+          url: 'https://x.com', username: 'u', password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await _insertSeries(database, 'Rick y Morty', 'pl1');
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+              id: 10, mediaType: TmdbMediaType.movie, title: 'Rick',
+              voteAverage: 6),
+        ]),
+      );
+      final r = await service.search('Rick');
+
+      expect(
+        r.withLocal.where((e) =>
+            e.localMatches.any((m) => m.content.name == 'Rick y Morty')),
+        isEmpty,
+        reason: 'the owned series must NOT be hijacked under the "Rick" movie',
+      );
+      expect(
+        r.localOnly.map((e) => e.content.name),
+        contains('Rick y Morty'),
+        reason: 'searching the first word must still surface the owned show',
+      );
+      expect(r.tmdbOnly.map((e) => e.tmdb.title), contains('Rick'),
+          reason: 'the unrelated TMDb movie remains its own Discover card');
+    });
+
+    test('a later, unambiguous word still promotes the owned show to withLocal',
+        () async {
+      // The twin of the case above: "morty" returns the real show, which is an
+      // exact title match of the SAME type, so it lands in withLocal as owned.
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'pl1', name: 'X', type: PlaylistType.xtream,
+          url: 'https://x.com', username: 'u', password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await _insertSeries(database, 'Rick y Morty', 'pl1');
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+              id: 20, mediaType: TmdbMediaType.tv, title: 'Rick y Morty',
+              voteAverage: 8),
+        ]),
+      );
+      final r = await service.search('morty');
+
+      expect(r.withLocal, hasLength(1));
+      expect(r.withLocal.single.localMatches.single.content.name,
+          'Rick y Morty');
       expect(r.localOnly, isEmpty);
     });
 

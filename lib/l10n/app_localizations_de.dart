@@ -1615,4 +1615,8 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get download_retry => 'Wiederholen';
+
+  @override
+  String get tv_cast_replay_hint =>
+      'Watched by casting from your phone. Send it again from your phone to play it here.';
 }

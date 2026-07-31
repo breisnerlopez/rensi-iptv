@@ -1,3 +1,22 @@
+# [2.11.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.10.4...v2.11.0) (2026-07-31)
+
+
+### Features
+
+* **reproducir desde una lista al buscar:** en el detalle de búsqueda, "Reproducir desde" ahora **reproduce** el contenido de la lista elegida (antes no hacía nada) y ya no muestra listas duplicadas
+* **saber qué se reproduce en la TV:** al pulsar OK / pausar / reanudar aparece la **barra de reproducción con el título** y el tiempo
+* **info al pausar en la TV:** al pausar se muestra **título + sinopsis + reparto** (cuando hay datos de TMDb); si no, al menos el título
+* **series por casting con avance automático:** al terminar un episodio en la TV, se envía **solo el siguiente** automáticamente
+* **historial del casting:** lo que envías a la TV ahora aparece en el **histórico** de la pantalla de la TV y en "Continuar viendo" del móvil
+* **"Ver todo" más visible:** las secciones (categorías y recientes) muestran una **flecha ›** para abrir la cuadrícula completa
+
+
+### Bug Fixes
+
+* **buscar por la primera palabra:** "Rick" ahora encuentra "Rick y Morty" (antes una película homónima de TMDb lo tapaba)
+* **atrás durante la reproducción en la TV** ya no vuelve a la pantalla de carga: cada sesión de casteo usa una sola ventana de reproducción (antes se apilaban al cambiar de canal/episodio)
+
+
 # [2.10.4](https://github.com/breisnerlopez/rensi-iptv/compare/v2.10.3...v2.10.4) (2026-07-31)
 
 

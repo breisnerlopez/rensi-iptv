@@ -21,6 +21,23 @@ import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 /// once; while it resolves (or if it throws) the header — poster, title, year,
 /// rating, type — still renders from the already-known [TmdbSearchResult], so
 /// the sheet is never a blank loader and never a hard error.
+/// Collapses a title's owned matches to one per playlist, preserving order.
+///
+/// The "Reproducir desde" list shows one row per playlist that carries the
+/// title; two owned streams from the SAME playlist (duplicate copies, or the
+/// same stream reconciled twice) must not paint the playlist name twice. The
+/// service already orders matches strongest-first, so keeping the FIRST match
+/// seen for each playlist id keeps the most playable copy. Pure and order-
+/// stable so it is unit-testable without a widget pump.
+List<LocalContentMatch> dedupMatchesByPlaylist(List<LocalContentMatch> matches) {
+  final seen = <String>{};
+  final out = <LocalContentMatch>[];
+  for (final m in matches) {
+    if (seen.add(m.playlist.id)) out.add(m);
+  }
+  return out;
+}
+
 class SearchDetailSheet extends StatelessWidget {
   const SearchDetailSheet({
     super.key,
@@ -157,8 +174,12 @@ class _SheetBodyState extends State<_SheetBody> {
   }
 
   void _play(LocalContentMatch match) {
-    widget.onPlayLocal(match);
+    // Close the sheet FIRST, THEN play. onPlayLocal pushes the movie/series
+    // route on the same navigator this sheet lives on; popping AFTER the push
+    // would pop the route we just opened, so the tap looked like a no-op. Same
+    // pop-first ordering the cast-rail actor tap uses above.
     Navigator.of(context).maybePop();
+    widget.onPlayLocal(match);
   }
 
   @override
@@ -437,7 +458,11 @@ class _SheetBodyState extends State<_SheetBody> {
 
   Widget _playFromSection(BuildContext context, RensiColors r, bool tv) {
     final loc = context.loc;
-    final matches = widget.result.localMatches;
+    // One row per playlist. A title can carry more than one owned stream inside
+    // the SAME playlist (two copies, or the same stream matched twice), which
+    // rendered the playlist name duplicated in this list. Collapse to the first
+    // (strongest — the service orders exact-first) match per playlist id.
+    final matches = dedupMatchesByPlaylist(widget.result.localMatches);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

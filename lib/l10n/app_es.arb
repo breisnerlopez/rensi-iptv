@@ -618,5 +618,6 @@
   "download_err_canceled": "Descarga cancelada o no encontrada",
   "download_err_server_page": "El servidor devolvió una página de error (sesión caducada o id inválido)",
   "download_err_generic": "La descarga falló",
-  "download_retry": "Reintentar"
+  "download_retry": "Reintentar",
+  "tv_cast_replay_hint": "Reproducido por casting desde tu móvil. Vuelve a enviarlo desde el móvil para verlo aquí."
 }

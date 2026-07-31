@@ -53,6 +53,23 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
   int _lastDur = 0;
   String _currentChannelId = '';
 
+  // Fin-de-título → móvil (para auto-avance de series). El PlayerWidget de la TV
+  // emite 'cast_player_completed' al acabar un VOD/serie; lo reenviamos como
+  // MsgType.completed. Distinto de MsgType.ended (BACK/stop cierra la ruta).
+  StreamSubscription<String>? _completedSub;
+  bool _completedSent = false;
+
+  // Reemplazo de reproducción EN EL MISMO SITIO: un re-LOAD (zapping, auto-avance
+  // o reenvío) NO empuja otra ruta de player encima (eso apilaba reproductores y
+  // dejaba uno viejo "Preparando…" detrás al hacer BACK). En su lugar se cambia
+  // el contenido del player ya montado a través de este notifier.
+  // El valor lleva un contador monótono de LOAD además del request: la key del
+  // PlayerWidget se deriva del contador (no de identityHashCode, que podría
+  // colisionar entre dos requests y NO reinicializar el player en el swap).
+  ValueNotifier<(int, CastLoadRequest)>? _loadNotifier;
+  int _loadSeq = 0;
+  bool _castRouteOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -201,12 +218,25 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
       _pinVisible = false;
       _playing = true;
     });
-    // Empezar a reenviar la posición de reproducción al móvil (throttled).
+    // (Re)empezar a reenviar posición/fin-de-título al móvil. Se llama en CADA
+    // LOAD (incluido el re-LOAD de auto-avance/zapping) para reengancharse al
+    // nuevo contenido.
+    _completedSent = false;
     _startPositionForwarding(req.channelId);
 
-    // Reproducir la URL EXACTA que envió el móvil (con SUS credenciales), no la
-    // del proveedor local: se construye el ContentItem en contexto M3U para que
-    // ContentItem.url = m3uItem.url, y se restaura la playlist al cerrar.
+    // Re-LOAD sobre una sesión ya abierta (zapping en vivo, auto-avance de serie
+    // o reenvío): cambiar el contenido del player YA montado en vez de empujar
+    // otra ruta encima. Así no se apilan reproductores (causa de "vuelve al
+    // contador Preparando… al hacer BACK") ni se envía `ended` (la sesión sigue).
+    if (_castRouteOpen && _loadNotifier != null) {
+      _loadNotifier!.value = (++_loadSeq, req);
+      return;
+    }
+
+    // Primer LOAD de la sesión: reproducir la URL EXACTA que envió el móvil (con
+    // SUS credenciales), no la del proveedor local. El ContentItem se arma en
+    // contexto M3U (ContentItem.url = m3uItem.url) bajo la playlist sintética
+    // '__cast__', y se restaura la playlist del usuario al cerrar.
     final saved = AppState.currentPlaylist;
     AppState.currentPlaylist = Playlist(
       id: _castPlaylistId,
@@ -214,43 +244,29 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
       type: PlaylistType.m3u,
       createdAt: DateTime(2026, 1, 1),
     );
-    final ctype = switch (req.contentType) {
-      'vod' => ContentType.vod,
-      'series' => ContentType.series,
-      // Archivo local (descarga offline) enviado por LAN: tratarlo como VOD
-      // para que el player ofrezca barra de progreso/seek.
-      'file' => ContentType.vod,
-      _ => ContentType.liveStream,
-    };
-    final item = ContentItem(
-      req.channelId,
-      req.title.isEmpty ? 'Cast' : req.title,
-      '',
-      ctype,
-      m3uItem: M3uItem(
-        id: req.channelId,
-        playlistId: _castPlaylistId,
-        url: req.mediaUrl,
-        contentType: ctype,
-        name: req.title,
-      ),
-    );
+    final notifier =
+        _loadNotifier = ValueNotifier<(int, CastLoadRequest)>((++_loadSeq, req));
+    _castRouteOpen = true;
 
     await Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
-        builder: (_) => Scaffold(
-          backgroundColor: Colors.black,
-          body: PlayerWidget(contentItem: item, queue: [item]),
-        ),
+        builder: (_) => _CastPlayerScreen(loadNotifier: notifier),
       ),
     );
-    // Al cerrar el player (fin de reproducción o BACK en la TV), enviar una
+    // Al CERRAR la ruta del player (BACK en la TV o stop del móvil), enviar una
     // última posición, avisar al móvil que la TV DEJÓ de reproducir (para que
     // salga de "casting" y no entre en bucle de reconexión), cortar el reenvío,
     // y restaurar la playlist del usuario.
+    _castRouteOpen = false;
+    _loadNotifier = null;
+    notifier.dispose();
     _stopPositionForwarding(sendFinal: true);
     _service?.sendMessage(MsgType.ended, const {});
     AppState.currentPlaylist = saved;
+    // El home reducido de la TV lee el historial una sola vez; avisarle de que
+    // acaba de reproducirse algo (guardado bajo '__cast__') para que lo recargue
+    // y el contenido casteado aparezca en su rail de "historial".
+    EventBus().emit('tv_history_changed', null);
     if (mounted) setState(() => _playing = false);
   }
 
@@ -262,6 +278,17 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     _lastStateSent = null;
     _lastPos = 0;
     _lastDur = 0;
+    // Fin-de-título: el player de la TV emite 'cast_player_completed' al acabar
+    // un VOD/serie. Reenviarlo UNA vez por episodio (el guard evita duplicados
+    // si el stream 'completed' de media_kit reemite) para que el móvil decida el
+    // auto-avance. No se envía en vivo (ese caso reabre en el propio player).
+    _completedSub?.cancel();
+    _completedSub =
+        EventBus().on<String>('cast_player_completed').listen((_) {
+      if (!_playing || _completedSent) return;
+      _completedSent = true;
+      _service?.sendMessage(MsgType.completed, {'id': _currentChannelId});
+    });
     _positionSub?.cancel();
     _positionSub =
         EventBus().on<Map<String, dynamic>>('cast_player_position').listen((e) {
@@ -287,6 +314,8 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
   void _stopPositionForwarding({bool sendFinal = false}) {
     _positionSub?.cancel();
     _positionSub = null;
+    _completedSub?.cancel();
+    _completedSub = null;
     if (sendFinal && _lastPos > 0) {
       _sendState(_lastPos, _lastDur);
     }
@@ -307,6 +336,8 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     _loadSub?.cancel();
     _commandSub?.cancel();
     _positionSub?.cancel();
+    _completedSub?.cancel();
+    _loadNotifier?.dispose();
     _service?.stop();
     _service?.dispose();
     super.dispose();
@@ -362,4 +393,64 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
       ),
     );
   }
+}
+
+/// Ruta ÚNICA del player receptor durante una sesión de casting. En vez de
+/// empujar una ruta nueva por cada LOAD, esta pantalla observa un notifier y
+/// reconstruye el [PlayerWidget] con una key nueva cuando llega otro contenido
+/// (zapping / auto-avance de serie). Así el BACK siempre vuelve al home de la TV
+/// (no a un player viejo apilado) y no hay doble audio.
+class _CastPlayerScreen extends StatelessWidget {
+  const _CastPlayerScreen({required this.loadNotifier});
+
+  final ValueNotifier<(int, CastLoadRequest)> loadNotifier;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<(int, CastLoadRequest)>(
+      valueListenable: loadNotifier,
+      builder: (context, value, _) {
+        final (seq, req) = value;
+        final item = _castItemFor(req);
+        return Scaffold(
+          backgroundColor: Colors.black,
+          // Key por el contador monótono del LOAD: cada re-LOAD tiene un seq
+          // distinto, así el player se reinicializa por completo con el nuevo
+          // contenido (sin riesgo de colisión de identityHashCode).
+          body: PlayerWidget(
+            key: ValueKey('cast-$seq'),
+            contentItem: item,
+            queue: [item],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Reconstruye un [ContentItem] reproducible desde un LOAD del móvil. Se arma en
+/// contexto M3U para que ContentItem.url resuelva a la URL EXACTA que envió el
+/// móvil (con sus credenciales), no una URL Xtream del proveedor local.
+ContentItem _castItemFor(CastLoadRequest req) {
+  final ctype = switch (req.contentType) {
+    'vod' => ContentType.vod,
+    'series' => ContentType.series,
+    // Archivo local (descarga offline) enviado por LAN: tratarlo como VOD para
+    // que el player ofrezca barra de progreso/seek.
+    'file' => ContentType.vod,
+    _ => ContentType.liveStream,
+  };
+  return ContentItem(
+    req.channelId,
+    req.title.isEmpty ? 'Cast' : req.title,
+    '',
+    ctype,
+    m3uItem: M3uItem(
+      id: req.channelId,
+      playlistId: _castPlaylistId,
+      url: req.mediaUrl,
+      contentType: ctype,
+      name: req.title,
+    ),
+  );
 }

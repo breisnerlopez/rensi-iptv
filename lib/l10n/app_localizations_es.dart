@@ -1603,4 +1603,8 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get download_retry => 'Reintentar';
+
+  @override
+  String get tv_cast_replay_hint =>
+      'Reproducido por casting desde tu móvil. Vuelve a enviarlo desde el móvil para verlo aquí.';
 }

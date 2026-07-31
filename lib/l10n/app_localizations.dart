@@ -3029,6 +3029,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Retry'**
   String get download_retry;
+
+  /// No description provided for @tv_cast_replay_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Watched by casting from your phone. Send it again from your phone to play it here.'**
+  String get tv_cast_replay_hint;
 }
 
 class _AppLocalizationsDelegate

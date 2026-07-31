@@ -179,7 +179,8 @@ class CastSenderController extends ChangeNotifier {
     try {
       _sender = _senderFactory()
         ..onDisconnected = _onDisconnected
-        ..onEnded = _onEnded;
+        ..onEnded = _onEnded
+        ..onCompleted = _onCompleted;
       _sender!.onTracks.listen(_onTracks);
       _sender!.onState.listen(_onState);
       await _sender!.connect(device.host, device.port, secure: device.secure);
@@ -339,6 +340,34 @@ class CastSenderController extends ChangeNotifier {
     unawaited(stopCasting());
   }
 
+  /// La TV avisó que el título TERMINÓ (fin de archivo, no un stop del usuario).
+  /// Si estábamos casteando una SERIE y quedan episodios en la cola, avanzamos
+  /// automáticamente reenviando un LOAD del siguiente (el móvil tiene el
+  /// catálogo; la TV reemplaza la reproducción en el mismo sitio). Para VOD o
+  /// para el último episodio no hacemos nada: la TV se queda en el fotograma
+  /// final y el usuario sale con BACK (que dispara `ended` → idle).
+  void _onCompleted() {
+    if (_phase != CastPhase.casting) return;
+    final q = _queue;
+    final media = _media;
+    if (media != null &&
+        media.contentType == 'series' &&
+        q != null &&
+        _index + 1 < q.length) {
+      _index++;
+      _media = q[_index];
+      _audioTracks = const [];
+      _subtitleTracks = const [];
+      // Historial: cortar el arrastre de posición del episodio anterior para no
+      // escribir su posición sobre el nuevo (la TV arranca el siguiente en 0).
+      _lastPos = 0;
+      _lastDur = 0;
+      _lastHistoryWrite = null;
+      notifyListeners();
+      unawaited(_sendLoad());
+    }
+  }
+
   Future<void> _reconnect() async {
     final device = _device, pin = _pin, media = _media;
     final playlist = AppState.currentPlaylist;
@@ -349,7 +378,8 @@ class CastSenderController extends ChangeNotifier {
       try {
         _sender = _senderFactory()
           ..onDisconnected = _onDisconnected
-          ..onEnded = _onEnded;
+          ..onEnded = _onEnded
+          ..onCompleted = _onCompleted;
         _sender!.onTracks.listen(_onTracks);
         _sender!.onState.listen(_onState);
         await _sender!.connect(device.host, device.port, secure: device.secure);
@@ -407,6 +437,11 @@ class CastSenderController extends ChangeNotifier {
   /// escribir un WatchHistory en el móvil, de modo que lo casteado aparezca en
   /// "continuar viendo". Throttle a ~1 escritura cada 10s.
   void _onState(Map<String, dynamic> msg) {
+    // Ignorar ticks rezagados de OTRO contenido: al auto-avanzar de episodio, un
+    // 'state' final del episodio saliente (pos≈dur) podía llegar tras el swap de
+    // _media y escribirse bajo el streamId del ENTRANTE (marcándolo ~100% visto).
+    final id = msg['id'] as String?;
+    if (id != null && _media != null && id != _media!.channelId) return;
     final pos = (msg['pos'] as num?)?.toInt() ?? 0;
     final dur = (msg['dur'] as num?)?.toInt() ?? 0;
     if (pos <= 0 || dur <= 0) return;

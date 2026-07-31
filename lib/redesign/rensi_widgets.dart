@@ -568,13 +568,22 @@ class SectionHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
               child: TextButton(
                 onPressed: onAction,
-                child: Text(
-                  actionLabel!,
-                  style: TextStyle(
-                    fontSize: AppThemes.bodySmallSize,
-                    fontWeight: FontWeight.w600,
-                    color: r.text3,
-                  ),
+                // Texto + flechita: la flecha hace más descubrible el "Ver todo"
+                // (antes era solo texto y pasaba desapercibido).
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      actionLabel!,
+                      style: TextStyle(
+                        fontSize: AppThemes.bodySmallSize,
+                        fontWeight: FontWeight.w600,
+                        color: r.text3,
+                      ),
+                    ),
+                    Icon(Icons.chevron_right,
+                        size: AppThemes.bodySmallSize + 4, color: r.text3),
+                  ],
                 ),
               ),
             ),

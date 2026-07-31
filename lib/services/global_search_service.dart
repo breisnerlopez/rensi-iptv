@@ -539,6 +539,17 @@ class GlobalSearchService {
         out.add(match.withStrength(MatchStrength.id));
         continue;
       }
+      // A title-only match must ALSO agree on media type: a TMDb movie must not
+      // claim a local series (or vice-versa) merely because a common leading word
+      // makes the titles fuzzy-overlap. Without this, searching the FIRST word of
+      // an owned show ("Rick" for "Rick y Morty") pulls in a TMDb movie literally
+      // titled "Rick"; the owned series then fuzzy-matches that movie
+      // ("rick y morty".contains("rick")), is hijacked into the movie's Discover
+      // card, and vanishes as itself — so the first token appears to "find
+      // nothing" while a later, unambiguous token ("morty") still hits. The id
+      // match above is exempt: a persisted tmdb_id is a definitive, title- and
+      // type-checked reconciliation on its own.
+      if (!_typesLineUp(match.content.contentType, tmdb.mediaType)) continue;
       // Fallback for streams without a stored id: compare the local title
       // against BOTH the localized TMDb title and its original-language title,
       // taking the STRONGER (lowest-index) result. An English-original catalogue
@@ -557,10 +568,16 @@ class GlobalSearchService {
   static bool _isIdMatch(LocalContentMatch match, TmdbSearchResult tmdb) {
     final localId = match.tmdbId;
     if (localId == null || localId <= 0 || localId != tmdb.id) return false;
-    final ct = match.content.contentType;
-    return (tmdb.mediaType == TmdbMediaType.movie && ct == ContentType.vod) ||
-        (tmdb.mediaType == TmdbMediaType.tv && ct == ContentType.series);
+    return _typesLineUp(match.content.contentType, tmdb.mediaType);
   }
+
+  /// True when a local content type and a TMDb media type describe the same kind
+  /// of work: movie ↔ vod, tv ↔ series. Live streams (and any other type) never
+  /// line up with a TMDb film/show. Used to gate BOTH the id and the title
+  /// reconciliation so a cross-type fuzzy title overlap can't claim a stream.
+  static bool _typesLineUp(ContentType ct, TmdbMediaType mediaType) =>
+      (mediaType == TmdbMediaType.movie && ct == ContentType.vod) ||
+      (mediaType == TmdbMediaType.tv && ct == ContentType.series);
 
   /// Case variants of a query, to work around SQLite's LIKE folding only ASCII.
   /// 'дюна' would not match a stored 'Дюна' or 'ДЮНА', so a Cyrillic (or

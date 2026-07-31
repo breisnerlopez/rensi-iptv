@@ -66,6 +66,12 @@ class PhoneSenderService {
   /// reconectar contra una TV que ya no reproduce nada.
   void Function()? onEnded;
 
+  /// Se invoca cuando la TV avisa que el título terminó de reproducirse (fin de
+  /// archivo, mensaje `completed`), para que el móvil pueda auto-avanzar al
+  /// siguiente episodio de la cola. Distinto de [onEnded] (BACK/stop → idle):
+  /// aquí la sesión SIGUE viva y el móvil decide si reenvía un LOAD.
+  void Function()? onCompleted;
+
   /// Descubre TVs anunciando [kCastServiceType] durante [timeout].
   Future<List<CastDevice>> discover(
       {Duration timeout = const Duration(seconds: 4)}) async {
@@ -200,6 +206,9 @@ class PhoneSenderService {
         break;
       case MsgType.ended:
         onEnded?.call();
+        break;
+      case MsgType.completed:
+        onCompleted?.call();
         break;
     }
   }

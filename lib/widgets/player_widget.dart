@@ -23,6 +23,7 @@ import 'package:provider/provider.dart';
 import 'package:rensi_iptv/controllers/cast_sender_controller.dart';
 import 'package:rensi_iptv/utils/pre_buffer_monitor.dart';
 import 'package:rensi_iptv/widgets/cast/cast_flow.dart';
+import 'package:rensi_iptv/widgets/cast/pause_info_panel.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:rensi_iptv/utils/subtitle_configuration.dart';
 import 'package:rensi_iptv/widgets/video_widget.dart';
@@ -76,6 +77,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Duration? _seekPos;
   Duration? _seekDur;
   Timer? _seekHideTimer;
+  // Rich pause panel (TV only): while paused, show title + synopsis + cast.
+  bool _showPausePanel = false;
   // Nullable (not `late`): they're assigned inside the async _initializePlayer,
   // so a fast BACK before init finishes must not crash dispose().
   StreamSubscription? contentItemIndexChangedSubscription;
@@ -608,6 +611,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _castPlayPauseSubscription =
         EventBus().on<bool>('cast_play_pause').listen((_) {
       _player.playOrPause();
+      // The phone toggled play/pause: reveal the info bar so the TV viewer sees
+      // the title + progress react to the remote press.
+      _revealInfoBar();
     });
 
     // External subtitle from a URL (.srt/.ass/.vtt).
@@ -1295,6 +1301,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _playingSubscription = _player.stream.playing.listen((playing) {
       if (playing) {
         WakelockPlus.enable();
+        // Resuming hides the rich pause panel.
+        if (_showPausePanel && mounted) {
+          setState(() => _showPausePanel = false);
+        }
         // A heal that reached "playing" is confirmed good: persist the winning
         // extension so future plays of this title skip the retry entirely.
         final healed = _pendingHealExtension;
@@ -1308,6 +1318,21 @@ class _PlayerWidgetState extends State<PlayerWidget>
         }
       } else {
         WakelockPlus.disable();
+        // Paused on the TV (cast receiver): reveal the rich info panel (title +
+        // synopsis + cast). Gated to the TV, and only once the stream is really
+        // up (not during load/pre-buffer/error) so it never covers the loading
+        // flow. Degrades to just the title when TMDb is unconfigured/no match.
+        if (ResponsiveHelper.isTelevisionDevice &&
+            mounted &&
+            !isLoading &&
+            !_preBuffering &&
+            !hasError &&
+            // No al FINAL del archivo: al completar un episodio, 'playing' pasa a
+            // false justo antes del swap al siguiente → el panel parpadearía.
+            !_player.state.completed &&
+            !_showPausePanel) {
+          setState(() => _showPausePanel = true);
+        }
       }
     });
 
@@ -1382,9 +1407,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
     });
 
-    _player.stream.completed.listen((playlist) async {
+    _player.stream.completed.listen((completed) async {
       if (contentItem.contentType == ContentType.liveStream) {
         await _player.open(Media(contentItem.url));
+        return;
+      }
+      // Fin de un VOD/serie EN LA TV (receptor de casting): avisar para que el
+      // móvil auto-avance al siguiente episodio de la cola. Solo la TV reenvía
+      // (el móvil no consume este evento). El host de casting lo traduce a
+      // MsgType.completed; si no hay siguiente, la TV se queda en el fin.
+      if (completed && ResponsiveHelper.isTelevisionDevice) {
+        EventBus().emit('cast_player_completed', contentItem.id.toString());
       }
     });
 
@@ -1557,19 +1590,31 @@ class _PlayerWidgetState extends State<PlayerWidget>
     });
   }
 
-  /// Short OK during playback. First press reveals the progress/time info bar
-  /// (no pause — avoids an accidental pause and gives on-screen feedback);
-  /// pressing OK again while it's showing pauses/resumes. A live stream has no
-  /// duration and thus no info bar, so OK toggles play/pause directly.
+  /// Short OK during playback. First press reveals the playback info bar (the
+  /// TITLE, and for seekable content the progress + current/total time) without
+  /// pausing — so the viewer can see WHAT is playing and how far in. Pressing OK
+  /// again while the bar is showing toggles play/pause. Live has no duration, so
+  /// the bar shows just the title; a second OK still toggles.
   void _handleOkTap() {
-    final dur = _player.state.duration;
-    final isSeekable = dur.inMilliseconds > 0;
-    if (isSeekable && _seekPos == null) {
-      _showSeekFeedback(_player.state.position, dur,
-          hold: const Duration(seconds: 4));
+    // Paused (rich panel up, or otherwise not playing): OK resumes directly —
+    // don't force a second press.
+    if (_showPausePanel || !_player.state.playing) {
+      _player.playOrPause();
+      return;
+    }
+    // Playing: first OK reveals the info bar (title + progress), second pauses.
+    if (_seekPos == null) {
+      _revealInfoBar(hold: const Duration(seconds: 4));
       return;
     }
     _player.playOrPause();
+  }
+
+  /// Reveal the transient playback info bar (title + progress/time), reusing the
+  /// seek-feedback surface so pause/play and OK share one overlay. Works for
+  /// live too (dur == 0 → the bar shows title only).
+  void _revealInfoBar({Duration hold = const Duration(seconds: 3)}) {
+    _showSeekFeedback(_player.state.position, _player.state.duration, hold: hold);
   }
 
   static String _fmtDur(Duration d) {
@@ -1581,10 +1626,15 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   Widget _buildSeekOverlay() {
     final pos = _seekPos, dur = _seekDur;
-    if (pos == null || dur == null || dur.inMilliseconds <= 0) {
+    // The rich pause panel already carries the title + progress, so suppress the
+    // thin bar underneath it to avoid a double display.
+    if (pos == null || _showPausePanel) {
       return const SizedBox.shrink();
     }
-    final progress = (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0);
+    final hasDur = dur != null && dur.inMilliseconds > 0;
+    final title = PlayerState.currentContent?.name ?? contentItem.name;
+    final progress =
+        hasDur ? (pos.inMilliseconds / dur.inMilliseconds).clamp(0.0, 1.0) : 0.0;
     return Positioned(
       left: 24,
       right: 24,
@@ -1596,26 +1646,51 @@ class _PlayerWidgetState extends State<PlayerWidget>
             color: Colors.black.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(_fmtDur(pos),
-                  style: TextStyle(color: Colors.white, fontSize: AppThemes.tenFoot(context, 12))),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 4,
-                    backgroundColor: Colors.white24,
-                    valueColor:
-                        const AlwaysStoppedAnimation(Color(0xFFC75F41)),
+              // TITLE — the whole point of the info bar: what is playing.
+              if (title.isNotEmpty)
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: AppThemes.tenFoot(context, 15),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Text(_fmtDur(dur),
-                  style: TextStyle(color: Colors.white70, fontSize: AppThemes.tenFoot(context, 12))),
+              if (hasDur) ...[
+                if (title.isNotEmpty) const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Text(_fmtDur(pos),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: AppThemes.tenFoot(context, 12))),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          minHeight: 4,
+                          backgroundColor: Colors.white24,
+                          valueColor:
+                              const AlwaysStoppedAnimation(Color(0xFFC75F41)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(_fmtDur(dur),
+                        style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: AppThemes.tenFoot(context, 12))),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -1828,6 +1903,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
         key == LogicalKeyboardKey.mediaPlay ||
         key == LogicalKeyboardKey.mediaPause) {
       _player.playOrPause();
+      // Dedicated play/pause keys reveal the info bar (title + progress) too.
+      _revealInfoBar();
       return KeyEventResult.handled;
     }
 
@@ -2499,6 +2576,22 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
           // Channel-number entry overlay (TV remote).
           ChannelNumberOverlay(buffer: _channelBuffer.buffer),
+
+          // Rich pause panel (TV): title + synopsis + cast while paused. Wrapped
+          // in ExcludeFocus so it never steals the D-pad from the player — OK
+          // still reaches _handleRemoteKey to resume. Hidden while another
+          // overlay (channel list / settings / info) is open.
+          if (_showPausePanel &&
+              !_anyOverlayOpen &&
+              contentItem.contentType != ContentType.liveStream)
+            ExcludeFocus(
+              child: PauseInfoPanel(
+                title: contentItem.name,
+                contentType: contentItem.contentType,
+                position: _player.state.position,
+                duration: _player.state.duration,
+              ),
+            ),
 
           // Transient seek progress bar (D-pad ±10s feedback).
           _buildSeekOverlay(),

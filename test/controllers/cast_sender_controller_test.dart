@@ -193,4 +193,47 @@ void main() {
     c.selectSubtitle('');
     expect(fake.commands, ['sel_audio', 'sel_sub']);
   });
+
+  test('serie: al completar un episodio auto-avanza al siguiente y reenvía LOAD',
+      () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    final eps = const [
+      CastMedia(channelId: 'e1', contentType: 'series', title: 'Ep 1'),
+      CastMedia(channelId: 'e2', contentType: 'series', title: 'Ep 2'),
+    ];
+    await c.beginCast(eps[0], queue: eps, index: 0);
+    await c.submitPin('123456');
+    expect(c.media?.channelId, 'e1');
+    final before = fake.loads.length;
+
+    // La TV avisa fin de episodio (MsgType.completed) → auto-avance.
+    fake.onCompleted?.call();
+    await Future<void>.delayed(Duration.zero);
+    expect(c.media?.channelId, 'e2');
+    expect(fake.loads.last['id'], 'e2');
+    expect(fake.loads.length, before + 1);
+
+    // Completar el ÚLTIMO episodio no avanza (no hay siguiente).
+    fake.onCompleted?.call();
+    await Future<void>.delayed(Duration.zero);
+    expect(c.media?.channelId, 'e2');
+    expect(fake.loads.length, before + 1);
+  });
+
+  test('completar NO auto-avanza para VOD (solo series)', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    final q = const [
+      CastMedia(channelId: 'v1', contentType: 'vod', title: 'Peli 1'),
+      CastMedia(channelId: 'v2', contentType: 'vod', title: 'Peli 2'),
+    ];
+    await c.beginCast(q[0], queue: q, index: 0);
+    await c.submitPin('123456');
+    final before = fake.loads.length;
+    fake.onCompleted?.call();
+    await Future<void>.delayed(Duration.zero);
+    expect(c.media?.channelId, 'v1'); // no avanzó
+    expect(fake.loads.length, before);
+  });
 }

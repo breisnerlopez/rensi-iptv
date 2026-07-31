@@ -30,6 +30,7 @@ class MsgType {
   static const state = 'state'; // TV -> móvil: playing/pos
   static const tracks = 'tracks'; // TV -> móvil: pistas de audio/subtítulo
   static const ended = 'ended'; // TV -> móvil: reproducción detenida/cerrada en la TV
+  static const completed = 'completed'; // TV -> móvil: el título terminó (fin de archivo) → el móvil puede auto-avanzar
   static const error = 'error';
 }
 
