@@ -1587,14 +1587,24 @@ class _PlayerWidgetState extends State<PlayerWidget>
         // to DISK; on slow eMMC/flash that causes periodic I/O stalls. Cache in
         // RAM instead.
         await platform.setProperty('cache-on-disk', 'no');
-        await platform.setProperty('demuxer-max-bytes', '64MiB');
+        // Más bytes de buffer para absorber señal débil (el readahead grande de
+        // abajo necesita headroom de bytes o topa antes de llenar los segundos).
+        await platform.setProperty('demuxer-max-bytes', '128MiB');
         await platform.setProperty('demuxer-max-back-bytes', '32MiB');
-        // High readahead smooths VOD jitter; keep it low on live to reduce
-        // zap latency and RAM.
+        // Colchón de lectura anticipada. Más alto = más resistente a cortes de
+        // señal. En vivo se subió (era 5s) para señal débil, a costa de un poco
+        // más de latencia al cambiar de canal.
         await platform.setProperty(
-            'demuxer-readahead-secs', isLive ? '5' : '20');
+            'demuxer-readahead-secs', isLive ? '15' : '20');
         // Don't freeze on brief IPTV network hiccups.
         await platform.setProperty('cache-pause', 'no');
+        // AUTO-RECONEXIÓN de red (ffmpeg): si el stream HTTP se corta un instante
+        // (señal débil), reconecta solo en vez de quedarse entrecortado o parar
+        // (evita además el reopen que reinicia). Clave para conexiones malas.
+        await platform.setProperty(
+            'demuxer-lavf-o',
+            'reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,'
+                'reconnect_delay_max=5');
       } catch (_) {
         // Best-effort; defaults are fine if a property is unsupported.
       }

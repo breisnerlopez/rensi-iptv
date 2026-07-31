@@ -1,3 +1,11 @@
+# [2.11.4](https://github.com/breisnerlopez/rensi-iptv/compare/v2.11.3...v2.11.4) (2026-07-31)
+
+
+### Bug Fixes
+
+* **TV en vivo más resistente con señal débil:** más colchón de buffer y **auto-reconexión de red** — si el stream se corta un instante, reconecta solo en vez de quedarse entrecortado o reiniciar. Pensado para conexiones malas (a cambio de un poco más de latencia al cambiar de canal)
+
+
 # [2.11.3](https://github.com/breisnerlopez/rensi-iptv/compare/v2.11.2...v2.11.3) (2026-07-31)
 
 
