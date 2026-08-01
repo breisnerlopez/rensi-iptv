@@ -1,3 +1,21 @@
+# [2.16.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.15.0...v2.16.0) (2026-08-01)
+
+
+### Features
+
+* **Controla el volumen de la TV desde el móvil** al castear: un deslizador en el control de reproducción ajusta el volumen del contenido que suena en la TV (con anti-rebote para que no salte bajo el dedo)
+* **La miniatura del contenido casteado ya muestra su carátula** en la TV — en el historial de "continuar viendo" y en el panel de pausa; antes salía vacía (viaja de forma segura como referencia de TMDb, sin exponer URLs arbitrarias)
+* **"Mi lista" reúne tus favoritos de TODAS tus listas** en una sola vista (antes solo mostraba los de la lista activa), sin duplicar títulos y marcando de qué lista viene cada uno
+* **El receptor de Android TV se rediseñó** — ya no se ve vacío en negro: fondo cálido, estado de conexión visible ("Visible como Rensi TV") y una guía de 3 pasos para enviar desde el móvil
+
+
+### Bug Fixes
+
+* **Salir de la app ya no pierde tu progreso:** si sales (o la cierras) mientras ves algo, "Continuar viendo" guarda dónde ibas — antes, al salir de golpe, no se guardaba
+* **Guardar en favoritos es igual en películas y series:** un mismo icono de **marcador** en todas partes, con confirmación — antes las películas usaban un check y las series un corazón
+* **Las series descargadas ahora avanzan al siguiente episodio al castearlas** a la TV (antes se quedaban en el último fotograma; el streaming ya avanzaba)
+
+
 # [2.15.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.14.0...v2.15.0) (2026-08-01)
 
 

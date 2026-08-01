@@ -1,13 +1,27 @@
 import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/favorite.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
+import 'package:rensi_iptv/services/playlist_service.dart';
 import 'package:rensi_iptv/services/service_locator.dart';
-import 'package:rensi_iptv/utils/get_playlist_type.dart';
+import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/repositories/m3u_repository.dart';
 import 'package:uuid/uuid.dart';
+
+/// A favourite resolved to a playable [ContentItem] together with the ORIGIN
+/// playlist it belongs to. "Mi lista" is unified across every playlist, so each
+/// card needs its origin both to badge a copy that is NOT from the active
+/// playlist and to repoint AppState to the origin's credentials in the same
+/// synchronous tick as playback.
+class ResolvedFavorite {
+  final ContentItem content;
+  final Playlist origin;
+  const ResolvedFavorite(this.content, this.origin);
+}
 
 class FavoritesRepository {
   final _database = getIt<AppDatabase>();
@@ -86,6 +100,14 @@ class FavoritesRepository {
     return await _database.getFavoritesByPlaylist(playlistId);
   }
 
+  /// UNIFIED "Mi lista" READ: every favourite across ALL playlists, newest
+  /// first. Only the listing goes global — SAVE/toggle/isFavorite stay
+  /// active-playlist-scoped (see [getAllFavorites]/[isFavorite]/[toggleFavorite])
+  /// so detail screens keep their per-playlist authority.
+  Future<List<Favorite>> getAllFavoritesAcrossPlaylists() async {
+    return await _database.getAllFavoritesAcrossPlaylists();
+  }
+
   Future<List<Favorite>> getFavoritesByContentType(
     ContentType contentType,
   ) async {
@@ -153,127 +175,201 @@ class FavoritesRepository {
     if (favorites.isNotEmpty) EventBus().emit('favorites_changed', null);
   }
 
+  /// Resolves [favorite] against ITS OWN playlist ([Favorite.playlistId]) — the
+  /// unified-list read path. Returns null when the origin playlist no longer
+  /// exists (deleted): the caller SKIPS the card rather than falling back to a
+  /// wrong-playlist lookup. See [_resolveContent] for the concurrency contract.
+  Future<ResolvedFavorite?> resolveFavorite(Favorite favorite) async {
+    final origin = await PlaylistService.getPlaylistById(favorite.playlistId);
+    // Origin playlist was deleted (or its secrets were purged): there is no
+    // correct list to resolve against, so skip instead of resolving against the
+    // active playlist and playing/naming the wrong stream.
+    if (origin == null) return null;
+    final content = await _resolveContent(favorite, origin);
+    return ResolvedFavorite(content, origin);
+  }
+
+  /// Content-only resolution against the favourite's OWN playlist. Kept for
+  /// backward compatibility; prefer [resolveFavorite] when the origin playlist
+  /// is needed (origin badge + cross-playlist playback). Null when the origin
+  /// playlist was deleted.
   Future<ContentItem?> getContentItemFromFavorite(Favorite favorite) async {
+    final resolved = await resolveFavorite(favorite);
+    return resolved?.content;
+  }
+
+  /// Resolves a favourite's playable [ContentItem] against the EXPLICIT
+  /// [playlist] it belongs to.
+  ///
+  /// CONCURRENCY CONTRACT (mandatory for the unified list): every catalogue
+  /// lookup here is keyed by [playlist] passed as an explicit parameter — a
+  /// per-playlist [IptvRepository]/[M3uRepository] or a playlist-scoped DB call
+  /// — so NO `await` in this method runs while global AppState points at a
+  /// different playlist. The ONLY touch of global state is the fully
+  /// SYNCHRONOUS [_bakeForPlaylist] used to construct the final ContentItem
+  /// (whose url baking reads `AppState.currentPlaylist`): it swaps and restores
+  /// within one microtask with no `await` in between, so a concurrent reader
+  /// (isFavorite badges, cast, home) can never observe the swapped value — the
+  /// same sanctioned pattern as `GlobalSearchService._contentForPlaylist`.
+  Future<ContentItem> _resolveContent(
+    Favorite favorite,
+    Playlist playlist,
+  ) async {
     try {
-      if (isXtreamCode) {
-        final repository = AppState.xtreamCodeRepository!;
+      if (playlist.type == PlaylistType.xtream) {
+        // A repository bound to the ORIGIN playlist's id + credentials, not the
+        // active one — every DB read below is scoped to `playlist.id`.
+        final repository = IptvRepository(
+          ApiConfig(
+            baseUrl: playlist.url ?? '',
+            username: playlist.username ?? '',
+            password: playlist.password ?? '',
+          ),
+          playlist.id,
+        );
 
         switch (favorite.contentType) {
           case ContentType.liveStream:
-            final liveStream = await repository.findLiveStreamById(
-              favorite.streamId,
-            );
-
+            final liveStream =
+                await repository.findLiveStreamById(favorite.streamId);
             if (liveStream != null) {
-              return ContentItem(
-                liveStream.streamId,
-                liveStream.name,
-                liveStream.streamIcon,
-                ContentType.liveStream,
-                liveStream: liveStream,
+              return _bakeForPlaylist(
+                playlist,
+                () => ContentItem(
+                  liveStream.streamId,
+                  liveStream.name,
+                  liveStream.streamIcon,
+                  ContentType.liveStream,
+                  liveStream: liveStream,
+                ),
               );
             }
             break;
 
           case ContentType.vod:
-            final movie = await _database.findMovieById(
-              favorite.streamId,
-              AppState.currentPlaylist!.id,
-            );
-
+            final movie =
+                await _database.findMovieById(favorite.streamId, playlist.id);
             if (movie != null) {
-              return ContentItem(
-                favorite.streamId,
-                favorite.name,
-                favorite.imagePath ?? '',
-                ContentType.vod,
-                containerExtension: movie.containerExtension,
-                vodStream: movie,
+              return _bakeForPlaylist(
+                playlist,
+                () => ContentItem(
+                  favorite.streamId,
+                  favorite.name,
+                  favorite.imagePath ?? '',
+                  ContentType.vod,
+                  containerExtension: movie.containerExtension,
+                  vodStream: movie,
+                ),
               );
             }
             break;
+
           case ContentType.series:
-            final series = await repository.getSeries(categoryId: '');
-            final seriesStream = series?.firstWhere(
-              (serie) => serie.seriesId == favorite.streamId,
-            );
+            // Direct by-id lookup against the ORIGIN playlist — symmetric to the
+            // VOD `findMovieById` above. Replaces the old
+            // `repository.getSeries(categoryId: '')`, whose empty-string category
+            // never matched a real series (category_id is non-empty), so that
+            // branch was dead and every series favourite fell to the best-effort
+            // fallback; this also avoids the N+1 of scanning the whole series
+            // table once per favourite.
+            final seriesStream =
+                await _database.findSeriesById(favorite.streamId, playlist.id);
             if (seriesStream != null) {
-              return ContentItem(
-                seriesStream.seriesId,
-                seriesStream.name,
-                seriesStream.cover ?? '',
-                ContentType.series,
-                seriesStream: seriesStream,
+              return _bakeForPlaylist(
+                playlist,
+                () => ContentItem(
+                  seriesStream.seriesId,
+                  seriesStream.name,
+                  seriesStream.cover ?? '',
+                  ContentType.series,
+                  seriesStream: seriesStream,
+                ),
               );
             }
             break;
         }
-      } else if (isM3u) {
-        final repository = M3uRepository();
-
-        switch (favorite.contentType) {
-          case ContentType.liveStream:
-            final m3uItem = await repository.getM3uItemById(
-              id: favorite.m3uItemId ?? '',
-            );
-            if (m3uItem != null) {
-              return ContentItem(
-                m3uItem.url,
-                m3uItem.name ?? 'NO NAME',
-                m3uItem.tvgLogo ?? '',
-                ContentType.liveStream,
-                m3uItem: m3uItem,
+      } else if (playlist.type == PlaylistType.m3u) {
+        // M3uRepository bound to the ORIGIN playlist's id (explicit param) so
+        // getM3uItemById reads `playlist.id`'s rows, not the active list's.
+        final repository = M3uRepository(playlist.id);
+        final m3uItem =
+            await repository.getM3uItemById(id: favorite.m3uItemId ?? '');
+        if (m3uItem != null) {
+          switch (favorite.contentType) {
+            case ContentType.liveStream:
+              return _bakeForPlaylist(
+                playlist,
+                () => ContentItem(
+                  m3uItem.url,
+                  m3uItem.name ?? 'NO NAME',
+                  m3uItem.tvgLogo ?? '',
+                  ContentType.liveStream,
+                  m3uItem: m3uItem,
+                ),
               );
-            }
-            break;
-
-          case ContentType.vod:
-            final m3uItem = await repository.getM3uItemById(
-              id: favorite.m3uItemId ?? '',
-            );
-
-            if (m3uItem != null) {
-              return ContentItem(
-                m3uItem.url,
-                m3uItem.name ?? 'NO NAME',
-                m3uItem.tvgLogo ?? '',
-                ContentType.vod,
-                m3uItem: m3uItem,
+            case ContentType.vod:
+              return _bakeForPlaylist(
+                playlist,
+                () => ContentItem(
+                  m3uItem.url,
+                  m3uItem.name ?? 'NO NAME',
+                  m3uItem.tvgLogo ?? '',
+                  ContentType.vod,
+                  m3uItem: m3uItem,
+                ),
               );
-            }
-            break;
-
-          case ContentType.series:
-            final m3uItem = await repository.getM3uItemById(
-              id: favorite.m3uItemId ?? '',
-            );
-
-            if (m3uItem != null) {
-              return ContentItem(
-                m3uItem.id,
-                m3uItem.name ?? '',
-                m3uItem.tvgLogo ?? '',
-                ContentType.series,
-                m3uItem: m3uItem,
+            case ContentType.series:
+              return _bakeForPlaylist(
+                playlist,
+                () => ContentItem(
+                  m3uItem.id,
+                  m3uItem.name ?? '',
+                  m3uItem.tvgLogo ?? '',
+                  ContentType.series,
+                  m3uItem: m3uItem,
+                ),
               );
-            }
-            break;
+          }
         }
       }
+    } catch (_) {
+      // Fall through to the origin-scoped fallback below.
+    }
 
-      return ContentItem(
+    // Origin playlist EXISTS but the specific stream row isn't synced yet (or a
+    // lookup failed): degrade to a best-effort card baked against the ORIGIN's
+    // credentials — never the active playlist's. For Xtream the origin url+creds
+    // still yield a valid stream URL; for an unsynced M3U row the url is inert
+    // (the id), so the saved title still shows without a wrong-playlist lookup.
+    return _bakeForPlaylist(
+      playlist,
+      () => ContentItem(
         favorite.streamId,
         favorite.name,
         favorite.imagePath ?? '',
         favorite.contentType,
-      );
-    } catch (e) {
-      return ContentItem(
-        favorite.streamId,
-        favorite.name,
-        favorite.imagePath ?? '',
-        favorite.contentType,
-      );
+      ),
+    );
+  }
+
+  /// Constructs a [ContentItem] whose url must bake with [playlist]'s
+  /// credentials — the constructor reads `AppState.currentPlaylist` through
+  /// `buildMediaUrl`/`isXtreamCode`. SYNCHRONOUS by construction: swap the
+  /// global, run [build], restore, with NO `await` in between. Dart runs this to
+  /// completion before any other microtask, so no concurrent reader ever
+  /// observes the swapped value. This is the ONLY place resolution touches
+  /// global state and it never spans an await, satisfying the unified-list
+  /// concurrency rule (mirrors `GlobalSearchService._contentForPlaylist`).
+  ContentItem _bakeForPlaylist(
+    Playlist playlist,
+    ContentItem Function() build,
+  ) {
+    final previous = AppState.currentPlaylist;
+    AppState.currentPlaylist = playlist;
+    try {
+      return build();
+    } finally {
+      AppState.currentPlaylist = previous;
     }
   }
 }

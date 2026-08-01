@@ -69,6 +69,16 @@ class _FakeSender extends PhoneSenderService {
     if (!_tracks.isClosed) _tracks.add(m);
   }
 
+  // Canal de estado que la TV reporta (MsgType.state, incluye pos/dur/vol). El
+  // controlador se suscribe a este stream; el test empuja estados con
+  // [emitState] para probar el eco de volumen (_onState) sin sockets reales.
+  final _states = StreamController<Map<String, dynamic>>.broadcast();
+  @override
+  Stream<Map<String, dynamic>> get onState => _states.stream;
+  void emitState(Map<String, dynamic> m) {
+    if (!_states.isClosed) _states.add(m);
+  }
+
   // NB: do NOT close _tracks here. beginCast()'s discovery step calls close() on
   // the SAME fake instance (senderFactory returns one shared fake), so closing
   // the stream would kill the tracks channel the controller later subscribes to.
@@ -457,5 +467,99 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(c.media?.channelId, 'v1'); // no avanzó
     expect(fake.loads.length, before);
+  });
+
+  group('volumen (control remoto de TV desde el sheet de casting)', () {
+    test('setVolume: clamp 0-100, actualización optimista inmediata + notifica',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      var notifications = 0;
+      c.addListener(() => notifications++);
+
+      c.setVolume(150); // por encima del máximo
+      expect(c.volume, 100, reason: 'clamp superior');
+      expect(notifications, greaterThan(0),
+          reason: 'el slider se mueve fluido sin esperar la red (optimista)');
+
+      c.setVolume(-10); // por debajo del mínimo
+      expect(c.volume, 0, reason: 'clamp inferior');
+    });
+
+    test('setVolume: el envío del comando se DEBOUNCE (no un comando por tick)',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      fake.commands.clear();
+
+      // Simula un arrastre: varios ticks seguidos, cada uno dentro de la
+      // ventana de debounce del anterior.
+      for (var i = 0; i < 5; i++) {
+        c.setVolume(50.0 + i);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(fake.commands.where((x) => x == CmdType.setVolume), isEmpty,
+          reason: 'aún dentro de la ventana de debounce: nada enviado todavía');
+
+      // Pasada la ventana de debounce sin más ticks, se manda UN solo comando
+      // con el último valor (coalescido).
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      expect(fake.commands.where((x) => x == CmdType.setVolume).length, 1,
+          reason: 'los ticks del arrastre se coalescen en un único envío');
+    });
+
+    test('endVolumeDrag: manda el valor final DE INMEDIATO, sin esperar el debounce',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      fake.commands.clear();
+
+      c.beginVolumeDrag();
+      c.setVolume(30);
+      c.endVolumeDrag(77);
+      // Sin esperar ningún delay: el comando ya salió.
+      expect(fake.commands, [CmdType.setVolume]);
+      expect(c.volume, 77);
+    });
+
+    test('_onState: aplica el eco de vol cuando NO se arrastra', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+
+      fake.emitState({'id': media.channelId, 'vol': 42});
+      await Future<void>.delayed(Duration.zero);
+      expect(c.volume, 42);
+    });
+
+    test('_onState: IGNORA el eco de vol MIENTRAS el usuario arrastra (evita '
+        'el jitter del slider)', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+
+      c.beginVolumeDrag();
+      c.setVolume(80); // valor optimista bajo el dedo
+      // Un eco REZAGADO de un valor anterior llega mid-arrastre.
+      fake.emitState({'id': media.channelId, 'vol': 10});
+      await Future<void>.delayed(Duration.zero);
+      expect(c.volume, 80,
+          reason: 'el eco NO debe pelear con el dedo del usuario');
+
+      // Al soltar, el próximo eco vuelve a sincronizar con normalidad.
+      c.endVolumeDrag(80);
+      fake.emitState({'id': media.channelId, 'vol': 65});
+      await Future<void>.delayed(Duration.zero);
+      expect(c.volume, 65,
+          reason: 'tras soltar, el eco vuelve a aplicar con normalidad');
+    });
   });
 }

@@ -5,6 +5,7 @@
 // muestra al menos el título y NUNCA bloquea la reproducción.
 //
 // Pensado para 10 pies: todos los tamaños de fuente pasan por AppThemes.tenFoot.
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../l10n/localization_extension.dart';
@@ -236,31 +237,58 @@ class _SentMetaSection extends StatelessWidget {
           profilePath: members[i].profilePath,
         )
     ];
+    // URL del póster reconstruida por CastMeta contra el host FIJO de TMDb
+    // (image.tmdb.org) a partir del fragmento enviado por el móvil — nunca una URL
+    // controlada por el emisor. Null (contenido no-TMDb / archivo local) → sin
+    // póster (el guard de abajo lo omite y el panel queda como antes).
+    final posterUrl = meta.posterUrl;
     final showOverview = overview.isNotEmpty;
-    if (!showOverview && cast.isEmpty) return const SizedBox.shrink();
+    if (!showOverview && cast.isEmpty && posterUrl == null) {
+      return const SizedBox.shrink();
+    }
+
+    final overviewColumn = <Widget>[
+      if (showOverview) ...[
+        Text(
+          context.loc.description,
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: Colors.white70,
+            fontSize: AppThemes.tenFoot(context, AppThemes.bodySmallSize),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          overview,
+          style: TextStyle(
+            color: Colors.white,
+            height: 1.5,
+            fontSize: AppThemes.tenFoot(context, AppThemes.bodySize),
+          ),
+        ),
+      ],
+    ];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (showOverview) ...[
-            Text(
-              context.loc.description,
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Colors.white70,
-                fontSize: AppThemes.tenFoot(context, AppThemes.bodySmallSize),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              overview,
-              style: TextStyle(
-                color: Colors.white,
-                height: 1.5,
-                fontSize: AppThemes.tenFoot(context, AppThemes.bodySize),
-              ),
+          if (posterUrl != null || showOverview) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (posterUrl != null) _CastPoster(url: posterUrl),
+                if (posterUrl != null && showOverview)
+                  const SizedBox(width: 20),
+                if (showOverview)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: overviewColumn,
+                    ),
+                  ),
+              ],
             ),
             if (cast.isNotEmpty) const SizedBox(height: 24),
           ],
@@ -287,4 +315,36 @@ class _SentMetaSection extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Póster 2:3 acotado para el panel de pausa. [url] YA viene reconstruida contra
+/// el host FIJO de TMDb (ver [CastMeta.posterUrl]); este widget solo la pinta. En
+/// carga/fallo muestra un marcador del MISMO tamaño para que el layout no salte.
+class _CastPoster extends StatelessWidget {
+  const _CastPoster({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    const width = 120.0;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        width: width,
+        height: width * 3 / 2,
+        child: CachedNetworkImage(
+          imageUrl: url,
+          fit: BoxFit.cover,
+          placeholder: (_, __) => _fallback(),
+          errorWidget: (_, __, ___) => _fallback(),
+        ),
+      ),
+    );
+  }
+
+  Widget _fallback() => Container(
+        color: const Color(0x22FFFFFF),
+        child: const Icon(Icons.movie_outlined, color: Colors.white38, size: 40),
+      );
 }

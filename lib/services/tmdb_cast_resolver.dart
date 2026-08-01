@@ -83,9 +83,11 @@ class TmdbCastResolver {
     return null;
   }
 
-  // No se envían poster/backdrop: el panel solo usa overview + cast, y una URL de
-  // imagen controlable por el emisor sería un footgun (ver nota en CastMeta). Las
-  // fotos de reparto van como profile_path crudo (host fijo en el receptor).
+  // El póster y las fotos de reparto viajan como FRAGMENTO crudo de TMDb
+  // (poster_path / profile_path), NO como URL: el receptor los reconstruye contra
+  // un host fijo, así el emisor no puede apuntar a un host arbitrario (ver nota en
+  // CastMeta). No se envía backdrop. Un `null` en posterPath (título sin póster
+  // TMDb / sin datos) hace que la TV mantenga su degradado, sin URL del proveedor.
   CastMeta _toMeta(TmdbDetailResult d) => CastMeta(
         overview: d.overview?.trim() ?? '',
         cast: [
@@ -98,6 +100,7 @@ class TmdbCastResolver {
         ],
         title: d.title,
         year: int.tryParse(d.releaseYear ?? ''),
+        posterPath: d.posterPath,
       );
 
   // --- Matching (espejo de TmdbEnrichment; ver nota de clase) ---------------

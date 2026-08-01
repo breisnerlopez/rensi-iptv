@@ -74,6 +74,15 @@ class GlobalSearchService {
   /// shared token by [_normalizeTitle] so all spellings fold to one key.
   static const _connectorTokens = {'y', 'and', 'e', 'et'};
 
+  /// Public entry point for the YEAR-AWARE title grouping key [_titleKey] —
+  /// the SAME key search/browse dedup with — so "Mi lista" collapses the same
+  /// title favourited in two playlists into one card WITHOUT the bare-normalized
+  /// form's data loss: a bracketed release year is folded back IN, so
+  /// "The Lion King (1994)" and "(2019)" stay TWO cards (neither hidden) while a
+  /// bare-titled "Blade Runner 2049" is never split (only bracketed years count).
+  static String titleDedupKey(String name, ContentType type, {String? year}) =>
+      _titleKey(name, type, year: year);
+
   static String _normalizeTitle(String value) {
     final squashed = value
         .toLowerCase()

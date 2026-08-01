@@ -241,6 +241,8 @@
   "see_all_favorites": "Ver Todo",
   "added_to_favorites": "Agregado a favoritos",
   "removed_from_favorites": "Eliminado de favoritos",
+  "action_save_to_list": "Mi lista",
+  "action_saved": "Guardado",
   "remove_from_favorites": "Eliminar de Favoritos",
   "select_all": "Seleccionar todo",
   "deselect_all": "Deseleccionar todo",
@@ -632,6 +634,18 @@
   "download_err_generic": "La descarga falló",
   "download_retry": "Reintentar",
   "tv_cast_replay_hint": "Reproducido por casting desde tu móvil. Vuelve a enviarlo desde el móvil para verlo aquí.",
+  "tv_status_discoverable": "Visible como {deviceName}",
+  "@tv_status_discoverable": {
+    "placeholders": {
+      "deviceName": {
+        "type": "String"
+      }
+    }
+  },
+  "tv_status_error": "No se encuentra en esta red",
+  "tv_empty_step_wifi": "Mismo Wi-Fi que tu TV",
+  "tv_empty_step_phone": "Abre Rensi en tu móvil",
+  "tv_empty_step_cast": "Toca Enviar y elige esta TV",
   "developer": "Desarrollador",
   "dev_account": "Cuenta",
   "dev_server": "Servidor",

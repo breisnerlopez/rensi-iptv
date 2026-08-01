@@ -455,6 +455,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get removed_from_favorites => 'Retiré des favoris';
 
   @override
+  String get action_save_to_list => 'Ma liste';
+
+  @override
+  String get action_saved => 'Enregistré';
+
+  @override
   String get remove_from_favorites => 'Retirer des Favoris';
 
   @override
@@ -1635,6 +1641,23 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get tv_cast_replay_hint =>
       'Watched by casting from your phone. Send it again from your phone to play it here.';
+
+  @override
+  String tv_status_discoverable(String deviceName) {
+    return 'Visible sous le nom $deviceName';
+  }
+
+  @override
+  String get tv_status_error => 'Introuvable sur ce réseau';
+
+  @override
+  String get tv_empty_step_wifi => 'Même Wi-Fi que votre TV';
+
+  @override
+  String get tv_empty_step_phone => 'Ouvrez Rensi sur votre téléphone';
+
+  @override
+  String get tv_empty_step_cast => 'Appuyez sur Caster et choisissez cette TV';
 
   @override
   String get developer => 'Développeur';

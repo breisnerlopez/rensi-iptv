@@ -1,11 +1,16 @@
 import 'dart:async';
-import 'package:rensi_iptv/controllers/favorites_controller.dart';
-import 'package:rensi_iptv/models/playlist_content_model.dart';
+import 'package:flutter/material.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/services/player_state.dart';
-import 'package:flutter/material.dart';
+import 'package:rensi_iptv/widgets/save_to_list_button.dart';
 import '../../models/content_type.dart';
+import '../../models/playlist_content_model.dart';
 
+/// In-player "save to My List" toggle. Delegates the icon/colour/toggle
+/// logic entirely to the shared [SaveToListButton] — this widget's only job
+/// is tracking which [ContentItem] is currently playing (via [PlayerState]
+/// + the `player_content_item` event) and deciding whether the toggle
+/// should be shown at all (live TV and VOD only, not series episodes).
 class VideoFavoriteWidget extends StatefulWidget {
   const VideoFavoriteWidget({super.key});
 
@@ -14,74 +19,31 @@ class VideoFavoriteWidget extends StatefulWidget {
 }
 
 class _VideoFavoriteWidgetState extends State<VideoFavoriteWidget> {
-  bool _isFavorite = false;
-  late FavoritesController _favoritesController;
   StreamSubscription? _contentItemSubscription;
 
   @override
   void initState() {
     super.initState();
-    _favoritesController = FavoritesController();
-    _checkFavoriteStatus();
 
-    // ContentItem değiştiğinde favori durumunu güncelle
+    // ContentItem değiştiğinde (yeni bölüm/kanal) yeniden çiz — SaveToListButton
+    // kendi didUpdateWidget'ında yeni item için favori durumunu tazeler.
     _contentItemSubscription = EventBus()
         .on<ContentItem>('player_content_item')
         .listen((ContentItem item) {
-      _checkFavoriteStatus();
+      if (mounted) setState(() {});
     });
   }
 
   @override
   void dispose() {
     _contentItemSubscription?.cancel();
-    _favoritesController.dispose();
     super.dispose();
-  }
-
-  Future<void> _checkFavoriteStatus() async {
-    final currentContent = PlayerState.currentContent;
-    if (currentContent == null) return;
-
-    if (currentContent.contentType == ContentType.liveStream ||
-        currentContent.contentType == ContentType.vod) {
-      final isFavorite = await _favoritesController.isFavorite(
-        currentContent.id,
-        currentContent.contentType,
-      );
-      if (mounted) {
-        setState(() {
-          _isFavorite = isFavorite;
-        });
-      }
-    } else {
-      if (mounted) {
-        setState(() {
-          _isFavorite = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _toggleFavorite() async {
-    final currentContent = PlayerState.currentContent;
-    if (currentContent == null) return;
-
-    if (currentContent.contentType == ContentType.liveStream ||
-        currentContent.contentType == ContentType.vod) {
-      final result = await _favoritesController.toggleFavorite(currentContent);
-      if (mounted) {
-        setState(() {
-          _isFavorite = result;
-        });
-      }
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     final currentContent = PlayerState.currentContent;
-    
+
     // Sadece canlı yayın ve filmler için göster
     if (currentContent == null ||
         (currentContent.contentType != ContentType.liveStream &&
@@ -89,14 +51,6 @@ class _VideoFavoriteWidgetState extends State<VideoFavoriteWidget> {
       return const SizedBox.shrink();
     }
 
-    return IconButton(
-      tooltip: _isFavorite ? 'Favorilerden Kaldır' : 'Favorilere Ekle',
-      icon: Icon(
-        _isFavorite ? Icons.favorite : Icons.favorite_border,
-        color: _isFavorite ? Colors.red : Colors.white,
-      ),
-      onPressed: _toggleFavorite,
-    );
+    return SaveToListButton(item: currentContent, overArtwork: true);
   }
 }
-

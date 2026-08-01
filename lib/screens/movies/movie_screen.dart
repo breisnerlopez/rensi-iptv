@@ -9,7 +9,7 @@ import 'package:rensi_iptv/models/tmdb_search_result.dart';
 import 'package:rensi_iptv/redesign/search_redesign.dart';
 import 'package:rensi_iptv/utils/navigate_by_content_type.dart';
 import 'package:rensi_iptv/widgets/tmdb_enrichment.dart';
-import 'package:rensi_iptv/repositories/favorites_repository.dart';
+import 'package:rensi_iptv/widgets/save_to_list_button.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/repositories/iptv_repository.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart' show rensi;
@@ -1287,64 +1287,14 @@ class _MoviePlayerPageState extends State<_MoviePlayerPage> {
   }
 }
 
-/// Secondary action row on the detail screen (redesign): Mi lista (toggles
-/// favourite), Descargar, Enviar.
-class _MovieActionsRow extends StatefulWidget {
+/// Secondary action row on the detail screen (redesign): Descargar, Mi lista
+/// (toggles favourite via the shared [SaveToListButton]).
+class _MovieActionsRow extends StatelessWidget {
   const _MovieActionsRow({required this.item});
   final ContentItem item;
-  @override
-  State<_MovieActionsRow> createState() => _MovieActionsRowState();
-}
-
-class _MovieActionsRowState extends State<_MovieActionsRow> {
-  final _repo = FavoritesRepository();
-  bool _saved = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _repo
-        .isFavorite(widget.item.id, widget.item.contentType)
-        .then((v) => mounted ? setState(() => _saved = v) : null);
-  }
-
-  Future<void> _toggle() async {
-    final now = await _repo.toggleFavorite(widget.item);
-    if (mounted) setState(() => _saved = now);
-  }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    Widget action(IconData icon, String label, VoidCallback onTap, bool active) {
-      return Expanded(
-        child: FocusHighlight(
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(icon,
-                      size: 23,
-                      color: active ? scheme.primary : scheme.onSurfaceVariant),
-                  const SizedBox(height: 6),
-                  Text(label,
-                      style: TextStyle(
-                          fontSize: AppThemes.tenFoot(context, 11.5),
-                          fontWeight: FontWeight.w600,
-                          color: active ? scheme.primary : scheme.onSurfaceVariant)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     return Row(
       children: [
         // Descarga offline (VOD): el propio DownloadButton refleja el estado
@@ -1352,11 +1302,14 @@ class _MovieActionsRowState extends State<_MovieActionsRow> {
         Expanded(
           child: FocusHighlight(
             borderRadius: BorderRadius.circular(12),
-            child: Center(child: DownloadButton(item: widget.item)),
+            child: Center(child: DownloadButton(item: item)),
           ),
         ),
-        action(_saved ? Icons.check : Icons.add, _saved ? 'Guardado' : 'Mi lista',
-            _toggle, _saved),
+        Expanded(
+          child: Center(
+            child: SaveToListButton(item: item, showLabel: true),
+          ),
+        ),
       ],
     );
   }

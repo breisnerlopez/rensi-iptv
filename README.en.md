@@ -39,14 +39,19 @@ Rensi IPTV turns your **Xtream Codes** account or **M3U playlist** into a clean,
 | <img src="docs/screenshots/player-phone.png" width="230" /> | <img src="docs/screenshots/downloads-phone.png" width="230" /> | <img src="docs/screenshots/search-phone.png" width="230" /> |
 | Hardware-accelerated playback with audio & subtitle tracks | Download movies and episodes to watch without a connection | Global search across all your playlists |
 
+| My List | One consistent Save button |
+|:---:|:---:|
+| <img src="docs/screenshots/mylist-phone.png" width="230" /> | <img src="docs/screenshots/bookmark-phone.png" width="230" /> |
+| Your favourites from **all** your playlists in one view, badged by where each came from | The same **bookmark** on movies and series, with confirmation |
+
 ### Cast to your TV
 
-| Casting controls | Persistent mini-controller |
+| Casting controls (with volume) | Persistent mini-controller |
 |:---:|:---:|
 | <img src="docs/screenshots/casting-phone.png" width="230" /> | <img src="docs/screenshots/casting-mini-controller-phone.png" width="230" /> |
-| Your phone is the remote: audio, subtitles and channels | Keep browsing while it plays on the TV |
+| Your phone is the remote: **volume**, audio, subtitles and channels | Keep browsing while it plays on the TV |
 
-On the TV itself, Rensi runs as a lightweight **cast receiver** — it waits for your phone, then plays what you send:
+On the TV itself, Rensi runs as a **cast receiver** — with a visible **connection status** and a **watch-history rail with cover art**, playing what you send:
 
 <div align="center"><img src="docs/screenshots/receiver-tv.png" width="480" /></div>
 
@@ -65,12 +70,12 @@ On the TV itself, Rensi runs as a lightweight **cast receiver** — it waits for
 - **Global search** across *all* your playlists at once — by title, actor, studio or genre
 - **Popular this month / year / all-time**, filtered by genre
 - **Cast filmography** — tap an actor to see everything of theirs in your library
-- **Continue watching** and a personal **My List** / wishlist
+- **Continue watching** and **My List** — your favourites from **all your playlists** gathered in one view
 
 **📲 Cast to your Android TV — no Chromecast needed**
 - A **direct phone-to-TV connection over your own home network** — no cloud, no third-party account; pair once with a PIN
-- Your phone stays in charge: browse, queue, pause and seek while the TV plays
-- TV shows rich metadata — title, synopsis and cast, sent from your phone — even for a file you downloaded offline
+- Your phone stays in charge: browse, queue, pause, seek and **control the volume** while the TV plays
+- TV shows rich metadata — **cover art**, title, synopsis and cast, sent from your phone — even for a file you downloaded offline
 - Remembers paired TVs so it just reconnects next time
 
 **💾 Take it offline**

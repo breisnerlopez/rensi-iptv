@@ -446,6 +446,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get removed_from_favorites => '已从收藏中移除';
 
   @override
+  String get action_save_to_list => '我的列表';
+
+  @override
+  String get action_saved => '已保存';
+
+  @override
   String get remove_from_favorites => '从收藏中移除';
 
   @override
@@ -1555,6 +1561,23 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get tv_cast_replay_hint =>
       'Watched by casting from your phone. Send it again from your phone to play it here.';
+
+  @override
+  String tv_status_discoverable(String deviceName) {
+    return '以 $deviceName 的名称可被发现';
+  }
+
+  @override
+  String get tv_status_error => '在此网络上未找到';
+
+  @override
+  String get tv_empty_step_wifi => '与电视连接相同的 Wi-Fi';
+
+  @override
+  String get tv_empty_step_phone => '在手机上打开 Rensi';
+
+  @override
+  String get tv_empty_step_cast => '点击投屏并选择这台电视';
 
   @override
   String get developer => '开发者';

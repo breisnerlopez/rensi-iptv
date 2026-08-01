@@ -236,6 +236,8 @@
   "see_all_favorites": "عرض الكل",
   "added_to_favorites": "تمت الإضافة إلى المفضلة",
   "removed_from_favorites": "تمت الإزالة من المفضلة",
+  "action_save_to_list": "قائمتي",
+  "action_saved": "تم الحفظ",
   "remove_from_favorites": "إزالة من المفضلة",
   "select_all": "حدد الكل",
   "deselect_all": "إلغاء تحديد الكل",
@@ -615,6 +617,18 @@
   "download_available_offline": "متاح دون اتصال",
   "download_failed_retry": "فشل التنزيل — انقر لإعادة المحاولة",
   "tv_ready_subtitle": "جاهز لاستقبال المحتوى من هاتفك",
+  "tv_status_discoverable": "مرئي باسم {deviceName}",
+  "@tv_status_discoverable": {
+    "placeholders": {
+      "deviceName": {
+        "type": "String"
+      }
+    }
+  },
+  "tv_status_error": "غير موجود على هذه الشبكة",
+  "tv_empty_step_wifi": "نفس شبكة Wi-Fi الخاصة بالتلفاز",
+  "tv_empty_step_phone": "افتح Rensi على هاتفك",
+  "tv_empty_step_cast": "اضغط على البث واختر هذا التلفاز",
   "tv_playback_settings": "إعدادات التشغيل",
   "tv_replay_failed": "تعذّر استرجاع هذا المحتوى لتشغيله.",
   "cast_need_wifi": "اتصل بنفس شبكة Wi‑Fi المتصلة بها TV لإرسال الملف.",

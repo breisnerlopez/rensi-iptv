@@ -62,6 +62,21 @@ class CastMedia {
   // a antes). Para series todos los episodios de la cola comparten el mismo meta
   // (el de la SERIE), así el auto-avance sigue mostrando la ficha correcta.
   final CastMeta? meta;
+
+  // Ruta LOCAL del archivo descargado que respalda este item (null salvo cast
+  // de descarga offline). La usa el auto-avance de una SERIE descargada: al
+  // terminar un episodio, el móvil re-sirve por LAN el archivo del SIGUIENTE
+  // (cada uno con su propia URL) antes del LOAD. En un cast normal (stream) es
+  // null y no aplica.
+  final String? localFilePath;
+
+  // true SOLO para episodios de una serie DESCARGADA encolados para auto-avanzar.
+  // El LOAD sigue viajando con contentType 'file' (la TV lo reproduce como VOD
+  // local, igual que un cast de archivo suelto); este flag es lo que permite
+  // que `_onCompleted` avance al siguiente episodio descargado sin confundir el
+  // caso de stream (contentType 'series') ni el de una PELÍCULA descargada
+  // (queue null → no avanza). Un archivo suelto lo deja en false.
+  final bool isDownloadedSeries;
   const CastMedia({
     required this.channelId,
     required this.contentType,
@@ -73,6 +88,8 @@ class CastMedia {
     this.historyId = '',
     this.meta,
     this.startPositionMs = 0,
+    this.localFilePath,
+    this.isDownloadedSeries = false,
   });
 }
 
@@ -131,6 +148,25 @@ class CastSenderController extends ChangeNotifier {
   DateTime? _lastHistoryWrite; // throttle de escrituras a la BD (~10s)
   int _lastPos = 0; // última posición conocida (ms) reportada por la TV
   int _lastDur = 0; // última duración conocida (ms) reportada por la TV
+
+  // Volumen de reproducción en la TV (escala 0-100, igual que UserPreferences/
+  // media_kit). Optimista: se actualiza local al mover el slider y se
+  // corrige con lo que la TV reporta de vuelta en MsgType.state (`vol`).
+  double _volume = 100;
+  double get volume => _volume;
+  // true MIENTRAS el usuario arrastra el slider del sheet de casting. Mientras
+  // dura, [_onState] IGNORA el eco `vol` de la TV: sin esto, un eco en tránsito
+  // de un tick anterior al arrastre llega A MITAD del gesto y hace SALTAR el
+  // slider bajo el dedo (el eco “pelea” con la posición que el usuario está
+  // arrastrando). Al soltar (endVolumeDrag) se apaga y el próximo eco vuelve a
+  // sincronizar con lo que la TV realmente aplicó.
+  bool _draggingVolume = false;
+  // Debounce del comando `set_volume`: onChanged del Slider dispara por FRAME
+  // durante el arrastre; sin esto se mandarían decenas de comandos por gesto.
+  // El valor optimista/notifyListeners SÍ es inmediato (el slider se ve fluido);
+  // solo el envío por la red se coalesce a como mucho 1 cada ~180ms.
+  Timer? _volumeDebounce;
+  static const _volumeDebounceDelay = Duration(milliseconds: 180);
 
   List<CastTrack> get audioTracks => List.unmodifiable(_audioTracks);
   List<CastTrack> get subtitleTracks => List.unmodifiable(_subtitleTracks);
@@ -317,12 +353,21 @@ class CastSenderController extends ChangeNotifier {
   /// (con Range para permitir seek) y manda un LOAD con la URL local. El vídeo
   /// viaja móvil→TV por Wi-Fi, sin gastar Internet. Requiere estar en la misma
   /// red que la TV (si no hay IP LAN, aborta con error 'no_wifi').
+  ///
+  /// [queue]/[index] OPCIONALES: para una SERIE descargada, el llamador arma la
+  /// cola ordenada de episodios descargados hermanos (cada `CastMedia` con su
+  /// `localFilePath` y `isDownloadedSeries: true`) para que la TV auto-avance al
+  /// terminar cada episodio (mismo mecanismo que el stream, pero re-sirviendo el
+  /// archivo local siguiente). Para una película descargada se omiten (cast
+  /// único que se detiene al final, como siempre).
   Future<void> castLocalFile({
     required String filePath,
     required String contentId,
     required String title,
     String ext = '',
     String imagePath = '',
+    List<CastMedia>? queue,
+    int index = 0,
   }) async {
     _localFilePath = filePath;
     final server = _fileServer ??= LocalFileServer();
@@ -338,14 +383,21 @@ class CastSenderController extends ChangeNotifier {
       _set(CastPhase.error, error: 'no_wifi');
       return;
     }
+    // El item "actual" es el de la cola en [index] (ya trae localFilePath y el
+    // tag de serie descargada); sin cola, se arma uno suelto como hasta ahora.
+    final media = (queue != null && index >= 0 && index < queue.length)
+        ? queue[index]
+        : CastMedia(
+            channelId: contentId,
+            contentType: 'file',
+            title: title,
+            ext: ext,
+            imagePath: imagePath,
+          );
     await beginCast(
-      CastMedia(
-        channelId: contentId,
-        contentType: 'file',
-        title: title,
-        ext: ext,
-        imagePath: imagePath,
-      ),
+      media,
+      queue: queue,
+      index: index,
       localUrl: lanUrl,
     );
     // Descubrimiento/conexión fallidos: soltar el servidor de archivos.
@@ -405,12 +457,17 @@ class CastSenderController extends ChangeNotifier {
   /// si el archivo no se puede servir / no hay IP LAN (deja la TV como estaba).
   /// Devuelve true si el re-LOAD del archivo se envió; false si no había sesión
   /// utilizable (idle/reconectando), no hay Wi-Fi, o el servido/envío falló.
+  ///
+  /// [queue]/[index] OPCIONALES, con el mismo significado que en [castLocalFile]:
+  /// una serie descargada abierta MIENTRAS se castea también auto-avanza.
   Future<bool> castNextLocalFile({
     required String filePath,
     required String contentId,
     required String title,
     String ext = '',
     String imagePath = '',
+    List<CastMedia>? queue,
+    int index = 0,
   }) async {
     // Mismo blindaje que castNext: no re-LOAD sobre un socket muerto en backoff.
     if (_phase != CastPhase.casting || _sender == null || _reconnecting) {
@@ -426,15 +483,19 @@ class CastSenderController extends ChangeNotifier {
     if (await server.lanIp() == null) return false; // sin Wi-Fi utilizable
     _localFilePath = filePath;
     _localUrl = lanUrl;
-    _media = CastMedia(
-      channelId: contentId,
-      contentType: 'file',
-      title: title,
-      ext: ext,
-      imagePath: imagePath,
-    );
-    _queue = null;
-    _index = 0;
+    _media = (queue != null && index >= 0 && index < queue.length)
+        ? queue[index]
+        : CastMedia(
+            channelId: contentId,
+            contentType: 'file',
+            title: title,
+            ext: ext,
+            imagePath: imagePath,
+          );
+    // Solo se conserva cola si hay más de un episodio (auto-avance); una cola de
+    // un solo item equivale a no tener cola (cast único que se detiene al final).
+    _queue = (queue != null && queue.length > 1) ? queue : null;
+    _index = _queue != null ? index : 0;
     _audioTracks = const [];
     _subtitleTracks = const [];
     _lastPos = 0;
@@ -463,6 +524,10 @@ class CastSenderController extends ChangeNotifier {
         title: media.title,
         ext: media.ext,
         imagePath: media.imagePath,
+        // Preserva el auto-avance de una serie descargada al reintentar: la cola
+        // (episodios hermanos) y el índice actual se re-envían tal cual.
+        queue: _queue,
+        index: _index,
       );
     } else {
       beginCast(media, queue: _queue, index: _index);
@@ -537,21 +602,68 @@ class CastSenderController extends ChangeNotifier {
     if (_phase != CastPhase.casting) return;
     final q = _queue;
     final media = _media;
-    if (media != null &&
-        media.contentType == 'series' &&
-        q != null &&
-        _index + 1 < q.length) {
-      _index++;
-      _media = q[_index];
-      _audioTracks = const [];
-      _subtitleTracks = const [];
-      // Historial: cortar el arrastre de posición del episodio anterior para no
-      // escribir su posición sobre el nuevo (la TV arranca el siguiente en 0).
-      _lastPos = 0;
-      _lastDur = 0;
-      _lastHistoryWrite = null;
-      notifyListeners();
+    if (media == null || q == null || _index + 1 >= q.length) return;
+    // Avanza en dos casos: una serie por STREAM (contentType 'series') o una
+    // serie DESCARGADA (contentType 'file' + isDownloadedSeries). NO avanza en
+    // VOD por stream ni en una película descargada (esos llegan con queue null o
+    // contentType 'vod'/'file' sin el tag → guarda arriba o este check).
+    final isSeries = media.contentType == 'series' || media.isDownloadedSeries;
+    if (!isSeries) return;
+    final nextIndex = _index + 1;
+    final next = q[nextIndex];
+    if (next.isDownloadedSeries && next.localFilePath != null) {
+      // Serie descargada: el siguiente episodio es un ARCHIVO local que hay que
+      // re-servir por la LAN (con su propia URL). Servimos ANTES de comprometer
+      // el avance, para no dejar el estado a medias si el re-servido falla.
+      unawaited(_advanceLocalSeries(nextIndex, next));
+    } else {
+      // Serie por stream: la TV re-arma la URL con las credenciales de la
+      // playlist; basta comprometer el avance y reenviar el LOAD.
+      _commitAdvance(nextIndex, next);
       unawaited(_sendLoad());
+    }
+  }
+
+  /// Comete el avance al episodio [next] (índice [i] en la cola): actualiza
+  /// `_media`/`_index`, limpia las pistas y corta el arrastre de posición del
+  /// episodio anterior (la TV arranca el siguiente en 0). Solo debe llamarse
+  /// cuando el siguiente episodio está listo para reproducirse, para no dejar el
+  /// mini-control mostrando un episodio que la TV no llegó a cargar.
+  void _commitAdvance(int i, CastMedia next) {
+    _index = i;
+    _media = next;
+    _audioTracks = const [];
+    _subtitleTracks = const [];
+    _lastPos = 0;
+    _lastDur = 0;
+    _lastHistoryWrite = null;
+    notifyListeners();
+  }
+
+  /// Re-sirve por la LAN el archivo local del siguiente episodio descargado
+  /// (cada uno en su propio puerto/URL) y, SOLO si el re-servido tuvo éxito,
+  /// comete el avance y envía un LOAD sobre la sesión viva. Si el archivo no se
+  /// puede servir (borrado / IO) o no hay Wi‑Fi, NO avanza: `_media`/`_index`
+  /// siguen en el episodio anterior y la TV queda en su último fotograma, igual
+  /// que al llegar al final de la cola (BACK sale). Así no queda un estado a
+  /// medias (mini-control adelantado con la TV congelada).
+  Future<void> _advanceLocalSeries(int i, CastMedia next) async {
+    final server = _fileServer ??= LocalFileServer();
+    final String lanUrl;
+    try {
+      lanUrl = await server.serve(next.localFilePath!);
+    } catch (_) {
+      return;
+    }
+    if (await server.lanIp() == null) return;
+    _localFilePath = next.localFilePath;
+    _localUrl = lanUrl;
+    _commitAdvance(i, next);
+    try {
+      await _sendLoad();
+    } catch (_) {
+      // El socket cayó justo al enviar: _reconnect reenviará este `_media` ya
+      // actualizado (su localFilePath quedó servido arriba).
     }
   }
 
@@ -613,6 +725,35 @@ class CastSenderController extends ChangeNotifier {
   void selectSubtitle(String id) =>
       _sender?.sendCommand(CmdType.selectSubtitle, {'id': id});
 
+  /// Fija el volumen de reproducción en la TV (0-100). Actualización local
+  /// optimista (el slider reacciona sin esperar la vuelta) inmediata; el
+  /// COMANDO a la TV se debounce (ver [_volumeDebounce]) para no inundar la
+  /// red durante un arrastre continuo. La TV eco su volumen real en cada
+  /// `state` (ver [_onState]).
+  void setVolume(double v) {
+    _volume = v.clamp(0, 100);
+    notifyListeners();
+    _volumeDebounce?.cancel();
+    _volumeDebounce = Timer(_volumeDebounceDelay, () {
+      _sender?.sendCommand(CmdType.setVolume, {'v': _volume.round()});
+    });
+  }
+
+  /// El usuario EMPIEZA a arrastrar el slider de volumen: silencia el eco de
+  /// la TV hasta soltar (ver el doc de [_draggingVolume]).
+  void beginVolumeDrag() => _draggingVolume = true;
+
+  /// El usuario SUELTA el slider en [v] (0-100): fija el volumen final YA
+  /// (cancela cualquier debounce pendiente y manda el comando de inmediato,
+  /// sin esperar los ~180ms) y reactiva el eco de la TV.
+  void endVolumeDrag(double v) {
+    _draggingVolume = false;
+    _volume = v.clamp(0, 100);
+    notifyListeners();
+    _volumeDebounce?.cancel();
+    _sender?.sendCommand(CmdType.setVolume, {'v': _volume.round()});
+  }
+
   void _onTracks(Map<String, dynamic> msg) {
     List<CastTrack> parse(String key) => ((msg[key] as List?) ?? const [])
         .map((e) => CastTrack.fromJson(e as Map<String, dynamic>))
@@ -631,6 +772,20 @@ class CastSenderController extends ChangeNotifier {
     // _media y escribirse bajo el streamId del ENTRANTE (marcándolo ~100% visto).
     final id = msg['id'] as String?;
     if (id != null && _media != null && id != _media!.channelId) return;
+    // Eco de volumen: la TV manda su volumen real en cada `state`. Campo
+    // OPCIONAL (compat. hacia atrás con una TV vieja que no lo envía aún):
+    // solo se actualiza si viene y difiere, para no notificar de más. Mientras
+    // el usuario ARRASTRA el slider, el eco se IGNORA por completo (ni
+    // _volume= ni notifyListeners): un eco en tránsito de un valor anterior no
+    // debe pelear con el dedo del usuario. Al soltar, endVolumeDrag ya fijó el
+    // valor final y el próximo eco vuelve a sincronizar con normalidad.
+    if (!_draggingVolume) {
+      final vol = (msg['vol'] as num?)?.toDouble();
+      if (vol != null && vol != _volume) {
+        _volume = vol.clamp(0, 100);
+        notifyListeners();
+      }
+    }
     final pos = (msg['pos'] as num?)?.toInt() ?? 0;
     final dur = (msg['dur'] as num?)?.toInt() ?? 0;
     if (pos <= 0 || dur <= 0) return;
@@ -738,6 +893,7 @@ class CastSenderController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _volumeDebounce?.cancel();
     _sender?.close();
     _fileServer?.stop();
     super.dispose();

@@ -236,6 +236,8 @@
   "see_all_favorites": "Посмотреть Все",
   "added_to_favorites": "Добавлено в избранное",
   "removed_from_favorites": "Удалено из избранного",
+  "action_save_to_list": "Мой список",
+  "action_saved": "Сохранено",
   "remove_from_favorites": "Удалить из Избранного",
   "select_all": "Выбрать всё",
   "deselect_all": "Отменить выбор всего",
@@ -615,6 +617,18 @@
   "download_available_offline": "Доступно офлайн",
   "download_failed_retry": "Не удалось загрузить — нажмите, чтобы повторить",
   "tv_ready_subtitle": "Готово к приёму контента с телефона",
+  "tv_status_discoverable": "Видна как {deviceName}",
+  "@tv_status_discoverable": {
+    "placeholders": {
+      "deviceName": {
+        "type": "String"
+      }
+    }
+  },
+  "tv_status_error": "Не обнаружена в этой сети",
+  "tv_empty_step_wifi": "Тот же Wi-Fi, что и у ТВ",
+  "tv_empty_step_phone": "Откройте Rensi на телефоне",
+  "tv_empty_step_cast": "Нажмите «Трансляция» и выберите этот ТВ",
   "tv_playback_settings": "Настройки воспроизведения",
   "tv_replay_failed": "Не удалось получить этот контент для воспроизведения.",
   "cast_need_wifi": "Подключитесь к той же сети Wi‑Fi, что и TV, чтобы отправить файл.",

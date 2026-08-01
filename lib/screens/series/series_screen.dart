@@ -15,7 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
-import '../../../controllers/favorites_controller.dart';
+import 'package:rensi_iptv/widgets/save_to_list_button.dart';
 import 'episode_screen.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
@@ -31,7 +31,6 @@ class SeriesScreen extends StatefulWidget {
 
 class _SeriesScreenState extends State<SeriesScreen> {
   late IptvRepository _repository;
-  late FavoritesController _favoritesController;
   late WatchHistoryService _watchHistoryService;
 
   SeriesInfosData? seriesInfo;
@@ -44,7 +43,6 @@ class _SeriesScreenState extends State<SeriesScreen> {
   int? _seriesTmdbId;
   bool isLoading = true;
   String? error;
-  bool _isFavorite = false;
 
   // Last opened episode for this series (for Continue Watching button)
   EpisodesData? _lastOpenedEpisode;
@@ -61,10 +59,8 @@ class _SeriesScreenState extends State<SeriesScreen> {
   void initState() {
     super.initState();
     _initializeRepository();
-    _favoritesController = FavoritesController();
     _watchHistoryService = WatchHistoryService();
     _loadSeriesDetails();
-    _checkFavoriteStatus();
   }
 
   void _initializeRepository() {
@@ -144,36 +140,6 @@ class _SeriesScreenState extends State<SeriesScreen> {
       setState(() {
         _lastOpenedEpisode = matched;
       });
-    }
-  }
-
-  Future<void> _checkFavoriteStatus() async {
-    final isFavorite = await _favoritesController.isFavorite(
-      widget.contentItem.id,
-      widget.contentItem.contentType,
-    );
-
-    if (mounted) {
-      setState(() {
-        _isFavorite = isFavorite;
-      });
-    }
-  }
-
-  Future<void> _toggleFavorite() async {
-    final result = await _favoritesController.toggleFavorite(widget.contentItem);
-    if (mounted) {
-      setState(() {
-        _isFavorite = result;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result ? context.loc.added_to_favorites : context.loc.removed_from_favorites,
-          ),
-        ),
-      );
     }
   }
 
@@ -280,16 +246,11 @@ class _SeriesScreenState extends State<SeriesScreen> {
                                     ),
                                   ),
                                 ),
-                                // Favori butonu
-                                FocusHighlight(
-                                  child: IconButton(
-                                    onPressed: _toggleFavorite,
-                                    icon: Icon(
-                                      _isFavorite ? Icons.favorite : Icons.favorite_border,
-                                      color: _isFavorite ? Colors.red : Colors.white,
-                                      size: 28,
-                                    ),
-                                  ),
+                                // Botón de guardar en Mi lista
+                                SaveToListButton(
+                                  item: widget.contentItem,
+                                  overArtwork: true,
+                                  iconSize: 28,
                                 ),
                               ],
                             ),

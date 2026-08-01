@@ -11,14 +11,28 @@ import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/models/playlist_content_model.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
+import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 
+/// One unified-list favourite card: the resolved [content] plus the [origin]
+/// playlist it belongs to. "Mi lista" is now GLOBAL across every playlist, so a
+/// card must remember its origin to (a) badge a copy that is NOT from the active
+/// playlist and (b) repoint AppState to the origin's credentials right before
+/// playback. [fromActivePlaylist] is precomputed once against the active list.
+class _FavCard {
+  final ContentItem content;
+  final Playlist origin;
+  final bool fromActivePlaylist;
+  const _FavCard(this.content, this.origin, this.fromActivePlaylist);
+}
+
 /// The two kinds of card "Mi lista" renders: an owned IPTV favourite (plays on
 /// tap) and a saved TMDb wishlist title (opens the discover sheet on tap).
 class _ListData {
-  final List<ContentItem> favorites;
+  final List<_FavCard> favorites;
   final List<TmdbSearchResult> wishlist;
   const _ListData(this.favorites, this.wishlist);
 
@@ -30,7 +44,11 @@ class _ListData {
 /// poster grid, with a shared empty state.
 class ListRedesign extends StatefulWidget {
   const ListRedesign({super.key, required this.onOpen, this.onBrowse});
-  final void Function(ContentItem) onOpen;
+
+  /// Opens/plays a card. Returns a Future that completes when the pushed player
+  /// route pops — the unified list awaits it so a cross-playlist favourite can
+  /// RESTORE the active playlist afterwards (see [_ListRedesignState._openFav]).
+  final Future<void> Function(ContentItem) onOpen;
 
   /// Where the empty state's primary action goes.
   final VoidCallback? onBrowse;
@@ -70,14 +88,79 @@ class _ListRedesignState extends State<ListRedesign> {
   }
 
   Future<_ListData> _load() async {
-    final favs = await _repo.getAllFavorites();
-    final out = <ContentItem>[];
+    final activeId = AppState.currentPlaylist?.id;
+    // GLOBAL read: favourites from EVERY playlist, newest first.
+    final favs = await _repo.getAllFavoritesAcrossPlaylists();
+
+    // Dedup by the SAME year-aware title key search/browse use
+    // (GlobalSearchService.titleDedupKey → _titleKey): connector/"&"→"and",
+    // script-safe, and — crucially — a BRACKETED release year is folded back in,
+    // so the SAME title favourited in two playlists collapses to ONE card while
+    // "The Lion King (1994)" vs "(2019)" stay TWO cards (neither hidden) and a
+    // bare "Blade Runner 2049" is never split. Preference: the copy whose origin
+    // == the active playlist (it plays without a repoint); otherwise the most
+    // recent — favs arrive createdAt desc, so the FIRST-seen copy is the most
+    // recent and wins by default.
+    final byKey = <String, _FavCard>{};
+    final order = <String>[];
     for (final f in favs) {
-      final it = await _repo.getContentItemFromFavorite(f);
-      if (it != null) out.add(it);
+      final resolved = await _repo.resolveFavorite(f);
+      // Null => origin playlist was deleted: skip rather than show a card that
+      // would resolve/play against the wrong (active) playlist.
+      if (resolved == null) continue;
+      final fromActive = resolved.origin.id == activeId;
+      final card = _FavCard(resolved.content, resolved.origin, fromActive);
+      final key = GlobalSearchService.titleDedupKey(
+        card.content.name,
+        card.content.contentType,
+      );
+      final existing = byKey[key];
+      if (existing == null) {
+        byKey[key] = card;
+        order.add(key);
+      } else if (fromActive && !existing.fromActivePlaylist) {
+        // A later (older) active-playlist copy replaces the kept non-active one,
+        // keeping its first-seen position, so the local copy plays directly.
+        byKey[key] = card;
+      }
+      // else keep existing (already active, or first-seen = most recent).
     }
-    final wishlist = await TmdbWishlistService.getItems();
+    final out = [for (final k in order) byKey[k]!];
+
+    // Dedup the TMDb wishlist against owned favourites, keyed the same way:
+    // a title the user OWNS (IPTV favourite) AND saved on TMDb showed up twice.
+    // Prefer the owned copy — drop the wishlist duplicate.
+    final favKeys = byKey.keys.toSet();
+    final wishAll = await TmdbWishlistService.getItems();
+    final wishlist = wishAll.where((t) {
+      final type = t.mediaType == TmdbMediaType.tv
+          ? ContentType.series
+          : ContentType.vod;
+      return !favKeys.contains(GlobalSearchService.titleDedupKey(t.title, type));
+    }).toList();
     return _ListData(out, wishlist);
+  }
+
+  /// Opens a unified-list favourite. A card from the ACTIVE playlist opens
+  /// directly. A card from ANOTHER playlist repoints AppState to its ORIGIN
+  /// (credentials + repository) in the SAME synchronous tick before navigating —
+  /// the sanctioned [GlobalSearchService.openLocalMatch]/`repointTo` contract, so
+  /// playback and the watch history saved DURING it use the origin's creds — then
+  /// RESTORES the active playlist once the player route pops, so Home's
+  /// continue-watching reload and a favourite toggle keep targeting the right
+  /// list (mirrors browse_redesign's `_playLocalAndRestore`).
+  Future<void> _openFav(_FavCard card) async {
+    if (card.fromActivePlaylist) {
+      await widget.onOpen(card.content);
+      return;
+    }
+    final previous = AppState.currentPlaylist;
+    _service.repointTo(card.origin);
+    try {
+      await widget.onOpen(card.content);
+    } finally {
+      if (mounted && previous != null) _service.repointTo(previous);
+    }
   }
 
   /// A display-only [ContentItem] wrapping a TMDb wishlist result so it can ride
@@ -169,13 +252,22 @@ class _ListRedesignState extends State<ListRedesign> {
                               itemCount: data.length,
                               itemBuilder: (_, i) {
                                 if (i < favs.length) {
-                                  final item = favs[i];
+                                  final card = favs[i];
                                   return RensiPoster(
-                                    key: ValueKey('fav:${item.id}'),
-                                    item: item,
+                                    key: ValueKey(
+                                        'fav:${card.origin.id}:${card.content.id}'),
+                                    item: card.content,
                                     width: double.infinity,
                                     autofocus: i == 0,
-                                    onTap: () => widget.onOpen(item),
+                                    // Neutral origin chip ONLY for a favourite
+                                    // from another playlist — same tone as the
+                                    // wishlist "Saved" badge; same-playlist
+                                    // favourites keep their bare poster.
+                                    badge: card.fromActivePlaylist
+                                        ? null
+                                        : card.origin.name,
+                                    badgeTone: RensiBadgeTone.neutral,
+                                    onTap: () => _openFav(card),
                                   );
                                 }
                                 final t = wishlist[i - favs.length];

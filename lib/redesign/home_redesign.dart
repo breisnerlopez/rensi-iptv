@@ -12,12 +12,12 @@ import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/redesign/rensi_widgets.dart';
 import 'package:rensi_iptv/redesign/search_detail_sheet.dart';
 import 'package:rensi_iptv/redesign/search_redesign.dart';
-import 'package:rensi_iptv/repositories/favorites_repository.dart';
 import 'package:rensi_iptv/services/global_search_service.dart';
 import 'package:rensi_iptv/services/tmdb_credentials_service.dart';
 import 'package:rensi_iptv/services/tmdb_service.dart';
 import 'package:rensi_iptv/services/tmdb_wishlist_service.dart';
 import 'package:rensi_iptv/utils/responsive_helper.dart';
+import 'package:rensi_iptv/widgets/save_to_list_button.dart';
 import 'package:rensi_iptv/widgets/tv/focus_highlight.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
 
@@ -468,7 +468,12 @@ class _Hero extends StatelessWidget {
         const SizedBox(width: 12),
         _GlassBtn(icon: Icons.info_outline, onTap: () => onOpen(item)),
         const SizedBox(width: 10),
-        _FavBtn(item: item),
+        SaveToListButton(
+          item: item,
+          overArtwork: true,
+          iconSize: 22,
+          style: SaveToListButtonStyle.glass,
+        ),
       ],
     );
 
@@ -644,41 +649,6 @@ class _HeroMeta extends StatelessWidget {
           parts[i],
         ],
       ],
-    );
-  }
-}
-
-class _FavBtn extends StatefulWidget {
-  const _FavBtn({required this.item});
-  final ContentItem item;
-  @override
-  State<_FavBtn> createState() => _FavBtnState();
-}
-
-class _FavBtnState extends State<_FavBtn> {
-  final _repo = FavoritesRepository();
-  bool _saved = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _repo
-        .isFavorite(widget.item.id, widget.item.contentType)
-        .then((v) {
-      if (mounted) setState(() => _saved = v);
-    });
-  }
-
-  Future<void> _toggle() async {
-    final now = await _repo.toggleFavorite(widget.item);
-    if (mounted) setState(() => _saved = now);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _GlassBtn(
-      icon: _saved ? Icons.check : Icons.add,
-      onTap: _toggle,
     );
   }
 }

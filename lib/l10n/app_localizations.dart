@@ -966,6 +966,18 @@ abstract class AppLocalizations {
   /// **'Removed from favorites'**
   String get removed_from_favorites;
 
+  /// No description provided for @action_save_to_list.
+  ///
+  /// In en, this message translates to:
+  /// **'My List'**
+  String get action_save_to_list;
+
+  /// No description provided for @action_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get action_saved;
+
   /// No description provided for @remove_from_favorites.
   ///
   /// In en, this message translates to:
@@ -3065,6 +3077,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Watched by casting from your phone. Send it again from your phone to play it here.'**
   String get tv_cast_replay_hint;
+
+  /// No description provided for @tv_status_discoverable.
+  ///
+  /// In en, this message translates to:
+  /// **'Discoverable as {deviceName}'**
+  String tv_status_discoverable(String deviceName);
+
+  /// No description provided for @tv_status_error.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t be found on this network'**
+  String get tv_status_error;
+
+  /// No description provided for @tv_empty_step_wifi.
+  ///
+  /// In en, this message translates to:
+  /// **'Same Wi-Fi as your TV'**
+  String get tv_empty_step_wifi;
+
+  /// No description provided for @tv_empty_step_phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Rensi on your phone'**
+  String get tv_empty_step_phone;
+
+  /// No description provided for @tv_empty_step_cast.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap Cast and pick this TV'**
+  String get tv_empty_step_cast;
 
   /// No description provided for @developer.
   ///

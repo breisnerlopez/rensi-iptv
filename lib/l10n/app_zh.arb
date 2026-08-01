@@ -236,6 +236,8 @@
   "see_all_favorites": "查看全部",
   "added_to_favorites": "已添加到收藏",
   "removed_from_favorites": "已从收藏中移除",
+  "action_save_to_list": "我的列表",
+  "action_saved": "已保存",
   "remove_from_favorites": "从收藏中移除",
   "select_all": "全选",
   "deselect_all": "取消全选",
@@ -615,6 +617,18 @@
   "download_available_offline": "可离线观看",
   "download_failed_retry": "下载失败 — 点按以重试",
   "tv_ready_subtitle": "已准备好从您的手机接收内容",
+  "tv_status_discoverable": "以 {deviceName} 的名称可被发现",
+  "@tv_status_discoverable": {
+    "placeholders": {
+      "deviceName": {
+        "type": "String"
+      }
+    }
+  },
+  "tv_status_error": "在此网络上未找到",
+  "tv_empty_step_wifi": "与电视连接相同的 Wi-Fi",
+  "tv_empty_step_phone": "在手机上打开 Rensi",
+  "tv_empty_step_cast": "点击投屏并选择这台电视",
   "tv_playback_settings": "播放设置",
   "tv_replay_failed": "无法获取此内容以进行播放。",
   "cast_need_wifi": "连接到与 TV 相同的 Wi‑Fi 网络以发送文件。",

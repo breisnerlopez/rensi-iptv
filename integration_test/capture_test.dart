@@ -208,7 +208,7 @@ void main() {
           cat('c2', 'Drama', CategoryType.vod, 18),
         ],
         seriesCategories: [cat('c3', 'Series', CategoryType.series, 12)],
-        onOpen: (_) {},
+        onOpen: (_) async {},
       ),
       size: null,
       locale: _captureLocale,
@@ -289,7 +289,7 @@ void main() {
 
   testWidgets('10 my list — empty state', (tester) async {
     setActivePlaylist();
-    await pumpScreen(tester, ListRedesign(onOpen: (_) {}), size: null, locale: _captureLocale);
+    await pumpScreen(tester, ListRedesign(onOpen: (_) async {}), size: null, locale: _captureLocale);
     await settle(tester);
     await capture(tester, '10_my_list');
   });

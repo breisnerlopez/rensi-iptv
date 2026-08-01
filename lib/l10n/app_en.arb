@@ -148,6 +148,8 @@
   "see_all_favorites": "See All",
   "added_to_favorites": "Added to favorites",
   "removed_from_favorites": "Removed from favorites",
+  "action_save_to_list": "My List",
+  "action_saved": "Saved",
   "remove_from_favorites": "Remove from Favorites",
   "select_playlist_type": "Select Playlist Type",
   "select_playlist_message": "Choose the type of playlist you want to create",
@@ -632,6 +634,18 @@
   "download_err_generic": "The download failed",
   "download_retry": "Retry",
   "tv_cast_replay_hint": "Watched by casting from your phone. Send it again from your phone to play it here.",
+  "tv_status_discoverable": "Discoverable as {deviceName}",
+  "@tv_status_discoverable": {
+    "placeholders": {
+      "deviceName": {
+        "type": "String"
+      }
+    }
+  },
+  "tv_status_error": "Can't be found on this network",
+  "tv_empty_step_wifi": "Same Wi-Fi as your TV",
+  "tv_empty_step_phone": "Open Rensi on your phone",
+  "tv_empty_step_cast": "Tap Cast and pick this TV",
   "developer": "Developer",
   "dev_account": "Account",
   "dev_server": "Server",

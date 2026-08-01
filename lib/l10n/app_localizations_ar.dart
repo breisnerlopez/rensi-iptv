@@ -450,6 +450,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get removed_from_favorites => 'تمت الإزالة من المفضلة';
 
   @override
+  String get action_save_to_list => 'قائمتي';
+
+  @override
+  String get action_saved => 'تم الحفظ';
+
+  @override
   String get remove_from_favorites => 'إزالة من المفضلة';
 
   @override
@@ -1605,6 +1611,23 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get tv_cast_replay_hint =>
       'Watched by casting from your phone. Send it again from your phone to play it here.';
+
+  @override
+  String tv_status_discoverable(String deviceName) {
+    return 'مرئي باسم $deviceName';
+  }
+
+  @override
+  String get tv_status_error => 'غير موجود على هذه الشبكة';
+
+  @override
+  String get tv_empty_step_wifi => 'نفس شبكة Wi-Fi الخاصة بالتلفاز';
+
+  @override
+  String get tv_empty_step_phone => 'افتح Rensi على هاتفك';
+
+  @override
+  String get tv_empty_step_cast => 'اضغط على البث واختر هذا التلفاز';
 
   @override
   String get developer => 'المطوّر';

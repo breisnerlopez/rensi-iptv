@@ -1493,6 +1493,21 @@ class AppDatabase extends _$AppDatabase {
         : null;
   }
 
+  /// A single series row by its id within a playlist — the series analogue of
+  /// [findMovieById]. Lets a caller (unified "Mi lista" resolving a favourite)
+  /// fetch ONE series without reading the whole series table (the old N+1).
+  Future<SeriesStream?> findSeriesById(String seriesId, String playlistId) async {
+    var row =
+        await (select(seriesStreams)..where(
+              (ss) =>
+                  ss.playlistId.equals(playlistId) &
+                  ss.seriesId.equals(seriesId),
+            ))
+            .getSingleOrNull();
+
+    return row != null ? SeriesStream.fromDriftSeriesStream(row) : null;
+  }
+
   Future<LiveStream?> findLiveStreamById(
     String streamId,
     String playlistId,
@@ -1832,6 +1847,18 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<Favorite>> getAllFavorites() async {
     final favoritesData = await select(favorites).get();
+    return favoritesData.map((data) => Favorite.fromDrift(data)).toList();
+  }
+
+  /// UNSCOPED favourites across EVERY playlist, newest first. Backs the unified
+  /// "Mi lista" READ (favourites are one list across all the user's playlists);
+  /// writes/toggles stay playlist-scoped via [getFavoritesByPlaylist]. Ordered
+  /// by `createdAt desc` — the plain [getAllFavorites] above has no ORDER BY, so
+  /// the list would otherwise arrive in SQLite's rowid order, not most-recent.
+  Future<List<Favorite>> getAllFavoritesAcrossPlaylists() async {
+    final query = select(favorites)
+      ..orderBy([(f) => OrderingTerm.desc(f.createdAt)]);
+    final favoritesData = await query.get();
     return favoritesData.map((data) => Favorite.fromDrift(data)).toList();
   }
 

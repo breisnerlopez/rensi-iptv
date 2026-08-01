@@ -11,10 +11,16 @@ import '../models/vod_streams.dart';
 import '../services/service_locator.dart';
 
 class M3uRepository {
-  final String _playlistId = AppState.currentPlaylist!.id;
+  final String _playlistId;
   final _database = getIt<AppDatabase>();
 
-  M3uRepository();
+  /// [playlistId] lets a caller target a SPECIFIC playlist's rows (e.g. the
+  /// unified "Mi lista" resolving a favourite that belongs to a NON-active
+  /// playlist) without swapping the global [AppState.currentPlaylist]. Omitted,
+  /// it keeps the historical behaviour: bind to whatever playlist is active at
+  /// construction time.
+  M3uRepository([String? playlistId])
+      : _playlistId = playlistId ?? AppState.currentPlaylist!.id;
 
   Future<List<Category>?> getCategories() async {
     return await _database.getCategoriesByPlaylist(_playlistId);

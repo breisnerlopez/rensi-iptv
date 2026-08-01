@@ -519,7 +519,7 @@ void main() {
 }
 
 // A const no-op ContentItem sink so `const SearchRedesign(...)` stays const.
-void _noopOpen(ContentItem _) {}
+Future<void> _noopOpen(ContentItem _) async {}
 
 // --- Genre-filter capture builders -----------------------------------------
 // Poster art is left empty on purpose: the chip rows, grids and pickers are the

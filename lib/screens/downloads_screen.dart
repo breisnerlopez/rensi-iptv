@@ -368,13 +368,23 @@ class _DownloadTile extends StatelessWidget {
             IconButton(
               tooltip: context.loc.download_send_to_tv,
               icon: const Icon(Icons.cast),
-              onPressed: () => startLocalFileCastFlow(
-                context,
-                filePath: download.filePath!,
-                contentId: download.contentId,
-                title: download.title,
-                ext: download.ext ?? '',
-              ),
+              onPressed: () async {
+                // Serie descargada: arma la cola de episodios hermanos
+                // descargados para que la TV auto-avance. Película o episodio
+                // suelto → cola null (cast único, sin cambios).
+                final (queue, index) =
+                    await buildDownloadedSeriesQueue(download);
+                if (!context.mounted) return;
+                startLocalFileCastFlow(
+                  context,
+                  filePath: download.filePath!,
+                  contentId: download.contentId,
+                  title: download.title,
+                  ext: download.ext ?? '',
+                  queue: queue,
+                  index: index,
+                );
+              },
             ),
           IconButton(
             tooltip: context.loc.download_delete,

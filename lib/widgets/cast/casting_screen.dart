@@ -54,6 +54,34 @@ class CastingScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    Icon(_volumeIcon(c.volume), color: Colors.white70, size: 22),
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: _accent,
+                          thumbColor: _accent,
+                          inactiveTrackColor: const Color(0xFF1E1E24),
+                          overlayColor: _accent.withValues(alpha: 0.2),
+                        ),
+                        child: Slider(
+                          value: c.volume / 100,
+                          onChanged: (v) => c.setVolume(v * 100),
+                          // Silencia el eco de la TV mientras dura el gesto (evita
+                          // que un eco en tránsito haga saltar el slider bajo el
+                          // dedo) y manda el valor final YA al soltar.
+                          onChangeStart: (_) => c.beginVolumeDrag(),
+                          onChangeEnd: (v) => c.endVolumeDrag(v * 100),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -133,6 +161,12 @@ class CastingScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  IconData _volumeIcon(double v) {
+    if (v <= 0) return Icons.volume_off;
+    if (v < 50) return Icons.volume_down;
+    return Icons.volume_up;
   }
 
   Widget _roundBtn(IconData icon, VoidCallback onTap, {bool big = false}) {

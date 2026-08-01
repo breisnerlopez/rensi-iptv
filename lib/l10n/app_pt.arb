@@ -236,6 +236,8 @@
   "see_all_favorites": "Ver Todos",
   "added_to_favorites": "Adicionado aos favoritos",
   "removed_from_favorites": "Removido dos favoritos",
+  "action_save_to_list": "Minha lista",
+  "action_saved": "Guardado",
   "remove_from_favorites": "Remover dos Favoritos",
   "select_all": "Selecionar tudo",
   "deselect_all": "Desmarcar tudo",
@@ -615,6 +617,18 @@
   "download_available_offline": "Disponível offline",
   "download_failed_retry": "Falha no download — toque para tentar novamente",
   "tv_ready_subtitle": "Pronto para receber conteúdo do seu celular",
+  "tv_status_discoverable": "Visível como {deviceName}",
+  "@tv_status_discoverable": {
+    "placeholders": {
+      "deviceName": {
+        "type": "String"
+      }
+    }
+  },
+  "tv_status_error": "Não encontrada nesta rede",
+  "tv_empty_step_wifi": "Mesmo Wi-Fi que a sua TV",
+  "tv_empty_step_phone": "Abra o Rensi no seu celular",
+  "tv_empty_step_cast": "Toque em Transmitir e escolha esta TV",
   "tv_playback_settings": "Configurações de reprodução",
   "tv_replay_failed": "Não foi possível recuperar este conteúdo para reproduzi-lo.",
   "cast_need_wifi": "Conecte-se à mesma rede Wi‑Fi da TV para enviar o arquivo.",

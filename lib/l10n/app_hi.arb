@@ -236,6 +236,8 @@
   "see_all_favorites": "सभी देखें",
   "added_to_favorites": "पसंदीदा में जोड़ा गया",
   "removed_from_favorites": "पसंदीदा से हटाया गया",
+  "action_save_to_list": "मेरी सूची",
+  "action_saved": "सहेजा गया",
   "remove_from_favorites": "पसंदीदा से हटाएं",
   "select_all": "सभी चुनें",
   "deselect_all": "सभी का चयन रद्द करें",
@@ -615,6 +617,18 @@
   "download_available_offline": "ऑफ़लाइन उपलब्ध",
   "download_failed_retry": "डाउनलोड विफल — पुनः प्रयास के लिए टैप करें",
   "tv_ready_subtitle": "आपके फ़ोन से सामग्री प्राप्त करने के लिए तैयार",
+  "tv_status_discoverable": "{deviceName} के रूप में दिखाई दे रहा है",
+  "@tv_status_discoverable": {
+    "placeholders": {
+      "deviceName": {
+        "type": "String"
+      }
+    }
+  },
+  "tv_status_error": "इस नेटवर्क पर नहीं मिला",
+  "tv_empty_step_wifi": "आपके टीवी जैसा ही Wi-Fi",
+  "tv_empty_step_phone": "अपने फ़ोन पर Rensi खोलें",
+  "tv_empty_step_cast": "कास्ट पर टैप करें और यह टीवी चुनें",
   "tv_playback_settings": "प्लेबैक सेटिंग्स",
   "tv_replay_failed": "इस सामग्री को चलाने के लिए प्राप्त नहीं किया जा सका।",
   "cast_need_wifi": "फ़ाइल भेजने के लिए TV के समान Wi‑Fi नेटवर्क से कनेक्ट करें।",

@@ -453,6 +453,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get removed_from_favorites => 'Удалено из избранного';
 
   @override
+  String get action_save_to_list => 'Мой список';
+
+  @override
+  String get action_saved => 'Сохранено';
+
+  @override
   String get remove_from_favorites => 'Удалить из Избранного';
 
   @override
@@ -1618,6 +1624,23 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get tv_cast_replay_hint =>
       'Watched by casting from your phone. Send it again from your phone to play it here.';
+
+  @override
+  String tv_status_discoverable(String deviceName) {
+    return 'Видна как $deviceName';
+  }
+
+  @override
+  String get tv_status_error => 'Не обнаружена в этой сети';
+
+  @override
+  String get tv_empty_step_wifi => 'Тот же Wi-Fi, что и у ТВ';
+
+  @override
+  String get tv_empty_step_phone => 'Откройте Rensi на телефоне';
+
+  @override
+  String get tv_empty_step_cast => 'Нажмите «Трансляция» и выберите этот ТВ';
 
   @override
   String get developer => 'Разработчик';

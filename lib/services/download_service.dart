@@ -8,7 +8,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:background_downloader/background_downloader.dart';
-import 'package:drift/drift.dart' show Value;
+import 'package:drift/drift.dart' show Value, BooleanExpressionOperators;
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path/path.dart' as p;
@@ -125,6 +125,82 @@ class DownloadService {
     return (_db.select(_db.downloads)
           ..where((d) => d.contentId.equals(contentId)))
         .getSingleOrNull();
+  }
+
+  /// Lista ORDENADA (temporada/episodio asc.) de los episodios DESCARGADOS y
+  /// completos de la MISMA serie que [tapped], INCLUYENDO a [tapped]. La usa el
+  /// casting de una descarga para auto-avanzar al siguiente episodio descargado
+  /// cuando uno termina en la TV.
+  ///
+  /// Se resuelve por JOIN contra el catálogo (Episodes en Xtream, M3uEpisodes en
+  /// M3U) SIN tocar el esquema de `Downloads` (que no guarda seriesId ni orden):
+  ///   • Xtream: `Downloads.contentId` == `Episodes.episodeId` → seriesId +
+  ///     (season, episodeNum).
+  ///   • M3U: `Downloads.contentId` == `M3uItems.id` → url → `M3uEpisodes`
+  ///     (misma url) → seriesId + (seasonNumber, episodeNumber).
+  ///
+  /// Devuelve `[tapped]` (sin hermanos) si no es una serie completa, si su serie
+  /// no se puede resolver, o si no hay al menos DOS episodios descargados de esa
+  /// serie — en esos casos el llamador castea un archivo único que se detiene al
+  /// final, igual que hoy. Solo lectura; nunca lanza hacia el llamador.
+  Future<List<Download>> siblingDownloadedEpisodes(Download tapped) async {
+    if (tapped.contentType != 'series' ||
+        tapped.status != 'complete' ||
+        tapped.filePath == null) {
+      return [tapped];
+    }
+    try {
+      final tappedKey = await _episodeKey(tapped);
+      if (tappedKey == null) return [tapped];
+      final rows = await (_db.select(_db.downloads)
+            ..where((d) =>
+                d.playlistId.equals(tapped.playlistId) &
+                d.contentType.equals('series') &
+                d.status.equals('complete')))
+          .get();
+      final scored = <_ScoredDownload>[];
+      for (final r in rows) {
+        if (r.filePath == null) continue;
+        final key = r.id == tapped.id ? tappedKey : await _episodeKey(r);
+        if (key == null || key.seriesId != tappedKey.seriesId) continue;
+        scored.add(_ScoredDownload(r, key));
+      }
+      scored.sort((a, b) {
+        final s = a.key.season.compareTo(b.key.season);
+        return s != 0 ? s : a.key.episode.compareTo(b.key.episode);
+      });
+      final ordered = [for (final s in scored) s.download];
+      // Solo tiene sentido una cola con ≥2 episodios y con el tocado presente;
+      // en cualquier otro caso, cast de archivo único (comportamiento actual).
+      if (ordered.length < 2 || !ordered.any((d) => d.id == tapped.id)) {
+        return [tapped];
+      }
+      return ordered;
+    } catch (_) {
+      // Cualquier fallo de resolución degrada a cast de archivo único.
+      return [tapped];
+    }
+  }
+
+  /// Resuelve la clave de orden (seriesId + temporada/episodio) de una descarga
+  /// de serie, tanto Xtream como M3U. Null si no se puede mapear al catálogo.
+  Future<_EpisodeKey?> _episodeKey(Download d) async {
+    final playlistId = d.playlistId;
+    // Xtream: Downloads.contentId == Episodes.episodeId.
+    final ep = await _db.findEpisodesById(d.contentId, playlistId);
+    if (ep != null) {
+      return _EpisodeKey(ep.seriesId, ep.season, ep.episodeNum);
+    }
+    // M3U: Downloads.contentId == M3uItems.id → url → M3uEpisodes (misma url).
+    final item = await _db.getM3uItemsByIdAndPlaylist(playlistId, d.contentId);
+    if (item == null) return null;
+    final mep = await (_db.select(_db.m3uEpisodes)
+          ..where((e) =>
+              e.playlistId.equals(playlistId) & e.url.equals(item.url))
+          ..limit(1))
+        .getSingleOrNull();
+    if (mep == null) return null;
+    return _EpisodeKey(mep.seriesId, mep.seasonNumber, mep.episodeNumber);
   }
 
   Future<Download?> _rowById(int id) =>
@@ -776,4 +852,21 @@ class DownloadService {
     _listening = false;
     _configureFuture = null;
   }
+}
+
+/// Clave de orden de un episodio dentro de su serie (para ordenar los hermanos
+/// descargados). `seriesId` agrupa; `(season, episode)` ordena.
+class _EpisodeKey {
+  final String seriesId;
+  final int season;
+  final int episode;
+  const _EpisodeKey(this.seriesId, this.season, this.episode);
+}
+
+/// Una descarga con su clave de orden ya resuelta (para no re-consultar la BD
+/// durante el `sort`).
+class _ScoredDownload {
+  final Download download;
+  final _EpisodeKey key;
+  const _ScoredDownload(this.download, this.key);
 }

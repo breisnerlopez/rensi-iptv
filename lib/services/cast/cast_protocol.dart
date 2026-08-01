@@ -44,6 +44,7 @@ class CmdType {
   static const getTracks = 'get_tracks'; // pide a la TV sus pistas actuales
   static const selectAudio = 'sel_audio'; // + campo 'id'
   static const selectSubtitle = 'sel_sub'; // + campo 'id' ('' = off)
+  static const setVolume = 'set_volume'; // + campo 'v' (0-100)
 }
 
 /// String tolerante: cualquier valor no-String del wire → ''. El `meta` viene de
@@ -90,10 +91,12 @@ class CastMetaMember {
 /// diferencia de las credenciales— NO se cifran (el `title` ya viaja en claro en
 /// el mismo envelope; sobre wss el canal ya va cifrado por TLS).
 ///
-/// NO transporta poster/backdrop: el panel solo usa `overview` + `cast`, y una
-/// URL de imagen controlable por el emisor sería un footgun (SSRF/carga de host
-/// arbitrario el día que alguien la pintara en un NetworkImage). Las fotos de
-/// reparto viajan como `profile_path` crudo, reconstruido contra un host fijo.
+/// El PÓSTER viaja igual que las fotos de reparto: NO una URL completa —que
+/// dejaría al emisor apuntar la TV a un host arbitrario (SSRF/carga de host
+/// arbitrario en un NetworkImage)— sino el FRAGMENTO `poster_path` CRUDO de TMDb
+/// (p.ej. '/abc.jpg'). El receptor lo reconstruye contra el MISMO host fijo de
+/// imágenes de TMDb (`image.tmdb.org`) que usan `profileUrl`/`posterUrl` en el
+/// resto de la app (ver [posterUrl]). Nunca se transporta backdrop.
 class CastMeta {
   // Tope duro de miembros que se materializan/serializan (defensa en profundidad
   // contra un peer que envíe un `cast` gigante para forzar memoria en la TV; el
@@ -101,22 +104,43 @@ class CastMeta {
   static const int _maxCast = 30;
   // Tope de la sinopsis (unos pocos KB): una sinopsis TMDb real cabe de sobra.
   static const int _maxOverview = 4000;
+  // Tope del fragmento de póster (un path TMDb real son ~32 chars).
+  static const int _maxPosterPath = 256;
 
   final String overview;
   final List<CastMetaMember> cast;
   final String title; // título TMDb resuelto (puede diferir del del catálogo)
   final int? year;
 
+  /// FRAGMENTO `poster_path` CRUDO de TMDb (p.ej. '/abc.jpg'), NO una URL. El
+  /// receptor lo reconstruye contra el host fijo (ver [posterUrl]). Null si el
+  /// título no tiene póster TMDb (contenido no enriquecido/archivo local) → el
+  /// receptor mantiene su degradado (nunca se cae a una URL cruda del proveedor).
+  final String? posterPath;
+
   const CastMeta({
     this.overview = '',
     this.cast = const [],
     this.title = '',
     this.year,
+    this.posterPath,
   });
 
-  /// Sin nada que mostrar (ni sinopsis ni reparto): el emisor NO adjunta el meta
-  /// y el receptor cae al comportamiento actual (TmdbEnrichment/solo-título).
-  bool get isEmpty => overview.isEmpty && cast.isEmpty;
+  /// Sin nada que mostrar (ni sinopsis ni reparto ni póster): el emisor NO
+  /// adjunta el meta y el receptor cae al comportamiento actual
+  /// (TmdbEnrichment/solo-título). Incluir el póster asegura que un título con
+  /// solo carátula (sin sinopsis/reparto) igual la propague a la TV.
+  bool get isEmpty =>
+      overview.isEmpty && cast.isEmpty && (posterPath?.isEmpty ?? true);
+
+  /// URL del póster reconstruida contra el host FIJO de imágenes de TMDb
+  /// (`image.tmdb.org`) — MISMA disciplina y mismo host que `TmdbCredit.profileUrl`
+  /// y `TmdbDetailResult.posterUrl` en la app. Como del emisor solo llega el
+  /// FRAGMENTO (que se concatena DETRÁS de un path fijo `/t/p/w342`), el emisor no
+  /// puede redirigir la carga a otro host. Null si no llegó fragmento.
+  String? get posterUrl => (posterPath == null || posterPath!.isEmpty)
+      ? null
+      : 'https://image.tmdb.org/t/p/w342$posterPath';
 
   Map<String, dynamic> toJson() => {
         if (overview.isNotEmpty) 'o': overview,
@@ -124,6 +148,7 @@ class CastMeta {
           'cast': [for (final m in cast.take(_maxCast)) m.toJson()],
         if (title.isNotEmpty) 'title': title,
         if (year != null) 'year': year,
+        if (posterPath != null && posterPath!.isNotEmpty) 'poster': posterPath,
       };
 
   /// DEFENSIVO: todo cast del wire es tolerante (fallback), los miembros no-Map se
@@ -144,11 +169,19 @@ class CastMeta {
     if (overview.length > _maxOverview) {
       overview = overview.substring(0, _maxOverview);
     }
+    // FRAGMENTO de póster: tolerante a tipos del wire, capado (un path TMDb real
+    // son ~32 chars; el tope frena a un peer que mande una cadena gigante). Solo
+    // es el fragmento; la URL se arma contra el host FIJO en [posterUrl].
+    var poster = _wireString(j['poster']);
+    if (poster.length > _maxPosterPath) {
+      poster = poster.substring(0, _maxPosterPath);
+    }
     return CastMeta(
       overview: overview,
       cast: members,
       title: _wireString(j['title']),
       year: j['year'] is num ? (j['year'] as num).toInt() : null,
+      posterPath: poster.isEmpty ? null : poster,
     );
   }
 }

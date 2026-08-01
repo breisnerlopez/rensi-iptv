@@ -39,14 +39,19 @@ Rensi IPTV convierte tu cuenta **Xtream Codes** o tu **lista M3U** en una app de
 | <img src="docs/screenshots/player-phone.png" width="230" /> | <img src="docs/screenshots/downloads-phone.png" width="230" /> | <img src="docs/screenshots/search-phone.png" width="230" /> |
 | Reproducción acelerada por hardware con pistas de audio y subtítulos | Descarga películas y episodios para verlos sin conexión | Búsqueda global entre todas tus listas |
 
+| Mi lista | Guardar es igual en todo |
+|:---:|:---:|
+| <img src="docs/screenshots/mylist-phone.png" width="230" /> | <img src="docs/screenshots/bookmark-phone.png" width="230" /> |
+| Tus favoritos de **todas** tus listas en una sola vista, marcando de qué lista viene cada uno | Un mismo botón de **marcador** en películas y series, con confirmación |
+
 ### Enviar a tu TV
 
-| Control de transmisión | Mini-control persistente |
+| Control de transmisión (con volumen) | Mini-control persistente |
 |:---:|:---:|
 | <img src="docs/screenshots/casting-phone.png" width="230" /> | <img src="docs/screenshots/casting-mini-controller-phone.png" width="230" /> |
-| El móvil es el mando: audio, subtítulos y canales | Sigue explorando mientras se reproduce en la TV |
+| El móvil es el mando: **volumen**, audio, subtítulos y canales | Sigue explorando mientras se reproduce en la TV |
 
-En la propia TV, Rensi funciona como un **receptor** ligero — espera a tu móvil y reproduce lo que le envíes:
+En la propia TV, Rensi funciona como un **receptor** — con el **estado de conexión** visible y el **historial con su carátula**, y reproduce lo que le envíes:
 
 <div align="center"><img src="docs/screenshots/receiver-tv.png" width="480" /></div>
 
@@ -65,12 +70,12 @@ En la propia TV, Rensi funciona como un **receptor** ligero — espera a tu móv
 - **Búsqueda global** en *todas* tus listas a la vez — por título, actor, estudio o género
 - **Populares del mes / año / de siempre**, filtrado por género
 - **Filmografía del reparto** — toca un actor y ve todo lo suyo que tienes en tu biblioteca
-- **Continuar viendo** y una **Mi lista** / lista de deseos personal
+- **Continuar viendo** y **Mi lista** — tus favoritos de **todas tus listas** reunidos en una sola vista
 
 **📲 Envía a tu Android TV — sin Chromecast**
 - Una **conexión directa móvil→TV por tu propia red doméstica** — sin nube, sin cuenta de terceros; empareja una vez con un PIN
-- El móvil manda: explora, encola, pausa y avanza mientras la TV reproduce
-- La TV muestra metadatos ricos —título, sinopsis y reparto, enviados desde el móvil— incluso de un archivo que descargaste sin conexión
+- El móvil manda: explora, encola, pausa, avanza y **controla el volumen** mientras la TV reproduce
+- La TV muestra metadatos ricos —**carátula**, título, sinopsis y reparto, enviados desde el móvil— incluso de un archivo que descargaste sin conexión
 - Recuerda las TV emparejadas para reconectar solo
 
 **💾 Llévatelo sin conexión**

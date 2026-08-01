@@ -95,6 +95,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   StreamSubscription? _externalSubDataSubscription;
   StreamSubscription? _playbackSpeedSubscription;
   StreamSubscription? _castPlayPauseSubscription;
+  StreamSubscription? _castSetVolumeSubscription;
   Duration? _seekPos;
   Duration? _seekDur;
   Timer? _seekHideTimer;
@@ -159,6 +160,23 @@ class _PlayerWidgetState extends State<PlayerWidget>
   // can't make it resolve to the wrong channel.
   String? _previousChannelId;
   Timer? _watchHistoryTimer;
+  // Safety net for hard kills that never reach didChangeAppLifecycleState at
+  // all (some OEM/OOM kills tear the process down without going through the
+  // normal Flutter lifecycle callbacks): flush the resume position on a fixed
+  // cadence instead of relying solely on _watchHistoryTimer above, which is a
+  // pure debounce — during uninterrupted playback every new position tick
+  // re-arms it before its 5s elapse, so in practice it only ever fires once
+  // ticks stop (pause/stall), never mid-play.
+  Timer? _periodicHistoryTimer;
+  // Reentrancy guard for _saveWatchHistory: inactive→paused fire back-to-back
+  // on a normal backgrounding, and the periodic timer can overlap a
+  // lifecycle-triggered flush. _pendingWatchDuration is only nulled out AFTER
+  // the DB await completes, so two concurrent calls could both read it
+  // non-null before either finishes → double saveWatchHistory +
+  // markWatchedAndMaybeDelete + history_changed. This flag stops a second
+  // call from ever starting while one is in flight (a later, non-concurrent
+  // call still no-ops on its own via the null pendingWatchDuration).
+  bool _savingHistory = false;
   Duration? _pendingWatchDuration;
   Duration? _pendingTotalDuration;
   // Última posición REAL observada (>0), NUNCA anulada. _pendingWatchDuration se
@@ -764,6 +782,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // Solo un stream normal lleva ficha TMDb; el archivo local no. Resolver
     // (acotado) antes del re-LOAD para que el meta viaje si está disponible.
     if (!isLocalFile) await _ensureCastMeta();
+    // Serie descargada abierta mientras se castea: arma la cola de episodios
+    // hermanos descargados para que el re-LOAD también auto-avance en la TV.
+    (List<CastMedia>?, int) localQueue = (null, 0);
+    if (isLocalFile) {
+      final row = await DownloadService.instance.findByContentId(contentItem.id);
+      if (row != null) localQueue = await buildDownloadedSeriesQueue(row);
+    }
     bool ok;
     try {
       ok = isLocalFile
@@ -773,6 +798,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
               title: contentItem.name,
               ext: contentItem.containerExtension ?? '',
               imagePath: contentItem.imagePath,
+              queue: localQueue.$1,
+              index: localQueue.$2,
             )
           : await cast.castNext(_castMedia, queue: _castQueue, index: _castIndex);
     } catch (_) {
@@ -972,6 +999,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
       _revealInfoBar();
     });
 
+    // Cast: el móvil movió el slider de volumen del sheet de control; aplicar
+    // en el player receptor (la TV). Escala 0-100 (igual que UserPreferences).
+    _castSetVolumeSubscription =
+        EventBus().on<double>('cast_set_volume').listen((v) {
+      _player.setVolume(v);
+    });
+
     // External subtitle from a URL (.srt/.ass/.vtt).
     _externalSubUriSubscription = EventBus()
         .on<String>('load_external_subtitle_uri')
@@ -1004,13 +1038,33 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
     _castGate = Completer<bool>();
     _initializePlayer();
+
+    // See the field doc on _periodicHistoryTimer: this is the safety net for
+    // abrupt kills that bypass didChangeAppLifecycleState entirely. 20s keeps
+    // the DB write cheap (one insertOnConflictUpdate per tick) while bounding
+    // how much progress a truly-uncaught kill could lose. Live TV has no
+    // meaningful "resume position" (getContinueWatching already excludes it
+    // on read — see WatchHistory — this just avoids writing it at all).
+    _periodicHistoryTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      // Same min-position guard the lifecycle flush uses: never let the periodic
+      // stamp a 0/near-0 position (e.g. a stuck/buffering open that only emitted
+      // Duration.zero) over a good "Continuar viendo" resume.
+      final pending = _pendingWatchDuration;
+      if (contentItem.contentType != ContentType.liveStream &&
+          pending != null &&
+          pending >= _minMeaningfulPosition) {
+        _saveWatchHistory();
+      }
+    });
   }
 
   @override
   void dispose() {
     PlayerState.isPlayerActive = false;
     // Cancel timer and save watch history one last time before disposing
+    WidgetsBinding.instance.removeObserver(this);
     _watchHistoryTimer?.cancel();
+    _periodicHistoryTimer?.cancel();
     _stallTimer?.cancel();
     _channelDebounceTimer?.cancel();
     _okHoldTimer?.cancel();
@@ -1034,6 +1088,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _externalSubDataSubscription?.cancel();
     _playbackSpeedSubscription?.cancel();
     _castPlayPauseSubscription?.cancel();
+    _castSetVolumeSubscription?.cancel();
     _seekHideTimer?.cancel();
     _seekCommitTimer?.cancel();
     _seekGraceTimer?.cancel();
@@ -1180,6 +1235,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // In dispose the State is already unmounted, so allow an explicit
     // ignoreMounted to still flush the final position.
     if (_pendingWatchDuration == null || (!mounted && !ignoreMounted)) return;
+    // See the field doc on _savingHistory: a call already in flight wins: a
+    // second, CONCURRENT call must not start (it would race the first's
+    // still-pending null-out of _pendingWatchDuration below and double-save).
+    if (_savingHistory) return;
+    _savingHistory = true;
 
     try {
       await watchHistoryService.saveWatchHistory(
@@ -1215,6 +1275,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
       // Silently handle database errors to prevent crashes
       // The next save attempt will retry
       debugPrint('Error saving watch history: ${scrubCredentials(e)}');
+    } finally {
+      _savingHistory = false;
     }
   }
 
@@ -1723,6 +1785,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
     _player.stream.volume.listen((event) async {
       await UserPreferences.setVolume(event);
+      // Puente de casting: la TV receptora reenvía su volumen real al móvil
+      // (eco para el slider del sheet de control). Mismo patrón que
+      // 'cast_player_position' — solo emite en TV, donde tv_receiver_host
+      // escucha; en móvil nadie consume el evento.
+      if (ResponsiveHelper.isTelevisionDevice) {
+        EventBus().emit('cast_player_volume', event);
+      }
     });
 
     _player.stream.position.listen((position) {
@@ -2061,10 +2130,65 @@ class _PlayerWidgetState extends State<PlayerWidget>
     });
   }
 
+  /// Minimum position worth persisting as a resume point. Guards the two
+  /// lifecycle-triggered saves below against stamping "Continuar viendo" with
+  /// a near-zero position if the user backgrounds within the first couple of
+  /// seconds of opening something — before this fix an abrupt background/kill
+  /// saved nothing at all, so there was no such edge case to worry about.
+  static const _minMeaningfulPosition = Duration(seconds: 5);
+
+  /// Flush the resume position for [contentItem] RIGHT NOW, instead of
+  /// waiting for whatever would normally trigger a save. Two paths currently
+  /// do that, and an abrupt background/kill reaches neither:
+  ///  - the position-stream debounce (_watchHistoryTimer), which only fires
+  ///    once position ticks go quiet (e.g. on a manual pause) — during
+  ///    uninterrupted playback each new tick re-arms it, so it never fires;
+  ///  - State.dispose()'s final flush, which never runs on a task kill (the
+  ///    engine tears down via AppLifecycleState.detached instead, which used
+  ///    to call _disposePlayer() directly and skip the save entirely).
+  /// ignoreMounted mirrors dispose()'s own flush: by the time `detached`
+  /// fires the State may already be considered unmounted-adjacent, but the
+  /// position we hold is still the right one to persist.
+  Future<void> _flushWatchHistoryOnLifecycle() async {
+    // Live TV has no meaningful resume position (see resumableFrom in
+    // watch_history.dart, which already excludes it on read); don't let a
+    // lifecycle event write one either.
+    if (contentItem.contentType == ContentType.liveStream) return;
+    final pending = _pendingWatchDuration;
+    if (pending == null || pending < _minMeaningfulPosition) return;
+    _watchHistoryTimer?.cancel();
+    try {
+      await _saveWatchHistory(ignoreMounted: true);
+    } catch (_) {
+      // Best-effort, same as the other lifecycle-adjacent saves.
+    }
+  }
+
   @override
   Future<void> didChangeAppLifecycleState(AppLifecycleState state) async {
     switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+        // Home button / task switcher / about to be backgrounded-then-killed:
+        // persist the current resume point immediately. Root cause this
+        // fixes — neither of the two normal save paths (see
+        // _flushWatchHistoryOnLifecycle's doc) ever ran for an abrupt
+        // background, so "Continuar viendo" silently kept whatever was saved
+        // at the LAST pause/quiescence, or nothing at all for a movie played
+        // start-to-interrupt without ever pausing.
+        await _flushWatchHistoryOnLifecycle();
+        break;
       case AppLifecycleState.detached:
+        // Flush BEFORE tearing the player down. Previously this branch only
+        // disposed the player and stopped the audio handler — never saved —
+        // so a task kill that reached `detached` still lost the position.
+        await _flushWatchHistoryOnLifecycle();
+        // _flushWatchHistoryOnLifecycle already cancels _watchHistoryTimer;
+        // the periodic safety-net timer isn't tied to dispose() on this path
+        // (detached doesn't guarantee State.dispose() runs), so cancel it
+        // explicitly — otherwise it can keep firing every 20s against an
+        // already-disposed player/content if the engine survives detach.
+        _periodicHistoryTimer?.cancel();
         await _disposePlayer();
         _audioHandler.setPlayer(null);
         await _audioHandler.stop();

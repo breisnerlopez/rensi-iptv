@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../controllers/cast_sender_controller.dart';
+import '../../database/database.dart';
 import '../../l10n/app_localizations.dart';
 import '../../l10n/localization_extension.dart';
+import '../../services/download_service.dart';
 
 const _accent = Color(0xFFD2603A);
 
@@ -74,6 +76,8 @@ Future<void> startLocalFileCastFlow(
   required String contentId,
   required String title,
   String ext = '',
+  List<CastMedia>? queue,
+  int index = 0,
 }) async {
   final controller = context.read<CastSenderController>();
   if (controller.isCasting) return;
@@ -82,6 +86,8 @@ Future<void> startLocalFileCastFlow(
     contentId: contentId,
     title: title,
     ext: ext,
+    queue: queue,
+    index: index,
   );
   await showModalBottomSheet<void>(
     context: context,
@@ -98,6 +104,37 @@ Future<void> startLocalFileCastFlow(
   if (!controller.isCasting && controller.phase != CastPhase.idle) {
     controller.cancel();
   }
+}
+
+/// Arma la cola de casting para una descarga [tapped]: los episodios DESCARGADOS
+/// hermanos (misma serie) en orden temporada/episodio, cada uno como `CastMedia`
+/// de archivo con su `localFilePath` y `isDownloadedSeries: true`, para que la TV
+/// auto-avance al terminar cada uno. Devuelve `(queue, index)` donde `index`
+/// apunta al episodio tocado. Para una película, o una serie con un solo
+/// episodio descargado, devuelve `(null, 0)` → cast de archivo único que se
+/// detiene al final (comportamiento sin cambios). Compartido por la pantalla de
+/// descargas y la coexistencia móvil↔TV del reproductor.
+Future<(List<CastMedia>?, int)> buildDownloadedSeriesQueue(
+  Download tapped,
+) async {
+  final siblings =
+      await DownloadService.instance.siblingDownloadedEpisodes(tapped);
+  if (siblings.length < 2) return (null, 0);
+  final queue = [
+    for (final d in siblings)
+      CastMedia(
+        channelId: d.contentId,
+        contentType: 'file',
+        title: d.title,
+        ext: d.ext ?? '',
+        imagePath: d.imagePath,
+        localFilePath: d.filePath,
+        isDownloadedSeries: true,
+      ),
+  ];
+  var index = siblings.indexWhere((d) => d.id == tapped.id);
+  if (index < 0) index = 0;
+  return (queue, index);
 }
 
 class _CastSheet extends StatefulWidget {
