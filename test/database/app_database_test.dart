@@ -6,7 +6,7 @@ import 'package:rensi_iptv/models/favorite.dart';
 import 'package:rensi_iptv/models/m3u_item.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
-import 'package:drift/drift.dart' show Variable;
+import 'package:drift/drift.dart' show Variable, Value;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../helpers/test_database.dart';
@@ -96,11 +96,33 @@ void main() {
         updatedAt: DateTime(2026),
       ));
 
+      // Offline downloads carry a playlistId too and were the one branch the
+      // cascade forgot: a completed download left its row (and, separately, its
+      // file on disk) behind when its playlist was deleted.
+      await database.into(database.downloads).insert(
+            DownloadsCompanion.insert(
+              contentId: 'watched-1',
+              contentType: 'vod',
+              title: 'Downloaded Movie',
+              addedAt: DateTime(2026).millisecondsSinceEpoch,
+              playlistId: 'playlist-1',
+              status: const Value('complete'),
+              filePath: const Value('/tmp/rensi/watched-1.mp4'),
+            ),
+          );
+
       await database.deletePlaylistById('playlist-1');
 
       expect(await database.getPlaylistById('playlist-1'), isNull);
       expect(await database.getCategoriesByPlaylist('playlist-1'), isEmpty);
       expect(await database.getM3uItemsByPlaylist('playlist-1'), isEmpty);
+      expect(
+        await (database.select(database.downloads)
+              ..where((tbl) => tbl.playlistId.equals('playlist-1')))
+            .get(),
+        isEmpty,
+        reason: 'deleting a playlist must reap its download rows too',
+      );
       expect(
         await (database.select(database.watchHistories)
               ..where((tbl) => tbl.playlistId.equals('playlist-1')))

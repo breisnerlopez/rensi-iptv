@@ -52,6 +52,22 @@ class _ThrowingTmdbService extends TmdbService {
   }
 }
 
+/// TMDb whose person filmography (`combined_credits`) is fixed, so
+/// [GlobalSearchService.searchByPerson] can be cross-referenced against the
+/// local catalogue in a test.
+class _FakePersonTmdbService extends TmdbService {
+  _FakePersonTmdbService(this.credits);
+
+  final List<TmdbSearchResult> credits;
+
+  @override
+  Future<List<TmdbSearchResult>> getPersonCredits(
+    int personId, {
+    Locale? locale,
+  }) async =>
+      credits;
+}
+
 void main() {
   late AppDatabase database;
 
@@ -715,7 +731,15 @@ void main() {
   });
 
   group('Match labelling', () {
-    test('exact local titles are flagged with isExactMatch', () async {
+    test('exact local title is flagged; a different-film substring does NOT '
+        'attach to the card', () async {
+      // "Dune" and "Dune Part Two" are DIFFERENT films. Only the exact "Dune"
+      // copy belongs on the "Dune" card's play-from list; the substring
+      // "Dune Part Two" must NOT be attached as a fuzzy play-from row — it is
+      // its own title and stays in localOnly (its own card / its own TMDb
+      // entry). Confident-match-only attachment (exact title in either language,
+      // or a shared tmdb id) is what stops a short/common title from vacuuming
+      // up unrelated longer titles.
       await PlaylistService.savePlaylist(
         Playlist(
           id: 'pl1',
@@ -743,15 +767,16 @@ void main() {
       final results = await service.search('dune');
       final matches = results.withLocal.single.localMatches;
 
-      final exact = matches.where((m) => m.isExactMatch).toList();
-      final fuzzy =
-          matches.where((m) => m.strength == MatchStrength.fuzzy).toList();
-
-      expect(exact, hasLength(1));
-      expect(exact.single.content.name, 'Dune');
-      expect(fuzzy, hasLength(1));
-      expect(fuzzy.single.content.name, 'Dune Part Two');
+      expect(matches, hasLength(1));
+      expect(matches.single.content.name, 'Dune');
+      expect(matches.single.isExactMatch, isTrue);
       expect(results.withLocal.single.hasExactMatch, isTrue);
+      expect(
+        results.localOnly.map((e) => e.content.name),
+        contains('Dune Part Two'),
+        reason: 'the different film stays its own localOnly card, '
+            'not a play-from row on "Dune"',
+      );
     });
   });
 
@@ -1123,6 +1148,196 @@ void main() {
       expect(
         GlobalSearchService.seasonCountFromNumbers(const [], const []),
         isNull,
+      );
+    });
+  });
+
+  group('Confident-only attachment (play-from over-listing)', () {
+    Future<void> savePl() => PlaylistService.savePlaylist(
+          Playlist(
+            id: 'pl1', name: 'X', type: PlaylistType.xtream,
+            url: 'https://x.com', username: 'u', password: 'p',
+            createdAt: DateTime(2026),
+          ),
+        );
+
+    test('a short/common title attaches only its exact/id copies, NOT unrelated '
+        'substrings', () async {
+      // Real-panel bug: opening "Invasión" (2007) listed EVERY local title
+      // containing the word "invasión" in its "Reproducir desde" picker —
+      // "Invasión Zombie", "La invasión de los ladrones de cuerpos" — because
+      // the fuzzy branch attached on a mere substring. Those are DIFFERENT
+      // films and must NOT attach; only the actual "Invasión" copy (exact, or a
+      // shared tmdb id) belongs on the card.
+      await savePl();
+      await _insertMovie(database, 'Invasión', 'pl1');
+      await _insertMovie(database, 'Invasión Zombie', 'pl1');
+      await _insertMovie(
+          database, 'La invasión de los ladrones de cuerpos', 'pl1');
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+            id: 1,
+            mediaType: TmdbMediaType.movie,
+            title: 'Invasión',
+            voteAverage: 7,
+          ),
+        ]),
+      );
+      final r = await service.search('invasión');
+
+      expect(r.withLocal, hasLength(1));
+      expect(r.withLocal.single.tmdb.title, 'Invasión');
+      expect(
+        r.withLocal.single.localMatches.map((m) => m.content.name).toSet(),
+        {'Invasión'},
+        reason: 'only the exact copy attaches, not the unrelated substrings',
+      );
+      expect(
+        r.localOnly.map((e) => e.content.name).toSet(),
+        {'Invasión Zombie', 'La invasión de los ladrones de cuerpos'},
+        reason: 'the different films stay their own localOnly cards',
+      );
+    });
+
+    test('a genuine localized-vs-original copy still attaches (exact original '
+        'title)', () async {
+      // The legit case the confident rule must PRESERVE: an English-named local
+      // copy of a movie whose TMDb card is localized. The localized title does
+      // not string-match, but the ORIGINAL-language title does, exactly — so it
+      // must still attach as owned.
+      await savePl();
+      await _insertMovie(database, 'The Invasion', 'pl1');
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+            id: 2,
+            mediaType: TmdbMediaType.movie,
+            title: 'La invasión',
+            originalTitle: 'The Invasion',
+            voteAverage: 6,
+          ),
+        ]),
+      );
+      final r = await service.search('invasion');
+
+      expect(r.withLocal, hasLength(1),
+          reason: 'the English copy is owned via the original title');
+      expect(r.withLocal.single.localMatches.single.content.name,
+          'The Invasion');
+      expect(r.localOnly, isEmpty);
+    });
+
+    test('a translated-title copy still attaches by shared tmdb id', () async {
+      // The other legit path: names differ in BOTH languages but the persisted
+      // tmdb_id ties them together. Must still attach.
+      await savePl();
+      await _insertMovie(database, 'La invasión', 'pl1', tmdbId: 3);
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+            id: 3,
+            mediaType: TmdbMediaType.movie,
+            title: 'The Invasion',
+            voteAverage: 6,
+          ),
+        ]),
+      );
+      final r = await service.search('invasión');
+
+      expect(r.withLocal, hasLength(1));
+      expect(r.withLocal.single.localMatches.single.content.name,
+          'La invasión');
+      expect(r.localOnly, isEmpty);
+    });
+  });
+
+  group('searchByPerson cross-language ownership', () {
+    test('an owned movie named in another language than the credit shows as '
+        'OWNED (matched by tmdb id)', () async {
+      // Real bug: the actor view searched local by each credit's TITLE in ONE
+      // language (`name LIKE %title%`). A credit "The Invasion" never matched an
+      // owned copy named "La invasión", so the owned movie did not appear as
+      // owned. Cross-referencing by tmdb id (and original title) recovers it.
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'pl1', name: 'X', type: PlaylistType.xtream,
+          url: 'https://x.com', username: 'u', password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await _insertMovie(database, 'La invasión', 'pl1', tmdbId: 550);
+
+      final service = GlobalSearchService(
+        tmdbService: _FakePersonTmdbService([
+          const TmdbSearchResult(
+            id: 550,
+            mediaType: TmdbMediaType.movie,
+            title: 'The Invasion',
+            voteAverage: 6,
+          ),
+        ]),
+      );
+      final r = await service.searchByPerson(
+        const TmdbPerson(id: 1, name: 'Nicole Kidman'),
+      );
+
+      expect(r.withLocal.map((e) => e.tmdb.id), contains(550),
+          reason: 'the owned copy is recognised by id despite the title differing '
+              'in language');
+      expect(
+        r.withLocal
+            .firstWhere((e) => e.tmdb.id == 550)
+            .localMatches
+            .single
+            .content
+            .name,
+        'La invasión',
+      );
+      expect(r.tmdbOnly.map((e) => e.tmdb.id), isNot(contains(550)),
+          reason: 'an owned credit must not also be a Discover-only card');
+    });
+
+    test('an owned copy matches a credit by exact ORIGINAL title across '
+        'languages', () async {
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'pl1', name: 'X', type: PlaylistType.xtream,
+          url: 'https://x.com', username: 'u', password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      // No tmdb id on the local copy; reachable only through the credit's
+      // original-language title.
+      await _insertMovie(database, 'The Invasion', 'pl1');
+
+      final service = GlobalSearchService(
+        tmdbService: _FakePersonTmdbService([
+          const TmdbSearchResult(
+            id: 551,
+            mediaType: TmdbMediaType.movie,
+            title: 'La invasión',
+            originalTitle: 'The Invasion',
+            voteAverage: 6,
+          ),
+        ]),
+      );
+      final r = await service.searchByPerson(
+        const TmdbPerson(id: 2, name: 'Nicole Kidman'),
+      );
+
+      expect(r.withLocal.map((e) => e.tmdb.id), contains(551));
+      expect(
+        r.withLocal
+            .firstWhere((e) => e.tmdb.id == 551)
+            .localMatches
+            .single
+            .content
+            .name,
+        'The Invasion',
       );
     });
   });

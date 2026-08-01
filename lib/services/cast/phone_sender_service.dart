@@ -174,6 +174,7 @@ class PhoneSenderService {
     String title = '',
     String ext = '',
     CastMeta? meta,
+    int startPositionMs = 0,
   }) async {
     if (_sessionKey == null) throw StateError('no emparejado');
     final creds = await CastCrypto.encryptJson(_sessionKey!, {
@@ -187,6 +188,9 @@ class PhoneSenderService {
       'title': title,
       'ext': ext,
       'creds': creds,
+      // Posición de resume (ms). Se omite si es 0 → LOAD idéntico al de siempre
+      // (compat. hacia atrás: un receptor viejo lo ignora; uno nuevo cae a 0).
+      if (startPositionMs > 0) 'pos': startPositionMs,
       // Metadatos TMDb OPCIONALES (sinopsis/reparto para el panel de pausa de la
       // TV). Público, sin cifrar. Se omite si no hay nada útil que enviar → un
       // LOAD idéntico al de siempre (compat. hacia atrás).

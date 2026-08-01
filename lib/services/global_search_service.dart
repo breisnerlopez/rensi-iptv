@@ -108,18 +108,54 @@ class GlobalSearchService {
     return tokens.join(' ');
   }
 
+  /// A release year TAGGED in a title via parentheses or brackets — "The Lion
+  /// King (1994)", "El Rey León [2019]". Deliberately ONLY the bracketed form:
+  /// a bare trailing 4-digit token is often PART of the title ("Blade Runner
+  /// 2049", "2001: A Space Odyssey", "Space Jam 2"), so treating that as a
+  /// release year would wrongly split a film from its own TMDb card. Returns
+  /// null when no bracketed 19xx/20xx year is present, so titles WITHOUT a
+  /// tagged year group EXACTLY as before — the over-split guard.
+  static final RegExp _taggedYearRe =
+      RegExp(r'[\(\[]\s*((?:19|20)\d{2})\s*[\)\]]');
+  static String? _taggedYear(String value) =>
+      _taggedYearRe.firstMatch(value)?.group(1);
+
+  /// The type-scoped title grouping key. When the raw title carries a bracketed
+  /// release year the year is folded IN, so two DISTINCT same-name/different-year
+  /// films ("The Lion King (1994)" vs "(2019)") land on different keys and do
+  /// NOT collapse into one card. A title WITHOUT a tagged year uses the bare
+  /// normalized key, so genuine same-title copies (every connector spelling of
+  /// "Rick y Morty", quality-encode variants) still group as one. Year folded
+  /// AFTER [_normalizeTitle] (which itself strips the "(1994)" token), so the
+  /// key is "the lion king (1994)" — a clean, stable, script-agnostic form.
+  static String _titleKey(String name, ContentType type, {String? year}) {
+    final base = _normalizeTitle(name);
+    final y = year ?? _taggedYear(name);
+    return y == null ? 'title:$base|$type' : 'title:$base ($y)|$type';
+  }
+
   /// The grouping keys that make two local streams "the same logical title":
-  /// its normalized title AND, when the stream carries a persisted tmdb id, that
-  /// id — both, so a copy matched only by id and a copy matched only by title
-  /// still land in the same group. The content type is folded into each key so a
-  /// movie and a show sharing a name never group. Used by [_crossReference] to
-  /// attach a title's scattered owned copies to the one card that represents it.
+  /// its (year-aware, see [_titleKey]) normalized title AND, when the stream
+  /// carries a persisted tmdb id, that id — both, so a copy matched only by id
+  /// and a copy matched only by title still land in the same group. The content
+  /// type is folded into each key so a movie and a show sharing a name never
+  /// group. Used by [_crossReference] to attach a title's scattered owned copies
+  /// to the one card that represents it.
+  ///
+  /// An id-tagged copy also emits the BARE (yearless) title key: its id already
+  /// separates distinct works definitively, so it should still fold with a
+  /// title-only sibling of the SAME film regardless of a year tag. Only the
+  /// id-LESS path relies on the year to keep same-name/different-year films apart.
   static List<String> _variantKeys(LocalContentMatch m) {
     final type = m.content.contentType;
-    final keys = <String>['title:${_normalizeTitle(m.content.name)}|$type'];
     final id = m.tmdbId;
-    if (id != null && id > 0) keys.add('id:$id|$type');
-    return keys;
+    if (id != null && id > 0) {
+      return [
+        'title:${_normalizeTitle(m.content.name)}|$type',
+        'id:$id|$type',
+      ];
+    }
+    return [_titleKey(m.content.name, type)];
   }
 
   /// The grouping keys that identify a withLocal CARD, so a copy in any playlist
@@ -129,20 +165,40 @@ class GlobalSearchService {
   /// — plus the keys of every copy already attached. Keyed in the same shape as
   /// [_variantKeys] (type-scoped) so the two meet.
   static Iterable<String> _cardVariantKeys(GlobalSearchResult card) {
-    final t = card.tmdb;
+    final keys = _tmdbTitleIdKeys(card.tmdb);
+    for (final m in card.localMatches) {
+      keys.addAll(_variantKeys(m));
+    }
+    return keys;
+  }
+
+  /// A bare TMDb result's grouping keys: its id, its (localized) title AND its
+  /// ORIGINAL-language title, each type-scoped in the same shape as
+  /// [_variantKeys]. Split out of [_cardVariantKeys] so the filmography views
+  /// ([searchByPerson], [searchByCompany]) can key an actor/studio's credits
+  /// against the local catalogue by id + exact-title-in-both-languages, exactly
+  /// as the main search folds cross-language copies — without wrapping each
+  /// credit in a card.
+  static Set<String> _tmdbTitleIdKeys(TmdbSearchResult t) {
     final type = t.mediaType == TmdbMediaType.tv
         ? ContentType.series
         : ContentType.vod;
+    // The card emits BOTH forms of its title key: the bare one (so a yearless
+    // owned copy still folds onto it) AND, when TMDb gives a release year, the
+    // year-qualified one (so a tagged "The Lion King (1994)" copy folds onto the
+    // 1994 card and NOT the 2019 one). A tagged-year local copy only ever emits
+    // the year form (see [_variantKeys]), so it can never meet the WRONG card's
+    // bare key — the two years stay on distinct cards.
+    final year = t.releaseYear;
     final keys = <String>{
       'id:${t.id}|$type',
-      'title:${_normalizeTitle(t.title)}|$type',
+      _titleKey(t.title, type),
     };
+    if (year != null) keys.add(_titleKey(t.title, type, year: year));
     final original = t.originalTitle;
     if (original != null && original.trim().isNotEmpty) {
-      keys.add('title:${_normalizeTitle(original)}|$type');
-    }
-    for (final m in card.localMatches) {
-      keys.addAll(_variantKeys(m));
+      keys.add(_titleKey(original, type));
+      if (year != null) keys.add(_titleKey(original, type, year: year));
     }
     return keys;
   }
@@ -396,9 +452,9 @@ class GlobalSearchService {
       _tmdbService.searchPerson(query, locale: locale);
 
   /// A selected person's filmography, cross-referenced against the local
-  /// catalogue. Pulls `combined_credits`, then — exactly like [_wishlistAsResults]
-  /// searches local per saved title — searches the local catalogue by EACH film
-  /// title, unions the matches (deduped), and runs the SAME [_crossReference]
+  /// catalogue. Pulls `combined_credits`, cross-references them against the full
+  /// local catalogue by id + exact-title-in-both-languages (see
+  /// [_localMatchesForCredits]), and runs the SAME [_crossReference]
   /// buckets/owner-dedup as search/multi. TMDb failures degrade to a typed
   /// [UnifiedSearchResults.tmdbFailure] instead of throwing, so the person view
   /// never crashes on a missing/rejected key or offline device.
@@ -416,17 +472,7 @@ class GlobalSearchService {
       failure = TmdbFailure.network;
     }
 
-    // Union the local matches across every film title, deduped by dedupKey —
-    // the same shape [_searchAllLocal] returns for a single query, so
-    // [_crossReference] (and its franchise owner-dedup) works unchanged.
-    final seen = <String>{};
-    final localResults = <LocalContentMatch>[];
-    for (final film in credits) {
-      for (final m in await _searchAllLocal(film.title)) {
-        if (seen.add(m.dedupKey)) localResults.add(m);
-      }
-    }
-
+    final localResults = await _localMatchesForCredits(credits);
     final wishlistKeys = await TmdbWishlistService.getKeys();
     return _crossReference(
       credits,
@@ -439,6 +485,37 @@ class GlobalSearchService {
       tmdbOnlyCap: 60,
       localOnlyCap: 100,
     );
+  }
+
+  /// The subset of the FULL local catalogue that reconciles with any of
+  /// [tmdbItems] by the SAME robust keys the main search dedups by — a persisted
+  /// tmdb_id OR an exact normalized title in BOTH languages (localized +
+  /// original) — deduped by dedupKey. The filmography views ([searchByPerson],
+  /// [searchByCompany]) use this instead of a single-language `name LIKE %title%`
+  /// per credit, which searched the local catalogue by the credit's title in ONE
+  /// language and so MISSED an owned copy named in another language (TMDb credit
+  /// "The Invasion" vs owned "La invasión"): the LIKE never returned it, so it
+  /// never entered the buckets and never showed as OWNED. Keying on id and the
+  /// original-language title recovers it. Reads the memoized [globalCatalogue]
+  /// (the same one Browse uses) once, rather than N per-title DB fan-outs. Live
+  /// streams have no TMDb credit and are skipped.
+  Future<List<LocalContentMatch>> _localMatchesForCredits(
+    List<TmdbSearchResult> tmdbItems,
+  ) async {
+    if (tmdbItems.isEmpty) return const [];
+    final creditKeys = <String>{};
+    for (final t in tmdbItems) {
+      creditKeys.addAll(_tmdbTitleIdKeys(t));
+    }
+    final seen = <String>{};
+    final out = <LocalContentMatch>[];
+    for (final local in await globalCatalogue()) {
+      if (local.content.contentType == ContentType.liveStream) continue;
+      if (_variantKeys(local).any(creditKeys.contains)) {
+        if (seen.add(local.dedupKey)) out.add(local);
+      }
+    }
+    return out;
   }
 
   // --- Search by studio ----------------------------------------------------
@@ -455,10 +532,11 @@ class GlobalSearchService {
 
   /// A selected studio's filmography, cross-referenced against the local
   /// catalogue. The exact shape of [searchByPerson]: pulls the studio's discover
-  /// page, searches the local catalogue by EACH film title, unions the matches
-  /// (deduped), and runs the SAME [_crossReference] buckets/owner-dedup as
-  /// search/multi (owned titles play, the rest become Discover). TMDb failures
-  /// degrade to a typed [UnifiedSearchResults.tmdbFailure] instead of throwing.
+  /// page, cross-references it against the full local catalogue by id +
+  /// exact-title-in-both-languages (see [_localMatchesForCredits]), and runs the
+  /// SAME [_crossReference] buckets/owner-dedup as search/multi (owned titles
+  /// play, the rest become Discover). TMDb failures degrade to a typed
+  /// [UnifiedSearchResults.tmdbFailure] instead of throwing.
   Future<UnifiedSearchResults> searchByCompany(
     TmdbCompany company, {
     Locale? locale,
@@ -473,14 +551,7 @@ class GlobalSearchService {
       failure = TmdbFailure.network;
     }
 
-    final seen = <String>{};
-    final localResults = <LocalContentMatch>[];
-    for (final film in films) {
-      for (final m in await _searchAllLocal(film.title)) {
-        if (seen.add(m.dedupKey)) localResults.add(m);
-      }
-    }
-
+    final localResults = await _localMatchesForCredits(films);
     final wishlistKeys = await TmdbWishlistService.getKeys();
     return _crossReference(
       films,
@@ -769,8 +840,9 @@ class GlobalSearchService {
   }
 
   /// Builds match objects already labelled with the strongest strength
-  /// between [tmdb] and each candidate. Returns only matches that meet the
-  /// fuzzy threshold, ordered exact-first.
+  /// between [tmdb] and each candidate. Attaches a local copy to the card ONLY
+  /// on a CONFIDENT match — a shared tmdb id, or an EXACT normalized title in
+  /// either language — never on a mere substring. Ordered exact/id-first.
   List<LocalContentMatch> _findMatchesFor(
     TmdbSearchResult tmdb,
     List<LocalContentMatch> localResults,
@@ -807,8 +879,35 @@ class GlobalSearchService {
       // against BOTH the localized TMDb title and its original-language title,
       // taking the STRONGER (lowest-index) result. An English-original catalogue
       // reconciles with a localized TMDb title, and vice-versa.
+      //
+      // Only an EXACT normalized title (in either language) attaches — the loose
+      // substring (fuzzy) branch is deliberately NOT accepted here. A short or
+      // common title is a substring of many unrelated ones ("Invasión" ⊂
+      // "Invasión Zombie", ⊂ "La invasión de los ladrones de cuerpos"), so a
+      // substring rule vacuumed every one of them into the card's "Reproducir
+      // desde" list even though they are DIFFERENT films. Genuine same-title
+      // copies in another language or playlist are still recovered — by id, by
+      // the original-language title, or by the exact-title/id variant-fold in
+      // [_crossReference] — none of which need the substring branch.
       final strength = _bestClassify(match.content.name, tmdb);
-      if (strength == MatchStrength.none) continue;
+      if (strength != MatchStrength.exact) continue;
+      // Year-disambiguation for id-LESS copies: when the local title carries a
+      // bracketed release year AND this TMDb result carries one, they must AGREE
+      // to attach. Two distinct same-name films — "The Lion King (1994)" and
+      // "(2019)" — both normalize-match the yearless TMDb title "The Lion King",
+      // so without this each attaches to BOTH year-cards and the franchise
+      // owner-dedup then collapses them onto ONE card, losing a film. Requiring
+      // the tagged years to match routes each copy to its OWN year-card. Guarded
+      // to fire only when BOTH sides expose a year: a yearless local title (the
+      // common case) or a TMDb result with no release date attaches exactly as
+      // before. The id branch above is exempt — a persisted tmdb_id is
+      // definitive and needs no year check.
+      final localYear = _taggedYear(match.content.name);
+      if (localYear != null &&
+          tmdb.releaseYear != null &&
+          localYear != tmdb.releaseYear) {
+        continue;
+      }
       out.add(match.withStrength(strength));
     }
     out.sort((a, b) => a.strength.index.compareTo(b.strength.index));

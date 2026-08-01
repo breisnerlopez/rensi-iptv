@@ -142,6 +142,9 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
                 (event.logicalKey == LogicalKeyboardKey.goBack ||
                     event.logicalKey == LogicalKeyboardKey.escape ||
                     event.logicalKey == LogicalKeyboardKey.browserBack)) {
+              // Fix #10b: swallow a same-press trailing route pop (see
+              // PlayerState.overlayClosedByBack).
+              PlayerState.overlayClosedByBack = true;
               EventBus().emit('toggle_video_info', false);
               return KeyEventResult.handled;
             }

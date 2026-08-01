@@ -147,6 +147,19 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
     _activateArmed = !okHeld;
     _loadTracks();
 
+    // Fix #7: the panel can open before `player_tracks` last fired (fast long-OK
+    // right after start) → the synchronous read above would show empty lists. If
+    // so, re-read PlayerState after the first frame so the latest detected tracks
+    // appear without waiting for the next track change.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final stale = audioTracks.isEmpty && subtitleTracks.isEmpty;
+      final fresh = PlayerState.audios.isNotEmpty ||
+          PlayerState.subtitles.isNotEmpty ||
+          PlayerState.videos.isNotEmpty;
+      if (stale && fresh) setState(_loadTracks);
+    });
+
     subscription = EventBus().on<Tracks>('player_tracks').listen((Tracks data) {
       if (mounted) {
         setState(() {
@@ -206,6 +219,10 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
                 (key == LogicalKeyboardKey.goBack ||
                     key == LogicalKeyboardKey.escape ||
                     key == LogicalKeyboardKey.browserBack)) {
+              // Fix #10b: this BACK closes the panel; if the platform ALSO fires
+              // the route pop for the same press, the player's PopScope consumes
+              // this one-shot flag to swallow it instead of leaving playback.
+              PlayerState.overlayClosedByBack = true;
               widget.onClose();
               return KeyEventResult.handled;
             }
@@ -630,6 +647,11 @@ class _TrackItem extends StatefulWidget {
 class _TrackItemState extends State<_TrackItem> {
   bool _focused = false;
 
+  // Brand accent used for the D-pad focus ring: a bright, warm colour that is
+  // unmistakable AND clearly distinct from the blue "selected" (currently active)
+  // tint, so on a TV the viewer can always tell which row the remote is on.
+  static const Color _focusAccent = Color(0xFFD2603A);
+
   @override
   Widget build(BuildContext context) {
     const textColor = Colors.white;
@@ -638,14 +660,16 @@ class _TrackItemState extends State<_TrackItem> {
     final selectedBackground = Colors.blue.withOpacity(0.18);
     final unselectedBackground = Colors.white.withOpacity(0.03);
 
+    // Focus wins visually over everything: a strong accent fill + thick accent
+    // border + glow. Selected (not focused) keeps its subtler blue tint.
     final Color bg = _focused
-        ? Colors.white.withOpacity(0.22)
+        ? _focusAccent.withOpacity(0.32)
         : (widget.isSelected ? selectedBackground : unselectedBackground);
     final Color borderColor = _focused
-        ? Colors.white
+        ? _focusAccent
         : (widget.isSelected ? primaryColor : dividerColor);
     final double borderWidth = _focused
-        ? 2.5
+        ? 3.0
         : (widget.isSelected ? 1.5 : 0.5);
 
     return InkWell(
@@ -654,12 +678,22 @@ class _TrackItemState extends State<_TrackItem> {
       onFocusChange: (f) {
         if (f != _focused) setState(() => _focused = f);
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: borderColor, width: borderWidth),
+          boxShadow: _focused
+              ? [
+                  BoxShadow(
+                    color: _focusAccent.withOpacity(0.55),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           children: [

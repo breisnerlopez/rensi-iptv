@@ -1,3 +1,15 @@
+# [2.15.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.14.0...v2.15.0) (2026-08-01)
+
+
+### Bug Fixes
+
+* **actualizar la app ya no puede dejarla inutilizable:** una migración de base de datos fallaba al actualizar desde versiones antiguas (o si te habías quedado a medias en una versión reciente) y crasheaba al abrir; ahora la actualización llega bien y **preserva tu historial, favoritos y descargas**
+* **casting — "Continuar viendo" ahora sí guarda y REANUDA:** lo que envías a la TV queda en tu historial y, al volver a enviarlo, **la TV arranca donde ibas** (antes empezaba desde el principio y a veces no se guardaba); y el panel de pistas muestra las pistas reales durante el casting
+* **reproducción más robusta:** al recuperar la conexión **reanuda donde ibas** (no reinicia); avance rápido más **controlable** (no salta al final); **subtítulos apagados por defecto**; el panel de audio/subtítulos ya no aparece vacío; atrás pide **confirmación** antes de salir y cierra **solo el panel** abierto (no la reproducción); duración en formato reloj
+* **búsqueda más precisa:** buscar **por actor** encuentra tus películas aunque el título esté en otro idioma; "Reproducir desde" ya no lista películas que solo comparten una palabra del título; dos películas del mismo nombre pero **distinto año** ya no se mezclan
+* **al borrar una lista** también se eliminan sus **descargas** (antes quedaban huérfanas en disco)
+
+
 # [2.14.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.13.2...v2.14.0) (2026-08-01)
 
 

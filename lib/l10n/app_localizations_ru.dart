@@ -158,6 +158,10 @@ class AppLocalizationsRu extends AppLocalizations {
   String get try_again => 'Попробовать снова';
 
   @override
+  String get player_exit_press_back_again =>
+      'Нажмите «Назад» ещё раз, чтобы выйти';
+
+  @override
   String get history => 'История';
 
   @override

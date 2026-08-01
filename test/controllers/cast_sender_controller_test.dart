@@ -1,11 +1,20 @@
 // Tests de la máquina de estados del casting (lado móvil), con un sender falso
 // inyectado — sin sockets ni red. Cubre el flujo feliz y los caminos de error.
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rensi_iptv/controllers/cast_sender_controller.dart';
+import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
+import 'package:rensi_iptv/services/service_locator.dart';
+import 'package:rensi_iptv/services/watch_history_service.dart';
+
+import '../helpers/test_database.dart';
 
 class _FakeSender extends PhoneSenderService {
   _FakeSender({
@@ -18,6 +27,7 @@ class _FakeSender extends PhoneSenderService {
   final bool failConnect;
   final List<Map<String, String>> loads = [];
   final List<CastMeta?> loadMetas = [];
+  final List<int> loadStartPositions = [];
   final List<String> commands = [];
   bool closed = false;
 
@@ -40,13 +50,28 @@ class _FakeSender extends PhoneSenderService {
     String title = '',
     String ext = '',
     CastMeta? meta,
+    int startPositionMs = 0,
   }) async {
     loads.add({'id': channelId, 'url': url, 'user': username, 'pass': password});
     loadMetas.add(meta);
+    loadStartPositions.add(startPositionMs);
   }
   @override
   void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) =>
       commands.add(cmd);
+
+  // Canal de pistas que la TV reporta (MsgType.tracks). El controlador se
+  // suscribe a este stream; el test empuja pistas con [emitTracks].
+  final _tracks = StreamController<Map<String, dynamic>>.broadcast();
+  @override
+  Stream<Map<String, dynamic>> get onTracks => _tracks.stream;
+  void emitTracks(Map<String, dynamic> m) {
+    if (!_tracks.isClosed) _tracks.add(m);
+  }
+
+  // NB: do NOT close _tracks here. beginCast()'s discovery step calls close() on
+  // the SAME fake instance (senderFactory returns one shared fake), so closing
+  // the stream would kill the tracks channel the controller later subscribes to.
   @override
   Future<void> close() async => closed = true;
 }
@@ -266,6 +291,97 @@ void main() {
     await c.castNext(const CastMedia(
         channelId: '8', contentType: 'vod', title: 'Otra'));
     expect(fake.loadMetas.last, isNull);
+  });
+
+  test('Fix #1: la posición de resume del CastMedia viaja con el LOAD', () async {
+    final fake = _FakeSender(devices: [oneTv], correctPin: '123456');
+    final c = make(fake);
+    // Un VOD casteado a medias (p. ej. minuto ~10 = 600000ms).
+    const resumed = CastMedia(
+      channelId: '7001',
+      contentType: 'vod',
+      title: 'Peli',
+      ext: 'mp4',
+      startPositionMs: 600000,
+    );
+    await c.beginCast(resumed);
+    await c.submitPin('123456');
+    expect(c.isCasting, isTrue);
+    expect(fake.loadStartPositions.single, 600000,
+        reason: 'la TV debe reanudar donde el móvil lo dejó, no en 0');
+  });
+
+  test('Fix #1: un CastMedia de vivo NO lleva posición (no es buscable)',
+      () async {
+    final fake = _FakeSender(devices: [oneTv], correctPin: '123456');
+    final c = make(fake);
+    await c.beginCast(media); // 'live'
+    await c.submitPin('123456');
+    expect(fake.loadStartPositions.single, 0);
+  });
+
+  test('Fix #1: sin startPositionMs, siembra la posición desde el historial '
+      'local ("continuar viendo")', () async {
+    await getIt.reset();
+    final db = createTestDatabase();
+    getIt.registerSingleton<AppDatabase>(db);
+    addTearDown(() async {
+      await getIt.reset();
+      await db.close();
+    });
+    // Título visto hasta el minuto 12 en el móvil.
+    await WatchHistoryService().saveWatchHistory(WatchHistory(
+      playlistId: 'p',
+      contentType: ContentType.vod,
+      streamId: '7001',
+      watchDuration: const Duration(minutes: 12),
+      totalDuration: const Duration(minutes: 100),
+      lastWatched: DateTime(2026),
+      title: 'Peli',
+    ));
+    final fake = _FakeSender(devices: [oneTv], correctPin: '123456');
+    final c = make(fake);
+    // CastMedia SIN startPositionMs → debe caer al historial local.
+    const m = CastMedia(
+      channelId: '7001',
+      contentType: 'vod',
+      title: 'Peli',
+      ext: 'mp4',
+      playlistId: 'p',
+      historyId: '7001',
+    );
+    await c.beginCast(m);
+    await c.submitPin('123456');
+    expect(fake.loadStartPositions.single,
+        const Duration(minutes: 12).inMilliseconds,
+        reason: 'la posición del LOAD se sembró desde el historial local');
+  });
+
+  test('Fix #7 (cast): las pistas que reporta la TV pueblan audio/subtitleTracks',
+      () async {
+    final fake = _FakeSender(devices: [oneTv], correctPin: '123456');
+    final c = make(fake);
+    await c.beginCast(media);
+    await c.submitPin('123456');
+    expect(c.audioTracks, isEmpty, reason: 'aún sin pistas reportadas');
+
+    // La TV responde a getTracks con sus pistas reales (MsgType.tracks).
+    fake.emitTracks({
+      'audio': [
+        {'id': 'a1', 'label': 'Español', 'sel': true},
+        {'id': 'a2', 'label': 'English', 'sel': false},
+      ],
+      'sub': [
+        {'id': 's1', 'label': 'Español', 'sel': false},
+      ],
+    });
+    await Future<void>.delayed(Duration.zero);
+
+    expect(c.audioTracks.map((t) => t.label), ['Español', 'English'],
+        reason: 'el panel de cast lee las pistas REALES de la TV, no el player '
+            'local (vacío al castear)');
+    expect(c.audioTracks.first.selected, isTrue);
+    expect(c.subtitleTracks.single.label, 'Español');
   });
 
   test('castNext: no-op si no se está casteando', () async {

@@ -62,6 +62,14 @@ class PlayerWidget extends StatefulWidget {
   /// reproducción normal → comportamiento de siempre.
   final CastMeta? castMeta;
 
+  /// Posición (ms) desde la que reanudar, cuando la conoce QUIEN monta el player
+  /// pero NO está en el historial local — hoy solo el receptor de casting en la
+  /// TV (le llega en el LOAD del móvil; la TV no tiene el "continuar viendo" del
+  /// teléfono). Es AUTORITATIVO: se usa TAL CUAL como ancla de resume del ítem
+  /// actual, sin compararlo con el historial local de la TV. Null → resume normal
+  /// (solo historial). Ver _resumeMsFor.
+  final int? startPositionMs;
+
   const PlayerWidget({
     super.key,
     required this.contentItem,
@@ -71,6 +79,7 @@ class PlayerWidget extends StatefulWidget {
     this.onFullscreen,
     this.queue,
     this.castMeta,
+    this.startPositionMs,
   });
 
   @override
@@ -97,7 +106,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Duration? _pendingSeekTarget;
   Timer? _seekCommitTimer;
   Timer? _seekGraceTimer;
-  int _seekStreak = 0;
+  int _seekStreak = 0; // nivel de escalado del paso (0..._maxSeekLevel)
+  // Escalado del paso de seek THROTTLEADO POR TIEMPO: un KeyRepeat rápido no debe
+  // disparar la racha a su tope en unas pocas décimas (antes cada evento subía el
+  // paso → mantener la flecha saltaba a 5min y se pasaba del final). Se sube como
+  // mucho un nivel cada ~750ms de mantener pulsado.
+  DateTime? _lastSeekEscalationAt;
+  static const int _maxSeekLevel = 2;
+  static const Duration _seekEscalateEvery = Duration(milliseconds: 750);
   bool _seekForward = true;
   bool _seekWasPlaying = true;
   bool _seekInProgress = false; // ventana de gracia del re-buffer tras el seek
@@ -145,6 +161,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Timer? _watchHistoryTimer;
   Duration? _pendingWatchDuration;
   Duration? _pendingTotalDuration;
+  // Última posición REAL observada (>0), NUNCA anulada. _pendingWatchDuration se
+  // pone a null tras cada guardado de historial, así que si una caída de red
+  // resetea la posición del player a 0 justo después de un guardado, el reopen
+  // no tendría ancla y reiniciaría desde el principio. Este campo la conserva
+  // como red de seguridad para el resume del reopen.
+  Duration? _lastGoodPosition;
   final FocusNode _remoteFocusNode = FocusNode(debugLabel: 'PlayerRemote');
   // Focus target for the "Siguiente episodio" button inside the TV pause panel.
   // The panel normally keeps focus on [_remoteFocusNode] (so OK resumes); D-pad
@@ -177,6 +199,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Timer? _stallTimer;
   // Guard against disposing the native player twice (lifecycle + dispose()).
   bool _playerDisposed = false;
+
+  // BACK-para-salir con confirmación (Fix #10a): un primer BACK (sin overlays
+  // abiertos) muestra un aviso breve; solo un segundo BACK dentro de ~3s sale de
+  // verdad. Evita salidas accidentales de la reproducción con el mando.
+  bool _backExitArmed = false;
+  Timer? _backExitTimer;
   // Debounce channel surfing (holding channel up/down) so we reopen the stream
   // once the user stops, not on every key repeat.
   int? _pendingChannelIndex;
@@ -399,6 +427,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Timer? _vodStuckTimer;
   bool _stuckBuffering = false; // muestra el overlay de Reintentar
   bool _hasStartedPlaying = false; // ¿alguna vez llegó a reproducir?
+  // Re-buffer A MITAD (Fix #5): indicador informativo (no el círculo pelado de
+  // media_kit) cuando un stream que YA arrancó se para a rebufferizar. Coexiste
+  // con _vodStuckTimer (ese es para el cuelgue "nunca arrancó"; esto es el
+  // re-buffer de un stream vivo). Un poll ligero refresca segundos/velocidad.
+  bool _midPlayBuffering = false;
+  Timer? _midPlayBufferTimer;
+  double _midPlayBufferedSecs = 0;
+  double _midPlaySpeedBps = 0;
 
   void _startPreBuffer() {
     final isLive = widget.contentItem.contentType == ContentType.liveStream;
@@ -458,6 +494,40 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _finishPreBuffer(); // arranca: colchón listo, o sin datos, o techo agotado
       }
     });
+  }
+
+  /// Poll ligero de segundos-en-caché / velocidad mientras el stream rebufferiza
+  /// A MITAD (Fix #5), para que el indicador informe sin depender del pre-buffer
+  /// (que solo corre en el open inicial). Se detiene al reanudar/soltar.
+  void _startMidPlayBufferPoll() {
+    _midPlayBufferTimer?.cancel();
+    void sample() async {
+      if (!mounted || !_midPlayBuffering) return;
+      double buf = 0, spd = 0;
+      final pf = _player.platform;
+      if (pf is NativePlayer) {
+        try {
+          buf = double.tryParse(
+                  await pf.getProperty('demuxer-cache-duration')) ??
+              0;
+          spd = double.tryParse(await pf.getProperty('cache-speed')) ?? 0;
+        } catch (_) {}
+      }
+      if (!mounted || !_midPlayBuffering) return;
+      setState(() {
+        _midPlayBufferedSecs = buf;
+        _midPlaySpeedBps = spd;
+      });
+    }
+
+    sample();
+    _midPlayBufferTimer =
+        Timer.periodic(const Duration(milliseconds: 600), (_) => sample());
+  }
+
+  void _stopMidPlayBufferPoll() {
+    _midPlayBufferTimer?.cancel();
+    _midPlayBufferTimer = null;
   }
 
   /// Reproduce: automático al alcanzar la meta de caché, o forzado por el usuario.
@@ -859,6 +929,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // ----------------------------------------
 
     PlayerState.title = widget.contentItem.name;
+    // Fix #10b: start clean so a stale one-shot flag from a previous player can't
+    // swallow the first BACK of this one.
+    PlayerState.overlayClosedByBack = false;
     // Bigger packet buffer smooths out network jitter on TV boxes.
     _player = Player(
       configuration: const PlayerConfiguration(bufferSize: 64 * 1024 * 1024),
@@ -965,6 +1038,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _seekCommitTimer?.cancel();
     _seekGraceTimer?.cancel();
     _vodStuckTimer?.cancel();
+    _midPlayBufferTimer?.cancel();
+    _backExitTimer?.cancel();
     contentItemIndexChangedSubscription?.cancel();
     _connectivitySubscription?.cancel();
     _errorHandler.reset();
@@ -1086,6 +1161,21 @@ class _PlayerWidgetState extends State<PlayerWidget>
     });
   }
 
+  /// Ancla de resume (ms) del ítem actual. Cuando quien monta el player trae un
+  /// override [PlayerWidget.startPositionMs] (hoy SOLO el receptor de cast: le
+  /// llega en el LOAD la posición REAL del móvil), ese valor es AUTORITATIVO y se
+  /// usa TAL CUAL — NO se compara con el historial local de la TV. Si no, un
+  /// rewatch o un cast previo que avanzó más dejaría en la TV un historial mayor
+  /// para el mismo streamId y arrancaría cerca del final, ignorando el punto que
+  /// envió el móvil. En reproducción normal el override es null → se usa el
+  /// historial local (comportamiento de siempre). Un cast sin posición llega con
+  /// override 0 (no null) → arranca desde el principio, como debe.
+  int _resumeMsFor(WatchHistory? history) {
+    final override = widget.startPositionMs;
+    if (override != null) return override;
+    return history?.watchDuration?.inMilliseconds ?? 0;
+  }
+
   Future<void> _saveWatchHistory({bool ignoreMounted = false}) async {
     // In dispose the State is already unmounted, so allow an explicit
     // ignoreMounted to still flush the final position.
@@ -1148,12 +1238,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // VOD/series: reanudar desde la posición REAL del player (no
     // _pendingWatchDuration, que se pone a null tras cada guardado de historial
     // → reabría en 0 y "reiniciaba desde el principio"). Live no lleva start.
-    final livePos = _player.state.position;
-    final Duration? start = contentItem.contentType == ContentType.liveStream
-        ? null
-        : (livePos > Duration.zero
-            ? livePos
-            : (_pendingWatchDuration ?? Duration.zero));
+    final Duration? start = computeReopenStart(
+      isLive: contentItem.contentType == ContentType.liveStream,
+      livePos: _player.state.position,
+      lastGood: _lastGoodPosition,
+      pending: _pendingWatchDuration,
+    );
     // Preserve a multi-item VOD queue: reopening a bare Media would collapse the
     // native Playlist to a single item and break jump/next for the rest of the
     // session. The current item's url is read live (it may have been healed).
@@ -1413,8 +1503,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
             playable: true,
             extras: {
               'url': item.url,
-              'startPosition':
-                  itemWatchHistory?.watchDuration?.inMilliseconds ?? 0,
+              // Resume del ítem actual: el override AUTORITATIVO si viene (hoy el
+              // receptor de cast, que recibe la posición del móvil en el LOAD),
+              // si no el historial local. Para el resto de la cola, solo historial.
+              'startPosition': item.id == contentItem.id
+                  ? _resumeMsFor(itemWatchHistory)
+                  : (itemWatchHistory?.watchDuration?.inMilliseconds ?? 0),
             },
           ),
         );
@@ -1479,7 +1573,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
             : null,
         extras: {
           'url': contentItem.url,
-          'startPosition': watchHistory?.watchDuration?.inMilliseconds ?? 0,
+          'startPosition': _resumeMsFor(watchHistory),
         },
       );
 
@@ -1497,7 +1591,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         Playlist([
           Media(
             contentItem.url,
-            start: watchHistory?.watchDuration ?? Duration(),
+            start: Duration(milliseconds: _resumeMsFor(watchHistory)),
           ),
         ]),
         play: true,
@@ -1594,25 +1688,19 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
       var selectedAudioLanguage = await UserPreferences.getAudioTrack();
       var possibleAudioTrack = event.audio.firstWhere(
-        (x) => _langMatches(x.language, x.title, selectedAudioLanguage),
+        (x) => langMatchesPref(x.language, x.title, selectedAudioLanguage),
         orElse: AudioTrack.auto,
       );
 
       await _player.setAudioTrack(possibleAudioTrack);
 
-      var selectedSubtitleLanguage = await UserPreferences.getSubtitleTrack();
-      final SubtitleTrack possibleSubtitleLanguage;
-      if (selectedSubtitleLanguage == 'off') {
-        // Preferred: subtitles off by default.
-        possibleSubtitleLanguage = SubtitleTrack.no();
-      } else {
-        possibleSubtitleLanguage = event.subtitle.firstWhere(
-          (x) => _langMatches(x.language, x.title, selectedSubtitleLanguage),
-          orElse: SubtitleTrack.auto,
-        );
-      }
-
-      await _player.setSubtitleTrack(possibleSubtitleLanguage);
+      // Subtítulos APAGADOS por defecto: solo se enciende una pista si el usuario
+      // eligió una explícitamente (ver chooseInitialSubtitle). Antes, sin
+      // preferencia caía a SubtitleTrack.auto → subtítulos encendidos.
+      final selectedSubtitleLanguage = await UserPreferences.getSubtitleTrack();
+      await _player.setSubtitleTrack(
+        chooseInitialSubtitle(event.subtitle, selectedSubtitleLanguage),
+      );
 
       // Apply the remembered playback speed.
       final rate = await UserPreferences.getPlaybackSpeed();
@@ -1648,6 +1736,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
       // Debounce: Save watch history every 5 seconds instead of on every position update
       _pendingWatchDuration = position;
       _pendingTotalDuration = _player.state.duration;
+      // Ancla de resume que sobrevive al vaciado de _pendingWatchDuration (ver
+      // el campo): solo avanza con posiciones reales (>0), nunca se anula.
+      if (position > Duration.zero) _lastGoodPosition = position;
 
       // Puente de casting: solo la TV receptora reenvía su posición al móvil
       // para alimentar "continuar viendo". Emitir solo en TV evita trabajo por
@@ -1728,6 +1819,26 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _bufferingSubscription = _player.stream.buffering.listen((buffering) {
       _stallTimer?.cancel();
       _vodStuckTimer?.cancel();
+      // Mid-play re-buffer indicator (Fix #5): show it only once the stream has
+      // actually started (not during the initial load / pre-buffer / error, and
+      // never for the never-started stuck case, which _vodStuckTimer owns). Also
+      // NOT during a seek's transient re-buffer (that's the jump recomposing, not
+      // a network stall) — same guards the pause panel uses.
+      final midPlay = buffering &&
+          _hasStartedPlaying &&
+          !isLoading &&
+          !_preBuffering &&
+          !hasError &&
+          !_seekInProgress &&
+          _pendingSeekTarget == null;
+      if (midPlay != _midPlayBuffering) {
+        if (mounted) setState(() => _midPlayBuffering = midPlay);
+        if (midPlay) {
+          _startMidPlayBufferPoll();
+        } else {
+          _stopMidPlayBufferPoll();
+        }
+      }
       if (!buffering) return;
       final isLiveContent = contentItem.contentType == ContentType.liveStream;
       if (isLiveContent && contentItem.url.isNotEmpty) {
@@ -1802,6 +1913,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
       // sin esto, tras reproducir el episodio 1 quedaría desactivado y un
       // episodio 2 colgado no repondría el Reintentar.
       _hasStartedPlaying = false;
+      // CRÍTICO (corrupción de datos): las anclas de resume son del episodio
+      // SALIENTE. Sin resetearlas, una caída de red justo tras el auto-avance
+      // haría que _reopenCurrent reanudara el episodio NUEVO en la posición del
+      // ANTERIOR (p. ej. min 40 del ep1 → seek a 40min en ep2) y guardara esa
+      // posición como historial del ep2. El nuevo episodio arranca en 0.
+      _lastGoodPosition = null;
+      _pendingWatchDuration = null;
 
       _currentItemIndex = playlist.index;
       currentItemIndex = _currentItemIndex;
@@ -1956,23 +2074,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
   }
 
-  // Tolerant language match so a saved preference like "spa" picks up tracks
-  // labelled spa / es / spanish / castellano / latino, etc.
-  static const Map<String, List<String>> _langSynonyms = {
-    'spa': ['spa', 'es', 'esp', 'spanish', 'castellano', 'español', 'lat', 'latino'],
-    'eng': ['eng', 'en', 'english', 'ingles', 'inglés'],
-    'por': ['por', 'pt', 'portugu'],
-    'fra': ['fra', 'fre', 'fr', 'french', 'franc'],
-    'ita': ['ita', 'it', 'italian'],
-    'deu': ['deu', 'ger', 'de', 'german', 'aleman'],
-  };
-
-  bool _langMatches(String? lang, String? title, String pref) {
-    if (pref == 'auto' || pref.isEmpty) return false;
-    final hay = '${lang ?? ''} ${title ?? ''}'.toLowerCase();
-    final syns = _langSynonyms[pref] ?? [pref.toLowerCase()];
-    return syns.any((s) => hay.contains(s));
-  }
 
   /// Tune libmpv (via media_kit) for smooth IPTV playback on low-power Android
   /// TV boxes (e.g. Amlogic Mi Box). NOTE: `hwdec` is intentionally NOT set here
@@ -2048,12 +2149,23 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _seekForward != forward ||
         (gap != null && gap > const Duration(milliseconds: 900))) {
       _seekStreak = 0;
+      _lastSeekEscalationAt = now;
       _seekForward = forward;
       _seekWasPlaying = _player.state.playing || _seekInProgress;
       _pendingSeekTarget = _player.state.position;
+    } else if (shouldEscalateSeek(
+      level: _seekStreak,
+      lastEscalation: _lastSeekEscalationAt,
+      now: now,
+      maxLevel: _maxSeekLevel,
+      every: _seekEscalateEvery,
+    )) {
+      // Subir de nivel como mucho una vez cada ~750ms de mantener pulsado (no por
+      // evento): así un KeyRepeat veloz no dispara el paso a su tope de golpe.
+      _seekStreak++;
+      _lastSeekEscalationAt = now;
     }
-    _seekStreak++;
-    final step = _seekStepFor(_seekStreak);
+    final step = seekStepForLevel(_seekStreak);
     var target = _pendingSeekTarget! + (forward ? step : -step);
     // Tope 1s antes del final: evita seek EXACTO a EOF (que carreraría con el
     // evento `completed`/auto-avance de serie) y deja algo que reproducir.
@@ -2066,14 +2178,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _seekCommitTimer?.cancel();
     _seekCommitTimer =
         Timer(const Duration(milliseconds: 350), _commitPendingSeek);
-  }
-
-  /// Paso incremental por racha: arranca fino (15s) y escala a minutos.
-  Duration _seekStepFor(int streak) {
-    if (streak <= 2) return const Duration(seconds: 15);
-    if (streak <= 4) return const Duration(minutes: 1);
-    if (streak <= 6) return const Duration(minutes: 3);
-    return const Duration(minutes: 5);
   }
 
   void _commitPendingSeek() => _commitSeek(resume: _seekWasPlaying);
@@ -2409,9 +2513,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
           (key == LogicalKeyboardKey.escape ||
               key == LogicalKeyboardKey.goBack ||
               key == LogicalKeyboardKey.browserBack)) {
-        // BACK con el foco en el botón: devolver el ring al player pero NO
-        // consumir, para que BACK salga del reproductor en UNA sola pulsación
-        // (como antes de existir el botón), no en dos.
+        // BACK con el foco en el botón "Siguiente episodio": devolver el ring al
+        // player y NO consumir, para que este BACK siga el mismo camino de salida
+        // que cualquier otro (PopScope). Con la confirmación de salida (#10a) eso
+        // significa que la salida del player SIEMPRE es doble-atrás — este BACK
+        // arma la confirmación (primer toque) igual que desde el player, no sale
+        // directo.
         _remoteFocusNode.requestFocus();
         return KeyEventResult.ignored;
       }
@@ -2494,7 +2601,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
       if (key == LogicalKeyboardKey.escape ||
           key == LogicalKeyboardKey.goBack ||
           key == LogicalKeyboardKey.browserBack) {
-        _closePlayerOverlays();
+        // BACK consumed here (key path). If the platform ALSO fires a route pop
+        // for the same press, byBack:true lets PopScope swallow it (Fix #10b).
+        _closePlayerOverlays(byBack: true);
         return KeyEventResult.handled;
       }
       return KeyEventResult.ignored;
@@ -3016,10 +3125,30 @@ class _PlayerWidgetState extends State<PlayerWidget>
     return PopScope(
       // While any overlay is open, Back closes it instead of leaving the player
       // — otherwise a root Overlay panel could be orphaned over the next screen.
-      canPop: !_anyOverlayOpen,
+      // And leaving the player (no overlay open) needs a CONFIRMING second BACK
+      // within ~3s (Fix #10a): only once armed does canPop allow the pop.
+      canPop: !_anyOverlayOpen && _backExitArmed,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        _closePlayerOverlays();
+        // Priority: an open overlay eats BACK to close, never exits. THIS pop is
+        // the close, so consume the one-shot flag too (no trailing pop follows a
+        // pop we handled here → don't let it leak to the next BACK).
+        if (_anyOverlayOpen) {
+          _closePlayerOverlays();
+          PlayerState.overlayClosedByBack = false;
+          return;
+        }
+        // Fix #10b: an overlay (channel list / settings / info) may have JUST
+        // closed on THIS same BACK via its own key handler (which set the flag),
+        // while the platform ALSO delivered the route-level pop. Consume the
+        // one-shot flag to swallow that trailing pop — do NOT leave the player.
+        if (PlayerState.overlayClosedByBack) {
+          PlayerState.overlayClosedByBack = false;
+          return;
+        }
+        // No overlay: first BACK arms the exit + shows a brief hint; the second
+        // BACK within the window flips canPop true and actually leaves.
+        _armBackToExit();
       },
       child: Container(
         color: Colors.black,
@@ -3034,9 +3163,39 @@ class _PlayerWidgetState extends State<PlayerWidget>
       PlayerState.showVideoInfo ||
       PlayerState.showVideoSettings;
 
+  /// Primer BACK para salir (Fix #10a): arma la salida y muestra un aviso breve;
+  /// el segundo BACK dentro de la ventana (canPop pasa a true) sale de verdad. A
+  /// los ~3s se desarma solo. No aplica cuando hay un overlay abierto (ese BACK
+  /// lo cierra) — este método solo se llama sin overlays.
+  void _armBackToExit() {
+    if (_backExitArmed) return; // ya armado → el pop real ya está permitido
+    // maybeOf (null-safe): si no hay Scaffold/Messenger en el árbol, NO se ve el
+    // aviso, pero igual se arma la salida — así el usuario nunca queda atrapado
+    // sin poder salir; el segundo BACK sale de todos modos (a lo sumo pierde la
+    // pista visual). En la app real el player siempre vive bajo un Scaffold.
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(context.loc.player_exit_press_back_again),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    setState(() => _backExitArmed = true);
+    _backExitTimer?.cancel();
+    _backExitTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _backExitArmed = false);
+    });
+  }
+
   /// Close every player overlay (internal Stack panels + the button widgets'
-  /// own root OverlayEntries via the EventBus toggles).
-  void _closePlayerOverlays() {
+  /// own root OverlayEntries via the EventBus toggles). [byBack] true when this
+  /// close is driven by a BACK press whose trailing route pop must be swallowed
+  /// (Fix #10b — covers the CHANNEL LIST too, which closes through here).
+  void _closePlayerOverlays({bool byBack = false}) {
+    if (byBack) PlayerState.overlayClosedByBack = true;
     if (mounted) {
       setState(() {
         _showChannelList = false;
@@ -3202,6 +3361,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
           // Transient seek progress bar (D-pad ±10s feedback).
           _buildSeekOverlay(),
 
+          // Mid-play re-buffer indicator (Fix #5): a small informative overlay
+          // when a stream that ALREADY started playing stalls to re-buffer —
+          // distinct from the initial pre-buffer panel and from the
+          // never-started stuck watchdog. Auto-hides when buffering clears.
+          PlayerBufferingIndicator(
+            visible: _midPlayBuffering,
+            bufferedSecs: _midPlayBufferedSecs,
+            speedBps: _midPlaySpeedBps,
+            label: context.loc.prebuffer_preparing,
+          ),
+
           // Transient TV hint: "Hold OK for audio & subtitles".
           _buildOkHintOverlay(context),
 
@@ -3248,6 +3418,167 @@ class _PlayerWidgetState extends State<PlayerWidget>
                   ),
                 ],
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- Pure, testable helpers (top-level so tests can exercise them without a
+// real Player). Extracted from the state for Fix #6 (seek ramp) and Fix #8
+// (subtitles-off default). ---
+
+// Tolerant language match so a saved preference like "spa" picks up tracks
+// labelled spa / es / spanish / castellano / latino, etc.
+const Map<String, List<String>> _kLangSynonyms = {
+  'spa': ['spa', 'es', 'esp', 'spanish', 'castellano', 'español', 'lat', 'latino'],
+  'eng': ['eng', 'en', 'english', 'ingles', 'inglés'],
+  'por': ['por', 'pt', 'portugu'],
+  'fra': ['fra', 'fre', 'fr', 'french', 'franc'],
+  'ita': ['ita', 'it', 'italian'],
+  'deu': ['deu', 'ger', 'de', 'german', 'aleman'],
+};
+
+@visibleForTesting
+bool langMatchesPref(String? lang, String? title, String pref) {
+  if (pref == 'auto' || pref.isEmpty) return false;
+  final hay = '${lang ?? ''} ${title ?? ''}'.toLowerCase();
+  final syns = _kLangSynonyms[pref] ?? [pref.toLowerCase()];
+  return syns.any((s) => hay.contains(s));
+}
+
+/// Initial subtitle track for a saved preference. Default OFF: only enable a
+/// track when the user chose one EXPLICITLY (a real language preference). No
+/// preference ('auto'/'null'/empty) or an explicit 'off' → off; and an explicit
+/// preference that matches no available track also stays off (never auto-on).
+@visibleForTesting
+SubtitleTrack chooseInitialSubtitle(List<SubtitleTrack> subtitles, String pref) {
+  if (pref == 'off' || pref == 'auto' || pref == 'null' || pref.isEmpty) {
+    return SubtitleTrack.no();
+  }
+  return subtitles.firstWhere(
+    (x) => langMatchesPref(x.language, x.title, pref),
+    orElse: SubtitleTrack.no,
+  );
+}
+
+/// Resume anchor for reopening a stream (reconnect / stall watchdog / error
+/// retry). Live restarts from the live edge (null → no `start:`). For VOD/series
+/// prefer the player's live position; but a network drop can reset it to 0 right
+/// after a history save nulled [pending] — so fall back to [lastGood] (the last
+/// real position, never nulled) before giving up to zero (Fix #4).
+@visibleForTesting
+Duration? computeReopenStart({
+  required bool isLive,
+  required Duration livePos,
+  Duration? lastGood,
+  Duration? pending,
+}) {
+  if (isLive) return null;
+  if (livePos > Duration.zero) return livePos;
+  return lastGood ?? pending ?? Duration.zero;
+}
+
+/// Seek step by escalation LEVEL (0..N): starts fine (10s) and ramps gently to a
+/// moderate cap (60s) — never to high minutes, so holding the arrow accelerates
+/// controllably without racing past the end.
+@visibleForTesting
+Duration seekStepForLevel(int level) {
+  switch (level) {
+    case 0:
+      return const Duration(seconds: 10);
+    case 1:
+      return const Duration(seconds: 30);
+    default:
+      return const Duration(seconds: 60);
+  }
+}
+
+/// Whether the seek step should escalate one level. Throttled by TIME (not per
+/// key event) so a fast KeyRepeat can't rocket the step to its cap: at most one
+/// level per [every] of holding, capped at [maxLevel].
+@visibleForTesting
+bool shouldEscalateSeek({
+  required int level,
+  required DateTime? lastEscalation,
+  required DateTime now,
+  int maxLevel = 2,
+  Duration every = const Duration(milliseconds: 750),
+}) {
+  if (level >= maxLevel) return false;
+  return lastEscalation == null || now.difference(lastEscalation) >= every;
+}
+
+/// Small informative mid-play re-buffer indicator (Fix #5). A pill with a
+/// spinner, a localized label ("Loading…") and the buffered seconds / download
+/// speed — shown while a stream that already started stalls to re-buffer, so the
+/// viewer sees progress instead of media_kit's bare circle. Stateless + public
+/// so its visibility contract is unit-testable without a real Player.
+class PlayerBufferingIndicator extends StatelessWidget {
+  const PlayerBufferingIndicator({
+    super.key,
+    required this.visible,
+    required this.label,
+    this.bufferedSecs = 0,
+    this.speedBps = 0,
+  });
+
+  final bool visible;
+  final String label;
+  final double bufferedSecs;
+  final double speedBps;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!visible) return const SizedBox.shrink();
+    final speedMbps = speedBps / (1024 * 1024);
+    return Positioned(
+      left: 0,
+      right: 0,
+      top: 24,
+      child: IgnorePointer(
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.72),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Color(0xFFD2603A),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: AppThemes.tenFoot(context, AppThemes.labelSize),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (bufferedSecs > 0 || speedMbps > 0) ...[
+                  const SizedBox(width: 10),
+                  Text(
+                    '${bufferedSecs.toStringAsFixed(0)}s · '
+                    '${speedMbps.toStringAsFixed(2)} MB/s',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: AppThemes.tenFoot(context, 12),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ),

@@ -48,6 +48,7 @@
   "day": "Gün",
   "clear_all_confirmation_message": "Tüm izleme geçmişini silmek istediğinize emin misiniz?",
   "try_again": "Tekrar Dene",
+  "player_exit_press_back_again": "Çıkmak için tekrar geri tuşuna basın",
   "history": "Geçmiş",
   "history_empty_message": "Video izlemeye başladığınızda burada görünecek",
   "live": "Canlı",

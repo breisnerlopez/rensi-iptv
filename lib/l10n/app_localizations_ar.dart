@@ -158,6 +158,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get try_again => 'حاول مرة أخرى';
 
   @override
+  String get player_exit_press_back_again => 'اضغط رجوع مرة أخرى للخروج';
+
+  @override
   String get history => 'السجل';
 
   @override

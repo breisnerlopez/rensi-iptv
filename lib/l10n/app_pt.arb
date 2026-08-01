@@ -48,6 +48,7 @@
   "day": "Dia",
   "clear_all_confirmation_message": "Tem certeza de que deseja excluir todo o histórico?",
   "try_again": "Tentar Novamente",
+  "player_exit_press_back_again": "Pressione voltar novamente para sair",
   "history": "Histórico",
   "history_empty_message": "Seus vídeos assistidos aparecerão aqui",
   "live": "Ao Vivo",

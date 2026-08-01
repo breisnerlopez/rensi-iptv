@@ -33,6 +33,7 @@ class _FakeSender extends PhoneSenderService {
     String title = '',
     String ext = '',
     CastMeta? meta,
+    int startPositionMs = 0,
   }) async {}
   @override
   void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) =>

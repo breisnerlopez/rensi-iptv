@@ -156,6 +156,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get try_again => '重试';
 
   @override
+  String get player_exit_press_back_again => '再次按返回键退出';
+
+  @override
   String get history => '历史记录';
 
   @override

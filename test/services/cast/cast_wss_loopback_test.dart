@@ -69,7 +69,30 @@ void main() {
     expect(req2.meta!.cast.single.name, 'Mark Wahlberg');
     expect(req2.meta!.cast.single.profilePath, '/mw.jpg');
     expect(req2.meta!.year, 2016);
+    // Fix #1: un LOAD sin `pos` llega con startPositionMs 0 (compat. hacia atrás).
+    expect(req.startPositionMs, 0, reason: 'LOAD sin pos → resume 0');
     await sender2.close();
+
+    // Fix #1: un 3er LOAD que SÍ lleva posición de resume la round-trip-ea
+    // extremo a extremo por el camino real (wss ya emparejado).
+    final sender3 = PhoneSenderService();
+    await sender3.connect('127.0.0.1', port, secure: true);
+    expect(await sender3.pair('123456'), isTrue);
+    final loadFut3 = receiver.onLoad.first;
+    await sender3.sendLoad(
+      channelId: '7002',
+      contentType: 'vod',
+      url: 'http://host:8080',
+      username: 'u123',
+      password: 's3cr3t',
+      title: 'A medias',
+      ext: 'mp4',
+      startPositionMs: 630000, // ~10.5 min
+    );
+    final req3 = await loadFut3.timeout(const Duration(seconds: 3));
+    expect(req3.startPositionMs, 630000,
+        reason: 'la posición de resume llega intacta a la TV');
+    await sender3.close();
 
     // PIN incorrecto → rechazado también sobre wss.
     final bad = PhoneSenderService();

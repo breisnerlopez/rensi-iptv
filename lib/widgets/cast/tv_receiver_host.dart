@@ -424,6 +424,10 @@ class _CastPlayerScreen extends StatelessWidget {
             // Ficha TMDb (sinopsis + reparto) que envió el móvil con el LOAD; el
             // panel de pausa la pinta sin llamar a TMDb (la TV no tiene clave).
             castMeta: req.meta,
+            // Resume: reanudar donde el móvil lo dejó (0 → desde el principio).
+            // La TV no tiene el historial local del móvil, así que sin esto un
+            // título a medias arrancaría siempre en 0.
+            startPositionMs: req.startPositionMs,
           ),
         );
       },

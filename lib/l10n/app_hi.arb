@@ -48,6 +48,7 @@
   "day": "दिन",
   "clear_all_confirmation_message": "क्या आप वाकई सारा इतिहास हटाना चाहते हैं?",
   "try_again": "फिर से कोशिश करें",
+  "player_exit_press_back_again": "बाहर निकलने के लिए फिर से बैक दबाएँ",
   "history": "इतिहास",
   "history_empty_message": "आपके देखे गए वीडियो यहाँ दिखाई देंगे",
   "live": "लाइव",

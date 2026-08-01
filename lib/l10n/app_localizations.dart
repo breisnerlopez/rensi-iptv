@@ -408,6 +408,12 @@ abstract class AppLocalizations {
   /// **'Try Again'**
   String get try_again;
 
+  /// No description provided for @player_exit_press_back_again.
+  ///
+  /// In en, this message translates to:
+  /// **'Press back again to exit'**
+  String get player_exit_press_back_again;
+
   /// No description provided for @history.
   ///
   /// In en, this message translates to:

@@ -32,6 +32,11 @@ class CastLoadRequest {
   /// container_extension (mp4/mkv/…) para VOD/series. Vacío en vivo.
   final String ext;
 
+  /// Posición (ms) desde la que reanudar la reproducción en la TV. 0 → desde el
+  /// principio (LOAD sin `pos`, o build vieja del móvil). El host lo pasa al
+  /// PlayerWidget como resume inicial.
+  final int startPositionMs;
+
   /// Metadatos TMDb OPCIONALES que el móvil resolvió y envió con el LOAD
   /// (sinopsis + reparto para el panel de pausa). Null cuando el móvil no envió
   /// nada (build vieja, sin clave TMDb o sin coincidencia): la TV cae al
@@ -47,6 +52,7 @@ class CastLoadRequest {
     required this.title,
     this.ext = '',
     this.meta,
+    this.startPositionMs = 0,
   });
 
   /// URL de stream Xtream (misma forma que lib/utils/build_media_url.dart).
@@ -296,6 +302,9 @@ class TvReceiverService {
               title: (msg['title'] as String?) ?? '',
               ext: (msg['ext'] as String?) ?? '',
               meta: meta,
+              // Resume: tolerante a tipos del wire (un `pos` no-numérico → 0),
+              // nunca aborta el LOAD.
+              startPositionMs: (msg['pos'] as num?)?.toInt() ?? 0,
             ));
             ws.add(encodeMsg(MsgType.state, {'status': 'loading', 'id': msg['id']}));
             break;

@@ -1,6 +1,7 @@
 import '../models/playlist_model.dart';
 import 'playlist_secrets_service.dart';
 import 'database_service.dart';
+import 'download_service.dart';
 
 class PlaylistService {
   static final Map<String, Playlist> _hydratedCache = {};
@@ -19,6 +20,13 @@ class PlaylistService {
   static Future<void> deletePlaylist(String id) async {
     await PlaylistSecretsService.delete(id);
     _hydratedCache.remove(id);
+    // Reap the playlist's offline downloads (files on disk + rows) BEFORE the
+    // DB cascade removes the rows — otherwise the downloaded files would be
+    // orphaned on disk forever. Best-effort: a failure here (plugin/file IO)
+    // must never block deleting the playlist itself.
+    try {
+      await DownloadService.instance.deleteDownloadsForPlaylist(id);
+    } catch (_) {}
     await DatabaseService.deletePlaylist(id);
   }
 

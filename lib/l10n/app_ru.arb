@@ -48,6 +48,7 @@
   "day": "День",
   "clear_all_confirmation_message": "Вы уверены, что хотите удалить всю историю?",
   "try_again": "Попробовать снова",
+  "player_exit_press_back_again": "Нажмите «Назад» ещё раз, чтобы выйти",
   "history": "История",
   "history_empty_message": "Просмотренные видео будут отображаться здесь",
   "live": "Прямой эфир",

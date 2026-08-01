@@ -158,6 +158,10 @@ class AppLocalizationsTr extends AppLocalizations {
   String get try_again => 'Tekrar Dene';
 
   @override
+  String get player_exit_press_back_again =>
+      'Çıkmak için tekrar geri tuşuna basın';
+
+  @override
   String get history => 'Geçmiş';
 
   @override

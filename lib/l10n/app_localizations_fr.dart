@@ -159,6 +159,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get try_again => 'Réessayer';
 
   @override
+  String get player_exit_press_back_again =>
+      'Appuyez à nouveau sur retour pour quitter';
+
+  @override
   String get history => 'Historique';
 
   @override

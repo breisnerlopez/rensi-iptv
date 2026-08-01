@@ -158,6 +158,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get try_again => 'Try Again';
 
   @override
+  String get player_exit_press_back_again => 'Press back again to exit';
+
+  @override
   String get history => 'History';
 
   @override

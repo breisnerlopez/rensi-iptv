@@ -48,6 +48,7 @@
   "day": "Día",
   "clear_all_confirmation_message": "¿Estás seguro de que quieres eliminar todo el historial?",
   "try_again": "Intentar de Nuevo",
+  "player_exit_press_back_again": "Pulsa atrás de nuevo para salir",
   "history": "Historial",
   "history_empty_message": "Los videos que veas aparecerán aquí",
   "live": "En Vivo",

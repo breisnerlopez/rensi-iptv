@@ -425,6 +425,43 @@ class DownloadService {
     await _deleteRow(id);
   }
 
+  /// Borra TODAS las descargas de una lista: cancela tareas en curso, borra los
+  /// ARCHIVOS en disco y luego las filas. Se llama desde el flujo de borrado de
+  /// lista (`PlaylistService.deletePlaylist`) ANTES de que la cascada de la BD
+  /// (`deletePlaylistById`) reape las filas — sin esto el archivo descargado
+  /// quedaba huérfano en disco para siempre al borrar su lista.
+  ///
+  /// Best-effort por archivo/tarea: un fallo de borrado (permiso, disco
+  /// desmontado, tarea ya terminada) se ignora y se sigue con el resto —
+  /// NUNCA debe abortar el borrado de la lista.
+  Future<void> deleteDownloadsForPlaylist(String playlistId) async {
+    final rows = await (_db.select(_db.downloads)
+          ..where((d) => d.playlistId.equals(playlistId)))
+        .get();
+    if (rows.isEmpty) return;
+    for (final row in rows) {
+      // Cancela una tarea aún viva antes de borrar su archivo: si no, el plugin
+      // podría re-escribir el archivo en disco justo después de borrarlo.
+      if (row.taskId != null && !_isFinalStatus(row.status)) {
+        try {
+          await FileDownloader().cancelTaskWithId(row.taskId!);
+        } catch (_) {}
+      }
+      final path = row.filePath;
+      if (path != null) {
+        try {
+          final f = File(path);
+          if (await f.exists()) await f.delete();
+        } catch (_) {
+          // Best-effort: un archivo huérfano no debe impedir borrar la lista.
+        }
+      }
+    }
+    await (_db.delete(_db.downloads)
+          ..where((d) => d.playlistId.equals(playlistId)))
+        .go();
+  }
+
   /// Reintenta una descarga 'failed': borra la fila (y cualquier archivo
   /// parcial que hubiera quedado) y vuelve a encolar desde cero con los
   /// mismos datos originales, incluida la `url` guardada en la fila — el

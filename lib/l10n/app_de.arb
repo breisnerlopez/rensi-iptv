@@ -48,6 +48,7 @@
   "day": "Tag",
   "clear_all_confirmation_message": "Sind Sie sicher, dass Sie die gesamte Verlaufsliste löschen möchten?",
   "try_again": "Erneut Versuchen",
+  "player_exit_press_back_again": "Zum Beenden erneut Zurück drücken",
   "history": "Verlauf",
   "history_empty_message": "Ihre angesehenen Videos werden hier angezeigt",
   "live": "Live",

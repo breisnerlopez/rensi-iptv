@@ -55,4 +55,83 @@ void main() {
       expect(purge, [1]);
     });
   });
+
+  // ------------------------------------------------------------------
+  // Wave-2 QA cases (Z1..Z5): explicit, measurable coverage of the
+  // download-space policy. Inputs and expected ids/bools are spelled out
+  // so the assertion output is the evidence.
+  // ------------------------------------------------------------------
+  group('Wave-2 Z cases', () {
+    DownloadEntry e(int id, int gbSize, bool watched, int at) =>
+        DownloadEntry(id: id, bytes: gbSize * gb, watched: watched, addedAt: at);
+
+    int sumBytes(List<DownloadEntry> all, List<int> purged) => all
+        .where((x) => !purged.contains(x.id))
+        .fold<int>(0, (s, x) => s + x.bytes);
+
+    test('Z1 — cap 10GB purge: removes ids until total <= cap', () {
+      const p = DownloadPolicy(capBytes: 10 * gb);
+      // Four 4GB unwatched entries = 16GB > 10GB cap. Oldest-first LRU:
+      // remove id1 (→12), still >10 → remove id2 (→8) <=10 → stop.
+      final all = [
+        e(1, 4, false, 1),
+        e(2, 4, false, 2),
+        e(3, 4, false, 3),
+        e(4, 4, false, 4),
+      ];
+      final purge = p.idsToPurge(all);
+      expect(purge, [1, 2]);
+      // Post-purge total is within the cap (the invariant Z1 asserts).
+      expect(sumBytes(all, purge), lessThanOrEqualTo(10 * gb));
+      expect(sumBytes(all, purge), 8 * gb);
+    });
+
+    test('Z2 — LRU sacrifice order: watched-oldest, then unwatched-oldest', () {
+      // Tiny cap forces ALL entries to be purged so the full sacrifice
+      // ORDER is observable. Mixed set: watched-new, watched-old,
+      // unwatched-old, unwatched-new.
+      const p = DownloadPolicy(capBytes: 1); // 1 byte → nothing fits
+      final purge = p.idsToPurge([
+        e(1, 3, true, 200), // watched, NEW
+        e(2, 3, true, 100), // watched, OLD  → sacrificed 1st
+        e(3, 3, false, 50), // unwatched, OLD → sacrificed 3rd
+        e(4, 3, false, 300), // unwatched, NEW → sacrificed 4th
+      ]);
+      // Exact order: watched-old, watched-new, unwatched-old, unwatched-new.
+      expect(purge, [2, 1, 3, 4]);
+    });
+
+    test('Z3 — delete-on-watched: isWatched true at >= 0.95*total', () {
+      const p = DownloadPolicy(); // threshold 0.95
+      // Exactly at the boundary: 9500ms of 10000ms = 95% → watched.
+      expect(
+          p.isWatched(const Duration(milliseconds: 9500),
+              const Duration(milliseconds: 10000)),
+          isTrue);
+      // 1ms below the boundary (9499/10000 = 94.99%) → NOT watched.
+      expect(
+          p.isWatched(const Duration(milliseconds: 9499),
+              const Duration(milliseconds: 10000)),
+          isFalse);
+    });
+
+    test('Z4 — no reliable duration: isWatched false (conservative)', () {
+      const p = DownloadPolicy();
+      const pos = Duration(minutes: 90);
+      expect(p.isWatched(pos, null), isFalse); // null total
+      expect(p.isWatched(pos, Duration.zero), isFalse); // zero total
+      expect(p.isWatched(pos, const Duration(milliseconds: -5)),
+          isFalse); // negative total
+      expect(p.isWatched(null, const Duration(minutes: 100)),
+          isFalse); // null position
+    });
+
+    test('Z5 — no purge if it fits: idsToPurge == [] when total <= cap', () {
+      const p = DownloadPolicy(capBytes: 10 * gb);
+      // 3 + 4 = 7GB < 10 → nothing to purge.
+      expect(p.idsToPurge([e(1, 3, false, 1), e(2, 4, false, 2)]), isEmpty);
+      // Boundary: exactly at the cap (total == cap) → still no purge.
+      expect(p.idsToPurge([e(1, 6, false, 1), e(2, 4, false, 2)]), isEmpty);
+    });
+  });
 }

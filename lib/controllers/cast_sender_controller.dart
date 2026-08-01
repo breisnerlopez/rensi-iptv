@@ -49,6 +49,13 @@ class CastMedia {
   // viendo". Vacío → se cae a channelId.
   final String historyId;
 
+  // Posición (ms) desde la que la TV debe REANUDAR al recibir este LOAD. Lleva la
+  // última posición conocida del móvil (su "continuar viendo") para que castear
+  // un título a medias NO empiece en 0 en la TV. 0 → sin resume (arranca desde el
+  // principio, comportamiento de siempre). Compat. hacia atrás: un LOAD sin `pos`
+  // se decodifica a 0. Para vivo se ignora (no es buscable).
+  final int startPositionMs;
+
   // Metadatos TMDb OPCIONALES (sinopsis + reparto) que el móvil resolvió para
   // este contenido. Viajan con el LOAD para que el panel de pausa de la TV los
   // muestre sin que la TV necesite clave TMDb. Null → LOAD sin `meta` (idéntico
@@ -65,6 +72,7 @@ class CastMedia {
     this.seriesId,
     this.historyId = '',
     this.meta,
+    this.startPositionMs = 0,
   });
 }
 
@@ -274,8 +282,35 @@ class CastSenderController extends ChangeNotifier {
       title: media.title,
       ext: media.ext,
       meta: media.meta,
+      startPositionMs: await _resolveStartPosition(media),
     );
     return true;
+  }
+
+  /// Posición (ms) de resume a incluir en el LOAD. Prefiere la que trae el
+  /// CastMedia (ya resuelta por el móvil); si es 0, la busca best-effort en el
+  /// historial local ("continuar viendo") para que castear un título a medias
+  /// arranque donde el usuario lo dejó, no en 0. Nunca lanza (sin BD → 0). No
+  /// aplica a vivo (no buscable) ni a archivo local.
+  Future<int> _resolveStartPosition(CastMedia media) async {
+    if (media.startPositionMs > 0) return media.startPositionMs;
+    if (media.contentType == 'live' || media.contentType == 'file') return 0;
+    final playlistId = media.playlistId.isNotEmpty
+        ? media.playlistId
+        : (AppState.currentPlaylist?.id ?? '');
+    final streamId =
+        media.historyId.isNotEmpty ? media.historyId : media.channelId;
+    if (playlistId.isEmpty || streamId.isEmpty) return 0;
+    try {
+      // Timeout: un read de BD colgado NUNCA debe bloquear el sendLoad (el LOAD
+      // debe salir; sin posición se arranca desde el principio).
+      final h = await WatchHistoryService()
+          .getWatchHistory(playlistId, streamId)
+          .timeout(const Duration(seconds: 4), onTimeout: () => null);
+      return h?.watchDuration?.inMilliseconds ?? 0;
+    } catch (_) {
+      return 0; // sin BD (p. ej. tests que solo montan el controlador) → 0
+    }
   }
 
   /// Envía a la TV un archivo LOCAL ya descargado: lo sirve por HTTP en la LAN
@@ -634,10 +669,10 @@ class CastSenderController extends ChangeNotifier {
     if (playlistId.isEmpty || streamId.isEmpty) return;
     try {
       final service = WatchHistoryService();
-      // Avance-solo: la TV arranca desde 0 (el LOAD no lleva posición de
-      // resume), así que el primer reporte llega a ~1%. Si ya había una posición
-      // MAYOR para este título, NO la reducimos — casear un título a medias no
-      // debe resetear su "continuar viendo".
+      // Avance-solo: la TV arranca en la posición de resume que le envió el móvil
+      // en el LOAD (o 0 si no había), así que el reporte refleja el progreso real.
+      // Si ya había una posición MAYOR para este título, NO la reducimos — casear
+      // un título a medias no debe resetear su "continuar viendo".
       final existing = await service.getWatchHistory(playlistId, streamId);
       final existingMs = existing?.watchDuration?.inMilliseconds ?? 0;
       if (existingMs > posMs) return;

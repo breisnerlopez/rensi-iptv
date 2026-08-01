@@ -50,6 +50,16 @@ void main() {
       expect(item.url.contains('.null'), isFalse);
     });
 
+    test('G7 — series episode with an extension uses the /series/ path + ext',
+        () {
+      // A downloadable episode carries the Xtream episode id + container ext.
+      // The URL the downloader enqueues (item.url) must be
+      // /series/<user>/<pass>/<episodeId>.<ext>.
+      final ep = ContentItem('4090', 'S01E01', '', ContentType.series,
+          containerExtension: 'mkv');
+      expect(ep.url, 'http://host:8080/series/u/pw/4090.mkv');
+    });
+
     test('live has no extension regardless', () {
       final item = ContentItem('9', 'L', '', ContentType.liveStream);
       expect(item.url, 'http://host:8080/u/pw/9');

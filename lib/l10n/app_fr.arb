@@ -48,6 +48,7 @@
   "day": "Jour",
   "clear_all_confirmation_message": "Êtes-vous sûr de vouloir supprimer tout l'historique ?",
   "try_again": "Réessayer",
+  "player_exit_press_back_again": "Appuyez à nouveau sur retour pour quitter",
   "history": "Historique",
   "history_empty_message": "Vos vidéos regardées apparaîtront ici",
   "live": "Direct",

@@ -158,6 +158,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get try_again => 'फिर से कोशिश करें';
 
   @override
+  String get player_exit_press_back_again =>
+      'बाहर निकलने के लिए फिर से बैक दबाएँ';
+
+  @override
   String get history => 'इतिहास';
 
   @override

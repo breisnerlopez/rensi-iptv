@@ -48,6 +48,7 @@
   "day": "يوم",
   "clear_all_confirmation_message": "هل أنت متأكد من رغبتك في حذف كل السجل؟",
   "try_again": "حاول مرة أخرى",
+  "player_exit_press_back_again": "اضغط رجوع مرة أخرى للخروج",
   "history": "السجل",
   "history_empty_message": "ستظهر مقاطع الفيديو التي شاهدتها هنا",
   "live": "مباشر",

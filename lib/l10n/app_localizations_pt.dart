@@ -159,6 +159,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get try_again => 'Tentar Novamente';
 
   @override
+  String get player_exit_press_back_again =>
+      'Pressione voltar novamente para sair';
+
+  @override
   String get history => 'Histórico';
 
   @override

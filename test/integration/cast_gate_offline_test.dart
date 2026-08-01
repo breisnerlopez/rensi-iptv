@@ -30,7 +30,7 @@ class _FakeSender extends PhoneSenderService {
   @override
   Future<bool> pair(String pin) async => true;
   @override
-  Future<void> sendLoad({required String channelId, String contentType = 'live', required String url, required String username, required String password, String title = '', String ext = '', CastMeta? meta}) async {}
+  Future<void> sendLoad({required String channelId, String contentType = 'live', required String url, required String username, required String password, String title = '', String ext = '', CastMeta? meta, int startPositionMs = 0}) async {}
   @override
   void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) {}
   @override

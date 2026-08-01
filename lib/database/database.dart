@@ -621,6 +621,13 @@ class AppDatabase extends _$AppDatabase {
       // verbatim; leaving it out made the cascade look closed while the same
       // hole stayed open in the sibling table.
       await deleteFavoritesByPlaylistId(id);
+      // Offline downloads are keyed by playlistId too and were the one branch
+      // the cascade forgot: left behind, their rows are dead weight and their
+      // files sit on disk forever (both storage and a privacy leak of content
+      // the user asked to delete). The on-disk files are removed ahead of this
+      // by DownloadService.deleteDownloadsForPlaylist; this reaps the rows and
+      // also guards the path where the DB is torn down without that service.
+      await deleteDownloadsByPlaylistId(id);
       // Catalogue leftovers: not privacy, but they are dead weight forever and
       // would surface as stale content under a reused playlist id.
       await deleteSeriesInfosByPlaylistId(id);
@@ -1113,6 +1120,17 @@ class AppDatabase extends _$AppDatabase {
   Future<void> deleteFavoritesByPlaylistId(String playlistId) async {
     await (delete(
       favorites,
+    )..where((tbl) => tbl.playlistId.equals(playlistId))).go();
+  }
+
+  /// Reaps the `Downloads` rows of a playlist. The `Downloads` table carries a
+  /// `playlistId`, but the delete cascade never touched it, so removing a
+  /// playlist orphaned both its rows here and (separately) its files on disk.
+  /// This closes the rows half; the on-disk files are removed by
+  /// `DownloadService.deleteDownloadsForPlaylist`, called ahead of the cascade.
+  Future<void> deleteDownloadsByPlaylistId(String playlistId) async {
+    await (delete(
+      downloads,
     )..where((tbl) => tbl.playlistId.equals(playlistId))).go();
   }
 
@@ -1889,88 +1907,136 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
     },
     onUpgrade: (Migrator m, int from, int to) async {
-      if (from <= 2) {
-        await m.createTable(categories);
-        await m.createTable(userInfos);
-        await m.createTable(serverInfos);
-        await m.createTable(liveStreams);
-        await m.createTable(vodStreams);
-        await m.createTable(seriesStreams);
-        // await m.addColumn(seriesStreams, seriesStreams.lastModified);
-        // await m.addColumn(seriesStreams, seriesStreams.backdropPath);
-        await customStatement('''
-          UPDATE series_streams 
-          SET last_modified = '0', backdrop_path = '[]' 
-          WHERE last_modified IS NULL OR backdrop_path IS NULL
-        ''');
-        await m.createTable(seriesInfos);
-        await m.createTable(seasons);
-        await m.createTable(episodes);
-        await m.createTable(watchHistories);
-      }
-
-      if (from <= 3) {
-        await customStatement('''
-            UPDATE playlists 
-            SET type = 'PlaylistType.xtream' 
-            WHERE type = 'PlaylistType.xstream'
+      // Atomicidad: Drift 2.29 NO envuelve onUpgrade en una transacción. Sin
+      // esto, si el proceso muere entre dos pasos (p.ej. entre dos addColumn),
+      // al reabrir se re-ejecuta un paso ya aplicado y — como `addColumn` es un
+      // `ALTER TABLE ADD COLUMN` crudo, no idempotente — lanza "duplicate
+      // column" y deja el equipo "bricked" permanentemente. Envolver todo el
+      // cuerpo en una transacción hace que un fallo parcial haga ROLLBACK (SQLite
+      // sí revierte DDL), de modo que un reintento parte de un estado limpio y
+      // vuelve a intentar la migración completa. `createTable` ya es
+      // `CREATE TABLE IF NOT EXISTS` (idempotente); los `addColumn` se hacen
+      // idempotentes vía [_addColumnIfMissing] como defensa en profundidad.
+      await transaction(() async {
+        if (from <= 2) {
+          await m.createTable(categories);
+          await m.createTable(userInfos);
+          await m.createTable(serverInfos);
+          await m.createTable(liveStreams);
+          // vod_streams / series_streams se crean aquí con la DDL ACTUAL, que YA
+          // incluye genre/youtube_trailer/tmdb_id (vod) y tmdb_id (series). Los
+          // addColumn de from<=8 y from<10 volverían a añadir esas columnas y
+          // lanzarían "duplicate column" — por eso van vía _addColumnIfMissing.
+          await m.createTable(vodStreams);
+          await m.createTable(seriesStreams);
+          // await m.addColumn(seriesStreams, seriesStreams.lastModified);
+          // await m.addColumn(seriesStreams, seriesStreams.backdropPath);
+          await customStatement('''
+            UPDATE series_streams
+            SET last_modified = '0', backdrop_path = '[]'
+            WHERE last_modified IS NULL OR backdrop_path IS NULL
           ''');
-      }
+          await m.createTable(seriesInfos);
+          await m.createTable(seasons);
+          await m.createTable(episodes);
+          await m.createTable(watchHistories);
+        }
 
-      if (from <= 4) {
-        await m.createTable(m3uItems);
-      }
+        if (from <= 3) {
+          await customStatement('''
+              UPDATE playlists
+              SET type = 'PlaylistType.xtream'
+              WHERE type = 'PlaylistType.xstream'
+            ''');
+        }
 
-      if (from <= 5) {
-        await m.createTable(m3uSeries);
-        await m.createTable(m3uEpisodes);
-      }
+        if (from <= 4) {
+          await m.createTable(m3uItems);
+        }
 
-      if (from <= 6) {
-        await m.deleteTable('m3u_items');
-        await m.createTable(m3uItems);
-      }
+        if (from <= 5) {
+          await m.createTable(m3uSeries);
+          await m.createTable(m3uEpisodes);
+        }
 
-      if (from <= 7) {
-        await m.createTable(favorites);
-      }
+        if (from <= 6) {
+          await m.deleteTable('m3u_items');
+          await m.createTable(m3uItems);
+        }
 
-      if (from <= 8) {
-        await m.addColumn(vodStreams, vodStreams.genre);
-        await m.addColumn(vodStreams, vodStreams.youtubeTrailer);
-      }
+        if (from <= 7) {
+          await m.createTable(favorites);
+        }
 
-      if (from <= 8) {
-        await _createPerformanceIndexes();
-      }
+        if (from <= 8) {
+          await _addColumnIfMissing(m, vodStreams, vodStreams.genre);
+          await _addColumnIfMissing(m, vodStreams, vodStreams.youtubeTrailer);
+        }
 
-      if (from < 10) {
-        // Additive, backward compatible: a nullable tmdb_id on VOD and series.
-        // Existing rows land NULL and search falls back to title matching until
-        // each title is opened (lazy backfill) or the next catalogue sync fills
-        // it from the bulk list. No data is touched or lost.
-        await m.addColumn(vodStreams, vodStreams.tmdbId);
-        await m.addColumn(seriesStreams, seriesStreams.tmdbId);
-      }
+        if (from <= 8) {
+          await _createPerformanceIndexes();
+        }
 
-      if (from <= 10) {
-        // Descargas offline (feat/downloads): tabla aditiva, sin tocar datos.
-        await m.createTable(downloads);
-      }
+        if (from < 10) {
+          // Additive, backward compatible: a nullable tmdb_id on VOD and series.
+          // Existing rows land NULL and search falls back to title matching until
+          // each title is opened (lazy backfill) or the next catalogue sync fills
+          // it from the bulk list. No data is touched or lost.
+          await _addColumnIfMissing(m, vodStreams, vodStreams.tmdbId);
+          await _addColumnIfMissing(m, seriesStreams, seriesStreams.tmdbId);
+        }
 
-      if (from <= 11) {
-        // Hardening de descargas offline: motivo de fallo (para mostrar en
-        // DownloadsScreen) y URL de origen (para poder reintentar sin
-        // depender de que el plugin retenga el DownloadTask original).
-        // Ambas aditivas y nullable: filas existentes quedan en NULL.
-        await m.addColumn(downloads, downloads.error);
-        await m.addColumn(downloads, downloads.url);
-      }
+        if (from <= 10) {
+          // Descargas offline (feat/downloads): tabla aditiva, sin tocar datos.
+          // `createTable` es CREATE TABLE IF NOT EXISTS, así que crea la tabla
+          // con su DDL actual (que ya incluye error/url); el bloque from<=11 de
+          // abajo es entonces un no-op idempotente para este camino, y para una
+          // BD ya en esquema 11 (donde este bloque no corre) sí añade error/url.
+          await m.createTable(downloads);
+        }
+
+        if (from <= 11) {
+          // Hardening de descargas offline: motivo de fallo (para mostrar en
+          // DownloadsScreen) y URL de origen (para poder reintentar sin
+          // depender de que el plugin retenga el DownloadTask original).
+          // Ambas aditivas y nullable: filas existentes quedan en NULL.
+          await _addColumnIfMissing(m, downloads, downloads.error);
+          await _addColumnIfMissing(m, downloads, downloads.url);
+        }
+      });
     },
     beforeOpen: (_) async {
       await _createPerformanceIndexes();
     },
   );
+
+  /// Idempotent [Migrator.addColumn]: adds [column] to [table] only when it is
+  /// not already present. Drift's raw `addColumn` is a plain
+  /// `ALTER TABLE ADD COLUMN` that throws "duplicate column name" when the
+  /// column already exists — which happens on two real paths in this app:
+  ///  1. A table created by `m.createTable(...)` on a very old upgrade path uses
+  ///     the CURRENT Drift DDL, which already carries columns that a LATER
+  ///     `addColumn` step then tries to add again (e.g. vod_streams created at
+  ///     from<=2 already has `genre`, yet from<=8 adds `genre`).
+  ///  2. onUpgrade is re-run after a crash between two steps (Drift 2.29 does
+  ///     not wrap onUpgrade in a transaction of its own; the explicit
+  ///     [transaction] above mitigates this, and this guard is the belt to that
+  ///     suspenders).
+  /// Guarding on `PRAGMA table_info` turns every addColumn into a safe no-op in
+  /// those cases while still applying genuinely-missing columns.
+  Future<void> _addColumnIfMissing(
+    Migrator m,
+    TableInfo table,
+    GeneratedColumn column,
+  ) async {
+    final info =
+        await customSelect('PRAGMA table_info(${table.actualTableName})').get();
+    final exists =
+        info.any((row) => row.read<String>('name') == column.$name);
+    if (!exists) {
+      await m.addColumn(table, column);
+    }
+  }
 
   Future<void> _createPerformanceIndexes() async {
     await customStatement(
