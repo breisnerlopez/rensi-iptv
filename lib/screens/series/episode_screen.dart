@@ -72,8 +72,19 @@ class _EpisodeScreenState extends State<EpisodeScreen> {
   }
 
   Future<void> _initializeQueue() async {
-    // Tüm sezonların tüm bölümlerini ekle (sadece mevcut sezonu değil)
-    allContents = widget.episodes
+    // Tüm sezonların tüm bölümlerini ekle (sadece mevcut sezonu değil).
+    // Ordenar ASCENDENTE por (temporada, episodio): el auto-avance —tanto el
+    // local como, sobre todo, el del CASTING (`_onCompleted` avanza a
+    // `_index+1`)— sigue el orden de esta cola. Si la API/BD devuelve los
+    // episodios desordenados (p. ej. el E01 al final del array), `_index+1`
+    // caería fuera de rango y la serie "no continuaría" en la TV. Ordenar aquí
+    // garantiza E01→E02→… en todas las temporadas.
+    final ordered = [...widget.episodes]
+      ..sort((a, b) {
+        final s = a.season.compareTo(b.season);
+        return s != 0 ? s : a.episodeNum.compareTo(b.episodeNum);
+      });
+    allContents = ordered
         .map((x) {
       return ContentItem(
         x.episodeId,

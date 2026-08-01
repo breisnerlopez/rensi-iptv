@@ -176,8 +176,8 @@ void main() {
     expect(fake.commands, contains('stop'));
   });
 
-  test('reconexión: al caerse el socket mientras castea, reconecta y reenvía el LOAD',
-      () async {
+  test('reconexión: al caerse el socket reconecta SIN re-LOAD destructivo; un '
+      'state de la TV confirma la sesión viva (reenganche silencioso)', () async {
     final fake = _FakeSender(devices: [oneTv]);
     final c = make(fake);
     await c.beginCast(media);
@@ -191,8 +191,50 @@ void main() {
     await Future<void>.delayed(const Duration(seconds: 2));
 
     expect(c.isCasting, isTrue, reason: 'sigue en casting tras reconectar');
-    expect(fake.loads.length, 2, reason: 'reenvió el LOAD tras reconectar');
-  }, timeout: const Timeout(Duration(seconds: 10)));
+    expect(fake.loads.length, 1,
+        reason: 'reenganche silencioso: NO re-LOAD que reinicie la TV desde una '
+            'posición vieja (la TV siguió reproduciendo)');
+
+    // La TV eco un `state` (sigue reproduciendo) → confirma la sesión viva; el
+    // fallback de recuperación queda cancelado y NUNCA re-LOADea.
+    fake.emitState({'id': media.channelId, 'pos': 30000, 'dur': 600000});
+    await Future<void>.delayed(const Duration(seconds: 8));
+    expect(fake.loads.length, 1,
+        reason: 'sesión confirmada viva: sigue sin re-LOAD tras la ventana');
+
+    await c.stopCasting();
+  }, timeout: const Timeout(Duration(seconds: 15)));
+
+  test('reconexión: si la TV NO eco ningún state (se reinició/paró), recupera '
+      'con un re-LOAD en la ÚLTIMA posición viva, no desde el principio', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    const vod = CastMedia(
+      channelId: '7001',
+      contentType: 'vod',
+      title: 'Peli',
+      ext: 'mp4',
+      playlistId: 'p',
+      historyId: '7001',
+    );
+    await c.beginCast(vod);
+    await c.submitPin('123456');
+    // La TV reportó progreso (minuto 0:30) antes de la caída.
+    fake.emitState({'id': '7001', 'pos': 30000, 'dur': 600000});
+    await Future<void>.delayed(Duration.zero);
+    final before = fake.loads.length;
+
+    fake.onDisconnected?.call();
+    // Reconecta (~1s) pero la TV NO eco state → pasada la ventana de resync (7s)
+    // se recupera con un re-LOAD.
+    await Future<void>.delayed(const Duration(seconds: 9));
+
+    expect(fake.loads.length, before + 1, reason: 'recuperó con un re-LOAD');
+    expect(fake.loadStartPositions.last, 30000,
+        reason: 're-LOAD en la última posición viva de la TV, no en 0');
+
+    await c.stopCasting();
+  }, timeout: const Timeout(Duration(seconds: 20)));
 
   test('play/pausa se envía como comando; zap sin catálogo es no-op', () async {
     final fake = _FakeSender(devices: [oneTv]);
@@ -258,6 +300,84 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(c.media?.channelId, 'e2');
     expect(fake.loads.length, before + 1);
+  });
+
+  test('castNextEpisode: salto MANUAL al siguiente episodio de una serie '
+      '(reenvía el LOAD, sin esperar los créditos)', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    final eps = const [
+      CastMedia(channelId: 'e1', contentType: 'series', title: 'Ep 1'),
+      CastMedia(channelId: 'e2', contentType: 'series', title: 'Ep 2'),
+      CastMedia(channelId: 'e3', contentType: 'series', title: 'Ep 3'),
+    ];
+    await c.beginCast(eps[0], queue: eps, index: 0);
+    await c.submitPin('123456');
+    expect(c.canCastNextEpisode, isTrue, reason: 'hay episodios por delante');
+    final before = fake.loads.length;
+
+    await c.castNextEpisode();
+    expect(c.media?.channelId, 'e2');
+    expect(fake.loads.last['id'], 'e2');
+    expect(fake.loads.length, before + 1);
+
+    await c.castNextEpisode();
+    expect(c.media?.channelId, 'e3');
+    expect(c.canCastNextEpisode, isFalse,
+        reason: 'último episodio: no hay siguiente');
+
+    // En el último no hace nada (no hay siguiente).
+    final atLast = fake.loads.length;
+    await c.castNextEpisode();
+    expect(c.media?.channelId, 'e3');
+    expect(fake.loads.length, atLast);
+  });
+
+  test('castNextEpisode: NO aplica a VOD ni a vivo (solo series)', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    final q = const [
+      CastMedia(channelId: 'v1', contentType: 'vod', title: 'Peli 1'),
+      CastMedia(channelId: 'v2', contentType: 'vod', title: 'Peli 2'),
+    ];
+    await c.beginCast(q[0], queue: q, index: 0);
+    await c.submitPin('123456');
+    expect(c.canCastNextEpisode, isFalse, reason: 'VOD no es serie');
+    final before = fake.loads.length;
+    await c.castNextEpisode();
+    expect(c.media?.channelId, 'v1'); // no avanzó
+    expect(fake.loads.length, before);
+  });
+
+  test('castNextEpisode: no-op SEGURO mientras se reconecta (socket en backoff)',
+      () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    final eps = const [
+      CastMedia(channelId: 'e1', contentType: 'series', title: 'Ep 1'),
+      CastMedia(channelId: 'e2', contentType: 'series', title: 'Ep 2'),
+    ];
+    await c.beginCast(eps[0], queue: eps, index: 0);
+    await c.submitPin('123456');
+    final before = fake.loads.length;
+
+    fake.onDisconnected?.call(); // arranca _reconnect → _reconnecting=true
+    expect(c.canCastNextEpisode, isFalse,
+        reason: 'no ofrecer el salto sobre un socket muerto');
+    await c.castNextEpisode();
+    expect(fake.loads.length, before, reason: 'sin re-LOAD durante el backoff');
+    expect(c.media?.channelId, 'e1', reason: 'el media no cambió');
+
+    await c.stopCasting();
+  });
+
+  test('castNextEpisode: no-op si no se está casteando', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    expect(c.canCastNextEpisode, isFalse);
+    await c.castNextEpisode();
+    expect(fake.loads, isEmpty);
+    expect(c.phase, CastPhase.idle);
   });
 
   test('castNext: mientras castea, re-LOAD de un nuevo título sin re-emparejar',

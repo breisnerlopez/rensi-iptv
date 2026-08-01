@@ -1663,6 +1663,9 @@ class AppLocalizationsDe extends AppLocalizations {
       'Tippe auf „Übertragen“ und wähle diesen Fernseher';
 
   @override
+  String get tv_history_hint => 'Mach weiter, wo du aufgehört hast';
+
+  @override
   String get developer => 'Entwickler';
 
   @override

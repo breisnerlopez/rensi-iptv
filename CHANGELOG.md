@@ -1,3 +1,23 @@
+# [2.17.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.16.0...v2.17.0) (2026-08-01)
+
+
+### Features
+
+* **Botón "Siguiente episodio"** en los últimos ~30s de un episodio de serie: lo saltas al instante en el móvil, y si estás casteando **envía el siguiente episodio a la TV**
+* **El receptor de Android TV se rediseñó** — ya no se ve vacío en negro: ajustes en un icono compacto, **reloj y fecha** ambiente, el historial centrado, y una franja con versión y estado ("Visible como Rensi TV")
+* **Ajustes reorganizado** en secciones claras (General, Reproductor, Descargas, Apariencia, Copia de seguridad, Acerca de)
+
+
+### Bug Fixes
+
+* **Enviar a la TV y volver de otra app ya no reinicia ni pierde tu avance:** al recuperar la conexión el móvil **reata la sesión que sigue viva en la TV** en vez de reenviarla desde el principio, y la posición vuelve a sincronizarse
+* **Las series ahora SÍ avanzan al siguiente capítulo en la TV:** los episodios se ordenan bien por temporada y número — antes una cola desordenada hacía que "no encontrara" el siguiente y se quedara en el último fotograma
+* **El volumen y los controles ya responden al castear** (el móvil deja de quedarse "cargando" cuando la TV ya está reproduciendo)
+* **La sinopsis, el reparto y la portada del contenido llegan de forma fiable a la TV:** se usa el identificador de TMDb que el móvil ya tiene, en vez de una búsqueda por título que fallaba en algunos contenidos
+* **El borde de selección del historial en la TV ya no se recorta** por arriba, y el logo del receptor deja de verse sobredimensionado
+* **El enlace a GitHub en Ajustes ya abre** (faltaba declararlo para Android 11+)
+
+
 # [2.16.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.15.0...v2.16.0) (2026-08-01)
 
 

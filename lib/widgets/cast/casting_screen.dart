@@ -51,6 +51,11 @@ class CastingScreen extends StatelessWidget {
                   if (c.canZap) _roundBtn(Icons.skip_previous, c.channelDown),
                   _roundBtn(Icons.play_arrow, c.playPause, big: true),
                   if (c.canZap) _roundBtn(Icons.skip_next, c.channelUp),
+                  // Serie: saltar manualmente al siguiente episodio en la TV
+                  // (canZap es solo-vivo y canCastNextEpisode solo-serie: nunca
+                  // aparecen a la vez).
+                  if (c.canCastNextEpisode)
+                    _roundBtn(Icons.skip_next, c.castNextEpisode),
                 ],
               ),
               const SizedBox(height: 24),

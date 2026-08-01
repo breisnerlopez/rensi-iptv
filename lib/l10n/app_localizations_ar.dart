@@ -1630,6 +1630,9 @@ class AppLocalizationsAr extends AppLocalizations {
   String get tv_empty_step_cast => 'اضغط على البث واختر هذا التلفاز';
 
   @override
+  String get tv_history_hint => 'تابع من حيث توقفت';
+
+  @override
   String get developer => 'المطوّر';
 
   @override

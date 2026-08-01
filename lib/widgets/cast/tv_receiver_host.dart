@@ -303,10 +303,20 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
       _setStatus(advertised ? ReceiverStatus.discoverable : ReceiverStatus.error);
       // Mostrar el PIN cuando un móvil intenta conectar; ocultarlo al reproducir.
       _connectSub = service.onClientConnected.listen((_) {
-        if (mounted && !_playing) {
+        if (!mounted) return;
+        if (!_playing) {
           setState(() => _pinVisible = true);
           _setStatus(ReceiverStatus.pairing);
           _armPinTimeout();
+        } else {
+          // Un móvil (re)conecta MIENTRAS ya reproducimos: casi seguro un sender
+          // que perdió su socket (se backgroundeó) y se está reenganchando. Eco
+          // INMEDIATO del estado actual para que confirme que la sesión sigue
+          // viva y resincronice posición/volumen SIN re-LOAD (que reiniciaría la
+          // reproducción). Se resetea el throttle para que el próximo tick
+          // periódico tampoco quede suprimido.
+          _lastStateSent = null;
+          _sendState(_lastPos, _lastDur);
         }
       });
       _loadSub = service.onLoad.listen(_play);

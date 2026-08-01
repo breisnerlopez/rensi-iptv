@@ -1580,6 +1580,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tv_empty_step_cast => '点击投屏并选择这台电视';
 
   @override
+  String get tv_history_hint => '从上次的位置继续观看';
+
+  @override
   String get developer => '开发者';
 
   @override

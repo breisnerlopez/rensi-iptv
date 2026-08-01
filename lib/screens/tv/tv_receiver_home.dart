@@ -70,7 +70,8 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
   Future<String> _loadVersion() async {
     try {
       final info = await PackageInfo.fromPlatform();
-      return 'v${info.version}';
+      final build = info.buildNumber;
+      return build.isEmpty ? 'v${info.version}' : 'v${info.version} ($build)';
     } catch (_) {
       return '';
     }
@@ -267,36 +268,28 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Marca arriba-izquierda + pill de estado arriba-derecha: libera
-              // el centro para la guía ilustrada cuando no hay historial.
+              // Marca arriba-izquierda + [ajustes-gear, pill de estado]
+              // arriba-derecha: el antiguo botón grande de "Ajustes de
+              // reproducción" ya no ocupa un bloque completo aquí, para que
+              // el centro quede libre para el reloj/rail/guía.
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _brandLockup(context),
-                  _statusPill(context),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _settingsIconButton(context),
+                      SizedBox(width: 12 * s),
+                      _statusPill(context),
+                    ],
+                  ),
                 ],
               ),
-              SizedBox(height: 24 * s),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: _settingsButton(context),
-              ),
-              SizedBox(height: 32 * s),
-              Expanded(child: _historySection(context)),
-              FutureBuilder<String>(
-                future: _versionFuture,
-                builder: (context, snap) => Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    snap.data ?? '',
-                    style: TextStyle(
-                      color: rensi(context).text3,
-                      fontSize: AppThemes.tenFoot(context, 11),
-                    ),
-                  ),
-                ),
-              ),
+              SizedBox(height: 20 * s),
+              Expanded(child: _heroSection(context)),
+              _statusStrip(context),
             ],
           ),
         ),
@@ -306,16 +299,25 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
 
   Widget _brandLockup(BuildContext context) {
     final titleSize = AppThemes.tenFoot(context, AppThemes.h2Size);
+    // `titleSize` (from `tenFoot`) is a TEXT size — it only actually shrinks
+    // on TV through the app-wide `TextScaler(tvScale)` `MaterialApp.builder`
+    // applies to `Text` (see `main.dart`), which the `Text` below gets for
+    // free. `Image.asset`/`SizedBox` are not text, so anything sized off
+    // `titleSize` for THEM needs `tvScale` applied explicitly, same as the
+    // icon/spacer sizes elsewhere on this screen (`_emptyStep`, etc.) —
+    // otherwise the logo (and its gap to the wordmark) would stay full-size
+    // on a smaller-dp TV panel while the text next to it shrinks.
+    final s = ResponsiveHelper.tvScale(context);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         // Logo de la app (la "R"), en vez del emoji de TV genérico.
         Image.asset(
           'assets/logo_foreground.png',
-          height: titleSize * 1.35,
+          height: titleSize * 1.35 * s,
           filterQuality: FilterQuality.medium,
         ),
-        SizedBox(width: titleSize * 0.28),
+        SizedBox(width: titleSize * 0.28 * s),
         Text(
           'Rensi TV',
           style: TextStyle(
@@ -398,28 +400,42 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
     );
   }
 
-  Widget _settingsButton(BuildContext context) {
+  /// Entry point to playback settings, now a small gear ICON button instead
+  /// of the old full-width `OutlinedButton.icon` — that button used to sit
+  /// alone under the header eating a whole row of vertical space for a
+  /// setting most viewers never touch. Lives next to the brand lockup/status
+  /// pill instead, same row, so the centre of the screen is free for the
+  /// clock/history hero/empty guide. Kept as the autofocus target: it is
+  /// always present regardless of history state, so D-pad focus always has
+  /// a safe, deterministic landing spot the instant this screen builds.
+  Widget _settingsIconButton(BuildContext context) {
     final r = rensi(context);
+    final s = ResponsiveHelper.tvScale(context);
     return FocusHighlight(
-      borderRadius: BorderRadius.circular(12),
-      child: OutlinedButton.icon(
-        autofocus: true,
-        onPressed: () => _openDecoderSettings(context),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: Theme.of(context).colorScheme.onSurface,
-          side: BorderSide(color: r.hairline2),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        ),
-        icon: const Icon(Icons.settings),
-        label: Text(
-          context.loc.tv_playback_settings,
-          style: TextStyle(fontSize: AppThemes.tenFoot(context, AppThemes.bodySize)),
+      shape: const CircleBorder(),
+      child: Material(
+        color: r.surface2,
+        shape: const CircleBorder(),
+        child: IconButton(
+          autofocus: true,
+          tooltip: context.loc.tv_playback_settings,
+          onPressed: () => _openDecoderSettings(context),
+          icon: Icon(
+            Icons.settings,
+            size: 24 * s,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
         ),
       ),
     );
   }
 
-  Widget _historySection(BuildContext context) {
+  /// The centre of the screen: either the 3-step empty guide, or — once
+  /// there is history — the resume rail as the vertically-CENTERED hero
+  /// (replacing the old "anchored at the bottom, void above" layout). Both
+  /// branches are wrapped by the same `FutureBuilder` so the history query
+  /// only runs once and both states share identical top/bottom chrome.
+  Widget _heroSection(BuildContext context) {
     return FutureBuilder<List<WatchHistory>>(
       future: _historyFuture,
       builder: (context, snapshot) {
@@ -427,14 +443,66 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
           return const SizedBox.shrink();
         }
         final items = snapshot.data ?? const [];
-        if (items.isEmpty) {
-          return _emptyHistoryState(context);
-        }
-        return Column(
+        return items.isEmpty
+            ? _emptyHistoryState(context)
+            : _historyHero(context, items);
+      },
+    );
+  }
+
+  /// Resume rail as the centered hero (shown once there is history): the
+  /// ambient clock up top, "History" + a short hint, then a noticeably
+  /// LARGER rail than the old bottom-anchored one (poster 260→300, scaled by
+  /// `tvScale` like everything else fixed-size on this screen) — filling the
+  /// vertical void the old anchored-at-the-bottom layout left above it.
+  ///
+  /// Not wrapping the rail in `Expanded`: as a plain (non-flex) `Column`
+  /// child, `RensiRail`'s own `SizedBox` renders at EXACTLY the height it
+  /// declares — nothing forces it taller — which is what keeps the clip-fix
+  /// math in `_historyCard` exact (see that method's doc). That is NOT what
+  /// prevents this column from overflowing the `Expanded` slot `build()`
+  /// gives `_heroSection`: a loose constraint shares the same maximum as a
+  /// tight one, it only additionally permits smaller, so looseness alone
+  /// can't stop an overflow. Overflow safety instead comes from the height
+  /// BUDGET — every fixed size in this column (`posterWidth`, the
+  /// `_railFocusPad` cushion, the spacers) is scaled by `tvScale`, and every
+  /// `Text`'s glyph size is scaled the same way via the app-wide
+  /// `TextScaler(tvScale)` `MaterialApp.builder` applies (see `main.dart`),
+  /// so the column's total height shrinks together with the panel and stays
+  /// within the slot on a real ~960×540dp TV.
+  Widget _historyHero(BuildContext context, List<WatchHistory> items) {
+    final r = rensi(context);
+    final s = ResponsiveHelper.tvScale(context);
+    final posterWidth = 300 * s;
+    final cardHeight = posterWidth * 10 / 16;
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        // Same cheap static radial glow as the empty state — no
+        // BackdropFilter/ImageFilter (perf risk on low-end TV, deliberately
+        // deferred).
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                radius: 0.9,
+                colors: [
+                  r.accentGlow.withValues(alpha: 0.12),
+                  r.accentGlow.withValues(alpha: 0.0),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Column(
+          mainAxisSize: MainAxisSize.max,
+          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const Align(alignment: Alignment.center, child: _AmbientClock()),
+            SizedBox(height: 32 * s),
             Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
                 context.loc.history,
                 style: TextStyle(
@@ -444,18 +512,32 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
                 ),
               ),
             ),
-            Expanded(
-              child: RensiRail(
-                posterWidth: 260,
-                height: 175,
-                children: [
-                  for (final h in items) _historyCard(context, h),
-                ],
+            SizedBox(height: 4 * s),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                context.loc.tv_history_hint,
+                style: TextStyle(
+                  fontSize: AppThemes.tenFoot(context, AppThemes.bodySmallSize),
+                  color: r.text3,
+                ),
               ),
             ),
+            SizedBox(height: 18 * s),
+            RensiRail(
+              posterWidth: posterWidth,
+              // `_railFocusPad` on both sides + the fixed 4dp RensiRail bakes
+              // into its own bottom padding = exactly enough clearance for a
+              // focused card's ring + 1.06x zoom to render without clipping
+              // (see `_historyCard`/`_railFocusPad`) — task C.
+              height: cardHeight + _railFocusPad * 2 + 4,
+              children: [
+                for (final h in items) _historyCard(context, h, posterWidth),
+              ],
+            ),
           ],
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -501,6 +583,8 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              const _AmbientClock(),
+              SizedBox(height: 28 * s),
               Text(
                 context.loc.tv_ready_subtitle,
                 textAlign: TextAlign.center,
@@ -588,78 +672,244 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
     );
   }
 
-  Widget _historyCard(BuildContext context, WatchHistory h) {
+  /// Vertical breathing room (task C fix) reserved above/below every history
+  /// card slot inside `RensiRail`'s horizontal `ListView`.
+  ///
+  /// Root cause of the reported top-clipped focus ring: `RensiRail` bakes in
+  /// `padding: EdgeInsets.fromLTRB(sidePadding, 0, sidePadding, 4)` — i.e.
+  /// ZERO top padding and only 4dp at the bottom — and its `ListView` (like
+  /// every `ScrollView`) defaults to `clipBehavior: Clip.hardEdge`. A
+  /// focused card is wrapped by `FocusHighlight`, which grows it ~1.06x
+  /// (`AnimatedScale`) plus a 3dp ring padding; with the card slot already
+  /// forced to fill the rail's exact cross-axis extent (no slack), that
+  /// growth has nowhere to paint above the card — the top edge, sitting
+  /// flush at the rail's `top: 0` inset, is the first (and worst) thing the
+  /// hard-edge clip cuts into.
+  ///
+  /// `RensiRail` lives in `lib/redesign/rensi_widgets.dart`, out of this
+  /// file's scope this round, so the fix is entirely local: give each card
+  /// slot `_railFocusPad` extra height on top of what the unfocused card
+  /// needs (`_historyHero` adds `_railFocusPad * 2` to the `height` it hands
+  /// `RensiRail`), then eat exactly that much of it back here as a
+  /// `Padding` wrapping the card. `RensiRail`'s `ListView` gives each slot a
+  /// TIGHT cross-axis constraint equal to its own extent (not a loose one),
+  /// so this padding carves out real, unoccupied pixels above and below the
+  /// card — not just alignment — for the ring/zoom to grow into without
+  /// being clipped, while the card's own rendered size (and D-pad focus
+  /// behaviour) stays exactly as it was.
+  static const _railFocusPad = 14.0;
+
+  Widget _historyCard(BuildContext context, WatchHistory h, double width) {
     final r = rensi(context);
     final total = h.totalDuration?.inSeconds ?? 0;
     final done = h.watchDuration?.inSeconds ?? 0;
     final progress = total > 0 ? (done / total).clamp(0.0, 1.0) : 0.0;
-    return SizedBox(
-      width: 260,
-      child: FocusHighlight(
-        borderRadius: BorderRadius.circular(14),
-        child: Material(
-          color: r.surface2,
-          clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          child: InkWell(
-            onTap: () => _replay(context, h),
-            child: AspectRatio(
-              aspectRatio: 16 / 10,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  RensiKeyArt.raw(
-                    seed: h.streamId,
-                    title: h.title,
-                    imagePath: h.imagePath ?? '',
-                    titleScale: 0,
-                  ),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [Color(0xD1000000), Color(0x00000000)],
-                        stops: [0.0, 0.6],
-                      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: _railFocusPad),
+      child: SizedBox(
+        width: width,
+        child: FocusHighlight(
+          borderRadius: BorderRadius.circular(14),
+          child: Material(
+            color: r.surface2,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            child: InkWell(
+              onTap: () => _replay(context, h),
+              child: AspectRatio(
+                aspectRatio: 16 / 10,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    RensiKeyArt.raw(
+                      seed: h.streamId,
+                      title: h.title,
+                      imagePath: h.imagePath ?? '',
+                      titleScale: 0,
                     ),
-                  ),
-                  Positioned(
-                    left: 12,
-                    right: 12,
-                    bottom: total > 0 ? 20 : 10,
-                    child: Text(
-                      h.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: AppThemes.tenFoot(context, 14),
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  if (total > 0)
-                    Positioned(
-                      left: 12,
-                      right: 12,
-                      bottom: 10,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 3,
-                          backgroundColor: r.hairline,
-                          valueColor: AlwaysStoppedAnimation(r.accent),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [Color(0xD1000000), Color(0x00000000)],
+                          stops: [0.0, 0.6],
                         ),
                       ),
                     ),
-                ],
+                    Positioned(
+                      left: 12,
+                      right: 12,
+                      bottom: total > 0 ? 20 : 10,
+                      child: Text(
+                        h.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: AppThemes.tenFoot(context, 14),
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    if (total > 0)
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        bottom: 10,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 3,
+                            backgroundColor: r.hairline,
+                            valueColor: AlwaysStoppedAnimation(r.accent),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+
+  /// Bottom status strip: app version+build (from `package_info_plus`, same
+  /// source the old lone version caption used) plus a compact echo of the
+  /// receiver's discoverable/pairing/error status the top-right pill already
+  /// shows — a short "is this TV reachable" hint even if the viewer's eye
+  /// lands at the bottom of the screen first. Renders just the version if
+  /// `TvReceiverStatusScope` is absent (e.g. `TvReceiverHome` mounted
+  /// directly in a widget test, without a `TvReceiverHost` ancestor).
+  Widget _statusStrip(BuildContext context) {
+    final r = rensi(context);
+    final scope = TvReceiverStatusScope.maybeOf(context);
+    final style = TextStyle(color: r.text3, fontSize: AppThemes.tenFoot(context, 11));
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FutureBuilder<String>(
+            future: _versionFuture,
+            builder: (context, snap) => Text(snap.data ?? '', style: style),
+          ),
+          if (scope != null) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text('·', style: style),
+            ),
+            Text(_statusStripLabel(context, scope), style: style),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _statusStripLabel(BuildContext context, TvReceiverStatusScope scope) {
+    final loc = context.loc;
+    return switch (scope.status) {
+      ReceiverStatus.discoverable => loc.tv_status_discoverable(scope.deviceName),
+      ReceiverStatus.pairing => loc.cast_pairing,
+      ReceiverStatus.error => loc.tv_status_error,
+    };
+  }
+}
+
+/// Ambient standby clock — pure local `DateTime`, no network calls. Shown
+/// above BOTH the empty guide and the history hero so the idle screen always
+/// has a live, slowly-changing focal point instead of a static void
+/// (Google-TV-standby style). Colors intentionally muted (`text2`/`text3`)
+/// to read as "discreet", not a competing headline.
+///
+/// Isolated in its OWN `StatefulWidget` (not a field/Timer on
+/// `_TvReceiverHomeState`): a `Timer.periodic` ticking a `setState` on the
+/// parent state would rebuild the ENTIRE `TvReceiverHome` subtree every
+/// 20s — lockup, status pill, settings gear, the glow gradient, and
+/// `RensiRail` with all N history cards — purely to advance a clock this
+/// screen doesn't even always show at the top. Scoping the `Timer` and its
+/// `DateTime` state to this small widget means each tick only rebuilds
+/// these two `Text`s, matching the same "don't repaint what didn't change"
+/// discipline `FocusHighlight`'s `RepaintBoundary` already applies to the
+/// history cards.
+class _AmbientClock extends StatefulWidget {
+  const _AmbientClock();
+
+  @override
+  State<_AmbientClock> createState() => _AmbientClockState();
+}
+
+class _AmbientClockState extends State<_AmbientClock> {
+  // 20s, not every second: this clock only shows hour:minute, so a 20s tick
+  // is never more than an instant stale — no need for per-second rebuilds on
+  // a low-end TV box.
+  Timer? _timer;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = rensi(context);
+    // NOT `MaterialLocalizations.of` — this Flutter version doesn't ship a
+    // `maybeOf` on it (only `of`, which asserts/throws when there is no
+    // ancestor `Localizations`). `Localizations.of<T>` is the exact
+    // null-safe primitive `MaterialLocalizations.of` itself wraps with a
+    // bang (see its source doc: "just a convenient shorthand for
+    // `Localizations.of<MaterialLocalizations>(context, MaterialLocalizations)!`"),
+    // so calling it directly here gives the same "maybeOf" behaviour: a
+    // widget test that mounts `TvReceiverHome` (or this widget) without a
+    // `MaterialApp`/`Localizations` ancestor falls back to a plain "HH:mm"
+    // and no date line instead of crashing on this clock alone.
+    final materialLoc =
+        Localizations.of<MaterialLocalizations>(context, MaterialLocalizations);
+    final time = materialLoc?.formatTimeOfDay(
+          TimeOfDay.fromDateTime(_now),
+          alwaysUse24HourFormat: MediaQuery.of(context).alwaysUse24HourFormat,
+        ) ??
+        '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}';
+    final date = materialLoc?.formatFullDate(_now);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          time,
+          style: TextStyle(
+            fontFamily: 'Bricolage Grotesque',
+            fontWeight: FontWeight.w700,
+            fontSize: AppThemes.tenFoot(context, 34),
+            color: r.text2,
+            letterSpacing: 0.5,
+          ),
+        ),
+        if (date != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            date,
+            style: TextStyle(
+              fontSize: AppThemes.tenFoot(context, AppThemes.labelSize),
+              fontWeight: FontWeight.w600,
+              color: r.text3,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

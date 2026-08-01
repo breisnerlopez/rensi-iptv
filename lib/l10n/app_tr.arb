@@ -629,6 +629,7 @@
   "tv_empty_step_wifi": "TV'nizle aynı Wi-Fi",
   "tv_empty_step_phone": "Telefonunuzda Rensi'yi açın",
   "tv_empty_step_cast": "Yayınla'ya dokunun ve bu TV'yi seçin",
+  "tv_history_hint": "Kaldığınız yerden devam edin",
   "tv_playback_settings": "Oynatma ayarları",
   "tv_replay_failed": "Bu içerik oynatmak için alınamadı.",
   "cast_need_wifi": "Dosyayı göndermek için TV ile aynı Wi‑Fi ağına bağlanın.",

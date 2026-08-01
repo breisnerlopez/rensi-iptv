@@ -629,6 +629,7 @@
   "tv_empty_step_wifi": "نفس شبكة Wi-Fi الخاصة بالتلفاز",
   "tv_empty_step_phone": "افتح Rensi على هاتفك",
   "tv_empty_step_cast": "اضغط على البث واختر هذا التلفاز",
+  "tv_history_hint": "تابع من حيث توقفت",
   "tv_playback_settings": "إعدادات التشغيل",
   "tv_replay_failed": "تعذّر استرجاع هذا المحتوى لتشغيله.",
   "cast_need_wifi": "اتصل بنفس شبكة Wi‑Fi المتصلة بها TV لإرسال الملف.",

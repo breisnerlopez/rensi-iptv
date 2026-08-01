@@ -1643,6 +1643,9 @@ class AppLocalizationsRu extends AppLocalizations {
   String get tv_empty_step_cast => 'Нажмите «Трансляция» и выберите этот ТВ';
 
   @override
+  String get tv_history_hint => 'Продолжите с того места, где остановились';
+
+  @override
   String get developer => 'Разработчик';
 
   @override

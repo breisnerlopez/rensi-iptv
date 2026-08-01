@@ -1647,6 +1647,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get tv_empty_step_cast => 'Toque em Transmitir e escolha esta TV';
 
   @override
+  String get tv_history_hint => 'Continue de onde parou';
+
+  @override
   String get developer => 'Desenvolvedor';
 
   @override

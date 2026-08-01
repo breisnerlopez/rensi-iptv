@@ -629,6 +629,7 @@
   "tv_empty_step_wifi": "Gleiches WLAN wie dein Fernseher",
   "tv_empty_step_phone": "Öffne Rensi auf deinem Handy",
   "tv_empty_step_cast": "Tippe auf „Übertragen“ und wähle diesen Fernseher",
+  "tv_history_hint": "Mach weiter, wo du aufgehört hast",
   "tv_playback_settings": "Wiedergabeeinstellungen",
   "tv_replay_failed": "Dieser Inhalt konnte zum Abspielen nicht abgerufen werden.",
   "cast_need_wifi": "Verbinde dich mit demselben Wi‑Fi-Netzwerk wie die TV, um die Datei zu senden.",

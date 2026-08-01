@@ -443,45 +443,30 @@ String _videoDecoder = 'auto';
         : Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.home),
-                  title: Text(context.loc.playlist_list),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () async {
-                    await UserPreferences.removeLastPlaylist();
-                    if (mounted) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => PlaylistScreen(),
-                        ),
-                      );
-                    }
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-              Card(
-                child: ListTile(
-                  leading: const Icon(Icons.download_for_offline_outlined),
-                  title: Text(context.loc.downloads_title),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const DownloadsScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
+              // Group 1 — Playlists / account & content: switch playlist,
+              // refresh its contents, filter categories, and the TMDb
+              // credential that enriches that content with metadata.
               SectionTitleWidget(title: context.loc.general_settings),
               Card(
                 child: Column(
                   children: [
+                    ListTile(
+                      leading: const Icon(Icons.home),
+                      title: Text(context.loc.playlist_list),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () async {
+                        await UserPreferences.removeLastPlaylist();
+                        if (mounted) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => PlaylistScreen(),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.refresh),
                       title: Text(context.loc.refresh_contents),
@@ -540,55 +525,6 @@ String _videoDecoder = 'auto';
                           }
                         },
                       ),
-                    const Divider(height: 1),
-                    DropdownTileWidget<Locale>(
-                      icon: Icons.language,
-                      label: context.loc.app_language,
-                      value: Localizations.localeOf(context),
-                      items: [
-                        ...supportedLanguages.map(
-                          (language) => DropdownMenuItem(
-                            value: Locale(language['code']),
-                            child: Text(language['name']),
-                          ),
-                        ),
-                      ],
-                      onChanged: (v) {
-                        Provider.of<LocaleProvider>(
-                          context,
-                          listen: false,
-                        ).setLocale(v!);
-                      },
-                    ),
-                    const Divider(height: 1),
-                    DropdownTileWidget<String>(
-                      icon: Icons.color_lens_outlined,
-                      label: context.loc.theme,
-                      value: _selectedTheme,
-                      items: [
-                        DropdownMenuItem(
-                          value: 'system',
-                          child: Text(context.loc.standard),
-                        ),
-                        DropdownMenuItem(
-                          value: 'light',
-                          child: Text(context.loc.light),
-                        ),
-                        DropdownMenuItem(
-                          value: 'dark',
-                          child: Text(context.loc.dark),
-                        ),
-                      ],
-                      onChanged: (value) async {
-                        if (value != null) {
-                          final themeMode = _stringToThemeMode(value);
-                          await themeProvider.setTheme(themeMode);
-                          setState(() {
-                            _selectedTheme = value;
-                          });
-                        }
-                      },
-                    ),
                     const Divider(height: 1),
                     Padding(
                       padding: const EdgeInsets.symmetric(
@@ -649,52 +585,8 @@ String _videoDecoder = 'auto';
                 ),
               ),
               const SizedBox(height: 10),
-              SectionTitleWidget(title: context.loc.history),
-              Card(
-                child: ListTile(
-                  // Restores a capability the app lost when the unreachable
-                  // history screen was deleted: that screen was the only place
-                  // clearAllHistory was ever called from, so removing it left
-                  // viewing history with no way out of the database at all — on
-                  // a TV box, which is a shared device by definition.
-                  leading: const Icon(Icons.delete_sweep_outlined),
-                  title: Text(context.loc.clear_all_history),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _confirmClearHistory,
-                ),
-              ),
-              const SizedBox(height: 10),
-              SectionTitleWidget(title: context.loc.backup_section),
-              Card(
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.upload_file),
-                      title: Text(context.loc.export_playlists_and_settings),
-                      subtitle: Text(context.loc.export_subtitle),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: _exportBackup,
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.download),
-                      title: Text(context.loc.import_playlists_and_settings),
-                      subtitle: Text(context.loc.import_subtitle),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: _importBackup,
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.link),
-                      title: Text(context.loc.import_from_url),
-                      subtitle: Text(context.loc.import_url_subtitle),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: _importBackupFromUrl,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
+              // Group 2 — Playback: decoder, audio/subtitle tracks, speed,
+              // resume-in-background/PiP, and touch gestures.
               SectionTitleWidget(title: context.loc.player_settings),
               Card(
                 child: Column(
@@ -882,6 +774,127 @@ String _videoDecoder = 'auto';
                 ),
               ),
               const SizedBox(height: 10),
+              // Group 3 — Downloads/storage.
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.download_for_offline_outlined),
+                  title: Text(context.loc.downloads_title),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DownloadsScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Group 4 — Appearance/language.
+              SectionTitleWidget(title: context.loc.appearance),
+              Card(
+                child: Column(
+                  children: [
+                    DropdownTileWidget<Locale>(
+                      icon: Icons.language,
+                      label: context.loc.app_language,
+                      value: Localizations.localeOf(context),
+                      items: [
+                        ...supportedLanguages.map(
+                          (language) => DropdownMenuItem(
+                            value: Locale(language['code']),
+                            child: Text(language['name']),
+                          ),
+                        ),
+                      ],
+                      onChanged: (v) {
+                        Provider.of<LocaleProvider>(
+                          context,
+                          listen: false,
+                        ).setLocale(v!);
+                      },
+                    ),
+                    const Divider(height: 1),
+                    DropdownTileWidget<String>(
+                      icon: Icons.color_lens_outlined,
+                      label: context.loc.theme,
+                      value: _selectedTheme,
+                      items: [
+                        DropdownMenuItem(
+                          value: 'system',
+                          child: Text(context.loc.standard),
+                        ),
+                        DropdownMenuItem(
+                          value: 'light',
+                          child: Text(context.loc.light),
+                        ),
+                        DropdownMenuItem(
+                          value: 'dark',
+                          child: Text(context.loc.dark),
+                        ),
+                      ],
+                      onChanged: (value) async {
+                        if (value != null) {
+                          final themeMode = _stringToThemeMode(value);
+                          await themeProvider.setTheme(themeMode);
+                          setState(() {
+                            _selectedTheme = value;
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Group 5 — Backup/data: export/import plus clearing local
+              // history, all operations on the app's stored data.
+              SectionTitleWidget(title: context.loc.backup_section),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.upload_file),
+                      title: Text(context.loc.export_playlists_and_settings),
+                      subtitle: Text(context.loc.export_subtitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _exportBackup,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.download),
+                      title: Text(context.loc.import_playlists_and_settings),
+                      subtitle: Text(context.loc.import_subtitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _importBackup,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.link),
+                      title: Text(context.loc.import_from_url),
+                      subtitle: Text(context.loc.import_url_subtitle),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _importBackupFromUrl,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      // Restores a capability the app lost when the unreachable
+                      // history screen was deleted: that screen was the only
+                      // place clearAllHistory was ever called from, so removing
+                      // it left viewing history with no way out of the database
+                      // at all — on a TV box, which is a shared device by
+                      // definition.
+                      leading: const Icon(Icons.delete_sweep_outlined),
+                      title: Text(context.loc.clear_all_history),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _confirmClearHistory,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Group 6 — About/diagnostics.
               SectionTitleWidget(title: context.loc.about),
               Card(
                 child: Column(

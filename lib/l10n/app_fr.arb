@@ -629,6 +629,7 @@
   "tv_empty_step_wifi": "Même Wi-Fi que votre TV",
   "tv_empty_step_phone": "Ouvrez Rensi sur votre téléphone",
   "tv_empty_step_cast": "Appuyez sur Caster et choisissez cette TV",
+  "tv_history_hint": "Reprenez là où vous vous êtes arrêté",
   "tv_playback_settings": "Paramètres de lecture",
   "tv_replay_failed": "Impossible de récupérer ce contenu pour le lire.",
   "cast_need_wifi": "Connectez-vous au même réseau Wi‑Fi que la TV pour envoyer le fichier.",

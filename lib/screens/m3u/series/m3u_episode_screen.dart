@@ -70,8 +70,17 @@ class _M3uEpisodeScreenState extends State<M3uEpisodeScreen> {
   }
 
   Future<void> _initializeQueue() async {
-    // Tüm sezonların tüm bölümlerini ekle (sadece mevcut sezonu değil)
-    allContents = widget.episodes
+    // Tüm sezonların tüm bölümlerini ekle (sadece mevcut sezonu değil).
+    // Ordenar ASCENDENTE por (temporada, episodio) para que el auto-avance del
+    // CASTING (`_onCompleted` avanza a `_index+1`) y el local sigan el orden
+    // natural E01→E02→…; una lista desordenada dejaría `_index+1` fuera de
+    // rango y la serie "no continuaría" en la TV.
+    final ordered = [...widget.episodes]
+      ..sort((a, b) {
+        final s = a.seasonNumber.compareTo(b.seasonNumber);
+        return s != 0 ? s : a.episodeNumber.compareTo(b.episodeNumber);
+      });
+    allContents = ordered
         .map((x) {
           return ContentItem(
             x.url,

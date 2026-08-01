@@ -646,6 +646,7 @@
   "tv_empty_step_wifi": "Mismo Wi-Fi que tu TV",
   "tv_empty_step_phone": "Abre Rensi en tu móvil",
   "tv_empty_step_cast": "Toca Enviar y elige esta TV",
+  "tv_history_hint": "Continúa donde lo dejaste",
   "developer": "Desarrollador",
   "dev_account": "Cuenta",
   "dev_server": "Servidor",

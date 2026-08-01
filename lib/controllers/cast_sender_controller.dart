@@ -149,6 +149,22 @@ class CastSenderController extends ChangeNotifier {
   int _lastPos = 0; // última posición conocida (ms) reportada por la TV
   int _lastDur = 0; // última duración conocida (ms) reportada por la TV
 
+  // Reattach tras una caída de socket (típicamente al backgroundear el móvil):
+  // la TV NO deja de reproducir cuando el socket del móvil se cae (su ruta de
+  // player sigue abierta). Reenviar un LOAD al reconectar REINICIABA la TV desde
+  // una posición vieja y borraba el progreso hecho mientras el móvil no estaba
+  // (además de perder el `completed`/`state`/volumen durante el backoff). Ahora
+  // el reconnect solo restablece el canal de control y espera a que un `state`
+  // de la TV confirme que la sesión sigue viva; solo si NINGUNO llega en esta
+  // ventana se recupera con un re-LOAD en la última posición viva (cubre una TV
+  // que sí se reinició/paró). Ver [_reconnect]/[_armResyncFallback]/[_onState].
+  bool _awaitingResync = false;
+  Timer? _resyncTimer;
+  // > que el throttle de `state` de la TV (~5s), para que incluso una TV en una
+  // build vieja (que no eco un `state` inmediato al reconectar) confirme con su
+  // tick periódico ANTES de que el fallback dispare un re-LOAD innecesario.
+  static const _resyncTimeout = Duration(seconds: 7);
+
   // Volumen de reproducción en la TV (escala 0-100, igual que UserPreferences/
   // media_kit). Optimista: se actualiza local al mover el slider y se
   // corrige con lo que la TV reporta de vuelta en MsgType.state (`vol`).
@@ -176,6 +192,26 @@ class CastSenderController extends ChangeNotifier {
 
   /// Hay más de un canal en el catálogo para hacer zapping.
   bool get canZap => isLive && _queue != null && _queue!.length > 1;
+
+  /// El contenido casteado es una serie (por stream o descargada) — el mismo
+  /// criterio que usa el auto-avance [_onCompleted] para decidir si saltar al
+  /// siguiente episodio.
+  bool get _isSeriesCast {
+    final m = _media;
+    return m != null && (m.contentType == 'series' || m.isDownloadedSeries);
+  }
+
+  /// Hay un episodio siguiente al que saltar MANUALMENTE mientras se castea una
+  /// serie (el "Siguiente episodio" al estilo Netflix, pero enviado a la TV).
+  /// Mismo criterio de "hay siguiente" que el auto-avance, más el blindaje de no
+  /// tocar la sesión durante la reconexión (socket muerto en backoff).
+  bool get canCastNextEpisode =>
+      _phase == CastPhase.casting &&
+      !_reconnecting &&
+      _isSeriesCast &&
+      _queue != null &&
+      _index >= 0 &&
+      _index + 1 < _queue!.length;
 
   CastPhase get phase => _phase;
   List<CastDevice> get devices => List.unmodifiable(_devices);
@@ -210,6 +246,7 @@ class CastSenderController extends ChangeNotifier {
     _index = index;
     _wrongPin = false;
     _superseded = false; // un cast nuevo puede volver a reconectar
+    _cancelResync(); // un cast nuevo no debe arrastrar un reenganche pendiente
     _set(CastPhase.discovering);
     try {
       final finder = _senderFactory();
@@ -292,9 +329,18 @@ class CastSenderController extends ChangeNotifier {
     _set(CastPhase.casting);
   }
 
-  Future<bool> _sendLoad() async {
+  /// [resumeOverrideMs] fuerza la posición de resume del LOAD (gana sobre el
+  /// CastMedia y el historial). Lo usa la recuperación del reconnect para
+  /// reanudar EXACTAMENTE donde la TV estaba (su última posición viva), en vez
+  /// de una posición vieja del CastMedia. 0/null → resolución normal.
+  Future<bool> _sendLoad({int? resumeOverrideMs}) async {
     final media = _media;
     if (_sender == null || media == null) return false;
+    // Cualquier LOAD intencionado (inicial, zap, castNext, auto-avance o la
+    // propia recuperación) ESTABLECE la reproducción → desarma cualquier
+    // reenganche pendiente para que su fallback no dispare un re-LOAD duplicado
+    // más tarde sobre un contenido que ya cambió.
+    _cancelResync();
     final local = _localUrl;
     final String url, user, pass;
     if (local != null) {
@@ -318,7 +364,8 @@ class CastSenderController extends ChangeNotifier {
       title: media.title,
       ext: media.ext,
       meta: media.meta,
-      startPositionMs: await _resolveStartPosition(media),
+      startPositionMs:
+          await _resolveStartPosition(media, override: resumeOverrideMs),
     );
     return true;
   }
@@ -328,7 +375,10 @@ class CastSenderController extends ChangeNotifier {
   /// historial local ("continuar viendo") para que castear un título a medias
   /// arranque donde el usuario lo dejó, no en 0. Nunca lanza (sin BD → 0). No
   /// aplica a vivo (no buscable) ni a archivo local.
-  Future<int> _resolveStartPosition(CastMedia media) async {
+  Future<int> _resolveStartPosition(CastMedia media, {int? override}) async {
+    // La posición viva que reporta la TV (recuperación del reconnect) manda
+    // sobre todo lo demás: es dónde está la reproducción AHORA MISMO.
+    if (override != null && override > 0) return override;
     if (media.startPositionMs > 0) return media.startPositionMs;
     if (media.contentType == 'live' || media.contentType == 'file') return 0;
     final playlistId = media.playlistId.isNotEmpty
@@ -576,6 +626,7 @@ class CastSenderController extends ChangeNotifier {
     _lastHistoryWrite = null;
     _lastPos = 0;
     _lastDur = 0;
+    _cancelResync();
     _set(CastPhase.idle); // SIN error → la UI de cast/mini-control se retira sola
     await _fileServer?.stop();
     _fileServer = null;
@@ -673,6 +724,11 @@ class CastSenderController extends ChangeNotifier {
     final playlist = AppState.currentPlaylist;
     if (device == null || pin == null || media == null || playlist == null) return;
     _reconnecting = true;
+    // La TV siguió reproduciendo mientras el socket estuvo caído: cualquier
+    // `state` que llegue tras reengancharnos lo confirma y cancela la
+    // recuperación por re-LOAD. Se arma ANTES de conectar para no perder un
+    // `state` que la TV eco de inmediato al reconectar (evita la carrera).
+    _awaitingResync = true;
     for (var attempt = 0; attempt < 5 && _phase == CastPhase.casting; attempt++) {
       await Future<void>.delayed(Duration(seconds: 1 << attempt)); // 1,2,4,8,16s
       try {
@@ -685,17 +741,52 @@ class CastSenderController extends ChangeNotifier {
         _sender!.onState.listen(_onState);
         await _sender!.connect(device.host, device.port, secure: device.secure);
         if (await _sender!.pair(pin)) {
-          await _sendLoad();
           _reconnecting = false;
-          return; // control recuperado
+          // Se detuvo el casting mientras reconectábamos (stop/superseded en
+          // pleno backoff): no re-enganchar ni armar el fallback.
+          if (_phase != CastPhase.casting) {
+            _cancelResync();
+            return;
+          }
+          // Canal de control recuperado. NO reenviar LOAD a ciegas: eso reinicia
+          // la TV desde una posición vieja y borra el progreso que hizo mientras
+          // no estábamos. En su lugar, reenganche SILENCIOSO: la TV sigue
+          // reproduciendo y su `state` periódico resincroniza posición/volumen.
+          // Solo si NINGÚN `state` confirma la sesión viva dentro de la ventana
+          // se recupera con un re-LOAD en la última posición viva (cubre una TV
+          // que sí se reinició/paró de verdad).
+          _armResyncFallback();
+          return;
         }
       } catch (_) {/* reintentar con backoff */}
     }
     _reconnecting = false;
+    _cancelResync();
     // Agotados los reintentos sin recuperar el control: la TV se fue de verdad.
     // No dejar el móvil colgado en "casting" (mini-control fantasma / círculo de
     // carga infinito): terminar limpio.
     if (_phase == CastPhase.casting) await stopCasting();
+  }
+
+  /// Arma el fallback de recuperación tras un reenganche: si en [_resyncTimeout]
+  /// la TV no ha ecoado ningún `state` (señal de que YA no reproduce nuestro
+  /// contenido — se reinició o paró), se re-LOADea en la última posición viva
+  /// conocida. Si llega un `state` antes, [_onState] cancela esto y el
+  /// reenganche queda silencioso (sin reiniciar la reproducción).
+  void _armResyncFallback() {
+    _resyncTimer?.cancel();
+    _resyncTimer = Timer(_resyncTimeout, () {
+      if (!_awaitingResync || _phase != CastPhase.casting) return;
+      _awaitingResync = false;
+      unawaited(_sendLoad(resumeOverrideMs: _lastPos));
+    });
+  }
+
+  /// Desarma el reenganche pendiente (sesión confirmada viva, o terminada).
+  void _cancelResync() {
+    _awaitingResync = false;
+    _resyncTimer?.cancel();
+    _resyncTimer = null;
   }
 
   void playPause() => _sender?.sendCommand(CmdType.playPause);
@@ -707,6 +798,11 @@ class CastSenderController extends ChangeNotifier {
   Future<void> _zap(int dir) async {
     final q = _queue;
     if (q == null || !isLive) return;
+    // No zapear durante la reconexión: `_phase` sigue `casting` pero `_sender`
+    // apunta a un socket muerto en pleno backoff → un `_sendLoad` ahora lanzaría
+    // (mismo hazard que endurecimos en `castNext`). No-op seguro; el usuario
+    // reintenta cuando la sesión estabilice.
+    if (_phase != CastPhase.casting || _sender == null || _reconnecting) return;
     final next = _index + dir;
     if (next < 0 || next >= q.length) return;
     _index = next;
@@ -714,7 +810,42 @@ class CastSenderController extends ChangeNotifier {
     _audioTracks = const [];
     _subtitleTracks = const [];
     notifyListeners();
-    await _sendLoad();
+    try {
+      await _sendLoad();
+    } catch (_) {
+      // El socket cayó justo al enviar: la reconexión reenviará `_media` ya fijado.
+    }
+  }
+
+  /// Salta MANUALMENTE al siguiente episodio en la TV durante el casting de una
+  /// serie (el usuario pulsa "Siguiente episodio" en el móvil, sin esperar a los
+  /// créditos). Reutiliza EXACTAMENTE el mismo camino que el auto-avance de fin
+  /// de archivo [_onCompleted]: re-servido por LAN para una serie DESCARGADA,
+  /// re-LOAD directo para una serie por STREAM. No-op seguro si no hay siguiente,
+  /// no se está casteando, o la sesión se está reconectando (socket en backoff).
+  Future<void> castNextEpisode() async {
+    if (_phase != CastPhase.casting || _sender == null || _reconnecting) return;
+    final q = _queue;
+    final media = _media;
+    if (media == null || q == null || _index + 1 >= q.length) return;
+    final isSeries = media.contentType == 'series' || media.isDownloadedSeries;
+    if (!isSeries) return;
+    final nextIndex = _index + 1;
+    final next = q[nextIndex];
+    if (next.isDownloadedSeries && next.localFilePath != null) {
+      // Serie descargada: el siguiente episodio es un ARCHIVO local; se re-sirve
+      // por la LAN antes de comprometer el avance (igual que el auto-avance).
+      await _advanceLocalSeries(nextIndex, next);
+    } else {
+      // Serie por stream: comprometer el avance y reenviar el LOAD.
+      _commitAdvance(nextIndex, next);
+      try {
+        await _sendLoad();
+      } catch (_) {
+        // El socket cayó justo al enviar: _reconnect reenviará este `_media` ya
+        // actualizado (mismo comportamiento que el zap/auto-avance).
+      }
+    }
   }
 
   /// Pide a la TV su lista de pistas actuales (audio/subtítulo).
@@ -772,6 +903,11 @@ class CastSenderController extends ChangeNotifier {
     // _media y escribirse bajo el streamId del ENTRANTE (marcándolo ~100% visto).
     final id = msg['id'] as String?;
     if (id != null && _media != null && id != _media!.channelId) return;
+    // Reenganche confirmado: un `state` de la TV para el contenido actual prueba
+    // que la sesión sobrevivió a la caída de socket y la TV SIGUE reproduciéndolo
+    // → cancelar la recuperación por re-LOAD (ver [_reconnect]). Debe correr para
+    // CUALQUIER `state` (incluso pos<=0), por eso va antes del guard de pos/dur.
+    if (_awaitingResync) _cancelResync();
     // Eco de volumen: la TV manda su volumen real en cada `state`. Campo
     // OPCIONAL (compat. hacia atrás con una TV vieja que no lo envía aún):
     // solo se actualiza si viene y difiere, para no notificar de más. Mientras
@@ -877,6 +1013,7 @@ class CastSenderController extends ChangeNotifier {
     _lastHistoryWrite = null;
     _lastPos = 0;
     _lastDur = 0;
+    _cancelResync();
     _set(CastPhase.idle);
     await _fileServer?.stop();
     // Teardown del socket en segundo plano: dar un instante a que el frame
@@ -894,6 +1031,7 @@ class CastSenderController extends ChangeNotifier {
   @override
   void dispose() {
     _volumeDebounce?.cancel();
+    _resyncTimer?.cancel();
     _sender?.close();
     _fileServer?.stop();
     super.dispose();

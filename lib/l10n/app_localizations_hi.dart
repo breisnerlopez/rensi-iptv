@@ -1640,6 +1640,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get tv_empty_step_cast => 'कास्ट पर टैप करें और यह टीवी चुनें';
 
   @override
+  String get tv_history_hint => 'जहाँ आपने छोड़ा था वहाँ से जारी रखें';
+
+  @override
   String get developer => 'डेवलपर';
 
   @override

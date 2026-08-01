@@ -42,6 +42,7 @@ import '../../models/content_type.dart';
 import '../../services/player_state.dart';
 import '../../services/service_locator.dart';
 import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/models/series_response.dart';
 import 'package:rensi_iptv/utils/build_media_url.dart';
 import '../../utils/audio_handler.dart';
 import '../utils/player_error_handler.dart';
@@ -121,6 +122,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
   DateTime? _lastSeekPressAt;
   // Rich pause panel (TV only): while paused, show title + synopsis + cast.
   bool _showPausePanel = false;
+  // "Siguiente episodio" prompt (phone only): shown over the player in the last
+  // ~30s of a SERIES episode that has a next in the queue — a Netflix-style
+  // early manual skip. media_kit still auto-advances at EOF; this only offers to
+  // jump sooner. Reset per episode; [_nextEpisodePromptDismissed] suppresses it
+  // for the current episode once the user dismisses (or acts on) it.
+  bool _showNextEpisodePrompt = false;
+  bool _nextEpisodePromptDismissed = false;
   // Nullable (not `late`): they're assigned inside the async _initializePlayer,
   // so a fast BACK before init finishes must not crash dispose().
   StreamSubscription? contentItemIndexChangedSubscription;
@@ -270,6 +278,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
       // vez del reproductor, dejando el player montado.
       _player.stop();
     }
+    // Reconstruir para que la UI refleje el handoff: mientras la pantalla siga
+    // montada (el cierre por maybePop es best-effort y puede correr una carrera
+    // o saltarse por `!mounted`), el indicador de carga debe mostrar "en la TV"
+    // en vez de un spinner eterno (isLoading se queda en true tras el gate).
+    setState(() {});
     // Importante: al TERMINAR el cast NO se reabre la reproducción local. Antes
     // se hacía `_reopenCurrent()`, lo que provocaba que al detener en la TV el
     // móvil empezara a reproducir solo (audio fantasma). Parar es parar; si el
@@ -328,24 +341,122 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Future<CastMeta?> _resolveCastMeta(ContentItem item, Locale locale) async {
     try {
       final isSeries = item.contentType == ContentType.series;
+      // Datos FIABLES por id — lo MISMO que la pantalla de detalle del móvil
+      // muestra al usuario (que resuelve por tmdb_id, no por búsqueda de
+      // título). Antes el casting hacía una búsqueda por título que falla para
+      // algunos títulos (traducción, sin coincidencia, límite) → la TV se
+      // quedaba sin sinopsis/reparto NI póster. Resolver el id fiable aquí hace
+      // que "lo que ve el móvil = lo que recibe la TV".
+      final reliable = await _reliableCastInfo(item, isSeries);
       // Serie → nombre de la SERIE (el episodio no coincide en TMDb); película →
-      // título de la peli. Sin nombre de serie, cae al nombre del item.
+      // título de la peli. Se prefiere el nombre real de la serie que devuelve
+      // get_series_info; si no, el del item (episodio) como antes.
       final title = isSeries
-          ? (item.seriesStream?.name.trim().isNotEmpty ?? false
-              ? item.seriesStream!.name
-              : item.name)
+          ? (reliable.seriesName?.trim().isNotEmpty ?? false
+              ? reliable.seriesName!
+              : (item.seriesStream?.name.trim().isNotEmpty ?? false
+                  ? item.seriesStream!.name
+                  : item.name))
           : item.name;
-      final year = isSeries ? _yearFrom(item.seriesStream?.releaseDate) : null;
+      final year = isSeries
+          ? (reliable.year ?? _yearFrom(item.seriesStream?.releaseDate))
+          : null;
       return TmdbCastResolver().resolve(
         title: title,
         mediaType: isSeries ? TmdbMediaType.tv : TmdbMediaType.movie,
         locale: locale,
         year: year,
-        tmdbId: item.tmdbId,
+        // Id fiable si se resolvió; si no, el que trajera el item (bulk).
+        tmdbId: reliable.tmdbId ?? item.tmdbId,
       );
     } catch (_) {
       return null;
     }
+  }
+
+  /// Resuelve el tmdb_id FIABLE del contenido (y, para series, el nombre/año de
+  /// la SERIE) por la MISMA vía autoritativa que usa la pantalla de detalle:
+  /// `get_vod_info` (`info.tmdb_id`) para películas y `get_series_info` para
+  /// series. El id de la lista bulk suele venir vacío —los paneles solo exponen
+  /// el tmdb_id en la ficha de detalle— y por eso el casting caía a una búsqueda
+  /// por título fallible. Todo es best-effort: ante cualquier fallo devuelve lo
+  /// que ya se supiera del item (degrada como hoy, sin romper el LOAD).
+  Future<({int? tmdbId, String? seriesName, int? year})> _reliableCastInfo(
+      ContentItem item, bool isSeries) async {
+    // Punto de partida: lo que ya trae el item (suele venir sin id en bulk).
+    int? id = (item.tmdbId != null && item.tmdbId! > 0) ? item.tmdbId : null;
+    String? seriesName;
+    int? year;
+
+    // Solo Xtream expone get_vod_info / get_series_info; en M3U no hay de dónde.
+    if (!isXtreamCode) {
+      return (tmdbId: id, seriesName: seriesName, year: year);
+    }
+    final repo = AppState.xtreamCodeRepository;
+    if (repo == null) {
+      return (tmdbId: id, seriesName: seriesName, year: year);
+    }
+
+    try {
+      if (isSeries) {
+        // El episodio no lleva su seriesId en memoria; se resuelve por BD y con
+        // él se pide la ficha de la SERIE (tmdb_id a nivel serie + nombre real).
+        final playlistId = AppState.currentPlaylist?.id;
+        if (playlistId == null) {
+          return (tmdbId: id, seriesName: seriesName, year: year);
+        }
+        final ep = await _database.findEpisodesById(item.id, playlistId);
+        final seriesId = ep?.seriesId;
+        if (seriesId == null || seriesId.isEmpty) {
+          return (tmdbId: id, seriesName: seriesName, year: year);
+        }
+        final SeriesDetailResponse? info = await repo.getSeriesInfo(seriesId);
+        if (info != null) {
+          if ((info.tmdbId ?? 0) > 0) id = info.tmdbId;
+          final n = info.seriesInfo.name.trim();
+          if (n.isNotEmpty) seriesName = n;
+          year = _yearFrom(info.seriesInfo.releaseDate);
+        }
+      } else if (id == null) {
+        // Película: item.id ES el vod id. Primero se intenta el tmdb_id ya
+        // guardado en BD (la ficha lo persiste al abrirla) para no repetir un
+        // get_vod_info por red en el flujo más común (abrir ficha → enviar a TV);
+        // solo si sigue ausente se lee de la red y se persiste.
+        final playlistId = AppState.currentPlaylist?.id;
+        if (playlistId != null) {
+          final cached = (await _database.findMovieById(item.id, playlistId))
+              ?.tmdbId;
+          if (cached != null && cached > 0) id = cached;
+        }
+        if (id == null) {
+          final info = await repo.getVodInfo(item.id);
+          final fetched = _tmdbIdFromVodInfo(info);
+          if (fetched != null) {
+            id = fetched;
+            unawaited(repo.persistVodTmdbId(item.id, fetched));
+          }
+        }
+      }
+    } catch (_) {/* best-effort: se devuelve lo que se tenga */}
+    return (tmdbId: id, seriesName: seriesName, year: year);
+  }
+
+  /// Extrae el tmdb_id de la respuesta cruda de `get_vod_info` (vive en
+  /// `info.tmdb_id`, con un `tmdb_id` plano de reserva). Espejo del getter
+  /// `_tmdbId` de MovieScreen. 0/"" se tratan como ausente.
+  static int? _tmdbIdFromVodInfo(Map<String, dynamic>? vodInfo) {
+    if (vodInfo == null) return null;
+    final info = vodInfo['info'];
+    final raw = info is Map ? info['tmdb_id'] : vodInfo['tmdb_id'];
+    if (raw is num) {
+      final v = raw.toInt();
+      return v > 0 ? v : null;
+    }
+    if (raw is String) {
+      final v = int.tryParse(raw.trim());
+      return (v != null && v > 0) ? v : null;
+    }
+    return null;
   }
 
   static int? _yearFrom(String? date) {
@@ -565,6 +676,36 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // Null-safe: durante la carga el árbol puede no tener aún los delegados de
     // localización (p. ej. en tests) → fallback.
     final loc = AppLocalizations.of(context);
+    // Handoff a la TV: tras enviar el contenido a la TV, `_initializePlayer`
+    // retorna sin abrir el stream local, así que `isLoading` se queda en true.
+    // El cierre de esta pantalla lo dispara `_onGateSendToTv` con un maybePop
+    // best-effort; si ese pop se salta (`!mounted`) o corre una carrera, el
+    // player quedaría montado con un SPINNER ETERNO mientras la TV ya
+    // reproduce. En ese caso mostramos un estado de casting en vez del spinner.
+    if (_cast?.isCasting ?? false) {
+      return Container(
+        color: Colors.black,
+        alignment: Alignment.center,
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cast_connected, color: Color(0xFFD2603A), size: 52),
+              const SizedBox(height: 18),
+              Text(
+                loc?.cast_playing_on ?? 'Reproduciendo en la TV',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: AppThemes.tenFoot(context, 16),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final secs = _loadClock.elapsed.inSeconds;
     // Umbral: si sigue "Preparando…" pasado un tiempo, probablemente la TV no
     // logra abrir el stream (cuelgue silencioso, sin error) → avisar + Reintentar.
@@ -1178,11 +1319,56 @@ class _PlayerWidgetState extends State<PlayerWidget>
   /// honoured too. No-op when there is no next episode.
   void _skipToNextEpisode() {
     if (!_hasNextEpisode) return;
+    // El salto cambia de episodio (el listener de playlist reinicia el prompt);
+    // ocultarlo ya evita un frame con el prompt del episodio viejo.
+    _showNextEpisodePrompt = false;
     // El seek acumulado (si lo hay) se descarta centralizadamente en la
     // suscripción a 'player_content_item_index_changed' (rama no-live), que cubre
     // este salto y el resto de emisores.
     EventBus()
         .emit('player_content_item_index_changed', _currentItemIndex + 1);
+  }
+
+  /// Ventana "últimos segundos" del episodio en la que se ofrece el salto
+  /// anticipado al siguiente (prompt tipo Netflix).
+  static const Duration _nextEpisodeLeadIn = Duration(seconds: 30);
+
+  /// Muestra u oculta el prompt "Siguiente episodio" según la posición. Solo en
+  /// el MÓVIL (nunca en la TV receptora, que auto-avanza + usa el panel de
+  /// pausa), solo para una SERIE con un episodio siguiente REAL, una vez que la
+  /// reproducción arrancó de verdad y no está re-buffereando, y únicamente en los
+  /// últimos [_nextEpisodeLeadIn]. Hace setState SOLO al cruzar el umbral (no por
+  /// tick) para no reconstruir el player en cada posición.
+  void _maybeUpdateNextEpisodePrompt(Duration position, Duration duration) {
+    final eligible = !ResponsiveHelper.isTelevisionDevice &&
+        contentItem.contentType == ContentType.series &&
+        _hasNextEpisode &&
+        _hasStartedPlaying &&
+        !_midPlayBuffering &&
+        !_nextEpisodePromptDismissed &&
+        duration > Duration.zero &&
+        position > Duration.zero;
+    final remaining = duration - position;
+    final show = eligible &&
+        remaining > Duration.zero &&
+        remaining <= _nextEpisodeLeadIn;
+    if (show != _showNextEpisodePrompt && mounted) {
+      setState(() => _showNextEpisodePrompt = show);
+    }
+  }
+
+  /// Acción del prompt "Siguiente episodio". Durante el casting gobierna la TV
+  /// (política "casting manda"): reenvía el siguiente episodio a la TV en vez de
+  /// saltar el player local. Sin casting, salta el episodio localmente.
+  void _onNextEpisodePromptPressed() {
+    final casting = _castingController();
+    if (casting != null && casting.canCastNextEpisode) {
+      unawaited(casting.castNextEpisode());
+    } else {
+      _skipToNextEpisode();
+    }
+    _nextEpisodePromptDismissed = true;
+    if (mounted) setState(() => _showNextEpisodePrompt = false);
   }
 
   /// Maps a [LogicalKeyboardKey] to its 0-9 digit value, including the
@@ -1809,6 +1995,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
       // el campo): solo avanza con posiciones reales (>0), nunca se anula.
       if (position > Duration.zero) _lastGoodPosition = position;
 
+      // Prompt "Siguiente episodio" (móvil): aparece/desaparece según la
+      // posición cruce el umbral de los últimos ~30s del episodio.
+      _maybeUpdateNextEpisodePrompt(position, _player.state.duration);
+
       // Puente de casting: solo la TV receptora reenvía su posición al móvil
       // para alimentar "continuar viendo". Emitir solo en TV evita trabajo por
       // tick en el móvil, donde nadie consume el evento.
@@ -1989,6 +2179,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
       // posición como historial del ep2. El nuevo episodio arranca en 0.
       _lastGoodPosition = null;
       _pendingWatchDuration = null;
+      // El prompt "Siguiente episodio" pertenecía al episodio SALIENTE: reinícialo
+      // para el nuevo (vuelve a poder ofrecerse en sus últimos ~30s).
+      _showNextEpisodePrompt = false;
+      _nextEpisodePromptDismissed = false;
 
       _currentItemIndex = playlist.index;
       currentItemIndex = _currentItemIndex;
@@ -2006,8 +2200,12 @@ class _PlayerWidgetState extends State<PlayerWidget>
       EventBus().emit('player_content_item', contentItem);
       EventBus().emit('player_content_item_index', playlist.index);
 
-      // Kanal listesi açıksa güncelle
-      if (_showChannelList && mounted) {
+      // Reconstruir la UI del player al cambiar de episodio: refleja el prompt
+      // "Siguiente episodio" ya reseteado arriba (si no, quedaría CONGELADO y
+      // accionable sobre el episodio equivocado tras un auto-avance/EOF — la ruta
+      // manual ya hace setState, esta faltaba) y actualiza la lista de canales si
+      // está abierta. Un cambio de episodio es infrecuente → sin coste de rebuild.
+      if (mounted) {
         setState(() {});
       }
     });
@@ -3499,8 +3697,65 @@ class _PlayerWidgetState extends State<PlayerWidget>
           // Transient TV hint: "Hold OK for audio & subtitles".
           _buildOkHintOverlay(context),
 
+          // "Siguiente episodio" prompt (móvil): en los últimos ~30s de un
+          // episodio de serie con un siguiente en la cola. NO auto-reproduce
+          // (media_kit ya lo hace al EOF): es un salto anticipado manual, o —
+          // si se está casteando— el envío del siguiente episodio a la TV.
+          if (_showNextEpisodePrompt) _buildNextEpisodePrompt(context),
+
         ],
       ),
+      ),
+    );
+  }
+
+  Widget _buildNextEpisodePrompt(BuildContext context) {
+    return Positioned(
+      right: 16,
+      bottom: 28,
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(10),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            InkWell(
+              borderRadius:
+                  const BorderRadius.horizontal(left: Radius.circular(10)),
+              onTap: _onNextEpisodePromptPressed,
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.skip_next, color: Colors.white, size: 22),
+                    const SizedBox(width: 8),
+                    Text(
+                      context.loc.next_episode,
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            // Descartar el prompt para este episodio (no reaparece hasta el
+            // siguiente cambio de episodio).
+            InkWell(
+              borderRadius:
+                  const BorderRadius.horizontal(right: Radius.circular(10)),
+              onTap: () {
+                _nextEpisodePromptDismissed = true;
+                if (mounted) setState(() => _showNextEpisodePrompt = false);
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                child: Icon(Icons.close, color: Colors.white54, size: 18),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

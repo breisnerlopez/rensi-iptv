@@ -1660,6 +1660,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get tv_empty_step_cast => 'Appuyez sur Caster et choisissez cette TV';
 
   @override
+  String get tv_history_hint => 'Reprenez là où vous vous êtes arrêté';
+
+  @override
   String get developer => 'Développeur';
 
   @override

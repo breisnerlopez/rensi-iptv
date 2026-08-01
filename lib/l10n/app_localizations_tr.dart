@@ -1637,6 +1637,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get tv_empty_step_cast => 'Yayınla\'ya dokunun ve bu TV\'yi seçin';
 
   @override
+  String get tv_history_hint => 'Kaldığınız yerden devam edin';
+
+  @override
   String get developer => 'Geliştirici';
 
   @override

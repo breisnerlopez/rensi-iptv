@@ -1449,10 +1449,20 @@ class AppDatabase extends _$AppDatabase {
     String seriesId,
     String playlistId,
   ) {
-    return (select(episodes)..where(
-          (tbl) =>
-              tbl.seriesId.equals(seriesId) & tbl.playlistId.equals(playlistId),
-        ))
+    // Orden ascendente (temporada, episodio) en la FUENTE: la cola de cast/local
+    // y el selector de episodios (series_screen) consumen esto tal cual; sin este
+    // ORDER BY llegaban en orden de rowid → el auto-avance por cast no encontraba
+    // el "siguiente" y el selector se veía desordenado.
+    return (select(episodes)
+          ..where(
+            (tbl) =>
+                tbl.seriesId.equals(seriesId) &
+                tbl.playlistId.equals(playlistId),
+          )
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.season),
+            (t) => OrderingTerm(expression: t.episodeNum),
+          ]))
         .get();
   }
 
@@ -1461,12 +1471,14 @@ class AppDatabase extends _$AppDatabase {
     int seasonNumber,
     String playlistId,
   ) {
-    return (select(episodes)..where(
-          (tbl) =>
-              tbl.seriesId.equals(seriesId) &
-              tbl.season.equals(seasonNumber) &
-              tbl.playlistId.equals(playlistId),
-        ))
+    return (select(episodes)
+          ..where(
+            (tbl) =>
+                tbl.seriesId.equals(seriesId) &
+                tbl.season.equals(seasonNumber) &
+                tbl.playlistId.equals(playlistId),
+          )
+          ..orderBy([(t) => OrderingTerm(expression: t.episodeNum)]))
         .get();
   }
 

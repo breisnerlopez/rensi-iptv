@@ -141,5 +141,13 @@
         <intent>
             <action android:name="android.speech.action.RECOGNIZE_SPEECH"/>
         </intent>
+        <!-- Android 11+ package visibility: without this, canLaunchUrl()/launchUrl()
+             (url_launcher) for https:// links (e.g. "Support on GitHub" in Settings)
+             silently returns false and the tap does nothing. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <category android:name="android.intent.category.BROWSABLE"/>
+            <data android:scheme="https"/>
+        </intent>
     </queries>
 </manifest>

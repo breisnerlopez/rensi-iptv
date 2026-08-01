@@ -941,7 +941,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get history_clear_failed => 'Could not clear watch history';
 
   @override
-  String get appearance => 'Appearence';
+  String get appearance => 'Appearance';
 
   @override
   String get theme => 'Theme';
@@ -1633,6 +1633,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tv_empty_step_cast => 'Tap Cast and pick this TV';
+
+  @override
+  String get tv_history_hint => 'Resume where you left off';
 
   @override
   String get developer => 'Developer';

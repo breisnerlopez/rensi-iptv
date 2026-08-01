@@ -1851,7 +1851,7 @@ abstract class AppLocalizations {
   /// No description provided for @appearance.
   ///
   /// In en, this message translates to:
-  /// **'Appearence'**
+  /// **'Appearance'**
   String get appearance;
 
   /// No description provided for @theme.
@@ -3107,6 +3107,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap Cast and pick this TV'**
   String get tv_empty_step_cast;
+
+  /// No description provided for @tv_history_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume where you left off'**
+  String get tv_history_hint;
 
   /// No description provided for @developer.
   ///
