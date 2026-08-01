@@ -69,6 +69,14 @@
   "episode_count": "{count} حلقة",
   "duration": "المدة: {duration}",
   "episode_duration": "مدة الحلقة",
+  "episode_duration_minutes": "{minutes} دقيقة",
+  "@episode_duration_minutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
   "creation_date": "تاريخ الإضافة",
   "release_date": "تاريخ الإصدار",
   "genre": "النوع",

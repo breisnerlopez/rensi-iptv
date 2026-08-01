@@ -69,6 +69,14 @@
   "episode_count": "{count} Bölüm",
   "duration": "Süre: {duration}",
   "episode_duration": "Bölüm Süresi",
+  "episode_duration_minutes": "{minutes} dk",
+  "@episode_duration_minutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
   "creation_date": "Eklenme Tarihi",
   "release_date": "Çıkış Tarihi",
   "genre": "Tür",

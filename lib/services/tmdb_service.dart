@@ -58,7 +58,10 @@ class TmdbService {
   // needs no LRU index: there is at most one key per (segment, language), ≈20
   // total across the shipped locales. Refreshes on its own 30-day TTL. Powers
   // Browse's genre-chip → TMDb-id resolution ([genreIdForName]).
-  static const _genreCachePrefix = 'tmdb.genres.';
+  // v2: the folded genre keys now canonicalize connectors + punctuation (see
+  // [_foldGenre]); bump the prefix so a v1 cache (folded the old way) is not
+  // read back with the new needle folding.
+  static const _genreCachePrefix = 'tmdb.genres.v2.';
   static const _genreCacheTtl = Duration(days: 30);
 
   // Curated networks merged into [searchCompany] results by case-insensitive
@@ -649,9 +652,11 @@ class TmdbService {
 
   /// Resolves a localized genre NAME (a Browse chip label like "Animación") to
   /// its TMDb genre id for [mediaType], via the localized
-  /// `/genre/{movie|tv}/list?language=` map. The match is accent- AND
-  /// case-insensitive — same folding as the search cache key ([_foldForCache]) —
-  /// so "animacion" and "Animación" both resolve to 16. Returns null when the
+  /// `/genre/{movie|tv}/list?language=` map. The match is accent-, case-,
+  /// connector- AND punctuation-insensitive ([_foldGenre]) so "animacion" and
+  /// "Animación" both resolve to 16, and a compound TMDb-TV chip like
+  /// "Action & Adventure" falls back to its first movie-mappable component.
+  /// Returns null when the
   /// name maps to no TMDb genre in that language; the Browse popular-by-genre
   /// section treats null as "degrade — show only the local grid". Throws
   /// [TmdbException] (e.g. [TmdbFailure.noKey]) so the caller degrades a missing
@@ -662,12 +667,53 @@ class TmdbService {
     TmdbMediaType mediaType = TmdbMediaType.movie,
     Locale? locale,
   }) async {
-    final needle = _foldForCache(name.trim());
+    final needle = _foldGenre(name.trim());
     if (needle.isEmpty) return null;
     final segment = mediaType == TmdbMediaType.movie ? 'movie' : 'tv';
     final languageTag = _languageTagFor(locale);
     final map = await _genreMap(segment, languageTag);
-    return map[needle];
+    final direct = map[needle];
+    if (direct != null) return direct;
+    // A TMDb-TV COMPOUND genre chip ("Action & Adventure", "Sci-Fi & Fantasy")
+    // has no single entry in the MOVIE list, which splits it into "Action"/
+    // "Adventure"/"Fantasy". These chips are exactly what left the Browse
+    // "Populares por género" rail empty: [_foldForCache] already handled
+    // accent/case, so a plain "Acción"/"Ciencia ficción" resolved — the ones
+    // that returned null were the "&" compounds (never in the movie list) and
+    // punctuation/connector spelling variants. Now that [_foldGenre]
+    // canonicalizes the connector to " and ", fall back to the first component
+    // that DOES map to a movie genre, so the rail surfaces for those chips too.
+    if (needle.contains(' and ')) {
+      for (final part in needle.split(' and ')) {
+        final trimmed = part.trim();
+        if (trimmed.isEmpty) continue;
+        final id = map[trimmed];
+        if (id != null) return id;
+      }
+    }
+    return null;
+  }
+
+  /// Folds a genre NAME for tolerant matching: [_foldForCache] (lowercase +
+  /// diacritic strip) PLUS connector canonicalization ("&"/"+"/"y"/"and"/"e"/
+  /// "et" → the single token "and") and a collapse of all other punctuation and
+  /// whitespace to single spaces. So "Sci-Fi & Fantasy", "Sci Fi and Fantasy"
+  /// and "sci-fi   and fantasy" fold identically, and "Ciencia-Ficción" folds
+  /// to the same key as "Ciencia ficción". Used for BOTH the map keys and the
+  /// lookup needle so they always meet.
+  static String _foldGenre(String input) {
+    var s = _foldForCache(input).replaceAll(RegExp(r'[&+]'), ' and ');
+    // Keep letters/digits of ANY script (Cyrillic/CJK genres survive), collapse
+    // everything else to a single space.
+    s = s.replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ').trim();
+    if (s.isEmpty) return s;
+    const connectors = {'y', 'and', 'e', 'et'};
+    final tokens = s
+        .split(' ')
+        .where((t) => t.isNotEmpty)
+        .map((t) => connectors.contains(t) ? 'and' : t)
+        .toList();
+    return tokens.join(' ');
   }
 
   /// The localized name→id genre map for [segment] ('movie'|'tv'), with keys
@@ -711,7 +757,7 @@ class TmdbService {
       final id = (raw['id'] as num?)?.toInt();
       final gName = raw['name'] as String?;
       if (id == null || gName == null) continue;
-      final folded = _foldForCache(gName.trim());
+      final folded = _foldGenre(gName.trim());
       if (folded.isEmpty) continue;
       map[folded] = id;
     }

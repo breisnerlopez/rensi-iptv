@@ -69,6 +69,14 @@
   "episode_count": "{count} эпизодов",
   "duration": "Продолжительность: {duration}",
   "episode_duration": "Длительность эпизода",
+  "episode_duration_minutes": "{minutes} мин",
+  "@episode_duration_minutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
   "creation_date": "Дата добавления",
   "release_date": "Дата выхода",
   "genre": "Жанр",

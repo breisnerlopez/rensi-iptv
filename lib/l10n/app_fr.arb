@@ -69,6 +69,14 @@
   "episode_count": "{count} épisodes",
   "duration": "Durée : {duration}",
   "episode_duration": "Durée de l'épisode",
+  "episode_duration_minutes": "{minutes} min",
+  "@episode_duration_minutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
   "creation_date": "Date d'ajout",
   "release_date": "Date de sortie",
   "genre": "Genre",

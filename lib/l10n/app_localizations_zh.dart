@@ -223,6 +223,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get episode_duration => '集时长';
 
   @override
+  String episode_duration_minutes(String minutes) {
+    return '$minutes分钟';
+  }
+
+  @override
   String get creation_date => '添加日期';
 
   @override

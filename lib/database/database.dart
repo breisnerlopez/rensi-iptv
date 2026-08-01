@@ -1549,7 +1549,7 @@ class AppDatabase extends _$AppDatabase {
     String playlistId,
     String query,
   ) async {
-    // An empty query is `LIKE '%%'` — it matches everything and the limit(30)
+    // An empty query is `LIKE '%%'` — it matches everything and the limit(60)
     // then returns 30 arbitrary alphabetical rows. No caller wants that; it
     // silently misclassified wishlist-browse lookups. Return nothing instead.
     if (query.trim().isEmpty) return const [];
@@ -1563,7 +1563,7 @@ class AppDatabase extends _$AppDatabase {
               )
               // A title whose NAME matches must rank ABOVE one that only matches
               // on genre metadata: otherwise a common query that appears in many
-              // genres pushes the actual name-match past the limit(30) cap and it
+              // genres pushes the actual name-match past the limit(60) cap and it
               // vanishes from search. Name-match rows first, then alphabetical.
               ..orderBy([
                 (tbl) => OrderingTerm(
@@ -1572,7 +1572,7 @@ class AppDatabase extends _$AppDatabase {
                     ),
                 (tbl) => OrderingTerm.asc(tbl.name),
               ])
-              ..limit(30))
+              ..limit(60))
             .get();
 
     return movieList.map((x) => VodStream.fromDriftVodStream(x)).toList();
@@ -1597,7 +1597,7 @@ class AppDatabase extends _$AppDatabase {
               // A title whose NAME matches must rank ABOVE one that only matches
               // via cast / director / genre. "rick" is a substring of countless
               // cast names (Patrick, Frederick, Kendrick…); without this, those
-              // metadata-only matches — sorted alphabetically — fill the limit(30)
+              // metadata-only matches — sorted alphabetically — fill the limit(60)
               // cap and bury the actual owned show ("Rick y Morty"), so searching
               // a common first word found nothing while a rarer word still hit.
               // Name-match rows first, then alphabetical within each group.
@@ -1608,7 +1608,7 @@ class AppDatabase extends _$AppDatabase {
                     ),
                 (tbl) => OrderingTerm.asc(tbl.name),
               ])
-              ..limit(30))
+              ..limit(60))
             .get();
 
     return seriesList

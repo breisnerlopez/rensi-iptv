@@ -225,6 +225,11 @@ class AppLocalizationsHi extends AppLocalizations {
   String get episode_duration => 'एपिसोड की अवधि';
 
   @override
+  String episode_duration_minutes(String minutes) {
+    return '$minutes मिनट';
+  }
+
+  @override
   String get creation_date => 'जोड़ने की तारीख';
 
   @override

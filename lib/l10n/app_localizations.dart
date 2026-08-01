@@ -534,6 +534,12 @@ abstract class AppLocalizations {
   /// **'Episode Duration'**
   String get episode_duration;
 
+  /// No description provided for @episode_duration_minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String episode_duration_minutes(String minutes);
+
   /// No description provided for @creation_date.
   ///
   /// In en, this message translates to:

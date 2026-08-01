@@ -749,7 +749,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
       details.add({
         'icon': Icons.access_time,
         'title': context.loc.episode_duration,
-        'value': '$episodeRunTime dakika',
+        'value': context.loc.episode_duration_minutes(episodeRunTime),
       });
     }
 

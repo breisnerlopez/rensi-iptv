@@ -653,6 +653,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   bool _needsCastGate() {
     if (ResponsiveHelper.isTelevisionDevice || !mounted) return false;
+    // Reproducción LOCAL/offline (descargas): su url es una ruta del sistema de
+    // archivos, no http/https. No gasta datos y castear un archivo local es una
+    // acción explícita aparte, así que el gate pre-reproducción solo es fricción
+    // → suprimirlo. Mismo criterio de "archivo local" que usa _recastToTv.
+    if (!contentItem.url.startsWith('http')) return false;
     try {
       // Leer el provider directamente (no depender del orden de
       // didChangeDependencies respecto a la init asíncrona).

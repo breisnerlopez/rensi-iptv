@@ -26,6 +26,38 @@ import 'package:rensi_iptv/l10n/localization_extension.dart';
 /// pathological multi-playlist catalogue is diagnosable — see [_loadFull].
 const int _kLargeCatalogueLogThreshold = 30000;
 
+/// Diacritic-folding table (mirrors TmdbService's private one, kept local so
+/// Browse's chip dedup depends on no service internal).
+const String _kGenreAccents =
+    'àáâäãåèéêëìíîïòóôöõùúûüñçÀÁÂÄÃÅÈÉÊËÌÍÎÏÒÓÔÖÕÙÚÛÜÑÇ';
+const String _kGenrePlain =
+    'aaaaaaeeeeiiiiooooouuuuncaaaaaaeeeeiiiiooooouuuunc';
+
+/// Folds a genre label for NEAR-DUPLICATE chip collapsing and its zero-loss
+/// filter: lowercase, diacritics stripped, connectors ("&"/"+"/"y"/"and"/"e"/
+/// "et") canonicalized to the single token "and", every other run of
+/// punctuation/whitespace collapsed to one space. So "Acción"/"Accion",
+/// "Action & Adventure"/"Action and Adventure" and "Sci-Fi & Fantasy"/"Sci Fi
+/// and Fantasy" each fold to ONE key. Letters/digits of any script survive
+/// (Cyrillic/CJK genres are not stripped).
+String foldGenreLabel(String input) {
+  final buf = StringBuffer();
+  for (final rune in input.toLowerCase().runes) {
+    final ch = String.fromCharCode(rune);
+    final i = _kGenreAccents.indexOf(ch);
+    buf.write(i >= 0 ? _kGenrePlain[i] : ch);
+  }
+  var s = buf.toString().replaceAll(RegExp(r'[&+]'), ' and ');
+  s = s.replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ').trim();
+  if (s.isEmpty) return s;
+  const connectors = {'y', 'and', 'e', 'et'};
+  return s
+      .split(' ')
+      .where((t) => t.isNotEmpty)
+      .map((t) => connectors.contains(t) ? 'and' : t)
+      .join(' ');
+}
+
 /// "Explorar" — type tabs (Todo / Películas / Series) + genre chips over a
 /// 3-column poster grid, fed by the real catalogue.
 ///
@@ -75,6 +107,10 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
   List<String> _genresMovies = const ['Todos'];
   List<String> _genresSeries = const ['Todos'];
   List<String> _genresAll = const ['Todos'];
+  // fold-key → every original genre spelling that folds to it (accent/connector/
+  // punctuation variants). Lets a deduped chip filter the grid ZERO-LOSS: an
+  // item tagged with ANY equivalent spelling still matches the one chip shown.
+  Map<String, List<String>> _genreVariants = const {};
   final Map<String, List<ContentItem>> _filterCache = {};
 
   // GLOBAL FULL catalogue. Browse only receives PREVIEW CategoryViewModels for
@@ -284,16 +320,82 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
   String _dedupKey(LocalContentMatch m) {
     final it = m.content;
     // Movies: collapse copies of the SAME film across playlists by definitive
-    // tmdbId; no tmdbId → keep as its own card (never title-collapse — distinct
-    // works normalize alike and the grid has no variant selector to reach them).
+    // tmdbId first.
     if (it.m3uItem == null && it.contentType == ContentType.vod) {
       final id = it.tmdbId;
       if (id != null && id > 0) return 'tmdb:$id';
+      // No tmdbId: the same film is often re-listed only as quality variants —
+      // "Supergirl 4K ULTRA HD+HDR", "Supergirl 60FPS ULTRA HD", plain
+      // "Supergirl" — which the id-only rule left as 3-4 identical-looking
+      // cards. Collapse them by a QUALITY-STRIPPED title key, but ONLY when the
+      // name ACTUALLY carried a quality tag that was removed (base != the full
+      // normalized name). A "bare" title with no tag keeps its per-stream
+      // identity key, so two DISTINCT works with the same bare title and no year
+      // and no tmdbId (two "The Lion King") stay separate, reachable cards — the
+      // grid has no variant selector, so collapsing them would lose one
+      // irrecoverably. Years are kept in the key, so "El Rey León" 1994 vs 2019
+      // never collapse either. (Accepted residual: a bare copy does NOT fold
+      // into its tagged siblings — one extra card, but zero loss.)
+      final base = _qualityBaseKey(it.name);
+      if (base != null && base.isNotEmpty) return 'movieq:$base';
     }
     // Series, M3U, and anything without a definitive id: identity-keyed, so
     // distinct streams (US/UK shows, season packs, per-provider copies) each
     // remain their own reachable card.
     return '${it.contentType}:${m.playlist.id}|${it.id}';
+  }
+
+  /// REAL quality/format tags providers pack into a movie NAME (resolution,
+  /// codec, HDR, frame-rate). Deliberately EXCLUDES audio/subtitle tokens
+  /// (`lat`, `latino`, `castellano`, `subtitulado`, `vose`, `dual`): those mark
+  /// a DIFFERENT dub/track, not the same film, so folding "Batman Latino" into
+  /// "Batman Castellano" would hide a distinct dubbing from Explorar. Kept to
+  /// KNOWN tokens only — never generic words — so distinct base titles are never
+  /// merged by over-stripping.
+  static const _qualityTokens = <String>{
+    '4k', 'uhd', 'hdr', 'hd', 'fhd', 'sd', '60fps', '1080p', '720p', '2160p',
+    '4320p', 'cam', 'hevc', 'h265',
+  };
+
+  static final RegExp _nonAlnum = RegExp(r'[^\p{L}\p{N}]+', unicode: true);
+
+  /// A movie title reduced to its base for quality-variant dedup: lowercased,
+  /// split into alphanumeric tokens (years and every non-quality word kept),
+  /// with the known [_qualityTokens] removed. The one two-word tag, "ULTRA HD",
+  /// is dropped as a unit so a stray "ultra" is never left behind.
+  ///
+  /// Returns null when NO quality token was present (a "bare" title): the caller
+  /// then keeps the per-stream identity key so two distinct bare titles never
+  /// collapse. A non-null base is the stripped title (years survive as ordinary
+  /// tokens, which is what keeps two same-titled works of different years apart).
+  static String? _qualityBaseKey(String name) {
+    final tokens = name
+        .toLowerCase()
+        .replaceAll(_nonAlnum, ' ')
+        .trim()
+        .split(' ')
+        .where((t) => t.isNotEmpty)
+        .toList();
+    final out = <String>[];
+    var strippedAny = false;
+    for (var i = 0; i < tokens.length; i++) {
+      final t = tokens[i];
+      // "ultra hd" is the only multi-word tag; drop the pair together.
+      if (t == 'ultra' && i + 1 < tokens.length && tokens[i + 1] == 'hd') {
+        i++;
+        strippedAny = true;
+        continue;
+      }
+      if (_qualityTokens.contains(t)) {
+        strippedAny = true;
+        continue;
+      }
+      out.add(t);
+    }
+    // Only collapse when a tag was actually removed; a bare title falls through
+    // to the identity key (zero loss for distinct same-titled, untagged works).
+    if (!strippedAny) return null;
+    return out.join(' ');
   }
 
   /// True when [a] carries richer metadata than [b] for a collapsed movie card:
@@ -354,9 +456,19 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
 
   /// Genre chip labels for [items]: the localized "all" sentinel first, then
   /// every distinct genre in the catalogue (accent-safe, sorted) via the shared
-  /// genre_utils helper. No arbitrary cap — the full catalogue's genres show.
+  /// genre_utils helper — with NEAR-DUPLICATES collapsed by [foldGenreLabel] so
+  /// the same genre written two ways (a provider's "Acción" and a TMDb-style
+  /// "Action & Adventure"/"Action and Adventure" pair, or accent/case/spacing
+  /// variants) shows ONE chip. The first-seen spelling is the representative;
+  /// the grid filter still reaches every variant via [_genreVariants] (zero
+  /// loss). No arbitrary cap — the full catalogue's genres show.
   List<String> _genresFrom(List<ContentItem> items) {
-    return ['Todos', ...enumerateGenres(items)];
+    final seen = <String>{};
+    final out = <String>['Todos'];
+    for (final g in enumerateGenres(items)) {
+      if (seen.add(foldGenreLabel(g))) out.add(g);
+    }
+    return out;
   }
 
   /// Cheap content signature, O(categories) not O(items). The controller reuses
@@ -413,6 +525,15 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
     _genresMovies = _genresFrom(_moviesFlat);
     _genresSeries = _genresFrom(_seriesFlat);
     _genresAll = _genresFrom(_allFlat);
+    // Group every genre spelling by its fold key across the WHOLE catalogue, so
+    // selecting a deduped chip matches items tagged with any equivalent
+    // spelling (zero loss). An item only carries its own genres, so a global
+    // map is safe for every tab.
+    final variants = <String, List<String>>{};
+    for (final g in enumerateGenres(_allFlat)) {
+      variants.putIfAbsent(foldGenreLabel(g), () => <String>[]).add(g);
+    }
+    _genreVariants = variants;
     _filterCache.clear();
     recomputes++;
   }
@@ -451,7 +572,14 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
     // catches "Melodrama", "Acción" matches "Acción".
     final items = _filterCache.putIfAbsent('$_tab|$_genre', () {
       if (_genre == 'Todos') return base;
-      return base.where((it) => itemHasGenre(it, _genre)).toList();
+      // Match ANY spelling that folds to the selected chip (zero loss), each via
+      // the exact-token, accent-safe helper — so "Drama" never catches
+      // "Melodrama" while an item tagged "Action and Adventure" still shows
+      // under the "Action & Adventure" chip.
+      final variants = _genreVariants[foldGenreLabel(_genre)] ?? [_genre];
+      return base
+          .where((it) => variants.any((v) => itemHasGenre(it, v)))
+          .toList();
     });
 
     final cross = ResponsiveHelper.getCrossAxisCount(context);

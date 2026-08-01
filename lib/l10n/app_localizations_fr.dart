@@ -226,6 +226,11 @@ class AppLocalizationsFr extends AppLocalizations {
   String get episode_duration => 'Durée de l\'épisode';
 
   @override
+  String episode_duration_minutes(String minutes) {
+    return '$minutes min';
+  }
+
+  @override
   String get creation_date => 'Date d\'ajout';
 
   @override

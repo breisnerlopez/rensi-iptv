@@ -626,6 +626,78 @@ void main() {
       expect(r.localOnly, isEmpty);
     });
 
+    test('the three connector spellings of one title group into ONE card '
+        'exposing every copy (es "y", en "and", ampersand "&")', () async {
+      // The shipped "Rick & morty" bug: the show is owned as three copies whose
+      // names use three different connectors — "Rick y Morty" (es), "Rick and
+      // Morty" (en original) and "Rick & Morty" (an ampersand copy, tmdb_id
+      // NULL). Before connector-canonicalization the "&" copy normalized to
+      // "rick morty" and could NOT fold into the card (keyed "rick and morty"),
+      // scattering into localOnly. All three must now collapse to one card.
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'list3', name: 'LopezCueto3', type: PlaylistType.xtream,
+          url: 'https://x.com', username: 'u', password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await PlaylistService.savePlaylist(
+        Playlist(
+          id: 'list5', name: 'LopezCueto5', type: PlaylistType.xtream,
+          url: 'https://x.com', username: 'u', password: 'p',
+          createdAt: DateTime(2026),
+        ),
+      );
+      await _insertSeries(database, 'Rick y Morty', 'list3', seriesId: 'rm-es');
+      await _insertSeries(database, 'Rick and Morty', 'list3',
+          seriesId: 'rm-en');
+      // The ampersand copy carries no tmdb id — reachable only by the connector
+      // fold that maps "&" to the canonical "and".
+      await _insertSeries(database, 'Rick & Morty', 'list5', seriesId: 'rm-amp');
+
+      final service = GlobalSearchService(
+        tmdbService: _FakeTmdbService([
+          const TmdbSearchResult(
+            id: 300,
+            mediaType: TmdbMediaType.tv,
+            title: 'Rick y Morty',
+            originalTitle: 'Rick and Morty',
+            voteAverage: 9,
+          ),
+        ]),
+      );
+      final r = await service.search('morty');
+
+      expect(r.withLocal, hasLength(1),
+          reason: 'all connector spellings are one logical title → one card');
+      final matches = r.withLocal.single.localMatches;
+      expect(matches.map((m) => m.content.name).toSet(),
+          {'Rick y Morty', 'Rick and Morty', 'Rick & Morty'},
+          reason: 'every copy — including the ampersand one — is exposed');
+      expect(matches.map((m) => m.dedupKey).toSet(), hasLength(3));
+      expect(matches.map((m) => m.playlist.id).toSet(), {'list3', 'list5'});
+      expect(
+        r.localOnly.where((m) => m.content.name.contains('Morty')),
+        isEmpty,
+        reason: 'no connector variant leaks out as its own localOnly card',
+      );
+    });
+
+    test('two short titles differing ONLY by a connector do NOT merge '
+        '(over-grouping guard)', () {
+      // Mapping connectors to a SHARED token (not dropping them) keeps
+      // "X and Y" distinct from an unrelated "X Y": the guard against a false
+      // merge that blind connector-dropping would cause.
+      expect(GlobalSearchService.classify('Tom and Jerry', 'Tom Jerry'),
+          MatchStrength.none,
+          reason: 'the connector title must not fold into the connector-less one');
+      // …while the genuine connector spellings of ONE title still fold to exact.
+      expect(GlobalSearchService.classify('Rick & Morty', 'Rick y Morty'),
+          MatchStrength.exact);
+      expect(GlobalSearchService.classify('Rick and Morty', 'Rick & Morty'),
+          MatchStrength.exact);
+    });
+
     test('classify returns exact > fuzzy > none', () {
       expect(
         GlobalSearchService.classify('Dune', 'Dune'),

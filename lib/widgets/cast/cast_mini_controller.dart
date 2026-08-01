@@ -69,15 +69,28 @@ class CastMiniController extends StatelessWidget {
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.play_arrow, color: Colors.white),
-                      tooltip: 'Play/Pause',
-                      onPressed: c.playPause,
+                    // No `tooltip:` on these buttons: the mini-controller is
+                    // mounted in MaterialApp.builder as a SIBLING of the
+                    // Navigator, so it has no Overlay ancestor. A Tooltip asserts
+                    // ("No Overlay widget found") at build time; the failing
+                    // IconButton is then replaced by the (unbounded) error widget,
+                    // which blows the Row out by ~1940px ("RIGHT OVERFLOWED"). A
+                    // Semantics label keeps the a11y affordance without an Overlay.
+                    Semantics(
+                      label: 'Play/Pause',
+                      button: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.play_arrow, color: Colors.white),
+                        onPressed: c.playPause,
+                      ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.stop, color: Colors.white70),
-                      tooltip: loc.cast_stop,
-                      onPressed: c.stopCasting,
+                    Semantics(
+                      label: loc.cast_stop,
+                      button: true,
+                      child: IconButton(
+                        icon: const Icon(Icons.stop, color: Colors.white70),
+                        onPressed: c.stopCasting,
+                      ),
                     ),
                   ],
                 ),

@@ -78,8 +78,12 @@ class _PlaylistInfoWidgetState extends State<PlaylistInfoWidget> {
                       // Fixed length: a bullet-per-character leaks how long the
                       // username is.
                       : '•' * 8,
-                  copyValue: widget.playlist.username,
-                  copyOnTap: true,
+                  // Only copy the real username once it is revealed; while masked,
+                  // the tap copies the bullets (copyValue null → shown value), so
+                  // the credential can't be shared while hidden.
+                  copyValue:
+                      _secretsVisible ? widget.playlist.username : null,
+                  copyOnTap: _secretsVisible,
                 ),
               ],
               if (isXtreamCode && widget.playlist.password != null) ...[
@@ -105,19 +109,26 @@ class _PlaylistInfoWidgetState extends State<PlaylistInfoWidget> {
                       });
                     },
                   ),
-                  onTap: () async {
-                    await Clipboard.setData(
-                      ClipboardData(text: widget.playlist.password!),
-                    );
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(context.loc.copied_to_clipboard),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  },
+                  // While masked, tapping must not put the real password on the
+                  // clipboard — that would let the secret be shared without ever
+                  // revealing it. Copy is enabled only once the eye toggle has
+                  // exposed it. (The reveal toggle is the trailing button, so it
+                  // keeps working regardless.)
+                  onTap: _secretsVisible
+                      ? () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: widget.playlist.password!),
+                          );
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(context.loc.copied_to_clipboard),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        }
+                      : null,
                 ),
               ],
             ],

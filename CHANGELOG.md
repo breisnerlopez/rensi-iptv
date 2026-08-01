@@ -1,3 +1,23 @@
+# [2.14.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.13.2...v2.14.0) (2026-08-01)
+
+
+### Features
+
+* **La búsqueda agrupa la misma serie aunque esté escrita distinto entre listas:** "Rick & Morty", "Rick y Morty" y "Rick and Morty" se reconocen como la misma y muestran todas tus copias juntas para elegir
+* **Hasta 100 resultados de tu catálogo** en la búsqueda (antes se cortaba mucho antes y podía dejar fuera contenido tuyo)
+* **Explorar junta los duplicados por calidad:** una misma película que aparece como "4K", "60FPS", etc. se muestra una sola vez — sin perder títulos distintos ni doblajes (Latino/Castellano se mantienen separados)
+* **"Populares por género" ya aparece** al elegir un género (incluidos los compuestos como "Action & Adventure")
+* **"Todas las series" ya no queda enterrada** al fondo del inicio — ahora está arriba, junto a "Todas las películas"
+
+
+### Bug Fixes
+
+* **el aviso de "enviar a la TV" ya no aparece** antes de reproducir una descarga offline
+* **arreglado un fallo visual del mini-control de casting** que rompía la pantalla de inicio mientras casteabas
+* **la duración de vídeo/episodio se muestra bien** (antes salía con abreviaturas en turco)
+* **la contraseña del proveedor ya no se puede copiar** mientras está oculta (solo si la revelas)
+
+
 # [2.13.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.13.1...v2.13.2) (2026-07-31)
 
 

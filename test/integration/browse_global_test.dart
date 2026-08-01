@@ -36,7 +36,8 @@ Playlist _pl(String id) => Playlist(
       createdAt: DateTime(2026),
     );
 
-VodStream _vod(String playlistId, String name, DateTime added, {int? tmdbId}) =>
+VodStream _vod(String playlistId, String name, DateTime added,
+        {int? tmdbId, String genre = ''}) =>
     VodStream(
       streamId: 'm-$playlistId-${name.hashCode}',
       name: name,
@@ -47,7 +48,7 @@ VodStream _vod(String playlistId, String name, DateTime added, {int? tmdbId}) =>
       containerExtension: 'mp4',
       playlistId: playlistId,
       createdAt: added,
-      genre: '',
+      genre: genre,
       tmdbId: tmdbId,
     );
 
@@ -126,6 +127,38 @@ void main() {
         reason: 'un mismo tmdbId en dos playlists colapsa a una tarjeta');
   }, timeout: const Timeout(Duration(seconds: 60)));
 
+  // Point 3 — genre CHIP dedup + ZERO-LOSS filter: two spellings of one genre
+  // ("Action & Adventure" vs "Action and Adventure") show ONE chip, and
+  // selecting it still surfaces items tagged with EITHER spelling.
+  testWidgets(
+      'Explorar colapsa chips de género casi-duplicados y filtra sin pérdida',
+      (tester) async {
+    await tester.runAsync(() async {
+      await PlaylistService.savePlaylist(_pl('A'));
+      await harnessDb.insertVodStreams([
+        _vod('A', 'Alpha', DateTime(2020), genre: 'Action & Adventure'),
+        _vod('A', 'Beta', DateTime(2021), genre: 'Action and Adventure'),
+      ]);
+    });
+    AppState.currentPlaylist = _pl('A');
+
+    await _mountAndLoad(tester);
+
+    // One chip, not two: the connector variants collapse.
+    expect(find.text('Action & Adventure'), findsOneWidget,
+        reason: 'la variante representativa se muestra como UN chip');
+    expect(find.text('Action and Adventure'), findsNothing,
+        reason: 'la variante equivalente no añade un segundo chip');
+
+    // Selecting the single chip must still show BOTH items (zero loss).
+    await tester.tap(find.text('Action & Adventure'));
+    await settle(tester);
+    expect(find.text('Alpha'), findsOneWidget,
+        reason: 'el ítem con "&" se filtra bajo el chip');
+    expect(find.text('Beta'), findsOneWidget,
+        reason: 'el ítem con "and" (variante) también — cero pérdida');
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
   // Point 6b — ZERO LOSS: two DISTINCT works whose titles normalize identically
   // (no tmdbId) must BOTH remain reachable; the old title-normalization dedup
   // dropped one (e.g. "El Rey León" 1994 vs 2019). And two distinct series
@@ -154,6 +187,79 @@ void main() {
         reason: 'ambas películas distintas deben ser alcanzables (cero pérdida)');
     expect(find.textContaining('The Office'), findsNWidgets(2),
         reason: 'ambas series distintas deben ser alcanzables (cero pérdida)');
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
+  // Point 2 — quality-variant collapse: the SAME film re-listed only with
+  // quality tags in its name (no tmdbId) must collapse to ONE card, while two
+  // DISTINCT works separated by year stay separate (the year is kept in the key).
+  testWidgets(
+      'Explorar colapsa variantes de CALIDAD del mismo filme (sin tmdbId) '
+      'pero mantiene obras distintas por año',
+      (tester) async {
+    await tester.runAsync(() async {
+      await PlaylistService.savePlaylist(_pl('A'));
+      await harnessDb.insertVodStreams([
+        _vod('A', 'Supergirl 4K ULTRA HD+HDR', DateTime(2020)),
+        _vod('A', 'Supergirl 60FPS ULTRA HD', DateTime(2021)),
+        _vod('A', 'Supergirl HD', DateTime(2022)),
+        // Distinct works distinguished ONLY by year must NOT collapse.
+        _vod('A', 'El Rey León (1994)', DateTime(1994)),
+        _vod('A', 'El Rey León (2019)', DateTime(2019)),
+      ]);
+    });
+    AppState.currentPlaylist = _pl('A');
+
+    await _mountAndLoad(tester);
+
+    expect(find.textContaining('Supergirl'), findsOneWidget,
+        reason: 'las 3 variantes CON tag de calidad colapsan a UNA tarjeta');
+    expect(find.textContaining('El Rey León'), findsNWidgets(2),
+        reason: 'dos obras distintas (por año) siguen separadas — cero pérdida');
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
+  // Point 2 (gate fix a) — ZERO LOSS for BARE titles: two DISTINCT films with
+  // the same base title, NO year and NO tmdbId, and NO quality tag, must BOTH
+  // stay reachable. Collapsing them (the grid has no variant selector) would
+  // lose one irrecoverably, so a tag-less title keeps its per-stream identity.
+  testWidgets(
+      'Explorar NO fusiona dos títulos "pelados" iguales sin año ni tmdbId ni tag',
+      (tester) async {
+    await tester.runAsync(() async {
+      await PlaylistService.savePlaylist(_pl('A'));
+      await PlaylistService.savePlaylist(_pl('B'));
+      // Same bare title, no year, no tmdbId, no quality tag — in two playlists.
+      await harnessDb.insertVodStreams([
+        _vod('A', 'The Lion King', DateTime(2020)),
+        _vod('B', 'The Lion King', DateTime(2021)),
+      ]);
+    });
+    AppState.currentPlaylist = _pl('A');
+
+    await _mountAndLoad(tester);
+
+    expect(find.textContaining('The Lion King'), findsNWidgets(2),
+        reason: 'ambos títulos pelados deben ser alcanzables — cero pérdida');
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
+  // Point 2 (gate fix b) — audio/subtitle tokens are NOT quality: a Latin dub
+  // and a Castilian dub are DIFFERENT tracks, not the same film, so they must
+  // NOT collapse (the user would lose access to a dub from Explorar).
+  testWidgets(
+      'Explorar NO fusiona doblajes distintos ("Latino" vs "Castellano")',
+      (tester) async {
+    await tester.runAsync(() async {
+      await PlaylistService.savePlaylist(_pl('A'));
+      await harnessDb.insertVodStreams([
+        _vod('A', 'Batman Latino', DateTime(2020)),
+        _vod('A', 'Batman Castellano', DateTime(2021)),
+      ]);
+    });
+    AppState.currentPlaylist = _pl('A');
+
+    await _mountAndLoad(tester);
+
+    expect(find.textContaining('Batman'), findsNWidgets(2),
+        reason: 'dos doblajes distintos siguen como dos tarjetas separadas');
   }, timeout: const Timeout(Duration(seconds: 60)));
 
   testWidgets('Explorar ordena por más reciente primero (date-added desc)',

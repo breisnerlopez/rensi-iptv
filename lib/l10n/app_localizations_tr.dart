@@ -226,6 +226,11 @@ class AppLocalizationsTr extends AppLocalizations {
   String get episode_duration => 'Bölüm Süresi';
 
   @override
+  String episode_duration_minutes(String minutes) {
+    return '$minutes dk';
+  }
+
+  @override
   String get creation_date => 'Eklenme Tarihi';
 
   @override

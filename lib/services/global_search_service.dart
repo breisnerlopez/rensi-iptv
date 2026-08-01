@@ -68,11 +68,22 @@ class GlobalSearchService {
     return c == MatchStrength.fuzzy || c == MatchStrength.exact;
   }
 
+  /// Connector/coordination words that different catalogues write differently
+  /// for the SAME title — "Rick & Morty" (symbol), "Rick y Morty" (es),
+  /// "Rick and Morty" (en original), "Tom et Jerry" (fr). Canonicalized to one
+  /// shared token by [_normalizeTitle] so all spellings fold to one key.
+  static const _connectorTokens = {'y', 'and', 'e', 'et'};
+
   static String _normalizeTitle(String value) {
-    return value
+    final squashed = value
         .toLowerCase()
         .replaceAll(RegExp(r'\([^)]*\)|\[[^]]*\]'), ' ')
         .replaceAll(RegExp(r'\b(19|20)\d{2}\b'), ' ')
+        // Symbol connectors ("&", "+") become the canonical connector word
+        // BEFORE the squash below turns them into blank space and their signal
+        // is lost. Done regardless of surrounding whitespace ("AT&T",
+        // "Fast+Furious") so the canonical form is consistent.
+        .replaceAll(RegExp(r'[&+]'), ' and ')
         // Keep letters and digits of ANY script, not just a-z0-9. The old class
         // stripped Cyrillic, Arabic, CJK and Devanagari to nothing, so
         // classify() returned `none` for every non-Latin title: a Russian or
@@ -82,6 +93,19 @@ class GlobalSearchService {
         // so it is a correctness defect, not the TV-keyboard ceiling.
         .replaceAll(RegExp(r'[^\p{L}\p{N}]+', unicode: true), ' ')
         .trim();
+    if (squashed.isEmpty) return squashed;
+    // Canonicalize the WORD connectors to ONE shared token, now that the string
+    // is clean space-separated tokens. Mapping to a shared token (not DROPPING
+    // the connector) is the over-grouping guard: "X and Y" stays distinct from
+    // an unrelated "X Y" because only the former still carries the connector
+    // token — so two short titles differing solely by a connector never merge,
+    // while every spelling of a genuine connector title ("rick & morty" /
+    // "rick y morty" / "rick and morty") collapses to "rick and morty".
+    final tokens = squashed.split(' ');
+    for (var i = 0; i < tokens.length; i++) {
+      if (_connectorTokens.contains(tokens[i])) tokens[i] = 'and';
+    }
+    return tokens.join(' ');
   }
 
   /// The grouping keys that make two local streams "the same logical title":
@@ -195,7 +219,7 @@ class GlobalSearchService {
     TmdbFailure? failure,
     int withLocalCap = 15,
     int tmdbOnlyCap = 10,
-    int localOnlyCap = 15,
+    int localOnlyCap = 100,
     List<LocalContentMatch>? crossPlaylistCatalogue,
   }) {
     final withLocal = <GlobalSearchResult>[];
@@ -413,7 +437,7 @@ class GlobalSearchService {
       // prolific actor's credits are not clipped to the search/multi 10/15.
       withLocalCap: 40,
       tmdbOnlyCap: 60,
-      localOnlyCap: 40,
+      localOnlyCap: 100,
     );
   }
 
@@ -467,7 +491,7 @@ class GlobalSearchService {
       // match the person-filmography view rather than the search/multi 10/15.
       withLocalCap: 40,
       tmdbOnlyCap: 60,
-      localOnlyCap: 40,
+      localOnlyCap: 100,
     );
   }
 

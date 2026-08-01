@@ -69,6 +69,14 @@
   "episode_count": "{count} एपिसोड",
   "duration": "अवधि: {duration}",
   "episode_duration": "एपिसोड की अवधि",
+  "episode_duration_minutes": "{minutes} मिनट",
+  "@episode_duration_minutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
   "creation_date": "जोड़ने की तारीख",
   "release_date": "रिलीज़ की तारीख",
   "genre": "शैली",

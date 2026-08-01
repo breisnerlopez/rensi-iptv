@@ -562,17 +562,13 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
 
   String _formatDuration(BuildContext context, Duration? duration) {
     if (duration == null) return context.loc.duration_unknown;
+    // Reloj neutro H:MM:SS / MM:SS (antes usaba abreviaturas turcas s/dk/sn).
     final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    final seconds = duration.inSeconds.remainder(60);
-
-    if (hours > 0) {
-      return '${hours}s ${minutes}dk ${seconds}sn';
-    } else if (minutes > 0) {
-      return '${minutes}dk ${seconds}sn';
-    } else {
-      return '${seconds}sn';
-    }
+    final minutes =
+        duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds =
+        duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
   }
 
   String _formatTimestamp(String timestamp) {

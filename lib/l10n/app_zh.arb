@@ -69,6 +69,14 @@
   "episode_count": "{count}集",
   "duration": "时长：{duration}",
   "episode_duration": "集时长",
+  "episode_duration_minutes": "{minutes}分钟",
+  "@episode_duration_minutes": {
+    "placeholders": {
+      "minutes": {
+        "type": "String"
+      }
+    }
+  },
   "creation_date": "添加日期",
   "release_date": "发布日期",
   "genre": "类型",

@@ -127,12 +127,27 @@ class RedesignHome extends StatelessWidget {
     // (50+ categories) that upfront construction was a build-time spike on
     // entering Inicio. Element-level laziness (and thus D-pad focus traversal)
     // is unchanged — only widget-config construction is deferred.
-    final cats = <CategoryViewModel>[
+    final movieCats = <CategoryViewModel>[
       for (final c in movieCategories)
         if (c.contentItems.isNotEmpty) c,
+    ];
+    final seriesCats = <CategoryViewModel>[
       for (final c in seriesCategories)
         if (c.contentItems.isNotEmpty) c,
     ];
+    // The feed renders every movie rail before the first series rail, which
+    // buries "View all series" beneath the provider's (often 15+) movie
+    // categories. Lift that sentinel out of the series tail and drop it right
+    // after "View all movies" so both aggregate entry points sit at the top.
+    final sIdx = seriesCats
+        .indexWhere((c) => isAllCategorySentinel(c.category.categoryId));
+    final allSeries = sIdx == -1 ? null : seriesCats.removeAt(sIdx);
+    final hoistAt = (movieCats.isNotEmpty &&
+            isAllCategorySentinel(movieCats.first.category.categoryId))
+        ? 1
+        : 0;
+    final cats = <CategoryViewModel>[...movieCats, ...seriesCats];
+    if (allSeries != null) cats.insert(hoistAt, allSeries);
     // With no hero (e.g. a live-only playlist has no movie to feature), the
     // first content poster must take focus so the remote lands on something.
     final noHero = tv && hero == null;
