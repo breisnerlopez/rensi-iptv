@@ -1698,6 +1698,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get tv_history_hint => 'Continúa donde lo dejaste';
 
   @override
+  String get tv_preparing_series => 'Preparando…';
+
+  @override
   String get developer => 'Desarrollador';
 
   @override

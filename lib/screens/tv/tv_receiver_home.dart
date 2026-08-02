@@ -13,15 +13,18 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../l10n/localization_extension.dart';
+import '../../models/api_configuration_model.dart';
 import '../../models/content_type.dart';
 import '../../models/m3u_item.dart';
 import '../../models/playlist_content_model.dart';
 import '../../models/playlist_model.dart';
 import '../../models/watch_history.dart';
 import '../../redesign/rensi_widgets.dart';
+import '../../repositories/iptv_repository.dart';
 import '../../repositories/m3u_repository.dart';
 import '../../repositories/user_preferences.dart';
 import '../../services/app_state.dart';
+import '../../services/cast/standalone_series_queue.dart';
 import '../../services/cast/standalone_url_builder.dart';
 import '../../services/cast/tv_standalone_creds_service.dart';
 import '../../services/event_bus.dart';
@@ -131,6 +134,15 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
   // two swap/restore cycles and leave the app on the wrong playlist.
   bool _replaying = false;
 
+  /// Corrección (gate) — feedback mudo hasta 12s: mientras [_replay] espera
+  /// [_standaloneSeriesQueue] (creds + fetch de red del `get_series_info`
+  /// completo), la TV antes no mostraba NADA hasta que resolvía o vencía el
+  /// timeout. `true` sólo durante esa espera; se apaga tanto si resuelve la
+  /// cola COMO si cae al item único (mismo `finally`), así que nunca queda
+  /// pegado en pantalla. No sustituye el timeout de 12s (sigue siendo el tope
+  /// duro) — sólo evita la espera silenciosa.
+  bool _resolvingSeriesQueue = false;
+
   /// Merges the three content-type history queries the service exposes into
   /// one most-recent-first list.
   ///
@@ -216,17 +228,41 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
       // cae al lookup M3U y su fallback de siempre.
       final standalone = await _standaloneItemFor(history);
       if (standalone != null) {
+        // Feature H (mejora) — AUTO-AVANCE STANDALONE DE SERIE: si esta fila es
+        // un episodio de serie con seriesId, intentar resolver la lista COMPLETA
+        // de episodios (desde las credenciales guardadas, por red) y montar una
+        // cola multi-item para que media_kit encadene episodio→episodio (cruzando
+        // temporadas) hasta el fin de la serie. Ante CUALQUIER fallo (sin creds,
+        // red, timeout, respuesta vacía, episodio no encontrado) se cae al ITEM
+        // ÚNICO — el replay standalone del episodio actual sigue funcionando.
+        var queue = <ContentItem>[standalone];
+        var startIndex = 0;
+        if (mounted) setState(() => _resolvingSeriesQueue = true);
+        ({List<ContentItem> queue, int index})? resolved;
+        try {
+          resolved = await _standaloneSeriesQueue(history);
+        } finally {
+          // Se apaga pase lo que pase (cola resuelta O caída al item único):
+          // el spinner nunca debe sobrevivir a la espera que lo justifica.
+          if (mounted) setState(() => _resolvingSeriesQueue = false);
+        }
+        if (resolved != null) {
+          queue = resolved.queue;
+          startIndex = resolved.index;
+        }
+        final current = queue[startIndex];
         if (!context.mounted) return;
         await Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute<void>(
             builder: (_) => Scaffold(
               backgroundColor: Colors.black,
               body: PlayerWidget(
-                contentItem: standalone,
-                queue: [standalone],
+                contentItem: current,
+                queue: queue,
                 // Reanudar en la posición guardada por el cast anterior (0 →
                 // desde el principio). PlayerWidget trata este override como
-                // AUTORITATIVO (ver su `_resumeMsFor`).
+                // AUTORITATIVO (ver su `_resumeMsFor`), y sólo aplica al episodio
+                // ACTUAL: los siguientes de la cola arrancan en 0.
                 startPositionMs: history.watchDuration?.inMilliseconds ?? 0,
                 // Re-persistir providerId + containerExtension al guardar el
                 // avance: el historial `__cast__` se upsertea por
@@ -323,6 +359,77 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
     );
   }
 
+  /// Timeout duro para la resolución de la cola de serie standalone (carga de
+  /// credenciales + fetch de red de `get_series_info`). Igual disciplina que
+  /// `_resolveStartPosition`/`_advanceStreamedSeriesFromDb`: una TV NUNCA debe
+  /// quedarse colgada esperando una red lenta; si vence, se cae al item único.
+  static const _seriesQueueTimeout = Duration(seconds: 12);
+
+  /// Feature H (mejora) — resuelve la cola COMPLETA de episodios (ContentItems)
+  /// para el auto-avance standalone de la serie de [history], o null cuando no
+  /// aplica / falla (→ el llamador reproduce sólo el episodio actual).
+  ///
+  /// Sólo para filas de serie CON seriesId (persistido por el cast). La
+  /// orquestación (creds + fetch de red + timeout + try/catch) vive en el seam
+  /// inyectable [resolveStandaloneSeriesQueue] (`standalone_series_queue.dart`)
+  /// — este método sólo conecta las dependencias REALES ([TvStandaloneCredsService
+  /// .load] + [_fetchStandaloneEpisodes]) para que un test unitario pueda, en
+  /// cambio, inyectar fakes y forzar cada camino de fallo (sin creds, timeout,
+  /// episodios vacíos, excepción de red) sin montar este widget ni tocar la red.
+  Future<({List<ContentItem> queue, int index})?> _standaloneSeriesQueue(
+    WatchHistory history,
+  ) async {
+    final providerId = history.providerId;
+    final seriesId = history.seriesId;
+    if (providerId == null ||
+        seriesId == null ||
+        seriesId.isEmpty ||
+        history.contentType != ContentType.series) {
+      return null;
+    }
+    return resolveStandaloneSeriesQueue(
+      providerId: providerId,
+      seriesId: seriesId,
+      currentStreamId: history.streamId,
+      playlistId: history.playlistId,
+      fallbackImagePath: history.imagePath ?? '',
+      timeout: _seriesQueueTimeout,
+      loadCreds: TvStandaloneCredsService.load,
+      fetchEpisodes: _fetchStandaloneEpisodes,
+    );
+  }
+
+  /// [StandaloneEpisodesFetcher] real: arma un [IptvRepository] ad-hoc con las
+  /// credenciales inyectadas (el proveedor de origen no es la playlist activa
+  /// de la TV) y hace un fetch de RED (`getSeriesInfo(forceRefresh:true)` — la
+  /// TV no tiene catálogo cacheado). `playlistId` es la partición `__cast__`
+  /// de la fila (dónde `getSeriesInfo` lee/escribe los episodios en la BD).
+  /// Null → serie no encontrada / sin episodios (el seam lo trata como
+  /// "no aplica" y cae al item único).
+  static Future<List<StandaloneEpisode>?> _fetchStandaloneEpisodes({
+    required String url,
+    required String user,
+    required String pass,
+    required String seriesId,
+    required String playlistId,
+  }) async {
+    final repo = IptvRepository(
+      ApiConfig(baseUrl: url, username: user, password: pass),
+      playlistId,
+    );
+    final info = await repo.getSeriesInfo(seriesId, forceRefresh: true);
+    if (info == null || info.episodes.isEmpty) return null;
+    return [
+      for (final e in info.episodes)
+        StandaloneEpisode(
+          episodeId: e.episodeId,
+          containerExtension: e.containerExtension,
+          title: e.title,
+          imagePath: e.movieImage,
+        ),
+    ];
+  }
+
   Future<void> _openDecoderSettings(BuildContext context) async {
     final current = await UserPreferences.getVideoDecoder();
     if (!context.mounted) return;
@@ -394,33 +501,81 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
       // Warm ramp bg (#0C0A09), not flat black — the "empty / too black"
       // complaint this redesign exists to fix started right here.
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      body: SafeArea(
-        child: RensiSafeColumn(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Marca arriba-izquierda + [ajustes-gear, pill de estado]
-              // arriba-derecha: el antiguo botón grande de "Ajustes de
-              // reproducción" ya no ocupa un bloque completo aquí, para que
-              // el centro quede libre para el reloj/rail/guía.
-              Row(
+      body: Stack(
+        children: [
+          SafeArea(
+            child: RensiSafeColumn(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _brandLockup(context),
+                  // Marca arriba-izquierda + [ajustes-gear, pill de estado]
+                  // arriba-derecha: el antiguo botón grande de "Ajustes de
+                  // reproducción" ya no ocupa un bloque completo aquí, para que
+                  // el centro quede libre para el reloj/rail/guía.
                   Row(
-                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _settingsIconButton(context),
-                      SizedBox(width: 12 * s),
-                      _statusPill(context),
+                      _brandLockup(context),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _settingsIconButton(context),
+                          SizedBox(width: 12 * s),
+                          _statusPill(context),
+                        ],
+                      ),
                     ],
                   ),
+                  SizedBox(height: 20 * s),
+                  Expanded(child: _heroSection(context)),
+                  _statusStrip(context),
                 ],
               ),
-              SizedBox(height: 20 * s),
-              Expanded(child: _heroSection(context)),
-              _statusStrip(context),
+            ),
+          ),
+          // Corrección (gate) — feedback mudo hasta 12s: cubre la pantalla
+          // mientras `_replay` espera `_standaloneSeriesQueue` (creds + fetch
+          // de red). Sólo lectura de `_resolvingSeriesQueue`; no bloquea nada,
+          // el timeout de 12s sigue siendo el único tope real.
+          if (_resolvingSeriesQueue) _seriesQueueLoadingOverlay(context),
+        ],
+      ),
+    );
+  }
+
+  /// Overlay 10-foot mostrado mientras se resuelve la cola de auto-avance de
+  /// serie (ver `_resolvingSeriesQueue`): spinner + etiqueta localizada, sobre
+  /// un scrim semitransparente para no perder del todo el contexto de fondo.
+  /// Deliberadamente simple (sin animaciones de entrada/salida): esta espera
+  /// dura, como mucho, los 12s del timeout duro.
+  Widget _seriesQueueLoadingOverlay(BuildContext context) {
+    final r = rensi(context);
+    final s = ResponsiveHelper.tvScale(context);
+    return Positioned.fill(
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: 0.6),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 40 * s,
+                height: 40 * s,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  valueColor: AlwaysStoppedAnimation(r.accent),
+                ),
+              ),
+              SizedBox(height: 16 * s),
+              Text(
+                context.loc.tv_preparing_series,
+                style: TextStyle(
+                  fontSize: AppThemes.tenFoot(context, AppThemes.bodySize),
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
             ],
           ),
         ),

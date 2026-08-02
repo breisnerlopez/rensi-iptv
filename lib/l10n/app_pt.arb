@@ -649,6 +649,7 @@
   "tv_empty_step_phone": "Abra o Rensi no seu celular",
   "tv_empty_step_cast": "Toque em Transmitir e escolha esta TV",
   "tv_history_hint": "Continue de onde parou",
+  "tv_preparing_series": "Preparando…",
   "tv_playback_settings": "Configurações de reprodução",
   "tv_replay_failed": "Não foi possível recuperar este conteúdo para reproduzi-lo.",
   "cast_need_wifi": "Conecte-se à mesma rede Wi‑Fi da TV para enviar o arquivo.",

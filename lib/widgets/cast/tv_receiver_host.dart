@@ -17,6 +17,7 @@ import '../../models/content_type.dart';
 import '../../models/m3u_item.dart';
 import '../../models/playlist_content_model.dart';
 import '../../models/playlist_model.dart';
+import '../../models/series.dart';
 import '../../redesign/rensi_widgets.dart';
 import '../../services/app_state.dart';
 import '../../services/cast/cast_protocol.dart';
@@ -859,6 +860,19 @@ ContentItem _castItemFor(CastLoadRequest req) {
     // para reconstruir la URL Xtream en el replay de fase 4). No afecta la URL de
     // reproducción (contexto M3U → usa m3uItem.url).
     containerExtension: req.ext.isNotEmpty ? req.ext : null,
+    // Feature H (mejora) — cuando el LOAD trae seriesId (episodio de serie), se
+    // adjunta un seriesStream para que PlayerWidget._saveWatchHistory persista
+    // WatchHistory.seriesId en la fila `__cast__`. Con ese seriesId, un replay
+    // standalone posterior puede resolver la lista COMPLETA de episodios y
+    // auto-avanzar sola por la serie. Sin seriesId (VOD/archivo/vivo) → null,
+    // exactamente como antes (la columna queda null).
+    seriesStream: req.seriesId.isNotEmpty
+        ? SeriesStream(
+            playlistId: _castPlaylistId,
+            seriesId: req.seriesId,
+            name: req.title,
+          )
+        : null,
     m3uItem: M3uItem(
       id: req.channelId,
       playlistId: _castPlaylistId,

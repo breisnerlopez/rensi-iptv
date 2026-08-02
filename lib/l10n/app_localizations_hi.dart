@@ -1689,6 +1689,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get tv_history_hint => 'जहाँ आपने छोड़ा था वहाँ से जारी रखें';
 
   @override
+  String get tv_preparing_series => 'तैयार हो रहा है…';
+
+  @override
   String get developer => 'डेवलपर';
 
   @override

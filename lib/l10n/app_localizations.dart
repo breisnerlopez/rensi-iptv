@@ -3186,6 +3186,12 @@ abstract class AppLocalizations {
   /// **'Resume where you left off'**
   String get tv_history_hint;
 
+  /// No description provided for @tv_preparing_series.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing…'**
+  String get tv_preparing_series;
+
   /// No description provided for @developer.
   ///
   /// In en, this message translates to:

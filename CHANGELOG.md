@@ -1,3 +1,11 @@
+# [2.19.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.18.2...v2.19.0) (2026-08-02)
+
+
+### Features
+
+* **Termina la serie en la TV sin el móvil:** si activaste "Continuar en la TV", al reanudar una serie desde el historial de la TV, ahora ella sola encadena los capítulos hasta el final (cruzando temporadas), resolviendo la lista de episodios con las credenciales que ya guardó. Antes reproducía solo el capítulo que elegías y se detenía. Si algo falla (sin conexión, credenciales no disponibles), reproduce ese único capítulo como antes
+
+
 # [2.18.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.18.1...v2.18.2) (2026-08-02)
 
 

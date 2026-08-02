@@ -19,6 +19,14 @@ import 'package:cryptography/cryptography.dart';
 import 'cast_protocol.dart';
 import 'cast_tls.dart';
 
+/// String tolerante: cualquier valor no-String del wire (incluido null) → ''.
+/// Réplica local del helper homónimo de `cast_protocol.dart` (privado a esa
+/// library, no importable de aquí): un campo opcional del LOAD viene de un
+/// PEER emparejado, y un tipo inesperado (p.ej. un número) NUNCA debe lanzar
+/// — a diferencia de `(msg['x'] as String?) ?? ''`, que sólo tolera null y
+/// SÍ lanza un TypeError ante cualquier otro tipo no-String.
+String _wireString(dynamic v) => v is String ? v : '';
+
 /// Petición de reproducción que llega desde el móvil (credenciales ya
 /// descifradas). El receptor construye la URL igual que el móvil.
 class CastLoadRequest {
@@ -62,6 +70,13 @@ class CastLoadRequest {
   /// PARTICIÓN, no control de seguridad: el emparejamiento ya gatea quién conecta.
   final String deviceId;
 
+  /// Feature H (mejora) — seriesId del episodio (VOD/serie Xtream). Vacío salvo
+  /// que el móvil castee un episodio de serie. La TV lo persiste en la fila de
+  /// historial `__cast__` (vía seriesStream) para poder resolver la lista
+  /// COMPLETA de episodios y AUTO-AVANZAR sola por la serie al reanudar en
+  /// standalone. Compat. hacia atrás: ausente → la TV reanuda sólo ese episodio.
+  final String seriesId;
+
   CastLoadRequest({
     required this.channelId,
     required this.contentType,
@@ -75,6 +90,7 @@ class CastLoadRequest {
     this.standalone = false,
     this.providerId = '',
     this.deviceId = '',
+    this.seriesId = '',
   });
 
   /// URL de stream Xtream (misma forma que lib/utils/build_media_url.dart).
@@ -433,6 +449,14 @@ class TvReceiverService {
               // casting. Tolerante a tipos del wire (`did` no-String → ''); un
               // LOAD sin él (móvil viejo) cae al `__cast__` plano.
               deviceId: loadDeviceId = (msg['did'] as String?) ?? '',
+              // Feature H (mejora) — seriesId para el auto-avance standalone de
+              // series. Tolerante a tipos del wire (`sid` no-String → ''); un
+              // LOAD sin él (móvil viejo / no es serie) → la TV reanuda sólo el
+              // episodio, sin encadenar. `_wireString` (no `as String?`): un
+              // `sid` NO-null y NO-String (p.ej. un número de un peer) haría
+              // lanzar el cast `as String?` — un TypeError que abortaría el
+              // LOAD entero, justo lo que esta tolerancia promete evitar.
+              seriesId: _wireString(msg['sid']),
             ));
             ws.add(encodeMsg(MsgType.state, {'status': 'loading', 'id': msg['id']}));
             break;

@@ -1626,6 +1626,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tv_history_hint => '从上次的位置继续观看';
 
   @override
+  String get tv_preparing_series => '准备中…';
+
+  @override
   String get developer => '开发者';
 
   @override

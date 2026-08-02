@@ -460,6 +460,9 @@ class CastSenderController extends ChangeNotifier {
       standalone: standalonePid != null,
       pid: standalonePid ?? '',
       deviceId: deviceId,
+      // Feature H (mejora) — seriesId (si el contenido es un episodio de serie)
+      // para que la TV pueda auto-avanzar por toda la serie al reanudar sola.
+      seriesId: media.seriesId,
     );
     return true;
   }

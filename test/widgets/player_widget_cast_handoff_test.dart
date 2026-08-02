@@ -60,6 +60,7 @@ class _FakeSender extends PhoneSenderService {
     bool standalone = false,
     String pid = '',
     String deviceId = '',
+    String? seriesId,
   }) async {}
   @override
   void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) =>

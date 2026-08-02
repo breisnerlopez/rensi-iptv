@@ -41,6 +41,7 @@ class _FakeSender extends PhoneSenderService {
   final List<bool> loadStandalone = [];
   final List<String> loadPids = [];
   final List<String> loadDeviceIds = []; // `did` enviado en cada LOAD
+  final List<String?> loadSeriesIds = []; // `sid` enviado en cada LOAD
   final List<String> commands = [];
   final List<String> wipedPids = []; // pids de CmdType.wipeStandalone enviados
   final List<List<HistorySyncItem>> sentHistory = []; // sendHistorySync enviados
@@ -69,6 +70,7 @@ class _FakeSender extends PhoneSenderService {
     bool standalone = false,
     String pid = '',
     String deviceId = '',
+    String? seriesId,
   }) async {
     loads.add({'id': channelId, 'url': url, 'user': username, 'pass': password});
     loadMetas.add(meta);
@@ -76,6 +78,7 @@ class _FakeSender extends PhoneSenderService {
     loadStandalone.add(standalone);
     loadPids.add(pid);
     loadDeviceIds.add(deviceId);
+    loadSeriesIds.add(seriesId);
   }
   @override
   void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) {

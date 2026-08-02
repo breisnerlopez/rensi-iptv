@@ -1687,6 +1687,9 @@ class AppLocalizationsTr extends AppLocalizations {
   String get tv_history_hint => 'Kaldığınız yerden devam edin';
 
   @override
+  String get tv_preparing_series => 'Hazırlanıyor…';
+
+  @override
   String get developer => 'Geliştirici';
 
   @override

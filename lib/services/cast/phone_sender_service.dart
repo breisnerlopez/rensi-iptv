@@ -186,6 +186,7 @@ class PhoneSenderService {
     bool standalone = false,
     String pid = '',
     String deviceId = '',
+    String? seriesId,
   }) async {
     if (_sessionKey == null) throw StateError('no emparejado');
     final creds = await CastCrypto.encryptJson(_sessionKey!, {
@@ -212,6 +213,11 @@ class PhoneSenderService {
       // el contenido es VOD/serie Xtream (lo decide el controlador). Se omiten si
       // no aplica → LOAD idéntico al de siempre (compat. hacia atrás).
       if (standalone && pid.isNotEmpty) ...{'standalone': true, 'pid': pid},
+      // Feature H (mejora) — seriesId de un episodio de serie, para que la TV
+      // pueda resolver la lista COMPLETA de episodios y auto-avanzar sola al
+      // reanudar en standalone. Se omite si es vacío/null → LOAD idéntico al de
+      // siempre (compat. hacia atrás: la TV cae a reanudar sólo ese episodio).
+      if (seriesId != null && seriesId.isNotEmpty) 'sid': seriesId,
       // Metadatos TMDb OPCIONALES (sinopsis/reparto para el panel de pausa de la
       // TV). Público, sin cifrar. Se omite si no hay nada útil que enviar → un
       // LOAD idéntico al de siempre (compat. hacia atrás).

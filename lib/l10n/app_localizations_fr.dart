@@ -1711,6 +1711,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get tv_history_hint => 'Reprenez là où vous vous êtes arrêté';
 
   @override
+  String get tv_preparing_series => 'Préparation…';
+
+  @override
   String get developer => 'Développeur';
 
   @override

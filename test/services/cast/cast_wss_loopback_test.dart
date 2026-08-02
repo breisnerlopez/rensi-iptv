@@ -265,10 +265,13 @@ void main() {
       ext: 'mp4',
       standalone: true,
       pid: 'prov-1',
+      seriesId: 'S99',
     );
     final req = await loadFut.timeout(const Duration(seconds: 3));
     expect(req.standalone, isTrue, reason: '`standalone` round-trip por el wire');
     expect(req.providerId, 'prov-1', reason: '`pid` round-trip por el wire');
+    expect(req.seriesId, 'S99',
+        reason: '`sid` (seriesId) round-trip por el wire → auto-avance standalone');
     expect(req.username, 'u123'); // credenciales descifradas intactas
     expect(req.password, 's3cr3t');
 
@@ -295,6 +298,8 @@ void main() {
     expect(req2.standalone, isFalse,
         reason: 'compat. hacia atrás: sin `standalone` en el wire → false');
     expect(req2.providerId, '');
+    expect(req2.seriesId, '',
+        reason: 'sin `sid` en el wire → vacío (compat. hacia atrás)');
     await maybePersistStandaloneCreds(req2);
     expect(await TvStandaloneCredsService.listProviderIds(), ['prov-1'],
         reason: 'un LOAD normal no deja credenciales en la TV');

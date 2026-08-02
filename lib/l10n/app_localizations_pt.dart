@@ -1696,6 +1696,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get tv_history_hint => 'Continue de onde parou';
 
   @override
+  String get tv_preparing_series => 'Preparando…';
+
+  @override
   String get developer => 'Desenvolvedor';
 
   @override

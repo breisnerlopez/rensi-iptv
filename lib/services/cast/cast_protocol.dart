@@ -34,6 +34,9 @@ class MsgType {
   // Compat. hacia atrás: ausentes → comportamiento de siempre (un receptor
   // viejo los ignora; un móvil viejo nunca los envía). Solo se envían para VOD/
   // series Xtream con consentimiento explícito; nunca en vivo/archivo/M3U.
+  // Campo OPCIONAL adicional `sid` (String = seriesId): presente sólo en un
+  // episodio de serie, para que la TV pueda resolver la lista COMPLETA de
+  // episodios y AUTO-AVANZAR sola por la serie al reanudar en standalone.
   static const load = 'load';
   static const command = 'command'; // móvil -> TV: pausa/track/stop
   static const state = 'state'; // TV -> móvil: playing/pos

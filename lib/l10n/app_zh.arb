@@ -649,6 +649,7 @@
   "tv_empty_step_phone": "在手机上打开 Rensi",
   "tv_empty_step_cast": "点击投屏并选择这台电视",
   "tv_history_hint": "从上次的位置继续观看",
+  "tv_preparing_series": "准备中…",
   "tv_playback_settings": "播放设置",
   "tv_replay_failed": "无法获取此内容以进行播放。",
   "cast_need_wifi": "连接到与 TV 相同的 Wi‑Fi 网络以发送文件。",
