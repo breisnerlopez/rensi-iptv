@@ -163,7 +163,8 @@ El **envío a la TV** es un protocolo de segunda pantalla propio, solo por LAN (
 - **Descubrimiento** vía mDNS/DNS-SD (`bonsoir`) — la TV se anuncia, el móvil la encuentra
 - **Canal de control** sobre `wss://` (certificado EC autofirmado generado en runtime, **pineado por huella**)
 - **Emparejamiento** con un PIN de 6 dígitos → claves de sesión HKDF/HMAC; **tokens de dispositivo confiable** para que las TV emparejadas reconecten en silencio
-- El móvil envía la **URL del contenido + los metadatos de TMDb** en la orden de reproducción, así la TV nunca necesita tus credenciales
+- El móvil envía la **URL del contenido + los metadatos de TMDb** en la orden de reproducción: por defecto la TV **no necesita tus credenciales** para nada, solo reproduce lo que el móvil le manda
+- **Opcional — "Seguir viendo en la TV sin el móvil":** con tu consentimiento explícito por cada (TV, proveedor) y un interruptor maestro que viene **desactivado por defecto**, la TV puede guardar tus credenciales del proveedor **cifradas en el dispositivo** (almacenamiento seguro del sistema) para reanudar por su cuenta aunque el móvil esté apagado. Es revocable en cualquier momento desde Ajustes (la TV borra sus credenciales en cuanto el móvil vuelve a conectarse) y se borran automáticamente si desemparejas la TV. Riesgo residual, con honestidad: mientras el consentimiento esté activo esas credenciales también viven en la TV —a menudo un dispositivo compartido—, y el primer emparejamiento por PIN es, en teoría, vulnerable a un atacante ya presente en tu misma red; solo actívalo en TVs y redes de confianza
 
 ---
 

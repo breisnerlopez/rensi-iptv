@@ -80,6 +80,41 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cast_retry => 'Erneut versuchen';
 
   @override
+  String get tv_standalone_section => 'TV / Streaming';
+
+  @override
+  String get tv_standalone_master_title =>
+      'Auf dem TV ohne Telefon weiterschauen';
+
+  @override
+  String get tv_standalone_master_subtitle =>
+      'Erlaubt einem vertrauenswürdigen TV, deine Anbieter-Zugangsdaten verschlüsselt zu speichern, damit es nach dem Schließen der App weiter abspielen kann. Standardmäßig aus.';
+
+  @override
+  String tv_standalone_consent_title(String device) {
+    return 'Sitzung auf $device behalten?';
+  }
+
+  @override
+  String tv_standalone_consent_body(String provider) {
+    return 'Deine $provider-Zugangsdaten werden VERSCHLÜSSELT auf dem TV gespeichert, damit du ohne Telefon weiterschauen kannst. Risiko: Auf einem gerooteten oder kompromittierten TV könnten sie ausgelesen werden; die PIN-Kopplung schützt nicht vor einem Angreifer, der die Kopplung mitschneidet (bekannte Schwachstelle).';
+  }
+
+  @override
+  String get tv_standalone_consent_accept => 'Aktivieren';
+
+  @override
+  String get tv_standalone_consent_decline => 'Jetzt nicht';
+
+  @override
+  String get tv_standalone_revoke_empty =>
+      'Kein TV hat gespeicherte Zugangsdaten.';
+
+  @override
+  String get tv_standalone_revoke_action =>
+      'Zugangsdaten auf diesem TV vergessen';
+
+  @override
   String get slogan => 'IPTV-Player';
 
   @override

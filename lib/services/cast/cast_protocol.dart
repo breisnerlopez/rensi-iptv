@@ -25,13 +25,33 @@ class MsgType {
   static const pairChallenge = 'pair_challenge'; // TV -> móvil: {salt, nonce}
   static const pairProof = 'pair_proof'; // móvil -> TV: {proof}
   static const pairResult = 'pair_result'; // TV -> móvil: {ok}
-  static const load = 'load'; // móvil -> TV: reproducir contenido
+  // móvil -> TV: reproducir contenido. Campos OPCIONALES del cuerpo del LOAD
+  // (feature H — reproducción standalone de la TV): `standalone` (bool) y `pid`
+  // (String = id de la playlist del móvil, opaco, NO derivado de las
+  // credenciales). Cuando `standalone==true`, la TV —tras descifrar las
+  // credenciales— las persiste cifradas indexadas por `pid`
+  // (TvStandaloneCredsService) para poder seguir reproduciendo sin el móvil.
+  // Compat. hacia atrás: ausentes → comportamiento de siempre (un receptor
+  // viejo los ignora; un móvil viejo nunca los envía). Solo se envían para VOD/
+  // series Xtream con consentimiento explícito; nunca en vivo/archivo/M3U.
+  static const load = 'load';
   static const command = 'command'; // móvil -> TV: pausa/track/stop
   static const state = 'state'; // TV -> móvil: playing/pos
   static const tracks = 'tracks'; // TV -> móvil: pistas de audio/subtítulo
   static const ended = 'ended'; // TV -> móvil: reproducción detenida/cerrada en la TV
   static const completed = 'completed'; // TV -> móvil: el título terminó (fin de archivo) → el móvil puede auto-avanzar
   static const superseded = 'superseded'; // TV -> móvil: OTRO dispositivo tomó el control (cesión silenciosa; NO es caída ni fin)
+
+  /// Feature H (fase 5) — sincronización BIDIRECCIONAL de "continuar viendo"
+  /// entre móvil y TV, SOLO sobre el canal ya emparejado. El móvil envía sus
+  /// deltas de la playlist activa tras emparejar/reconectar; la TV los MEZCLA en
+  /// su playlist sintética `__cast__`, RESPONDE con sus propios deltas de
+  /// `__cast__`, y el móvil los mezcla en su playlist real. Cuerpo:
+  ///   { items: [ {cid, tmdb?, pos, dur, ct, ts} ], done?: bool }
+  /// Solo-posición (no propaga borrados). Compat. hacia atrás: un extremo viejo
+  /// que no lo entiende simplemente no responde (sin caída ni cuelgue). Ver
+  /// [HistorySyncItem] / [historySyncShouldWrite].
+  static const historySync = 'hist_sync';
   static const error = 'error';
 }
 
@@ -45,6 +65,13 @@ class CmdType {
   static const selectAudio = 'sel_audio'; // + campo 'id'
   static const selectSubtitle = 'sel_sub'; // + campo 'id' ('' = off)
   static const setVolume = 'set_volume'; // + campo 'v' (0-100)
+
+  /// Feature H — el móvil pide a la TV que BORRE las credenciales standalone
+  /// guardadas para un proveedor (+ campo 'pid'). Lo dispara el "olvidar
+  /// credenciales" de Ajustes: al revocar (tvId, pid) el móvil marca un
+  /// pending-wipe y lo envía la próxima vez que se conecta a esa TV, para que el
+  /// borrado ocurra DE VERDAD en la TV (no solo el consentimiento del móvil).
+  static const wipeStandalone = 'wipe_standalone';
 }
 
 /// String tolerante: cualquier valor no-String del wire → ''. El `meta` viene de
@@ -184,6 +211,144 @@ class CastMeta {
       posterPath: poster.isEmpty ? null : poster,
     );
   }
+}
+
+/// Tope duro de items por sincronización de historial (feature H fase 5). Capa
+/// tanto lo que se ENVÍA (los más recientes por `lastWatched`) como lo que se
+/// PARSEA al recibir (defensa contra un peer que mande un lote gigante para
+/// forzar memoria/ANR en una TV débil).
+const int kHistorySyncMaxItems = 200;
+
+/// Un item del wire de sincronización de historial (feature H fase 5). Forma
+/// mínima a propósito ({cid, tmdb?, pos, dur, ct, ts}): cuanto menor el payload,
+/// menor el riesgo de ANR/OOM en una TV débil al recibir el lote. NO lleva
+/// título/carátula: el lado receptor conserva los de su fila existente y, para
+/// una fila NUEVA (contenido que solo existía en el otro dispositivo), guarda la
+/// posición aunque el título quede vacío (el objetivo es que el progreso llegue).
+class HistorySyncItem {
+  /// `cid` — id de stream (Xtream). Clave de unión primaria: es la MISMA en la
+  /// fila real del móvil y en la fila `__cast__` de la TV.
+  final String streamId;
+
+  /// `tmdb` — id TMDb OPCIONAL. Reconciliación secundaria: cuando AMBOS lados lo
+  /// tienen y DIFIEREN, se trata como contenido distinto (no se mezcla), aunque
+  /// el `streamId` colisione entre proveedores. Null si no se conoce.
+  final int? tmdbId;
+
+  /// `pos` — posición vista (ms).
+  final int posMs;
+
+  /// `dur` — duración total (ms).
+  final int durMs;
+
+  /// `ct` — índice de [ContentType] (aislamiento: no se mezcla entre tipos).
+  final int contentTypeIndex;
+
+  /// `ts` — último visto (epoch ms). Desempata el merge (el más reciente gana).
+  final int lastWatchedMs;
+
+  const HistorySyncItem({
+    required this.streamId,
+    this.tmdbId,
+    required this.posMs,
+    required this.durMs,
+    required this.contentTypeIndex,
+    required this.lastWatchedMs,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'cid': streamId,
+        if (tmdbId != null) 'tmdb': tmdbId,
+        'pos': posMs,
+        'dur': durMs,
+        'ct': contentTypeIndex,
+        'ts': lastWatchedMs,
+      };
+
+  /// DEFENSIVO: todo campo es tolerante a tipos del wire (un peer emparejado
+  /// puede correr otra build). Un `cid` no-String → ''; num inválidos → 0. El
+  /// llamador (parseHistorySyncItems) descarta los items sin `cid` o sin pos/dur.
+  factory HistorySyncItem.fromJson(Map<String, dynamic> j) => HistorySyncItem(
+        streamId: j['cid'] is String ? j['cid'] as String : '',
+        tmdbId: j['tmdb'] is num ? (j['tmdb'] as num).toInt() : null,
+        posMs: (j['pos'] as num?)?.toInt() ?? 0,
+        durMs: (j['dur'] as num?)?.toInt() ?? 0,
+        contentTypeIndex: (j['ct'] as num?)?.toInt() ?? -1,
+        lastWatchedMs: (j['ts'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Recorta [items] a los [kHistorySyncMaxItems] MÁS RECIENTES por `lastWatched`
+/// (descendente). Se aplica tanto al enviar como al recibir.
+List<HistorySyncItem> capHistorySync(List<HistorySyncItem> items) {
+  if (items.length <= kHistorySyncMaxItems) {
+    final sorted = [...items]
+      ..sort((a, b) => b.lastWatchedMs.compareTo(a.lastWatchedMs));
+    return sorted;
+  }
+  final sorted = [...items]
+    ..sort((a, b) => b.lastWatchedMs.compareTo(a.lastWatchedMs));
+  return sorted.sublist(0, kHistorySyncMaxItems);
+}
+
+/// REGLA DE MERGE (IDÉNTICA EN AMBOS LADOS — móvil y TV). Decide si [incoming]
+/// debe ESCRIBIRSE sobre [existing] (la fila local con el MISMO `streamId`).
+///
+/// POSICIÓN-PRIMARIA (drift-immune): gana SIEMPRE la posición MÁS LEJANA; el
+/// `ts` solo desempata una posición EXACTAMENTE igual. Es deliberado y NO es
+/// idéntico a comparar por `ts`: los Android-TV suelen no tener RTC con batería
+/// y arrancan con el reloj en época/1970 o desincronizado, así que un `ts` de la
+/// TV puede ser arbitrariamente viejo o futuro; usarlo como criterio primario
+/// dejaría que un reloj atrasado descarte un avance REAL. Al priorizar la
+/// posición, "el progreso siempre se sincroniza" (el intent del usuario) y se
+/// alinea con la misma guarda pos-only del `_writeHistory` del cast. Reglas:
+///   - Sin fila existente → sí (fila nueva).
+///   - Aislamiento por tipo: distinto `ct` → no (no degradar serie↔vod↔vivo).
+///   - Cross-check TMDb: si AMBOS tienen `tmdb` y DIFIEREN → no (colisión de
+///     streamId entre proveedores; contenido distinto).
+///   - Posición entrante MENOR que la existente → no (NUNCA reduce el progreso).
+///   - Posición entrante MAYOR → sí (la más lejana gana, sin mirar `ts`).
+///   - Posición EXACTAMENTE igual → desempata el `ts` más reciente.
+bool historySyncShouldWrite(HistorySyncItem incoming, HistorySyncItem? existing) {
+  if (existing == null) return true;
+  if (incoming.contentTypeIndex != existing.contentTypeIndex) return false;
+  final a = incoming.tmdbId, b = existing.tmdbId;
+  if (a != null && b != null && a != b) return false;
+  if (incoming.posMs < existing.posMs) return false; // nunca reduce
+  if (incoming.posMs > existing.posMs) return true; // la más lejana gana
+  return incoming.lastWatchedMs > existing.lastWatchedMs; // empate exacto → ts
+}
+
+/// Serializa el cuerpo de un mensaje [MsgType.historySync].
+Map<String, dynamic> encodeHistorySyncBody(List<HistorySyncItem> items,
+        {bool? done}) =>
+    {
+      'items': [for (final it in capHistorySync(items)) it.toJson()],
+      if (done != null) 'done': done,
+    };
+
+/// Parsea (DEFENSIVO) los items de un cuerpo [MsgType.historySync]. Tolera un
+/// `items` ausente/de tipo inesperado (→ vacío), entradas no-Map (se saltan) y
+/// capa a [kHistorySyncMaxItems] (un lote gigante NO debe tumbar una TV débil).
+List<HistorySyncItem> parseHistorySyncItems(Map<String, dynamic> body) {
+  final raw = body['items'];
+  if (raw is! List) return const [];
+  final out = <HistorySyncItem>[];
+  // Dos topes independientes: por lo ACEPTADO (`out.length`) y por lo ESCANEADO
+  // (`scanned`). Solo el primero no basta: una lista gigante de basura no-Map
+  // nunca incrementa `out.length`, así que se iteraría entera (ANR en una TV
+  // débil). Acotar por el índice CRUDO frena ese lote adversarial aunque no
+  // acepte ni un item.
+  var scanned = 0;
+  for (final e in raw) {
+    if (++scanned > kHistorySyncMaxItems * 2) break;
+    if (e is Map) {
+      out.add(HistorySyncItem.fromJson(Map<String, dynamic>.from(e)));
+    }
+    // Tope de materialización: no construir más de lo que vamos a conservar.
+    if (out.length >= kHistorySyncMaxItems * 2) break;
+  }
+  return capHistorySync(out);
 }
 
 String encodeMsg(String type, Map<String, dynamic> body) =>

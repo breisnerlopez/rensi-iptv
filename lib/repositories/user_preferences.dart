@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 class UserPreferences {
   static const String _keyLastPlaylist = 'last_playlist';
@@ -32,6 +33,7 @@ class UserPreferences {
   static const String _keySpeedUpOnLongPress = 'speed_up_on_long_press';
   static const String _keySeekOnDoubleTap = 'seek_on_double_tap';
   static const String _keyAutoPipOnHome = 'auto_pip_on_home';
+  static const String _keyTvStandaloneAllowed = 'tv_standalone_allowed';
 
   static const List<String> _backupKeys = [
     _keyLastPlaylist,
@@ -58,6 +60,7 @@ class UserPreferences {
     _keySpeedUpOnLongPress,
     _keySeekOnDoubleTap,
     _keyAutoPipOnHome,
+    _keyTvStandaloneAllowed,
   ];
 
   static Future<Map<String, Object>> exportSettings() async {
@@ -472,5 +475,37 @@ class UserPreferences {
   static Future<void> setSeekOnDoubleTap(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keySeekOnDoubleTap, value);
+  }
+
+  // Si el usuario habilitó la reproducción standalone en la TV (sin depender
+  // del móvil como emisor). Default false: opt-in explícito.
+  static Future<bool> getTvStandaloneAllowed() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyTvStandaloneAllowed) ?? false;
+  }
+
+  static Future<void> setTvStandaloneAllowed(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyTvStandaloneAllowed, value);
+  }
+
+  static const String _keyCastDeviceId = 'cast_device_id';
+
+  /// Feature H (fase 5) — id ESTABLE de este dispositivo (móvil), generado una
+  /// sola vez y persistido. Particiona el historial de casting por-dispositivo
+  /// en la TV (`__cast__:<deviceId>`) para que la TV sincronice el progreso de un
+  /// título SOLO al móvil que lo casteó (varios móviles de una familia comparten
+  /// una TV sin cruzar sus "continuar viendo"). NO es un control de seguridad: el
+  /// emparejamiento/confianza ya decide QUIÉN puede conectar; esto es solo una
+  /// clave de PARTICIÓN del historial (por eso vale SharedPreferences, no secure
+  /// storage). Se viaja en el LOAD.
+  static Future<String> getCastDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    var id = prefs.getString(_keyCastDeviceId);
+    if (id == null || id.isEmpty) {
+      id = const Uuid().v4();
+      await prefs.setString(_keyCastDeviceId, id);
+    }
+    return id;
   }
 }

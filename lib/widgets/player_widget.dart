@@ -71,6 +71,15 @@ class PlayerWidget extends StatefulWidget {
   /// (solo historial). Ver _resumeMsFor.
   final int? startPositionMs;
 
+  /// Feature H — providerId (id de playlist Xtream del móvil) para guardar en la
+  /// fila de historial cuando este player es el receptor de un cast STANDALONE.
+  /// Solo lo rellena tv_receiver_host con el `pid` del LOAD; junto al
+  /// `containerExtension` del ContentItem alimenta las columnas homónimas de la
+  /// fila `__cast__` que necesita el replay standalone (fase 4). Null en toda
+  /// reproducción no-standalone → la fila conserva ambas columnas en null, igual
+  /// que siempre.
+  final String? standaloneProviderId;
+
   const PlayerWidget({
     super.key,
     required this.contentItem,
@@ -81,6 +90,7 @@ class PlayerWidget extends StatefulWidget {
     this.queue,
     this.castMeta,
     this.startPositionMs,
+    this.standaloneProviderId,
   });
 
   @override
@@ -1441,6 +1451,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
           totalDuration: _pendingTotalDuration,
           watchDuration: _pendingWatchDuration,
           seriesId: contentItem.seriesStream?.seriesId,
+          // Feature H — solo en un cast STANDALONE (widget.standaloneProviderId
+          // no-null) se persisten estas dos columnas para el replay de fase 4;
+          // en toda otra reproducción quedan null, como siempre.
+          providerId: widget.standaloneProviderId,
+          containerExtension: widget.standaloneProviderId != null
+              ? contentItem.containerExtension
+              : null,
         ),
       );
       // Borrar-al-ver: si este contenido es una descarga offline y se alcanzó

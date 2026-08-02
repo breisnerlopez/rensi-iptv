@@ -103,6 +103,8 @@ Realidad: Xtream autentica por user/pass en el path; **no emite tokens**. Estrat
 > - Ruta de fallback (Web Receiver) con manejo de credenciales distinto y sin analizar.
 >
 > Conclusión: "riesgo de transporte comparable **+ nueva superficie de dispositivo/logs**". La mitigación robusta a término es token/proxy para que la app TV nunca vea user/pass reales.
+>
+> **Actualización (feature H, fase 6 — auditoría de logs Dart lado TV, ejecutada):** el primer bullet dejó de ser hipotético — la TV **sí** persiste credenciales ahora, pero solo opt-in (ver §15). Sobre el segundo bullet: se auditó el código Dart de casting/TV (`tv_receiver_service.dart`, `tv_receiver_host.dart`, `tv_standalone_creds_service.dart`, `standalone_url_builder.dart`, `tv_receiver_home.dart`) y **no hay un solo `print`/`debugPrint` que toque credenciales o URLs con user/pass** — el único camino que podría filtrar algo (fallo de secure storage al reconstruir la URL standalone) está escrito para devolver `null` sin loguear la excepción, no para pasarla por el scrubber. `credential_scrubber.dart` en sí es Dart puro sin dependencia de plataforma, así que no necesita "portarse" — ya corre igual en la TV si algún día hace falta loguear algo ahí. Lo que **sigue pendiente** (fuera del alcance de código, requiere hardware) es el spike de logcat sobre el SDK/proceso nativo (si se usa Cast SDK real) — eso no se puede auditar leyendo Dart.
 
 ### 4.2 No consumir dos conexiones simultáneas (límite de streams)
 
@@ -382,8 +384,54 @@ Mapeo de cada requisito a su estado. Construido y probado en emulador; la valida
 | Permiso de red local (Android 13+) | ✅ | `NEARBY_WIFI_DEVICES` declarado |
 | Tests | ✅ | ~35 de casting (cripto, wss loopback, máquina de estados, zap, pistas, widget) + suite completa **426 passed, 2 skipped** |
 | **Validación final en hardware** (TV AOC + teléfono) | ⏳ tuyo | mDNS en LAN física + AP-isolation (R11), decode HW (R5), frame de video real, y latencia de cert-gen — solo en dispositivos reales. Guía: `CASTING_HARDWARE_VALIDATION.md` |
+| **Credenciales standalone en la TV (opt-in, feature H)** | ✅ | Maestro OFF por defecto + consentimiento por (TV, proveedor); cifrado en `flutter_secure_storage`; revocación con `CmdType.wipeStandalone` + auto-wipe al desemparejar. Ver §15 |
+| **Historial de casting por dispositivo (feature H)** | ✅ | Particiones `__cast__:<deviceId>`, `MsgType.historySync`, merge posición-primaria, cap 200 ítems. Ver §15 |
+| **Riesgo residual AC5b (MITM primer emparejamiento)** | ⚠️ documentado, no cerrado | Decisión del usuario: corregir solo AC2 (lockout, ✅) por ahora. Ver §15.6 |
 
 **Artefactos añadidos** (además de los del PoC): `lib/controllers/cast_sender_controller.dart`, `lib/widgets/cast/{cast_flow,casting_screen,tv_receiver_host}.dart`, `ext` end-to-end en el protocolo, integración en `player_widget.dart` y `main.dart`, cadenas cast en los 10 `.arb`, y tests en `test/services/cast/`, `test/controllers/`, `test/widgets/`.
+
+---
+
+## 15. Feature H — Credenciales standalone en la TV (opt-in) + historial de casting por dispositivo
+
+Cierra la brecha señalada en §4.1 ("credenciales potencialmente persistidas por la app TV"): hasta esta feature la TV dependía SIEMPRE del móvil como emisor (credenciales solo de paso, nunca guardadas). Feature H añade, con consentimiento explícito y revocable, un modo standalone; y sincroniza el historial de "continuar viendo" por dispositivo, no por familia.
+
+### 15.1 Modelo de consentimiento (opt-in, revocable)
+
+- **Interruptor maestro** `tv_standalone_allowed` (`UserPreferences`, **desactivado por defecto**): sin él, la TV nunca pide ni recibe credenciales para persistir.
+- **Consentimiento fino por par (tvId, providerId)** en `StandaloneConsentStore` (lado móvil, `SharedPreferences` — son solo flags de consentimiento, no secretos; las credenciales en sí viven del lado de la TV, cifradas — ver 15.2). El diálogo aparece la primera vez que se castea VOD/serie Xtream a una TV con el maestro activo y sin consentimiento previo para ese par (`CastSenderController.pendingStandaloneConsent`).
+- Aceptar (`grantStandaloneConsent`) reenvía el LOAD en curso para que la TV persista ya en esa misma sesión, no solo en el próximo cast.
+
+### 15.2 Almacenamiento en la TV (cifrado, opt-in)
+
+- `TvStandaloneCredsService` (`lib/services/cast/tv_standalone_creds_service.dart`) guarda url/user/pass por `providerId` en `flutter_secure_storage` (`EncryptedSharedPreferences` en Android) — mismo patrón que `playlist_secrets_service.dart` / `tmdb_credentials_service.dart`. Un índice aparte (`tv.standalone.creds.index`) porque secure storage no permite enumerar claves. Contrato atómico: los 3 campos se guardan y se leen como un conjunto — no hay credenciales parciales.
+- El mensaje `MsgType.load` lleva ahora `standalone` (bool) + `pid` (providerId); la TV solo persiste si `standalone == true`. Protocolo tolerante: un móvil viejo o un LOAD sin consentimiento simplemente no manda esos campos → la TV no persiste nada, se comporta como hoy.
+
+### 15.3 Revocación y borrado
+
+- Revocar en Ajustes quita el flag local de consentimiento y **encola un borrado** (`StandaloneConsentStore.markPendingWipe`): el móvil normalmente no está conectado a esa TV en el momento de revocar, así que el borrado real se entrega la próxima vez que el móvil se reconecta a ella (`_flushPendingStandaloneWipes`) enviando `CmdType.wipeStandalone {pid}`; la TV borra esas credenciales (`tv_receiver_host.dart`, case `CmdType.wipeStandalone`) y el pendiente se desencola.
+- **Respaldo:** si la TV se queda sin ningún dispositivo de confianza (se desempareja del último móvil), borra TODAS las credenciales standalone que tuviera guardadas (`_wipeAllStandaloneCreds`), sin depender de que el comando de wipe haya llegado a tiempo.
+
+### 15.4 Replay standalone en la TV (sin el móvil)
+
+- `standalone_url_builder.dart` (`buildStandaloneUrl`) reconstruye la URL Xtream (`<server>/movie|series/<user>/<pass>/<streamId>.<ext>`) a partir de las credenciales guardadas más el `streamId`/`containerExtension` de la fila de historial — espejo de `buildMediaUrl` del lado móvil. Solo VOD/series: live no se reconstruye desde credenciales+streamId.
+- `TvReceiverHome.standaloneUrlForHistory` intenta esta rama ANTES del lookup en el catálogo M3U local; cualquier fallo (credenciales ausentes, revocadas, o un error de secure storage) cae al hint "reenvía desde el móvil" en vez de dejar el tap mudo.
+
+### 15.5 Historial de casting por dispositivo (`MsgType.historySync`)
+
+- Cada fila de historial de casting vive ahora bajo una partición `__cast__:<deviceId>` (el `deviceId` es el id estable del móvil que emitió el cast) en vez de una única fila `__cast__` compartida por todos los móviles de la familia. Cae a `__cast__` plano cuando el móvil no manda `deviceId` (compatibilidad hacia atrás).
+- Sync bidireccional sobre el canal ya emparejado: el móvil manda sus deltas recientes (`MsgType.historySync`, `encodeHistorySyncBody`), la TV los mezcla en la partición del `deviceId` que preguntó y responde con los suyos (`parseHistorySyncItems`, en `tv_receiver_host.dart`).
+- Regla de merge, IDÉNTICA en ambos lados (`historySyncShouldWrite`, `cast_protocol.dart`): **posición-primaria** — gana siempre la posición más lejana; el `ts` solo desempata cuando la posición es EXACTAMENTE igual. Deliberado: las Android TV suelen arrancar sin RTC con batería (reloj en época/1970 o desincronizado), así que usar el `ts` como criterio primario dejaría que un reloj atrasado en la TV descarte un avance real del usuario. Además: aislamiento por tipo de contenido (no mezcla serie/vod/vivo) y cross-check de `tmdbId` (si ambos lados lo tienen y difieren, no se escribe — colisión de `streamId` entre proveedores distintos).
+- Capado a `kHistorySyncMaxItems = 200` (los 200 más recientes por `lastWatched`), aplicado tanto al enviar como al recibir — un lote gigante no debe tumbar una TV débil.
+
+### 15.6 Postura de seguridad / riesgo residual (feature H)
+
+Decisión explícita del usuario tras revisar el análisis: **arreglar AC2, documentar el resto** — no todo se cierra en esta fase.
+
+- **AC2 (fuerza bruta de PIN entre sockets) — CORREGIDO.** El emparejamiento tiene ahora un enfriamiento (lockout) que persiste entre conexiones del mismo peer, no solo dentro de un socket.
+- **AC5b (MITM en el primer emparejamiento) — NO corregido, documentado.** El pairing sigue siendo TOFU (trust-on-first-use): el certificado EC autofirmado recién se pinea por huella en el primer emparejamiento, y `badCertificateCallback` acepta siempre en ese instante. Un atacante ya presente en la LAN durante ESE primer PIN podría interponerse y, con el PIN de 6 dígitos (espacio 10⁶), correr un diccionario offline contra el intercambio capturado para derivar las claves de sesión y — si además se otorga el consentimiento standalone en esa misma sesión — obtener las credenciales Xtream. AC2 frena la fuerza bruta ONLINE contra el propio proceso de pairing, pero no cierra esta ventana offline si el intercambio fue capturado.
+- **Riesgo en reposo (nuevo, inherente al opt-in):** con el consentimiento otorgado, las credenciales Xtream pasan a vivir también en un segundo dispositivo —la TV—, a menudo compartido/comunal. Mitigado, no eliminado, por: opt-in explícito con maestro apagado por defecto, cifrado en reposo (`flutter_secure_storage` / `EncryptedSharedPreferences`, nunca en claro en `SharedPreferences`), revocación con borrado real, y auto-wipe al perder el último dispositivo de confianza (§15.3). Sigue existiendo el riesgo de que alguien con acceso físico o root a la TV, mientras el consentimiento está vigente, extraiga las credenciales de su keystore/secure storage.
+- **Superficie de logs (Dart, nivel app) — auditada en esta fase, limpia.** Ver la actualización en §4.1: cero `print`/`debugPrint` sobre credenciales o URLs con user/pass en el código Dart de casting/TV. Pendiente y fuera de alcance de código (requiere hardware): el spike de logcat sobre el SDK/proceso nativo.
 
 ---
 

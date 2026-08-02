@@ -22,13 +22,87 @@ import '../../services/app_state.dart';
 import '../../services/cast/cast_protocol.dart';
 import '../../services/cast/cast_tls.dart';
 import '../../services/cast/tv_receiver_service.dart';
+import '../../services/cast/tv_standalone_creds_service.dart';
 import '../../services/event_bus.dart';
 import '../../services/player_state.dart';
+import '../../services/watch_history_service.dart';
 import '../../utils/app_themes.dart';
 import '../../utils/responsive_helper.dart';
 import '../player_widget.dart';
 
 const _castPlaylistId = '__cast__';
+
+/// Feature H (fase 5) — playlist sintética del historial de casting PARTICIONADA
+/// por dispositivo: `__cast__:<deviceId>`. Así la TV escribe el progreso de un
+/// título bajo la partición del móvil que lo casteó y le sincroniza SOLO a él (el
+/// rail combina todas las particiones para reanudar en standalone, pero el sync
+/// del avance es per-dispositivo). Fallback a `__cast__` plano cuando [deviceId]
+/// es vacío (móvil viejo / LOAD sin `did`) → compat. hacia atrás. NO es un
+/// control de seguridad (el emparejamiento ya gatea quién conecta): es una clave
+/// de partición.
+String castHistoryPlaylistId(String deviceId) =>
+    deviceId.isEmpty ? _castPlaylistId : '$_castPlaylistId:$deviceId';
+
+/// Feature H (fase 5) — núcleo TESTEABLE de la sincronización de historial en la
+/// TV. Mezcla [items] (los deltas que envió el móvil con id [deviceId]) en SU
+/// partición `__cast__:<deviceId>` y DEVUELVE los deltas de ESA MISMA partición
+/// para responder — per-dispositivo: la respuesta a un móvil NUNCA incluye filas
+/// de otro. Función de nivel superior (no método del State) a propósito: permite
+/// probar el merge+reply REALES contra una BD sin montar el widget. Best-effort:
+/// el llamador la envuelve en try/catch; aquí no se atrapa para que el test vea
+/// cualquier fallo real de la orquestación de BD.
+Future<({int written, List<HistorySyncItem> reply})> mergeAndReplyHistorySync(
+  WatchHistoryService svc,
+  String deviceId,
+  List<HistorySyncItem> items,
+) async {
+  final pid = castHistoryPlaylistId(deviceId);
+  final written = items.isEmpty ? 0 : await svc.mergeHistorySync(pid, items);
+  final reply = await svc.historySyncDeltas(pid);
+  return (written: written, reply: reply);
+}
+
+/// Feature H — persiste EN LA TV, cifradas en reposo, las credenciales de un LOAD
+/// standalone autorizado (indexadas por su `providerId`/pid opaco), para que la
+/// TV pueda reproducir sin el móvil (replay de fase 4). Las credenciales ya
+/// llegaron descifradas en [req] (el servicio las abrió con la clave de sesión).
+///
+/// Guarda SOLO cuando el móvil pidió `standalone` (lo que el móvil gatea por
+/// permiso maestro + consentimiento explícito) Y el contenido es VOD/serie con
+/// las 3 credenciales presentes — defensa en profundidad contra un LOAD de
+/// archivo local (creds vacías) o de vivo. En cualquier otro caso es no-op, así
+/// que un LOAD normal nunca deja credenciales en la TV.
+///
+/// Función de nivel superior (no método del State) a propósito: encapsula la
+/// decisión de persistir y la hace testeable sin montar el widget.
+/// Feature H — decide si el auto-wipe de credenciales standalone debe correr al
+/// arrancar el receptor. SOLO cuando la lectura de tokens fue EXITOSA
+/// ([tokensLoadedOk]) y quedó vacía ([tokensEmpty]) — nadie de confianza. Un
+/// fallo de lectura (keystore bloqueado, IO) deja [tokensLoadedOk] false y NUNCA
+/// debe disparar un borrado destructivo (un falso-vacío borraría las creds de un
+/// usuario con dispositivos de confianza). Función pura y testeable.
+bool shouldWipeStandaloneOnBoot({
+  required bool tokensLoadedOk,
+  required bool tokensEmpty,
+}) =>
+    tokensLoadedOk && tokensEmpty;
+
+Future<void> maybePersistStandaloneCreds(CastLoadRequest req) async {
+  if (!(req.standalone &&
+      req.providerId.isNotEmpty &&
+      (req.contentType == 'vod' || req.contentType == 'series') &&
+      req.url.isNotEmpty &&
+      req.username.isNotEmpty &&
+      req.password.isNotEmpty)) {
+    return;
+  }
+  await TvStandaloneCredsService.save(
+    req.providerId,
+    url: req.url,
+    user: req.username,
+    pass: req.password,
+  );
+}
 
 /// Live state of the LAN receiver, surfaced to the idle TV home so a silent
 /// mDNS failure stops being invisible (see `TvReceiverHost._start`).
@@ -98,6 +172,7 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
   StreamSubscription<void>? _connectSub;
   StreamSubscription<CastLoadRequest>? _loadSub;
   StreamSubscription<Map<String, dynamic>>? _commandSub;
+  StreamSubscription<HistorySyncEvent>? _historySub;
   bool _pinVisible = false;
   bool _playing = false;
 
@@ -221,6 +296,18 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     return _tokenEntries.map((e) => e['t'] as String).toList();
   }
 
+  /// Feature H — borra TODAS las credenciales standalone persistidas (índice +
+  /// secure storage). Se invoca cuando la TV se queda sin dispositivos de
+  /// confianza (auto-wipe al desemparejar). Nunca lanza: un fallo de borrado no
+  /// debe impedir arrancar el receptor.
+  Future<void> _wipeAllStandaloneCreds() async {
+    try {
+      for (final pid in await TvStandaloneCredsService.listProviderIds()) {
+        await TvStandaloneCredsService.delete(pid);
+      }
+    } catch (_) {/* mejor esfuerzo: no romper el arranque del receptor */}
+  }
+
   /// Pushes a new `(status, starting)` pair, preserving whatever `_starting`
   /// currently is. Centralising this (instead of writing `_status.value =`
   /// at each call site) is what makes the `starting` half of the record
@@ -258,6 +345,7 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
         await _connectSub?.cancel();
         await _loadSub?.cancel();
         await _commandSub?.cancel();
+        await _historySub?.cancel();
         await oldService.stop();
         oldService.dispose();
         _service = null;
@@ -266,10 +354,28 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
       final tls = await _loadOrCreateCert();
       String tvId = '';
       List<String> tokens = const [];
+      // Solo true tras una lectura EXITOSA de tokens. CRÍTICO para el auto-wipe:
+      // un fallo transitorio de secure-storage (keystore aún bloqueado, IO) deja
+      // el catch con `tokens = const []` — un falso-vacío que NO debe disparar el
+      // borrado destructivo de las credenciales de un usuario con dispositivos de
+      // confianza (ver shouldWipeStandaloneOnBoot).
+      var tokensLoadedOk = false;
       try {
         tvId = await _loadTvId();
         tokens = await _loadTokens();
+        tokensLoadedOk = true;
       } catch (_) {/* sin confianza persistida; se pedirá PIN */}
+      // Feature H — auto-wipe al desemparejar: la confianza de la TV es puramente
+      // por token con TTL de 7 días (_loadTokens poda los vencidos); no hay UI de
+      // "olvidar". Cuando NO queda ningún dispositivo de confianza (todos los
+      // tokens vencieron / se desemparejó) —y la lectura fue GENUINA, no un
+      // fallo—, cualquier credencial standalone guardada quedó huérfana: ningún
+      // móvil puede volver a autorizarla sin re-emparejar. Se borran TODAS
+      // (índice + secure storage). No-op inofensivo en una TV recién estrenada.
+      if (shouldWipeStandaloneOnBoot(
+          tokensLoadedOk: tokensLoadedOk, tokensEmpty: tokens.isEmpty)) {
+        unawaited(_wipeAllStandaloneCreds());
+      }
       final service = TvReceiverService(
         deviceName: widget.deviceName,
         tls: tls,
@@ -321,6 +427,7 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
       });
       _loadSub = service.onLoad.listen(_play);
       _commandSub = service.onCommand.listen(_handleCommand);
+      _historySub = service.onHistorySync.listen(_onHistorySync);
     } finally {
       _starting = false;
       // Re-stamp so `starting` flips back to false in the UI even on a path
@@ -388,6 +495,14 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
         final v = (msg['v'] as num?)?.toDouble();
         if (v != null) EventBus().emit('cast_set_volume', v.clamp(0, 100));
         break;
+      case CmdType.wipeStandalone:
+        // Feature H — el móvil revocó el consentimiento de un proveedor: borrar
+        // sus credenciales standalone guardadas en ESTA TV (creds + índice).
+        final pid = msg['pid'] as String?;
+        if (pid != null && pid.isNotEmpty) {
+          unawaited(TvStandaloneCredsService.delete(pid));
+        }
+        break;
     }
   }
 
@@ -407,6 +522,11 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     // Un LOAD real llegó: la sesión de pairing (si había una PIN pendiente)
     // se completó, así que el timeout de abandono ya no aplica.
     _cancelPinTimeout();
+    // Feature H — persistencia standalone gateada por consentimiento: el móvil
+    // solo marca `standalone` cuando el usuario dio permiso maestro + explícito.
+    // Las credenciales ya llegan DESCIFRADAS en el req (el servicio las abrió con
+    // la clave de sesión); aquí se guardan cifradas en reposo. Ver la función.
+    unawaited(maybePersistStandaloneCreds(req));
     setState(() {
       _pinVisible = false;
       _playing = true;
@@ -432,7 +552,11 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     // '__cast__', y se restaura la playlist del usuario al cerrar.
     final saved = AppState.currentPlaylist;
     AppState.currentPlaylist = Playlist(
-      id: _castPlaylistId,
+      // Feature H (fase 5) — la fila de historial que escribe el PlayerWidget
+      // (bajo AppState.currentPlaylist.id) queda PARTICIONADA por dispositivo:
+      // `__cast__:<deviceId>` (o `__cast__` plano si el móvil no envió `did`), de
+      // modo que el sync per-dispositivo sepa a quién pertenece el progreso.
+      id: castHistoryPlaylistId(req.deviceId),
       name: 'Cast',
       type: PlaylistType.m3u,
       createdAt: DateTime(2026, 1, 1),
@@ -534,6 +658,31 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     }
   }
 
+  /// Feature H (fase 5) — un móvil emparejado envió sus deltas de "continuar
+  /// viendo". El evento trae el socket ORIGEN y el deviceId establecido por el
+  /// LOAD de ESE socket (socket-bound, no spoofeable). MEZCLAMOS en la partición
+  /// de ese deviceId (`__cast__:<deviceId>`) y RESPONDEMOS con los de ESA MISMA
+  /// partición POR ESE MISMO SOCKET (`sendMessageTo`), no por el `_activeWs`
+  /// global: si otro móvil hizo un LOAD (toma de control) mientras este merge
+  /// —hasta 200 items × varias queries Drift— estaba en vuelo, `_activeWs` ya
+  /// apunta a ESE otro socket, y responder por él le filtraría el historial de
+  /// este móvil. Atando socket+deviceId al evento, la respuesta va a su dueño o,
+  /// si ya se desconectó/`superseded`, a NADIE (no-op) — nunca a otro. Una sola
+  /// respuesta por lote (el móvil no responde a la nuestra → sin ping-pong).
+  /// Best-effort: un fallo de BD no rompe nada.
+  Future<void> _onHistorySync(HistorySyncEvent event) async {
+    final (socket, deviceId, items) = event;
+    try {
+      final r =
+          await mergeAndReplyHistorySync(WatchHistoryService(), deviceId, items);
+      // El home reducido de la TV lee el historial una vez; avisar si cambió
+      // para que el rail de "vistos" refleje el progreso recibido del móvil.
+      if (r.written > 0) EventBus().emit('tv_history_changed', null);
+      _service?.sendMessageTo(
+          socket, MsgType.historySync, encodeHistorySyncBody(r.reply));
+    } catch (_) {/* un sync de historial nunca debe romper el receptor */}
+  }
+
   void _sendState(int pos, int dur) {
     _service?.sendMessage(MsgType.state, {
       'status': 'playing',
@@ -549,6 +698,7 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     _connectSub?.cancel();
     _loadSub?.cancel();
     _commandSub?.cancel();
+    _historySub?.cancel();
     _positionSub?.cancel();
     _completedSub?.cancel();
     _volumeSub?.cancel();
@@ -665,6 +815,14 @@ class _CastPlayerScreen extends StatelessWidget {
             // La TV no tiene el historial local del móvil, así que sin esto un
             // título a medias arrancaría siempre en 0.
             startPositionMs: req.startPositionMs,
+            // Feature H — cuando el LOAD es standalone, el `pid` del proveedor se
+            // guarda en la fila de historial `__cast__` (junto al container
+            // extension del ContentItem) para el replay standalone de fase 4. En
+            // un LOAD normal es null → la fila queda con ambas columnas null,
+            // exactamente como antes.
+            standaloneProviderId: req.standalone && req.providerId.isNotEmpty
+                ? req.providerId
+                : null,
           ),
         );
       },
@@ -696,6 +854,11 @@ ContentItem _castItemFor(CastLoadRequest req) {
     req.title.isEmpty ? 'Cast' : req.title,
     poster,
     ctype,
+    // Feature H — se conserva el container extension del LOAD para que, cuando el
+    // cast sea standalone, la fila de historial `__cast__` lo persista (necesario
+    // para reconstruir la URL Xtream en el replay de fase 4). No afecta la URL de
+    // reproducción (contexto M3U → usa m3uItem.url).
+    containerExtension: req.ext.isNotEmpty ? req.ext : null,
     m3uItem: M3uItem(
       id: req.channelId,
       playlistId: _castPlaylistId,

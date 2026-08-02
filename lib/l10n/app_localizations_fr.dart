@@ -79,6 +79,41 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cast_retry => 'Réessayer';
 
   @override
+  String get tv_standalone_section => 'TV / Diffusion';
+
+  @override
+  String get tv_standalone_master_title =>
+      'Continuer sur la TV sans le téléphone';
+
+  @override
+  String get tv_standalone_master_subtitle =>
+      'Permet à une TV de confiance d\'enregistrer vos identifiants de fournisseur, chiffrés, pour continuer la lecture après la fermeture de l\'app. Désactivé par défaut.';
+
+  @override
+  String tv_standalone_consent_title(String device) {
+    return 'Garder la session sur $device ?';
+  }
+
+  @override
+  String tv_standalone_consent_body(String provider) {
+    return 'Vos identifiants $provider seront enregistrés CHIFFRÉS sur la TV pour continuer à regarder sans votre téléphone. Risque : sur une TV rootée ou compromise, ils pourraient être extraits ; l\'appairage par code PIN ne protège pas contre un attaquant qui capture l\'appairage (vulnérabilité connue).';
+  }
+
+  @override
+  String get tv_standalone_consent_accept => 'Activer';
+
+  @override
+  String get tv_standalone_consent_decline => 'Pas maintenant';
+
+  @override
+  String get tv_standalone_revoke_empty =>
+      'Aucune TV n\'a d\'identifiants enregistrés.';
+
+  @override
+  String get tv_standalone_revoke_action =>
+      'Oublier les identifiants sur cette TV';
+
+  @override
   String get slogan => 'Lecteur IPTV';
 
   @override

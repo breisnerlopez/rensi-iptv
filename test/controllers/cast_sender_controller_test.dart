@@ -8,11 +8,14 @@ import 'package:rensi_iptv/database/database.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
+import 'package:rensi_iptv/repositories/user_preferences.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
+import 'package:rensi_iptv/services/cast/standalone_consent_store.dart';
 import 'package:rensi_iptv/services/service_locator.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/test_database.dart';
 
@@ -21,14 +24,25 @@ class _FakeSender extends PhoneSenderService {
     this.devices = const [],
     this.correctPin = '123456',
     this.failConnect = false,
-  });
+    String? tvId,
+  }) {
+    // tvId es un campo mutable heredado de PhoneSenderService (la TV real lo
+    // envía en el reto de emparejamiento). El fake lo fija directamente para los
+    // tests de standalone, que gatean la persistencia por (tvId, providerId).
+    this.tvId = tvId;
+  }
   final List<CastDevice> devices;
   final String correctPin;
   final bool failConnect;
   final List<Map<String, String>> loads = [];
   final List<CastMeta?> loadMetas = [];
   final List<int> loadStartPositions = [];
+  final List<bool> loadStandalone = [];
+  final List<String> loadPids = [];
+  final List<String> loadDeviceIds = []; // `did` enviado en cada LOAD
   final List<String> commands = [];
+  final List<String> wipedPids = []; // pids de CmdType.wipeStandalone enviados
+  final List<List<HistorySyncItem>> sentHistory = []; // sendHistorySync enviados
   bool closed = false;
 
   @override
@@ -51,14 +65,24 @@ class _FakeSender extends PhoneSenderService {
     String ext = '',
     CastMeta? meta,
     int startPositionMs = 0,
+    bool standalone = false,
+    String pid = '',
+    String deviceId = '',
   }) async {
     loads.add({'id': channelId, 'url': url, 'user': username, 'pass': password});
     loadMetas.add(meta);
     loadStartPositions.add(startPositionMs);
+    loadStandalone.add(standalone);
+    loadPids.add(pid);
+    loadDeviceIds.add(deviceId);
   }
   @override
-  void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) =>
-      commands.add(cmd);
+  void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) {
+    commands.add(cmd);
+    if (cmd == CmdType.wipeStandalone && extra['pid'] is String) {
+      wipedPids.add(extra['pid'] as String);
+    }
+  }
 
   // Canal de pistas que la TV reporta (MsgType.tracks). El controlador se
   // suscribe a este stream; el test empuja pistas con [emitTracks].
@@ -79,6 +103,20 @@ class _FakeSender extends PhoneSenderService {
     if (!_states.isClosed) _states.add(m);
   }
 
+  // Feature H (fase 5) — canal de sync de historial. El controlador envía sus
+  // deltas con sendHistorySync y se suscribe a onHistorySync para la RESPUESTA
+  // de la TV; el test empuja respuestas con [emitHistorySync].
+  final _history = StreamController<List<HistorySyncItem>>.broadcast();
+  @override
+  Stream<List<HistorySyncItem>> get onHistorySync => _history.stream;
+  @override
+  void sendHistorySync(List<HistorySyncItem> items, {bool done = true}) {
+    sentHistory.add(items);
+  }
+  void emitHistorySync(List<HistorySyncItem> m) {
+    if (!_history.isClosed) _history.add(m);
+  }
+
   // NB: do NOT close _tracks here. beginCast()'s discovery step calls close() on
   // the SAME fake instance (senderFactory returns one shared fake), so closing
   // the stream would kill the tracks channel the controller later subscribes to.
@@ -87,10 +125,15 @@ class _FakeSender extends PhoneSenderService {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   final oneTv = CastDevice(name: 'Sala', host: '192.168.1.9', port: 55000);
   const media = CastMedia(channelId: '6519', contentType: 'live', title: 'Canal 6519');
 
   setUp(() {
+    // Feature H (fase 5) — deviceId estable del móvil (SharedPreferences). Sin
+    // esto getCastDeviceId caería a '' por MissingPluginException (best-effort
+    // en el controlador); con el mock, el LOAD lleva un `did` real y verificable.
+    SharedPreferences.setMockInitialValues({});
     AppState.currentPlaylist = Playlist(
       id: 'p',
       name: 'P',
@@ -124,6 +167,25 @@ void main() {
       'user': 'u123',
       'pass': 's3cr3t',
     });
+  });
+
+  test('feature H — el LOAD lleva un deviceId ESTABLE (mismo entre casts)',
+      () async {
+    final fake = _FakeSender(devices: [oneTv], correctPin: '123456');
+    final c = make(fake);
+    await c.beginCast(media);
+    await c.submitPin('123456');
+    expect(fake.loadDeviceIds.single, isNotEmpty,
+        reason: 'el LOAD debe particionar por dispositivo (did no vacío)');
+    final first = fake.loadDeviceIds.single;
+
+    // Un segundo cast (misma app/prefs) reutiliza EXACTAMENTE el mismo id: es la
+    // clave de partición del historial en la TV, no puede cambiar por sesión.
+    final fake2 = _FakeSender(devices: [oneTv], correctPin: '123456');
+    final c2 = make(fake2);
+    await c2.beginCast(media);
+    await c2.submitPin('123456');
+    expect(fake2.loadDeviceIds.single, first);
   });
 
   test('PIN incorrecto marca wrongPin y NO castea', () async {
@@ -680,6 +742,278 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(c.volume, 65,
           reason: 'tras soltar, el eco vuelve a aplicar con normalidad');
+    });
+  });
+
+  // ── Feature H — gating del flag de persistencia standalone ────────────────
+  // El flag `standalone`+`pid` solo debe viajar en el LOAD cuando se cumplen
+  // TODAS: permiso maestro ON ∧ consentimiento (tvId, pid) ∧ VOD/serie Xtream.
+  // El consentimiento gatea SOLO la persistencia; el casting nunca se bloquea.
+  group('standalone (feature H): gating del flag de persistencia', () {
+    const tvId = 'tv-42';
+    const vod = CastMedia(
+      channelId: '7001',
+      contentType: 'vod',
+      title: 'Peli',
+      ext: 'mp4',
+      playlistId: 'p', // == AppState.currentPlaylist.id del setUp
+      historyId: '7001',
+    );
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    Future<CastSenderController> castVod(_FakeSender fake,
+        {CastMedia m = vod}) async {
+      final c = make(fake);
+      await c.beginCast(m);
+      await c.submitPin('123456');
+      return c;
+    }
+
+    test('envía standalone+pid con permiso maestro ON + consentimiento + VOD '
+        'Xtream', () async {
+      await UserPreferences.setTvStandaloneAllowed(true);
+      await StandaloneConsentStore.grant(tvId, 'p');
+      final fake = _FakeSender(devices: [oneTv], tvId: tvId);
+      final c = await castVod(fake);
+      expect(c.isCasting, isTrue);
+      expect(fake.loadStandalone.last, isTrue);
+      expect(fake.loadPids.last, 'p');
+    });
+
+    test('NO envía standalone con el permiso maestro OFF (aunque haya '
+        'consentimiento)', () async {
+      // Permiso maestro no seteado → default OFF.
+      await StandaloneConsentStore.grant(tvId, 'p');
+      final fake = _FakeSender(devices: [oneTv], tvId: tvId);
+      final c = await castVod(fake);
+      expect(c.isCasting, isTrue, reason: 'el casting NO se bloquea');
+      expect(fake.loadStandalone.last, isFalse);
+      expect(fake.loadPids.last, '');
+    });
+
+    test('NO envía standalone sin consentimiento (aunque el permiso esté ON)',
+        () async {
+      await UserPreferences.setTvStandaloneAllowed(true);
+      // Sin grant para (tvId, 'p').
+      final fake = _FakeSender(devices: [oneTv], tvId: tvId);
+      await castVod(fake);
+      expect(fake.loadStandalone.last, isFalse);
+      expect(fake.loadPids.last, '');
+    });
+
+    test('NUNCA envía standalone para vivo, aun con permiso + consentimiento',
+        () async {
+      await UserPreferences.setTvStandaloneAllowed(true);
+      await StandaloneConsentStore.grant(tvId, 'p');
+      final fake = _FakeSender(devices: [oneTv], tvId: tvId);
+      // media global es 'live'.
+      final c = await castVod(fake, m: media);
+      expect(c.isCasting, isTrue);
+      expect(fake.loadStandalone.last, isFalse,
+          reason: 'standalone es solo VOD/serie, nunca vivo');
+    });
+
+    test('NO envía standalone para M3U (Xtream-only)', () async {
+      await UserPreferences.setTvStandaloneAllowed(true);
+      await StandaloneConsentStore.grant(tvId, 'pm3u');
+      AppState.currentPlaylist = Playlist(
+        id: 'pm3u',
+        name: 'Lista M3U',
+        type: PlaylistType.m3u,
+        createdAt: DateTime(2026, 1, 1),
+        url: 'http://host/list.m3u',
+      );
+      final fake = _FakeSender(devices: [oneTv], tvId: tvId);
+      await castVod(fake,
+          m: const CastMedia(
+              channelId: '7001',
+              contentType: 'vod',
+              title: 'Peli',
+              ext: 'mp4',
+              playlistId: 'pm3u'));
+      expect(fake.loadStandalone.last, isFalse,
+          reason: 'el rebuild bare-URL de M3U está fuera de alcance');
+    });
+
+    test('NO envía standalone sin tvId conocido (no emparejado)', () async {
+      await UserPreferences.setTvStandaloneAllowed(true);
+      await StandaloneConsentStore.grant('', 'p');
+      // Fake SIN tvId (default null) → no hay ancla de consentimiento por-TV.
+      final fake = _FakeSender(devices: [oneTv]);
+      await castVod(fake);
+      expect(fake.loadStandalone.last, isFalse);
+    });
+
+    test('pendingStandaloneConsent: pide consentimiento la 1ª vez y, al '
+        'otorgarlo, reenvía el LOAD con standalone', () async {
+      await UserPreferences.setTvStandaloneAllowed(true);
+      // Aún SIN consentimiento.
+      final fake = _FakeSender(devices: [oneTv], tvId: tvId);
+      final c = await castVod(fake);
+      expect(fake.loadStandalone.last, isFalse,
+          reason: 'el 1er LOAD sale sin standalone (aún no hay consentimiento)');
+
+      final prompt = await c.pendingStandaloneConsent();
+      expect(prompt, isNotNull, reason: 'amerita preguntar');
+      expect(prompt!.tvId, tvId);
+      expect(prompt.providerId, 'p');
+      expect(prompt.providerName, 'P'); // nombre de la playlist del setUp
+
+      final before = fake.loads.length;
+      await c.grantStandaloneConsent(prompt.tvId, prompt.providerId);
+      expect(await StandaloneConsentStore.isGranted(tvId, 'p'), isTrue);
+      expect(fake.loads.length, before + 1,
+          reason: 'al otorgar, reenvía el LOAD para persistir ya esta sesión');
+      expect(fake.loadStandalone.last, isTrue);
+      expect(fake.loadPids.last, 'p');
+
+      // Ya otorgado → ya no vuelve a preguntar.
+      expect(await c.pendingStandaloneConsent(), isNull);
+    });
+
+    test('pendingStandaloneConsent: null cuando el permiso maestro está OFF',
+        () async {
+      await StandaloneConsentStore.grant(tvId, 'p'); // consentimiento sí…
+      final fake = _FakeSender(devices: [oneTv], tvId: tvId);
+      final c = await castVod(fake);
+      // …pero permiso maestro OFF → nada que preguntar (ni persistir).
+      expect(await c.pendingStandaloneConsent(), isNull);
+    });
+
+    test('NO envía standalone si el playlistId del CastMedia DIVERGE de la '
+        'playlist activa (pid y creds deben ser de la MISMA playlist)', () async {
+      await UserPreferences.setTvStandaloneAllowed(true);
+      // Consentimiento para el id de la playlist activa ('p')…
+      await StandaloneConsentStore.grant(tvId, 'p');
+      final fake = _FakeSender(devices: [oneTv], tvId: tvId);
+      // …pero el CastMedia dice pertenecer a OTRA playlist ('otra'). Las creds
+      // del LOAD salen de currentPlaylist ('p') → persistirlas bajo 'otra' (o
+      // enviar el pid de 'p' con las creds de 'p' pero el consentimiento de otra)
+      // corrompería el replay: se rechaza.
+      await castVod(fake,
+          m: const CastMedia(
+              channelId: '7001',
+              contentType: 'vod',
+              title: 'Peli',
+              ext: 'mp4',
+              playlistId: 'otra'));
+      expect(fake.loadStandalone.last, isFalse);
+      expect(fake.loadPids.last, '');
+    });
+
+    test('revoke → pending-wipe → al emparejar de nuevo con esa TV el móvil '
+        'envía CmdType.wipeStandalone y lo desencola', () async {
+      // El usuario había consentido y ahora "olvida" las creds (flujo de
+      // Ajustes: revoke + markPendingWipe), estando desconectado de la TV.
+      await StandaloneConsentStore.grant(tvId, 'p');
+      await StandaloneConsentStore.revoke(tvId, 'p');
+      await StandaloneConsentStore.markPendingWipe(tvId, 'p');
+      expect(await StandaloneConsentStore.pendingWipesFor(tvId), ['p']);
+
+      // La próxima vez que el móvil se empareja/castea a esa TV, descarga el
+      // wipe pendiente por el canal de control.
+      final fake = _FakeSender(devices: [oneTv], tvId: tvId);
+      final c = make(fake);
+      await c.beginCast(vod);
+      await c.submitPin('123456');
+      await Future<void>.delayed(Duration.zero); // deja correr el flush async
+
+      expect(fake.wipedPids, contains('p'),
+          reason: 'se envió CmdType.wipeStandalone con el pid pendiente');
+      expect(await StandaloneConsentStore.pendingWipesFor(tvId), isEmpty,
+          reason: 'el pendiente se limpia tras enviarse');
+    });
+  });
+
+  // ── Feature H (fase 5) — sync bidireccional de historial (hooks del móvil) ──
+  group('historySync (feature H fase 5)', () {
+    late AppDatabase db;
+    setUp(() async {
+      await getIt.reset();
+      db = createTestDatabase();
+      getIt.registerSingleton<AppDatabase>(db);
+    });
+    tearDown(() async {
+      await getIt.reset();
+      await db.close();
+    });
+
+    Future<void> seedContinueWatching() =>
+        WatchHistoryService().saveWatchHistory(WatchHistory(
+          playlistId: 'p',
+          contentType: ContentType.vod,
+          streamId: '7001',
+          watchDuration: const Duration(minutes: 5),
+          totalDuration: const Duration(minutes: 100),
+          lastWatched: DateTime(2026),
+          title: 'Peli',
+        ));
+
+    test('al emparejar, el móvil ENVÍA sus deltas de la playlist activa una vez',
+        () async {
+      await seedContinueWatching();
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      // _syncHistory es unawaited (lee BD): dejarlo asentar.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(fake.sentHistory.length, 1, reason: 'un solo envío por conexión');
+      expect(fake.sentHistory.single.single.streamId, '7001');
+      expect(fake.sentHistory.single.single.posMs,
+          const Duration(minutes: 5).inMilliseconds);
+      await c.stopCasting();
+    });
+
+    test('al reconectar, el móvil vuelve a ENVIAR sus deltas (otra vez)',
+        () async {
+      await seedContinueWatching();
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(fake.sentHistory.length, 1);
+
+      // Caída del socket → reconecta (~1s) y vuelve a sincronizar.
+      fake.onDisconnected?.call();
+      await Future<void>.delayed(const Duration(milliseconds: 1600));
+      expect(fake.sentHistory.length, 2,
+          reason: 'reengancharse dispara otro sync');
+      await c.stopCasting();
+    }, timeout: const Timeout(Duration(seconds: 10)));
+
+    test('la RESPUESTA de la TV se MEZCLA en la playlist activa del móvil',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+
+      // La TV responde con un título visto en la TV (standalone): 20 min de 100.
+      fake.emitHistorySync(const [
+        HistorySyncItem(
+          streamId: 'tv-42',
+          posMs: 1200000, // 20 min
+          durMs: 6000000, // 100 min
+          contentTypeIndex: 1, // vod
+          lastWatchedMs: 4000,
+        ),
+      ]);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      final row = await WatchHistoryService().getWatchHistory('p', 'tv-42');
+      expect(row, isNotNull,
+          reason: 'el progreso de la TV llegó al "continuar viendo" del móvil');
+      expect(row!.watchDuration, const Duration(minutes: 20));
+      // El controlador NO responde a la respuesta (evita el ping-pong): no hay
+      // un segundo envío disparado por consumir la réplica.
+      expect(fake.sentHistory.length, lessThanOrEqualTo(1));
+      await c.stopCasting();
     });
   });
 }

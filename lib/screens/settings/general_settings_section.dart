@@ -24,6 +24,7 @@ import '../../l10n/supported_languages.dart';
 import '../../models/m3u_item.dart';
 import '../../repositories/user_preferences.dart';
 import '../../services/app_state.dart';
+import '../../services/cast/standalone_consent_store.dart';
 import '../../services/m3u_parser.dart';
 import '../../widgets/dropdown_tile_widget.dart';
 import '../../widgets/section_title_widget.dart';
@@ -80,6 +81,13 @@ String _videoDecoder = 'auto';
   String _tmdbToken = '';
   bool _hasTmdbCredential = false;
 
+  // Feature H — "TV / Casting": el permiso maestro (default OFF) para persistir
+  // credenciales en la TV, y la lista de consentimientos por-(TV,proveedor)
+  // vigentes con su nombre de playlist para el UI de "olvidar".
+  bool _tvStandaloneAllowed = false;
+  List<({String tvId, String providerId})> _standaloneGrants = const [];
+  Map<String, String> _playlistNames = const {};
+
   @override
   void initState() {
     super.initState();
@@ -107,6 +115,10 @@ String _videoDecoder = 'auto';
       final decoder = await UserPreferences.getVideoDecoder();
       final packageInfo = await PackageInfo.fromPlatform();
       final tmdb = await TmdbCredentialsService.getCredential();
+      final tvStandaloneAllowed =
+          await UserPreferences.getTvStandaloneAllowed();
+      final standaloneGrants = await StandaloneConsentStore.listGranted();
+      final playlistNames = await _loadPlaylistNames();
       setState(() {
         _prefAudioLang =
             _audioLangOptions.contains(prefAudio) ? prefAudio : 'auto';
@@ -127,6 +139,9 @@ String _videoDecoder = 'auto';
         _pipSupported = pipSupported;
         _appVersion = packageInfo.version;
         _hasTmdbCredential = tmdb != null;
+        _tvStandaloneAllowed = tvStandaloneAllowed;
+        _standaloneGrants = standaloneGrants;
+        _playlistNames = playlistNames;
         _isLoading = false;
       });
     } catch (e) {
@@ -156,6 +171,45 @@ String _videoDecoder = 'auto';
       default:
         return ThemeMode.system;
     }
+  }
+
+  /// providerId (id de playlist) → nombre legible, para el UI de "olvidar"
+  /// credenciales. Best-effort: si la consulta falla, el UI cae al id crudo.
+  Future<Map<String, String>> _loadPlaylistNames() async {
+    try {
+      final playlists = await database.getAllPlaylists();
+      return {for (final p in playlists) p.id: p.name};
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  /// Feature H — permiso maestro de reproducción standalone en la TV. Optimista
+  /// con reversión en caso de fallo, igual que las otras switches de esta
+  /// pantalla. Apagarlo NO borra los consentimientos ya otorgados (para no
+  /// perderlos si el usuario lo reactiva); solo deja de enviar el flag de
+  /// persistencia (ver CastSenderController._resolveStandalonePid).
+  Future<void> _saveTvStandaloneAllowed(bool value) async {
+    setState(() => _tvStandaloneAllowed = value);
+    try {
+      await UserPreferences.setTvStandaloneAllowed(value);
+    } catch (_) {
+      if (mounted) setState(() => _tvStandaloneAllowed = !value);
+    }
+  }
+
+  /// Olvida el consentimiento standalone de un par (TV, proveedor): revoca el
+  /// permiso del móvil Y encola un borrado REAL de las credenciales en la TV. El
+  /// móvil no suele estar conectado a la TV en Ajustes, así que el wipe se envía
+  /// (CmdType.wipeStandalone) la próxima vez que se conecta a ese tvId
+  /// (ver CastSenderController._flushPendingStandaloneWipes); el auto-wipe al
+  /// desemparejar es el respaldo último. Así la etiqueta "Olvidar credenciales en
+  /// esta TV" se cumple de verdad, no solo del lado del móvil.
+  Future<void> _forgetStandaloneGrant(String tvId, String providerId) async {
+    await StandaloneConsentStore.revoke(tvId, providerId);
+    await StandaloneConsentStore.markPendingWipe(tvId, providerId);
+    final grants = await StandaloneConsentStore.listGranted();
+    if (mounted) setState(() => _standaloneGrants = grants);
   }
 
   Future<void> _saveAutoPipSetting(bool value) async {
@@ -788,6 +842,52 @@ String _videoDecoder = 'auto';
                       ),
                     );
                   },
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Group 3.5 — TV / Casting (feature H): master opt-in for letting a
+              // trusted TV keep your provider creds so it can play standalone,
+              // plus a list to forget per-(TV, provider) grants.
+              SectionTitleWidget(title: context.loc.tv_standalone_section),
+              Card(
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      secondary: const Icon(Icons.cast_connected),
+                      title: Text(context.loc.tv_standalone_master_title),
+                      subtitle:
+                          Text(context.loc.tv_standalone_master_subtitle),
+                      value: _tvStandaloneAllowed,
+                      onChanged: _saveTvStandaloneAllowed,
+                    ),
+                    if (_standaloneGrants.isEmpty) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.tv_off_outlined),
+                        title:
+                            Text(context.loc.tv_standalone_revoke_empty),
+                        dense: true,
+                      ),
+                    ] else
+                      for (final g in _standaloneGrants) ...[
+                        const Divider(height: 1),
+                        ListTile(
+                          leading: const Icon(Icons.tv),
+                          title: Text(
+                              _playlistNames[g.providerId] ?? g.providerId),
+                          subtitle:
+                              Text(context.loc.tv_standalone_revoke_action),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            tooltip: context.loc.tv_standalone_revoke_action,
+                            onPressed: () => _forgetStandaloneGrant(
+                                g.tvId, g.providerId),
+                          ),
+                          onTap: () =>
+                              _forgetStandaloneGrant(g.tvId, g.providerId),
+                        ),
+                      ],
+                  ],
                 ),
               ),
               const SizedBox(height: 10),

@@ -22,6 +22,8 @@ import '../../redesign/rensi_widgets.dart';
 import '../../repositories/m3u_repository.dart';
 import '../../repositories/user_preferences.dart';
 import '../../services/app_state.dart';
+import '../../services/cast/standalone_url_builder.dart';
+import '../../services/cast/tv_standalone_creds_service.dart';
 import '../../services/event_bus.dart';
 import '../../services/watch_history_service.dart';
 import '../../utils/app_themes.dart';
@@ -41,6 +43,51 @@ class TvReceiverHome extends StatefulWidget {
 /// Playlist sintética bajo la que el receptor guarda lo que se castea a la TV
 /// (ver TvReceiverHost). Debe coincidir con `_castPlaylistId` de ese archivo.
 const _castPlaylistId = '__cast__';
+
+/// Resuelve la URL de stream Xtream STANDALONE de una fila de historial
+/// `__cast__`, o null cuando la fila no puede reconstruirse en la TV sola —en
+/// cuyo caso el llamador ([_TvReceiverHomeState._standaloneItemFor]) cae al
+/// lookup M3U y su hint "reenvía desde el móvil".
+///
+/// Devuelve null (→ fallback) cuando: no hay `providerId` (fila de cast normal
+/// o anterior a feature H), el contentType no es VOD/series (creds+streamId no
+/// reconstruye live/M3U), no hay credenciales guardadas para ese `providerId`
+/// (consentimiento nunca dado o revocado), O la lectura de secure storage
+/// LANZA. Ese último caso es la razón del try/catch: `TvStandaloneCredsService
+/// .load` hace 3 lecturas de flutter_secure_storage y puede fallar al descifrar
+/// (cambio de keystore / restore de backup); sin capturarlo, el tap quedaría
+/// MUDO (sin player y sin snackbar) en vez del fallback que promete el
+/// contrato. Tratamos cualquier fallo como "sin credenciales" → mismo hint.
+///
+/// Expuesto `@visibleForTesting` para que el test ejerza esta MISMA lógica de
+/// selección de rama (no una copia). La URL lleva user/pass en el path y NUNCA
+/// se loguea (disciplina de scrubbing).
+@visibleForTesting
+Future<String?> standaloneUrlForHistory(WatchHistory history) async {
+  final providerId = history.providerId;
+  if (providerId == null) return null;
+  // Xtream VOD/series only — buildStandaloneUrl lanza en live, y las filas
+  // live/M3U no se reconstruyen desde creds+streamId.
+  final type = history.contentType;
+  if (type != ContentType.vod && type != ContentType.series) return null;
+  try {
+    final creds = await TvStandaloneCredsService.load(providerId);
+    if (creds == null) return null;
+    return buildStandaloneUrl(
+      serverUrl: creds.url,
+      username: creds.user,
+      password: creds.pass,
+      streamId: history.streamId,
+      ext: history.containerExtension,
+      contentType: type,
+    );
+  } catch (_) {
+    // Fallo de secure storage → tratar como "sin credenciales" (fallback),
+    // nunca dejar el tap mudo. No se loguea la excepción para no arriesgar
+    // filtrar nada del path con credenciales.
+    return null;
+  }
+}
 
 class _TvReceiverHomeState extends State<TvReceiverHome> {
   final _historyService = WatchHistoryService();
@@ -94,27 +141,34 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
   /// sorting client-side is the closest existing API gets to a plain "recent
   /// history" list.
   Future<List<WatchHistory>> _loadHistory() async {
-    // Cargar SIEMPRE el historial de casting ('__cast__') además del de la
-    // playlist activa de la TV (si la hay). Antes solo se leía la activa, así que
-    // lo casteado — guardado bajo '__cast__' — nunca aparecía en el home.
+    // Feature H (fase 5) — el rail COMBINA lo reciente de TODAS las particiones
+    // de casting (`__cast__:<deviceId>` de cada móvil + el `__cast__` plano
+    // heredado) para reanudar en standalone, MÁS el historial de la playlist
+    // activa de la TV si navega IPTV con normalidad. El SYNC del progreso sigue
+    // siendo per-dispositivo (cada fila conserva su propia `playlistId` con el
+    // deviceId de su dueño, ver tv_receiver_host); esto es SOLO la lectura para
+    // mostrar. Antes se leía únicamente el `__cast__` exacto → las particiones
+    // por-dispositivo no aparecían.
     final currentId = AppState.currentPlaylist?.id;
-    final playlistIds = <String>{
-      _castPlaylistId,
-      if (currentId != null && currentId != _castPlaylistId) currentId,
-    };
-    final futures = <Future<List<WatchHistory>>>[];
-    for (final id in playlistIds) {
+    final futures = <Future<List<WatchHistory>>>[
+      _historyService.getCastHistoryAll(),
+    ];
+    if (currentId != null && !currentId.startsWith(_castPlaylistId)) {
       for (final type in ContentType.values) {
-        futures.add(_historyService.getWatchHistoryByContentType(type, id));
+        futures.add(_historyService.getWatchHistoryByContentType(type, currentId));
       }
     }
     final lists = await Future.wait(futures);
     final merged = [for (final list in lists) ...list]
       ..sort((a, b) => b.lastWatched.compareTo(a.lastWatched));
-    // Deduplicar por (playlistId, streamId) conservando la fila más reciente.
+    // Deduplicar por (playlistId, streamId) conservando la fila más reciente, y
+    // (Corrección 1) FILTRAR las filas de título vacío: una fila llegada por el
+    // sync que no pudo resolver su título del catálogo local no debe pintarse
+    // como tarjeta anónima (su posición se conserva en BD, pero no se ofrece).
     final seen = <String>{};
     final out = <WatchHistory>[];
     for (final h in merged) {
+      if (h.title.trim().isEmpty) continue;
       if (seen.add('${h.playlistId} ${h.streamId}')) out.add(h);
     }
     return out.take(15).toList();
@@ -127,13 +181,22 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
   /// [M3uItem] instead of trying to build an Xtream media URL, and is
   /// restored once the player is dismissed.
   ///
-  /// Scoped to M3U history on purpose: an Xtream row only stores an id, and
-  /// turning that back into a playable stream needs the movie/episode's own
-  /// catalogue record (container extension, series episode lookup, etc.) —
-  /// out of reach from `WatchHistory` alone without pulling in the catalogue
-  /// screens this widget must not depend on. When the lookup misses (the
-  /// common case for an Xtream-sourced row), the tile fails gracefully with a
-  /// message instead of crashing.
+  /// Two ways a row becomes playable, tried in order:
+  ///
+  /// 1. **Standalone (feature H, phase 4):** a `__cast__` row that the phone
+  ///    authorized for standalone playback carries a `providerId` +
+  ///    `containerExtension`. With those, plus the Xtream credentials the TV
+  ///    persisted under that `providerId` ([TvStandaloneCredsService]), the
+  ///    stream URL is rebuilt on-device ([buildStandaloneUrl]) and played at
+  ///    the saved resume position — no phone needed. See [_standaloneItemFor].
+  ///
+  /// 2. **Local catalogue (M3U):** any other row is looked up in the local
+  ///    M3U catalogue. An Xtream row only stores an id, and turning that back
+  ///    into a playable stream needs the movie/episode's own catalogue record
+  ///    — out of reach from `WatchHistory` alone. When the lookup misses (the
+  ///    common case for a plain `__cast__` row that predates the feature or
+  ///    whose consent was revoked), the tile falls back to a "reenvía desde el
+  ///    móvil" hint instead of crashing.
   Future<void> _replay(BuildContext context, WatchHistory history) async {
     if (_replaying) return;
     _replaying = true;
@@ -145,6 +208,38 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
         type: PlaylistType.m3u,
         createdAt: DateTime(2026, 1, 1),
       );
+
+      // Feature H — intento de replay STANDALONE antes del catálogo local: una
+      // fila `__cast__` no tiene entrada M3U, así que sin esto el lookup
+      // siempre fallaría y sólo mostraría el hint. Devuelve null cuando la fila
+      // no es standalone (sin providerId / creds ausentes / no VOD-series) →
+      // cae al lookup M3U y su fallback de siempre.
+      final standalone = await _standaloneItemFor(history);
+      if (standalone != null) {
+        if (!context.mounted) return;
+        await Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute<void>(
+            builder: (_) => Scaffold(
+              backgroundColor: Colors.black,
+              body: PlayerWidget(
+                contentItem: standalone,
+                queue: [standalone],
+                // Reanudar en la posición guardada por el cast anterior (0 →
+                // desde el principio). PlayerWidget trata este override como
+                // AUTORITATIVO (ver su `_resumeMsFor`).
+                startPositionMs: history.watchDuration?.inMilliseconds ?? 0,
+                // Re-persistir providerId + containerExtension al guardar el
+                // avance: el historial `__cast__` se upsertea por
+                // (playlistId, streamId), así que sin esto el save de resume
+                // sobrescribiría ambas columnas a null y rompería el próximo
+                // replay standalone de la misma fila.
+                standaloneProviderId: history.providerId,
+              ),
+            ),
+          ),
+        );
+        return;
+      }
 
       M3uItem? m3uItem;
       try {
@@ -158,7 +253,11 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
           // Una fila de CASTEO no se puede reconstruir en la TV (no hay catálogo
           // local; llegó por LAN desde el móvil). En vez de un error, guiar al
           // usuario a reenviarla desde el móvil.
-          final msg = history.playlistId == _castPlaylistId
+          // Feature H (fase 5) — las filas de casteo ahora están PARTICIONADAS
+          // por dispositivo (`__cast__:<deviceId>`), no solo el `__cast__` plano;
+          // `startsWith` (igual que la lectura del rail en _loadHistory) reconoce
+          // ambas → el hint "reenvía desde el móvil" vuelve a mostrarse.
+          final msg = history.playlistId.startsWith(_castPlaylistId)
               ? context.loc.tv_cast_replay_hint
               : context.loc.tv_replay_failed;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -190,6 +289,38 @@ class _TvReceiverHomeState extends State<TvReceiverHome> {
       AppState.currentPlaylist = restore;
       _replaying = false;
     }
+  }
+
+  /// Builds a playable standalone [ContentItem] for a `__cast__` row, or null
+  /// when the row can't be reconstructed on the TV alone (→ caller falls back
+  /// to the M3U lookup / hint).
+  ///
+  /// The branch-selection + URL rebuild live in the top-level
+  /// [standaloneUrlForHistory] (guards, secure-storage `load` with its
+  /// try/catch, `buildStandaloneUrl`) so the same real logic is unit-tested.
+  /// Here we only wrap a resolved URL in an [M3uItem] so the [ContentItem]
+  /// resolves its `url` to that exact string (the active playlist was already
+  /// swapped to an M3U-typed one by [_replay]) — the same shape
+  /// `TvReceiverHost._castItemFor` uses.
+  Future<ContentItem?> _standaloneItemFor(WatchHistory history) async {
+    final url = await standaloneUrlForHistory(history);
+    if (url == null) return null;
+    final type = history.contentType;
+
+    return ContentItem(
+      history.streamId,
+      history.title,
+      history.imagePath ?? '',
+      type,
+      containerExtension: history.containerExtension,
+      m3uItem: M3uItem(
+        id: history.streamId,
+        playlistId: _castPlaylistId,
+        url: url,
+        contentType: type,
+        name: history.title,
+      ),
+    );
   }
 
   Future<void> _openDecoderSettings(BuildContext context) async {

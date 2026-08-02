@@ -8246,6 +8246,28 @@ class $WatchHistoriesTable extends WatchHistories
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _containerExtensionMeta =
+      const VerificationMeta('containerExtension');
+  @override
+  late final GeneratedColumn<String> containerExtension =
+      GeneratedColumn<String>(
+        'container_extension',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _providerIdMeta = const VerificationMeta(
+    'providerId',
+  );
+  @override
+  late final GeneratedColumn<String> providerId = GeneratedColumn<String>(
+    'provider_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     playlistId,
@@ -8257,6 +8279,8 @@ class $WatchHistoriesTable extends WatchHistories
     lastWatched,
     imagePath,
     title,
+    containerExtension,
+    providerId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -8335,6 +8359,21 @@ class $WatchHistoriesTable extends WatchHistories
     } else if (isInserting) {
       context.missing(_titleMeta);
     }
+    if (data.containsKey('container_extension')) {
+      context.handle(
+        _containerExtensionMeta,
+        containerExtension.isAcceptableOrUnknown(
+          data['container_extension']!,
+          _containerExtensionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('provider_id')) {
+      context.handle(
+        _providerIdMeta,
+        providerId.isAcceptableOrUnknown(data['provider_id']!, _providerIdMeta),
+      );
+    }
     return context;
   }
 
@@ -8382,6 +8421,14 @@ class $WatchHistoriesTable extends WatchHistories
         DriftSqlType.string,
         data['${effectivePrefix}title'],
       )!,
+      containerExtension: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}container_extension'],
+      ),
+      providerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider_id'],
+      ),
     );
   }
 
@@ -8405,6 +8452,16 @@ class WatchHistoriesData extends DataClass
   final DateTime lastWatched;
   final String? imagePath;
   final String title;
+
+  /// container_extension (mp4/mkv/…) del stream, para poder RECONSTRUIR una URL
+  /// Xtream independiente desde una fila `__cast__` (feature H, reproducción
+  /// autónoma en la TV). Nullable: filas antiguas y las que no lo necesitan
+  /// quedan en NULL. Aditiva, sin tocar datos existentes.
+  final String? containerExtension;
+
+  /// providerId (playlist Xtream de origen) al que pertenecen las credenciales
+  /// necesarias para reconstruir la URL autónoma. Nullable por el mismo motivo.
+  final String? providerId;
   const WatchHistoriesData({
     required this.playlistId,
     required this.contentType,
@@ -8415,6 +8472,8 @@ class WatchHistoriesData extends DataClass
     required this.lastWatched,
     this.imagePath,
     required this.title,
+    this.containerExtension,
+    this.providerId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -8440,6 +8499,12 @@ class WatchHistoriesData extends DataClass
       map['image_path'] = Variable<String>(imagePath);
     }
     map['title'] = Variable<String>(title);
+    if (!nullToAbsent || containerExtension != null) {
+      map['container_extension'] = Variable<String>(containerExtension);
+    }
+    if (!nullToAbsent || providerId != null) {
+      map['provider_id'] = Variable<String>(providerId);
+    }
     return map;
   }
 
@@ -8462,6 +8527,12 @@ class WatchHistoriesData extends DataClass
           ? const Value.absent()
           : Value(imagePath),
       title: Value(title),
+      containerExtension: containerExtension == null && nullToAbsent
+          ? const Value.absent()
+          : Value(containerExtension),
+      providerId: providerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(providerId),
     );
   }
 
@@ -8482,6 +8553,10 @@ class WatchHistoriesData extends DataClass
       lastWatched: serializer.fromJson<DateTime>(json['lastWatched']),
       imagePath: serializer.fromJson<String?>(json['imagePath']),
       title: serializer.fromJson<String>(json['title']),
+      containerExtension: serializer.fromJson<String?>(
+        json['containerExtension'],
+      ),
+      providerId: serializer.fromJson<String?>(json['providerId']),
     );
   }
   @override
@@ -8499,6 +8574,8 @@ class WatchHistoriesData extends DataClass
       'lastWatched': serializer.toJson<DateTime>(lastWatched),
       'imagePath': serializer.toJson<String?>(imagePath),
       'title': serializer.toJson<String>(title),
+      'containerExtension': serializer.toJson<String?>(containerExtension),
+      'providerId': serializer.toJson<String?>(providerId),
     };
   }
 
@@ -8512,6 +8589,8 @@ class WatchHistoriesData extends DataClass
     DateTime? lastWatched,
     Value<String?> imagePath = const Value.absent(),
     String? title,
+    Value<String?> containerExtension = const Value.absent(),
+    Value<String?> providerId = const Value.absent(),
   }) => WatchHistoriesData(
     playlistId: playlistId ?? this.playlistId,
     contentType: contentType ?? this.contentType,
@@ -8526,6 +8605,10 @@ class WatchHistoriesData extends DataClass
     lastWatched: lastWatched ?? this.lastWatched,
     imagePath: imagePath.present ? imagePath.value : this.imagePath,
     title: title ?? this.title,
+    containerExtension: containerExtension.present
+        ? containerExtension.value
+        : this.containerExtension,
+    providerId: providerId.present ? providerId.value : this.providerId,
   );
   WatchHistoriesData copyWithCompanion(WatchHistoriesCompanion data) {
     return WatchHistoriesData(
@@ -8548,6 +8631,12 @@ class WatchHistoriesData extends DataClass
           : this.lastWatched,
       imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
       title: data.title.present ? data.title.value : this.title,
+      containerExtension: data.containerExtension.present
+          ? data.containerExtension.value
+          : this.containerExtension,
+      providerId: data.providerId.present
+          ? data.providerId.value
+          : this.providerId,
     );
   }
 
@@ -8562,7 +8651,9 @@ class WatchHistoriesData extends DataClass
           ..write('totalDuration: $totalDuration, ')
           ..write('lastWatched: $lastWatched, ')
           ..write('imagePath: $imagePath, ')
-          ..write('title: $title')
+          ..write('title: $title, ')
+          ..write('containerExtension: $containerExtension, ')
+          ..write('providerId: $providerId')
           ..write(')'))
         .toString();
   }
@@ -8578,6 +8669,8 @@ class WatchHistoriesData extends DataClass
     lastWatched,
     imagePath,
     title,
+    containerExtension,
+    providerId,
   );
   @override
   bool operator ==(Object other) =>
@@ -8591,7 +8684,9 @@ class WatchHistoriesData extends DataClass
           other.totalDuration == this.totalDuration &&
           other.lastWatched == this.lastWatched &&
           other.imagePath == this.imagePath &&
-          other.title == this.title);
+          other.title == this.title &&
+          other.containerExtension == this.containerExtension &&
+          other.providerId == this.providerId);
 }
 
 class WatchHistoriesCompanion extends UpdateCompanion<WatchHistoriesData> {
@@ -8604,6 +8699,8 @@ class WatchHistoriesCompanion extends UpdateCompanion<WatchHistoriesData> {
   final Value<DateTime> lastWatched;
   final Value<String?> imagePath;
   final Value<String> title;
+  final Value<String?> containerExtension;
+  final Value<String?> providerId;
   final Value<int> rowid;
   const WatchHistoriesCompanion({
     this.playlistId = const Value.absent(),
@@ -8615,6 +8712,8 @@ class WatchHistoriesCompanion extends UpdateCompanion<WatchHistoriesData> {
     this.lastWatched = const Value.absent(),
     this.imagePath = const Value.absent(),
     this.title = const Value.absent(),
+    this.containerExtension = const Value.absent(),
+    this.providerId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   WatchHistoriesCompanion.insert({
@@ -8627,6 +8726,8 @@ class WatchHistoriesCompanion extends UpdateCompanion<WatchHistoriesData> {
     required DateTime lastWatched,
     this.imagePath = const Value.absent(),
     required String title,
+    this.containerExtension = const Value.absent(),
+    this.providerId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : playlistId = Value(playlistId),
        contentType = Value(contentType),
@@ -8643,6 +8744,8 @@ class WatchHistoriesCompanion extends UpdateCompanion<WatchHistoriesData> {
     Expression<DateTime>? lastWatched,
     Expression<String>? imagePath,
     Expression<String>? title,
+    Expression<String>? containerExtension,
+    Expression<String>? providerId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -8655,6 +8758,8 @@ class WatchHistoriesCompanion extends UpdateCompanion<WatchHistoriesData> {
       if (lastWatched != null) 'last_watched': lastWatched,
       if (imagePath != null) 'image_path': imagePath,
       if (title != null) 'title': title,
+      if (containerExtension != null) 'container_extension': containerExtension,
+      if (providerId != null) 'provider_id': providerId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -8669,6 +8774,8 @@ class WatchHistoriesCompanion extends UpdateCompanion<WatchHistoriesData> {
     Value<DateTime>? lastWatched,
     Value<String?>? imagePath,
     Value<String>? title,
+    Value<String?>? containerExtension,
+    Value<String?>? providerId,
     Value<int>? rowid,
   }) {
     return WatchHistoriesCompanion(
@@ -8681,6 +8788,8 @@ class WatchHistoriesCompanion extends UpdateCompanion<WatchHistoriesData> {
       lastWatched: lastWatched ?? this.lastWatched,
       imagePath: imagePath ?? this.imagePath,
       title: title ?? this.title,
+      containerExtension: containerExtension ?? this.containerExtension,
+      providerId: providerId ?? this.providerId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -8717,6 +8826,12 @@ class WatchHistoriesCompanion extends UpdateCompanion<WatchHistoriesData> {
     if (title.present) {
       map['title'] = Variable<String>(title.value);
     }
+    if (containerExtension.present) {
+      map['container_extension'] = Variable<String>(containerExtension.value);
+    }
+    if (providerId.present) {
+      map['provider_id'] = Variable<String>(providerId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -8735,6 +8850,8 @@ class WatchHistoriesCompanion extends UpdateCompanion<WatchHistoriesData> {
           ..write('lastWatched: $lastWatched, ')
           ..write('imagePath: $imagePath, ')
           ..write('title: $title, ')
+          ..write('containerExtension: $containerExtension, ')
+          ..write('providerId: $providerId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -15146,6 +15263,8 @@ typedef $$WatchHistoriesTableCreateCompanionBuilder =
       required DateTime lastWatched,
       Value<String?> imagePath,
       required String title,
+      Value<String?> containerExtension,
+      Value<String?> providerId,
       Value<int> rowid,
     });
 typedef $$WatchHistoriesTableUpdateCompanionBuilder =
@@ -15159,6 +15278,8 @@ typedef $$WatchHistoriesTableUpdateCompanionBuilder =
       Value<DateTime> lastWatched,
       Value<String?> imagePath,
       Value<String> title,
+      Value<String?> containerExtension,
+      Value<String?> providerId,
       Value<int> rowid,
     });
 
@@ -15216,6 +15337,16 @@ class $$WatchHistoriesTableFilterComposer
     column: $table.title,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnFilters<String> get containerExtension => $composableBuilder(
+    column: $table.containerExtension,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get providerId => $composableBuilder(
+    column: $table.providerId,
+    builder: (column) => ColumnFilters(column),
+  );
 }
 
 class $$WatchHistoriesTableOrderingComposer
@@ -15271,6 +15402,16 @@ class $$WatchHistoriesTableOrderingComposer
     column: $table.title,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get containerExtension => $composableBuilder(
+    column: $table.containerExtension,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get providerId => $composableBuilder(
+    column: $table.providerId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$WatchHistoriesTableAnnotationComposer
@@ -15319,6 +15460,16 @@ class $$WatchHistoriesTableAnnotationComposer
 
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get containerExtension => $composableBuilder(
+    column: $table.containerExtension,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get providerId => $composableBuilder(
+    column: $table.providerId,
+    builder: (column) => column,
+  );
 }
 
 class $$WatchHistoriesTableTableManager
@@ -15367,6 +15518,8 @@ class $$WatchHistoriesTableTableManager
                 Value<DateTime> lastWatched = const Value.absent(),
                 Value<String?> imagePath = const Value.absent(),
                 Value<String> title = const Value.absent(),
+                Value<String?> containerExtension = const Value.absent(),
+                Value<String?> providerId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => WatchHistoriesCompanion(
                 playlistId: playlistId,
@@ -15378,6 +15531,8 @@ class $$WatchHistoriesTableTableManager
                 lastWatched: lastWatched,
                 imagePath: imagePath,
                 title: title,
+                containerExtension: containerExtension,
+                providerId: providerId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -15391,6 +15546,8 @@ class $$WatchHistoriesTableTableManager
                 required DateTime lastWatched,
                 Value<String?> imagePath = const Value.absent(),
                 required String title,
+                Value<String?> containerExtension = const Value.absent(),
+                Value<String?> providerId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => WatchHistoriesCompanion.insert(
                 playlistId: playlistId,
@@ -15402,6 +15559,8 @@ class $$WatchHistoriesTableTableManager
                 lastWatched: lastWatched,
                 imagePath: imagePath,
                 title: title,
+                containerExtension: containerExtension,
+                providerId: providerId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

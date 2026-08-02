@@ -58,6 +58,14 @@ class PhoneSenderService {
   /// Pistas de audio/subtítulo que reporta la TV (respuesta a getTracks).
   Stream<Map<String, dynamic>> get onTracks => _tracksController.stream;
 
+  final _historyController =
+      StreamController<List<HistorySyncItem>>.broadcast();
+
+  /// Feature H (fase 5) — deltas de "continuar viendo" que la TV RESPONDE tras
+  /// recibir los nuestros (su historial `__cast__`). El controlador los mezcla
+  /// en la playlist real del móvil.
+  Stream<List<HistorySyncItem>> get onHistorySync => _historyController.stream;
+
   /// Se invoca si el socket se cierra (para que el controlador reconecte).
   void Function()? onDisconnected;
 
@@ -175,6 +183,9 @@ class PhoneSenderService {
     String ext = '',
     CastMeta? meta,
     int startPositionMs = 0,
+    bool standalone = false,
+    String pid = '',
+    String deviceId = '',
   }) async {
     if (_sessionKey == null) throw StateError('no emparejado');
     final creds = await CastCrypto.encryptJson(_sessionKey!, {
@@ -188,9 +199,19 @@ class PhoneSenderService {
       'title': title,
       'ext': ext,
       'creds': creds,
+      // Feature H (fase 5) — id ESTABLE del móvil, para que la TV particione su
+      // historial de casting por-dispositivo (`__cast__:<deviceId>`) y le
+      // sincronice el progreso SOLO a este móvil. Se omite si es vacío → la TV
+      // cae al `__cast__` plano (compat. hacia atrás: móvil/receptor viejo).
+      if (deviceId.isNotEmpty) 'did': deviceId,
       // Posición de resume (ms). Se omite si es 0 → LOAD idéntico al de siempre
       // (compat. hacia atrás: un receptor viejo lo ignora; uno nuevo cae a 0).
       if (startPositionMs > 0) 'pos': startPositionMs,
+      // Feature H — persistencia standalone en la TV. Solo se adjuntan cuando el
+      // móvil tiene el permiso maestro Y el consentimiento por-(TV,proveedor) Y
+      // el contenido es VOD/serie Xtream (lo decide el controlador). Se omiten si
+      // no aplica → LOAD idéntico al de siempre (compat. hacia atrás).
+      if (standalone && pid.isNotEmpty) ...{'standalone': true, 'pid': pid},
       // Metadatos TMDb OPCIONALES (sinopsis/reparto para el panel de pausa de la
       // TV). Público, sin cifrar. Se omite si no hay nada útil que enviar → un
       // LOAD idéntico al de siempre (compat. hacia atrás).
@@ -200,6 +221,14 @@ class PhoneSenderService {
 
   void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) {
     _ws?.add(encodeMsg(MsgType.command, {'c': cmd, ...extra}));
+  }
+
+  /// Feature H (fase 5) — envía los deltas de "continuar viendo" del móvil por
+  /// el canal EMPAREJADO (la TV los mezcla en `__cast__` y responde con los
+  /// suyos). No-op si el socket no está listo. Best-effort: nunca lanza.
+  void sendHistorySync(List<HistorySyncItem> items, {bool done = true}) {
+    _ws?.add(
+        encodeMsg(MsgType.historySync, encodeHistorySyncBody(items, done: done)));
   }
 
   void _onMessage(dynamic data) {
@@ -236,6 +265,12 @@ class PhoneSenderService {
         _superseded = true;
         onSuperseded?.call();
         break;
+      case MsgType.historySync:
+        // La TV respondió con sus deltas de `__cast__`. Parseo DEFENSIVO (capa
+        // + tolera tipos del wire): un lote gigante/mal formado no debe tumbar
+        // el móvil ni el casting.
+        _historyController.add(parseHistorySyncItems(msg));
+        break;
     }
   }
 
@@ -244,5 +279,6 @@ class PhoneSenderService {
     await _ws?.close();
     await _stateController.close();
     await _tracksController.close();
+    await _historyController.close();
   }
 }

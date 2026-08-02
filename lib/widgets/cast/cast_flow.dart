@@ -66,6 +66,51 @@ Future<void> startCastFlow(BuildContext context, CastMedia media,
   if (!controller.isCasting && controller.phase != CastPhase.idle) {
     controller.cancel();
   }
+  // Feature H — consentimiento contextual de persistencia standalone. Solo se
+  // pregunta cuando el permiso maestro está activo y es la PRIMERA vez que se
+  // castea VOD/serie Xtream a esta (TV, proveedor) sin consentimiento previo
+  // (lo decide el controlador). NO bloquea el casting: ya está en curso; el
+  // consentimiento solo habilita que la TV guarde las credenciales.
+  if (context.mounted && controller.isCasting) {
+    await _maybePromptStandaloneConsent(context, controller);
+  }
+}
+
+/// Muestra, si procede, el diálogo de consentimiento para que la TV guarde las
+/// credenciales del proveedor (reproducción standalone). Divulga honestamente el
+/// riesgo residual (extracción en una TV con root/comprometida; el emparejamiento
+/// por PIN no resiste a un atacante que capture el emparejamiento). Al aceptar,
+/// registra el consentimiento (StandaloneConsentStore) vía el controlador, que
+/// además reenvía el LOAD para persistir ya en esta sesión.
+Future<void> _maybePromptStandaloneConsent(
+    BuildContext context, CastSenderController controller) async {
+  final prompt = await controller.pendingStandaloneConsent();
+  if (prompt == null || !context.mounted) return;
+  final loc = context.loc;
+  final device =
+      prompt.deviceName.isNotEmpty ? prompt.deviceName : loc.cast_to_tv;
+  final provider = prompt.providerName.isNotEmpty ? prompt.providerName : '—';
+  final accepted = await showDialog<bool>(
+    context: context,
+    builder: (dialogCtx) => AlertDialog(
+      title: Text(loc.tv_standalone_consent_title(device)),
+      content: Text(loc.tv_standalone_consent_body(provider)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogCtx).pop(false),
+          child: Text(loc.tv_standalone_consent_decline),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: _accent),
+          onPressed: () => Navigator.of(dialogCtx).pop(true),
+          child: Text(loc.tv_standalone_consent_accept),
+        ),
+      ],
+    ),
+  );
+  if (accepted == true) {
+    await controller.grantStandaloneConsent(prompt.tvId, prompt.providerId);
+  }
 }
 
 /// Inicia el envío a la TV de un archivo LOCAL ya descargado (streaming por la

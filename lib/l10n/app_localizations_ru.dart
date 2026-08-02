@@ -79,6 +79,40 @@ class AppLocalizationsRu extends AppLocalizations {
   String get cast_retry => 'Повторить';
 
   @override
+  String get tv_standalone_section => 'ТВ / Трансляция';
+
+  @override
+  String get tv_standalone_master_title =>
+      'Продолжать просмотр на ТВ без телефона';
+
+  @override
+  String get tv_standalone_master_subtitle =>
+      'Позволяет доверенному ТВ хранить учётные данные провайдера в зашифрованном виде, чтобы продолжать воспроизведение после закрытия приложения. По умолчанию выключено.';
+
+  @override
+  String tv_standalone_consent_title(String device) {
+    return 'Сохранить сеанс на $device?';
+  }
+
+  @override
+  String tv_standalone_consent_body(String provider) {
+    return 'Ваши учётные данные $provider будут сохранены на ТВ В ЗАШИФРОВАННОМ виде, чтобы вы могли продолжить просмотр без телефона. Риск: на ТВ с root-доступом или скомпрометированном их можно извлечь; сопряжение по PIN не защищает от злоумышленника, перехватившего сопряжение (известная уязвимость).';
+  }
+
+  @override
+  String get tv_standalone_consent_accept => 'Включить';
+
+  @override
+  String get tv_standalone_consent_decline => 'Не сейчас';
+
+  @override
+  String get tv_standalone_revoke_empty =>
+      'Ни на одном ТВ нет сохранённых учётных данных.';
+
+  @override
+  String get tv_standalone_revoke_action => 'Забыть учётные данные на этом ТВ';
+
+  @override
   String get slogan => 'IPTV-плеер';
 
   @override

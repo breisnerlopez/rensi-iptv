@@ -10,14 +10,39 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../models/content_type.dart';
+import '../models/playlist_model.dart';
 import '../models/watch_history.dart';
+import '../repositories/user_preferences.dart';
 import '../services/app_state.dart';
 import '../services/event_bus.dart';
 import '../services/cast/cast_protocol.dart';
 import '../services/cast/cast_trust_store.dart';
 import '../services/cast/local_file_server.dart';
 import '../services/cast/phone_sender_service.dart';
+import '../services/cast/standalone_consent_store.dart';
 import '../services/watch_history_service.dart';
+
+/// Datos para pedir consentimiento contextual de persistencia standalone
+/// (feature H): la UI (cast_flow) los usa para armar el diálogo la primera vez
+/// que se castea VOD/serie Xtream a una (TV, proveedor) con el permiso maestro
+/// activo y sin consentimiento previo. Ver [CastSenderController.pendingStandaloneConsent].
+class StandaloneConsentPrompt {
+  final String tvId;
+  final String providerId;
+  final String deviceName;
+  final String providerName;
+  const StandaloneConsentPrompt({
+    required this.tvId,
+    required this.providerId,
+    required this.deviceName,
+    required this.providerName,
+  });
+}
+
+/// Id de la playlist sintética del casting en la TV (feature H). Debe coincidir
+/// con `_castPlaylistId` de tv_receiver_host.dart. El móvil NUNCA la usa como
+/// playlist activa; se comprueba solo para excluirla del sync de historial.
+const String _kCastPlaylistId = '__cast__';
 
 enum CastPhase {
   idle, // sin castear
@@ -279,6 +304,7 @@ class CastSenderController extends ChangeNotifier {
         ..onSuperseded = _onSuperseded;
       _sender!.onTracks.listen(_onTracks);
       _sender!.onState.listen(_onState);
+      _sender!.onHistorySync.listen(_onHistorySync);
       await _sender!.connect(device.host, device.port, secure: device.secure);
       // ¿TV de confianza (emparejada en los últimos 7 días)? Reanudar SIN PIN.
       final tvId = _sender!.tvId;
@@ -322,11 +348,18 @@ class CastSenderController extends ChangeNotifier {
   }
 
   Future<void> _startPlayback() async {
+    // Feature H — emparejados con esta TV: descargar cualquier borrado de
+    // credenciales pendiente (revocado mientras estábamos desconectados) ANTES
+    // del LOAD. Best-effort y no bloqueante: nunca debe impedir castear.
+    unawaited(_flushPendingStandaloneWipes());
     if (!await _sendLoad()) {
       _set(CastPhase.error, error: 'no_context');
       return;
     }
     _set(CastPhase.casting);
+    // Feature H (fase 5) — tras emparejar/reanudar, sincronizar "continuar
+    // viendo" con la TV (una sola vez por conexión). Best-effort y no bloqueante.
+    unawaited(_syncHistory());
   }
 
   /// [resumeOverrideMs] fuerza la posición de resume del LOAD (gana sobre el
@@ -355,6 +388,19 @@ class CastSenderController extends ChangeNotifier {
       user = playlist.username ?? '';
       pass = playlist.password ?? '';
     }
+    // Feature H — ¿debe este LOAD pedir a la TV que persista las credenciales
+    // para reproducción standalone? Solo si (permiso maestro) ∧ (consentimiento
+    // por-(TV,proveedor)) ∧ (VOD/serie Xtream, nunca vivo/archivo/M3U). Devuelve
+    // el `pid` a enviar, o null si no aplica.
+    final standalonePid = await _resolveStandalonePid(media, isLocal: local != null);
+    // Feature H (fase 5) — id ESTABLE de este móvil, para que la TV particione su
+    // historial de casting por-dispositivo (`__cast__:<deviceId>`) y sincronice
+    // el progreso SOLO a este móvil. Best-effort: sin SharedPreferences (tests) o
+    // ante cualquier fallo → '' (la TV cae al `__cast__` plano; nunca rompe el LOAD).
+    String deviceId = '';
+    try {
+      deviceId = await UserPreferences.getCastDeviceId();
+    } catch (_) {/* sin prefs → sin partición (compat. hacia atrás) */}
     await _sender!.sendLoad(
       channelId: media.channelId,
       contentType: media.contentType,
@@ -366,8 +412,109 @@ class CastSenderController extends ChangeNotifier {
       meta: media.meta,
       startPositionMs:
           await _resolveStartPosition(media, override: resumeOverrideMs),
+      standalone: standalonePid != null,
+      pid: standalonePid ?? '',
+      deviceId: deviceId,
     );
     return true;
+  }
+
+  /// ÚNICA fuente de verdad de la elegibilidad standalone, para que
+  /// [_resolveStandalonePid] (envío del flag) y [pendingStandaloneConsent]
+  /// (diálogo) NO puedan divergir. Devuelve (tvId, pid, providerName) cuando el
+  /// contexto habilita persistencia standalone, o null si no aplica. Condiciones:
+  ///   - NO es un cast de archivo local ([isLocal] false) — sin credenciales.
+  ///   - El contenido es VOD o serie (nunca vivo ni archivo).
+  ///   - Hay un tvId conocido (emparejado) para el consentimiento por-TV.
+  ///   - La playlist activa es Xtream (el rebuild bare-M3U está fuera de alcance).
+  ///   - El `pid` (id de playlist) y las credenciales que viajan en el LOAD son
+  ///     de la MISMA playlist: el LOAD manda SIEMPRE las creds de
+  ///     `currentPlaylist` (ver [_sendLoad]), así que el `pid` DEBE ser
+  ///     `currentPlaylist.id`. Si el CastMedia trae un `playlistId` DISTINTO
+  ///     (coexistencia/multi-playlist), se rechaza: persistir las creds de una
+  ///     playlist bajo el id de OTRA corrompería el replay standalone.
+  ///   - El permiso MAESTRO está activo (UserPreferences.getTvStandaloneAllowed).
+  /// NO comprueba el consentimiento por-(tvId,pid): eso lo decide cada llamador
+  /// (enviar exige granted; el diálogo exige NO-granted).
+  Future<({String tvId, String pid, String providerName})?>
+      _standaloneEligibility(CastMedia media, {required bool isLocal}) async {
+    if (isLocal) return null;
+    final ct = media.contentType;
+    if (ct != 'vod' && ct != 'series') return null;
+    final tvId = _sender?.tvId;
+    if (tvId == null || tvId.isEmpty) return null;
+    final playlist = AppState.currentPlaylist;
+    if (playlist == null || playlist.type != PlaylistType.xtream) return null;
+    // El pid ancla las credenciales de currentPlaylist (las que se envían):
+    // debe ser su id, y no puede diverger del playlistId del CastMedia.
+    final pid = playlist.id;
+    if (pid.isEmpty) return null;
+    if (media.playlistId.isNotEmpty && media.playlistId != pid) return null;
+    if (!await UserPreferences.getTvStandaloneAllowed()) return null;
+    return (tvId: tvId, pid: pid, providerName: playlist.name);
+  }
+
+  /// El `pid` a enviar en el LOAD para pedir persistencia standalone, o null si
+  /// NO debe persistirse. Elegible ([_standaloneEligibility]) Y con
+  /// consentimiento explícito para (tvId, pid).
+  Future<String?> _resolveStandalonePid(CastMedia media,
+      {required bool isLocal}) async {
+    final e = await _standaloneEligibility(media, isLocal: isLocal);
+    if (e == null) return null;
+    if (!await StandaloneConsentStore.isGranted(e.tvId, e.pid)) return null;
+    return e.pid;
+  }
+
+  /// Si la sesión actual AMERITA pedir consentimiento contextual de persistencia
+  /// standalone (feature H): la UI lo consulta tras empezar a castear para
+  /// mostrar el diálogo la PRIMERA vez que se castea VOD/serie Xtream a una
+  /// (TV, proveedor) con el permiso maestro activo y SIN consentimiento previo.
+  /// Devuelve null si no aplica (no bloquea nada; el casting ya está en curso).
+  Future<StandaloneConsentPrompt?> pendingStandaloneConsent() async {
+    if (_phase != CastPhase.casting) return null;
+    final media = _media;
+    if (media == null) return null;
+    final e = await _standaloneEligibility(media, isLocal: _localUrl != null);
+    if (e == null) return null;
+    if (await StandaloneConsentStore.isGranted(e.tvId, e.pid)) return null;
+    return StandaloneConsentPrompt(
+      tvId: e.tvId,
+      providerId: e.pid,
+      deviceName: _device?.name ?? '',
+      providerName: e.providerName,
+    );
+  }
+
+  /// Feature H — al reengancharse a una TV, ENVÍA los borrados pendientes (el
+  /// usuario revocó el consentimiento estando desconectado): por cada `pid`
+  /// pendiente para este tvId manda CmdType.wipeStandalone y lo desencola. Así
+  /// "Olvidar credenciales en esta TV" borra DE VERDAD las creds en la TV la
+  /// próxima vez que el móvil la ve (no solo el consentimiento del móvil).
+  /// Best-effort: no bloquea el casting; el auto-wipe al desemparejar es el
+  /// respaldo último si el comando no llega.
+  Future<void> _flushPendingStandaloneWipes() async {
+    final sender = _sender;
+    final tvId = sender?.tvId;
+    if (sender == null || tvId == null || tvId.isEmpty) return;
+    final pids = await StandaloneConsentStore.pendingWipesFor(tvId);
+    for (final pid in pids) {
+      sender.sendCommand(CmdType.wipeStandalone, {'pid': pid});
+      await StandaloneConsentStore.clearPendingWipe(tvId, pid);
+    }
+  }
+
+  /// El usuario ACEPTÓ el diálogo de consentimiento: registra el permiso para
+  /// (tvId, providerId) y, si seguimos casteando ese contenido, reenvía el LOAD
+  /// (en la última posición viva) para que la TV persista las credenciales YA en
+  /// esta sesión (no solo en el próximo LOAD). Un breve re-arranque en la TV es
+  /// el precio de opt-in inmediato; el casting no se interrumpe.
+  Future<void> grantStandaloneConsent(String tvId, String providerId) async {
+    await StandaloneConsentStore.grant(tvId, providerId);
+    if (_phase == CastPhase.casting && _sender != null && !_reconnecting) {
+      try {
+        await _sendLoad(resumeOverrideMs: _lastPos > 0 ? _lastPos : null);
+      } catch (_) {/* el socket cayó al reenviar: _reconnect reenviará _media */}
+    }
   }
 
   /// Posición (ms) de resume a incluir en el LOAD. Prefiere la que trae el
@@ -739,6 +886,7 @@ class CastSenderController extends ChangeNotifier {
           ..onSuperseded = _onSuperseded;
         _sender!.onTracks.listen(_onTracks);
         _sender!.onState.listen(_onState);
+        _sender!.onHistorySync.listen(_onHistorySync);
         await _sender!.connect(device.host, device.port, secure: device.secure);
         if (await _sender!.pair(pin)) {
           _reconnecting = false;
@@ -756,6 +904,9 @@ class CastSenderController extends ChangeNotifier {
           // se recupera con un re-LOAD en la última posición viva (cubre una TV
           // que sí se reinició/paró de verdad).
           _armResyncFallback();
+          // Feature H (fase 5) — reengancharse es otra oportunidad de reconciliar
+          // "continuar viendo" con la TV (una sola vez por reconexión).
+          unawaited(_syncHistory());
           return;
         }
       } catch (_) {/* reintentar con backoff */}
@@ -982,6 +1133,45 @@ class CastSenderController extends ChangeNotifier {
       );
       // "Continuar viendo" del móvil se refresca con lo casteado a la TV.
       EventBus().emit('history_changed', null);
+    } catch (_) {/* una escritura de historial nunca rompe el casting */}
+  }
+
+  /// El id de la playlist REAL activa del móvil para el sync de historial, o ''
+  /// si no hay una utilizable. Nunca la sintética `__cast__` (esa es de la TV).
+  String get _activeSyncPlaylistId {
+    final id = AppState.currentPlaylist?.id ?? '';
+    // Nunca la sintética `__cast__` ni sus particiones `__cast__:<deviceId>`
+    // (esas son de la TV): el móvil sincroniza SIEMPRE su playlist REAL activa.
+    return (id.isEmpty || id.startsWith(_kCastPlaylistId)) ? '' : id;
+  }
+
+  /// Feature H (fase 5) — envía a la TV los deltas de "continuar viendo" de la
+  /// playlist activa (una vez por conexión/reconexión). La TV los mezcla en
+  /// `__cast__` y responde con los suyos (ver [_onHistorySync]). Best-effort:
+  /// un fallo de BD o de red NUNCA debe romper el casting.
+  Future<void> _syncHistory() async {
+    final sender = _sender;
+    final playlistId = _activeSyncPlaylistId;
+    if (sender == null || playlistId.isEmpty) return;
+    try {
+      final items = await WatchHistoryService()
+          .historySyncDeltas(playlistId)
+          .timeout(const Duration(seconds: 4), onTimeout: () => const []);
+      sender.sendHistorySync(items);
+    } catch (_) {/* sin BD (tests) o socket caído: no romper el casting */}
+  }
+
+  /// Feature H (fase 5) — la TV respondió con sus deltas de `__cast__`. Los
+  /// mezclamos en la playlist REAL activa del móvil (misma regla que la TV, por
+  /// `streamId`) para que el progreso hecho en la TV (incl. standalone) aparezca
+  /// en "continuar viendo" del teléfono. NO respondemos (evita el ping-pong).
+  Future<void> _onHistorySync(List<HistorySyncItem> items) async {
+    if (items.isEmpty) return;
+    final playlistId = _activeSyncPlaylistId;
+    if (playlistId.isEmpty) return;
+    try {
+      final n = await WatchHistoryService().mergeHistorySync(playlistId, items);
+      if (n > 0) EventBus().emit('history_changed', null);
     } catch (_) {/* una escritura de historial nunca rompe el casting */}
   }
 

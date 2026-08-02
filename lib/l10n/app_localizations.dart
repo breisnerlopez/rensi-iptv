@@ -252,6 +252,60 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get cast_retry;
 
+  /// No description provided for @tv_standalone_section.
+  ///
+  /// In en, this message translates to:
+  /// **'TV / Casting'**
+  String get tv_standalone_section;
+
+  /// No description provided for @tv_standalone_master_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep playing on the TV without the phone'**
+  String get tv_standalone_master_title;
+
+  /// No description provided for @tv_standalone_master_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Lets a trusted TV store your provider credentials, encrypted, so it can keep playing after you close the app. Off by default.'**
+  String get tv_standalone_master_subtitle;
+
+  /// No description provided for @tv_standalone_consent_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the session on {device}?'**
+  String tv_standalone_consent_title(String device);
+
+  /// No description provided for @tv_standalone_consent_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Your {provider} credentials will be stored ENCRYPTED on the TV so you can keep watching without your phone. Risk: on a rooted or compromised TV they could be extracted, and PIN pairing is not proof against an attacker who captures the pairing (a known vulnerability).'**
+  String tv_standalone_consent_body(String provider);
+
+  /// No description provided for @tv_standalone_consent_accept.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on'**
+  String get tv_standalone_consent_accept;
+
+  /// No description provided for @tv_standalone_consent_decline.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get tv_standalone_consent_decline;
+
+  /// No description provided for @tv_standalone_revoke_empty.
+  ///
+  /// In en, this message translates to:
+  /// **'No TV has stored credentials.'**
+  String get tv_standalone_revoke_empty;
+
+  /// No description provided for @tv_standalone_revoke_action.
+  ///
+  /// In en, this message translates to:
+  /// **'Forget credentials on this TV'**
+  String get tv_standalone_revoke_action;
+
   /// No description provided for @slogan.
   ///
   /// In en, this message translates to:

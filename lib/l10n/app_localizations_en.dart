@@ -79,6 +79,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cast_retry => 'Retry';
 
   @override
+  String get tv_standalone_section => 'TV / Casting';
+
+  @override
+  String get tv_standalone_master_title =>
+      'Keep playing on the TV without the phone';
+
+  @override
+  String get tv_standalone_master_subtitle =>
+      'Lets a trusted TV store your provider credentials, encrypted, so it can keep playing after you close the app. Off by default.';
+
+  @override
+  String tv_standalone_consent_title(String device) {
+    return 'Keep the session on $device?';
+  }
+
+  @override
+  String tv_standalone_consent_body(String provider) {
+    return 'Your $provider credentials will be stored ENCRYPTED on the TV so you can keep watching without your phone. Risk: on a rooted or compromised TV they could be extracted, and PIN pairing is not proof against an attacker who captures the pairing (a known vulnerability).';
+  }
+
+  @override
+  String get tv_standalone_consent_accept => 'Turn on';
+
+  @override
+  String get tv_standalone_consent_decline => 'Not now';
+
+  @override
+  String get tv_standalone_revoke_empty => 'No TV has stored credentials.';
+
+  @override
+  String get tv_standalone_revoke_action => 'Forget credentials on this TV';
+
+  @override
   String get slogan => 'IPTV Player';
 
   @override

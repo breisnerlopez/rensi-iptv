@@ -356,6 +356,16 @@ class WatchHistories extends Table {
 
   TextColumn get title => text()();
 
+  /// container_extension (mp4/mkv/…) del stream, para poder RECONSTRUIR una URL
+  /// Xtream independiente desde una fila `__cast__` (feature H, reproducción
+  /// autónoma en la TV). Nullable: filas antiguas y las que no lo necesitan
+  /// quedan en NULL. Aditiva, sin tocar datos existentes.
+  TextColumn get containerExtension => text().nullable()();
+
+  /// providerId (playlist Xtream de origen) al que pertenecen las credenciales
+  /// necesarias para reconstruir la URL autónoma. Nullable por el mismo motivo.
+  TextColumn get providerId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {playlistId, streamId};
 
@@ -567,7 +577,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   // === PLAYLIST İŞLEMLERİ ===
 
@@ -2041,6 +2051,19 @@ class AppDatabase extends _$AppDatabase {
           // Ambas aditivas y nullable: filas existentes quedan en NULL.
           await _addColumnIfMissing(m, downloads, downloads.error);
           await _addColumnIfMissing(m, downloads, downloads.url);
+        }
+
+        if (from <= 12) {
+          // Feature H (reproducción autónoma en la TV): dos columnas nullable en
+          // watch_histories para poder reconstruir una URL Xtream independiente
+          // desde una fila `__cast__`. Aditivas y nullable → filas existentes
+          // quedan en NULL, sin tocar dato alguno. Vía [_addColumnIfMissing]
+          // (PRAGMA table_info) para que un re-run tras una caída NUNCA lance
+          // "duplicate column" — el patrón endurecido de las migraciones previas.
+          await _addColumnIfMissing(
+              m, watchHistories, watchHistories.containerExtension);
+          await _addColumnIfMissing(
+              m, watchHistories, watchHistories.providerId);
         }
       });
     },

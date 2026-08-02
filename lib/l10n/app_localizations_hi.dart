@@ -79,6 +79,40 @@ class AppLocalizationsHi extends AppLocalizations {
   String get cast_retry => 'फिर से कोशिश करें';
 
   @override
+  String get tv_standalone_section => 'टीवी / कास्टिंग';
+
+  @override
+  String get tv_standalone_master_title =>
+      'फ़ोन के बिना टीवी पर देखना जारी रखें';
+
+  @override
+  String get tv_standalone_master_subtitle =>
+      'किसी विश्वसनीय टीवी को आपके प्रोवाइडर की क्रेडेंशियल एन्क्रिप्टेड रूप में सहेजने देता है, ताकि ऐप बंद करने के बाद भी वह चलता रहे। डिफ़ॉल्ट रूप से बंद।';
+
+  @override
+  String tv_standalone_consent_title(String device) {
+    return '$device पर सत्र बनाए रखें?';
+  }
+
+  @override
+  String tv_standalone_consent_body(String provider) {
+    return 'आपकी $provider क्रेडेंशियल टीवी पर एन्क्रिप्टेड रूप में सहेजी जाएंगी ताकि आप फ़ोन के बिना देखते रह सकें। जोखिम: रूट किए गए या समझौता किए गए टीवी पर इन्हें निकाला जा सकता है; PIN पेयरिंग उस हमलावर से सुरक्षित नहीं है जो पेयरिंग को कैप्चर कर ले (ज्ञात भेद्यता)।';
+  }
+
+  @override
+  String get tv_standalone_consent_accept => 'चालू करें';
+
+  @override
+  String get tv_standalone_consent_decline => 'अभी नहीं';
+
+  @override
+  String get tv_standalone_revoke_empty =>
+      'किसी टीवी में क्रेडेंशियल सहेजी नहीं गई हैं।';
+
+  @override
+  String get tv_standalone_revoke_action => 'इस टीवी पर क्रेडेंशियल भूल जाएं';
+
+  @override
   String get slogan => 'आईपीटीवी प्लेयर';
 
   @override

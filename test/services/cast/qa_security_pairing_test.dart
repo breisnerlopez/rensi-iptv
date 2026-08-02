@@ -56,51 +56,69 @@ void main() {
     print('AC1 PASS: socket open after 1 & 2 fails, closed at 3rd.');
   }, timeout: const Timeout(Duration(seconds: 20)));
 
-  // ── AC2 ───────────────────────────────────────────────────────────────────
-  // Cross-socket brute-force (KNOWN weakness). The attempt counter is a local
-  // var per socket; the PIN is fixed for the receiver instance; there is no
-  // global rate-limit. So an attacker reconnects after each 3-fail lockout and
-  // keeps guessing indefinitely — the 6-digit space is enumerable. We prove the
-  // VECTOR reproduces with a few reconnect cycles (we do NOT actually brute the
-  // 10^6 space): after N lockout cycles the correct PIN STILL pairs, and each
-  // fresh socket accepts a fresh round of 3 attempts.
-  test('AC2 — reconnect resets the counter; PIN unchanged; no global limit → enumerable',
-      () async {
-    final receiver = TvReceiverService(deviceName: 'TV', pin: '424242');
+  // ── AC2 (FIXED) ───────────────────────────────────────────────────────────
+  // Cross-socket brute-force lockout. The per-socket counter (3, AC1) never
+  // stopped a brute force: the attacker reconnects and the LOCAL counter
+  // resets. The fix keeps a CROSS-SOCKET failure counter on the service
+  // instance, keyed by remote peer (IP): after [pinMaxAttempts] failed proofs
+  // within [pinAttemptWindow], further pairing attempts from that peer are
+  // rejected for a cooldown (exponential backoff). Reconnecting no longer
+  // helps. We use a short cooldown so the test is deterministic and also proves
+  // the lockout is a COOLDOWN, not a permanent brick.
+  test('AC2 FIXED — cross-socket lockout after N failures blocks even the '
+      'correct PIN, then recovers after the cooldown', () async {
+    final receiver = TvReceiverService(
+      deviceName: 'TV',
+      pin: '424242',
+      pinMaxAttempts: 5,
+      // Short, deterministic cooldown for the test (production defaults to 30s
+      // base / 15min cap).
+      pinLockoutBase: const Duration(seconds: 2),
+      pinLockoutMax: const Duration(seconds: 2),
+    );
     final port = await receiver.start(advertise: false);
 
-    const cycles = 5; // 5 sockets × 3 = 15 guesses, no throttle whatsoever
-    var totalGuesses = 0;
-    for (var c = 0; c < cycles; c++) {
+    // Drive 5 failed guesses across reconnects. Each socket still locks itself
+    // out at 3 (AC1) and closes, so the attacker reconnects — but the failures
+    // now ACCUMULATE on the service instance across sockets.
+    var fails = 0;
+    while (fails < 5) {
       final s = PhoneSenderService();
       var closed = false;
       s.onDisconnected = () => closed = true;
       await s.connect('127.0.0.1', port);
-      // Burn the 3 allowed guesses on this socket with WRONG pins.
-      for (var i = 0; i < 3; i++) {
-        expect(await s.pair('000000'), isFalse);
-        totalGuesses++;
+      while (fails < 5) {
+        expect(await s.pair('000000'), isFalse, reason: 'wrong PIN rejected');
+        fails++;
+        await Future<void>.delayed(const Duration(milliseconds: 60));
+        if (closed) break; // socket closed (per-socket 3-cap OR the lockout)
       }
-      await Future<void>.delayed(const Duration(milliseconds: 150));
-      expect(closed, isTrue,
-          reason: 'each socket locks out after 3 — then attacker just reconnects');
       await s.close();
     }
 
-    // After 15 failed guesses across 5 lockouts, the PIN has NOT rotated and is
-    // NOT globally blocked: a brand-new socket pairs with the correct PIN.
+    // LOCKOUT ENGAGED: a fresh socket with the CORRECT PIN is now rejected —
+    // the whole point of the fix. Pre-fix this pairing succeeded.
+    final blocked = PhoneSenderService();
+    await blocked.connect('127.0.0.1', port);
+    expect(await blocked.pair('424242'), isFalse,
+        reason: 'AC2 FIXED: the peer is locked out, so even the correct PIN is '
+            'refused during the cooldown — a brute force cannot enumerate.');
+    await blocked.close();
+
+    // RECOVERY: after the cooldown elapses, the correct PIN pairs again. Proves
+    // the lockout is a transient cooldown, not a permanent brick of the device.
+    await Future<void>.delayed(const Duration(milliseconds: 2500));
     final good = PhoneSenderService();
     await good.connect('127.0.0.1', port);
     expect(await good.pair('424242'), isTrue,
-        reason: 'AC2 CONFIRMED-VULN: PIN unchanged & no global lockout after '
-            '$totalGuesses failed guesses → 6-digit space is enumerable');
+        reason: 'the correct PIN pairs once the cooldown expires');
     await good.close();
 
     await receiver.stop();
     receiver.dispose();
     // ignore: avoid_print
-    print('AC2 CONFIRMED-VULN: $totalGuesses wrong guesses across $cycles '
-        'reconnects, no throttle; correct PIN still accepted afterwards.');
+    print('AC2 FIXED: $fails cross-socket failures triggered a lockout that '
+        'refused even the correct PIN, then recovered after the cooldown.');
   }, timeout: const Timeout(Duration(seconds: 30)));
 
   // ── AC5b ──────────────────────────────────────────────────────────────────

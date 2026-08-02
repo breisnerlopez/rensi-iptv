@@ -79,6 +79,40 @@ class AppLocalizationsPt extends AppLocalizations {
   String get cast_retry => 'Tentar novamente';
 
   @override
+  String get tv_standalone_section => 'TV / Transmissão';
+
+  @override
+  String get tv_standalone_master_title =>
+      'Continuar assistindo na TV sem o celular';
+
+  @override
+  String get tv_standalone_master_subtitle =>
+      'Permite que uma TV confiável armazene suas credenciais do provedor, criptografadas, para continuar reproduzindo após fechar o app. Desativado por padrão.';
+
+  @override
+  String tv_standalone_consent_title(String device) {
+    return 'Manter a sessão na $device?';
+  }
+
+  @override
+  String tv_standalone_consent_body(String provider) {
+    return 'Suas credenciais do $provider serão armazenadas CRIPTOGRAFADAS na TV para você continuar assistindo sem o celular. Risco: em uma TV com root ou comprometida elas poderiam ser extraídas; o emparelhamento por PIN não é à prova de um atacante que capture o emparelhamento (vulnerabilidade conhecida).';
+  }
+
+  @override
+  String get tv_standalone_consent_accept => 'Ativar';
+
+  @override
+  String get tv_standalone_consent_decline => 'Agora não';
+
+  @override
+  String get tv_standalone_revoke_empty =>
+      'Nenhuma TV tem credenciais armazenadas.';
+
+  @override
+  String get tv_standalone_revoke_action => 'Esquecer credenciais nesta TV';
+
+  @override
   String get slogan => 'Player IPTV';
 
   @override

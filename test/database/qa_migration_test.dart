@@ -119,7 +119,7 @@ void _seedWatch(Database raw) {
 
 void main() {
   group('QA M/AC14 migrations preserve data', () {
-    test('v3 -> v12 keeps all watch_history rows; new columns land NULL',
+    test('v3 -> v13 keeps all watch_history rows; new columns land NULL',
         () async {
       _useLinuxSqlite();
       final dir = Directory.systemTemp.createTempSync('qa_mig_v3');
@@ -164,14 +164,14 @@ void main() {
       expect(beforeWatch, 4, reason: 'seeded 4 watch rows at v3');
       expect(beforeVod, 1);
 
-      // Open with the CURRENT schema (v12) -> Drift runs onUpgrade(3, 12).
+      // Open with the CURRENT schema (v13) -> Drift runs onUpgrade(3, 13).
       // With the layered-createTable fix, the `from<=10` step now creates
       // downloads in its schema-11 shape (WITHOUT error/url) so the `from<=11`
-      // addColumn is valid, and the migration completes cleanly to v12 with all
+      // addColumn is valid, and the migration completes cleanly to v13 with all
       // seeded data intact.
       final db = AppDatabase(NativeDatabase(File(path)));
       final watch = await db.select(db.watchHistories).get();
-      expect(watch, hasLength(4), reason: 'all 4 watch rows survive v3->v12');
+      expect(watch, hasLength(4), reason: 'all 4 watch rows survive v3->v13');
 
       // The columns added by later migrations exist and land NULL for the
       // pre-existing v3 row.
@@ -189,15 +189,15 @@ void main() {
       expect(pls.single.type, 'PlaylistType.xtream');
       await db.close();
 
-      // The migration reached v12 and stays there (no half-migrated re-crash).
+      // The migration reached v13 and stays there (no half-migrated re-crash).
       final after = sqlite3.open(path);
-      expect(after.userVersion, 12,
-          reason: 'user_version bumped to 12 — migration completed');
+      expect(after.userVersion, 13,
+          reason: 'user_version bumped to 13 — migration completed');
       after.dispose();
       dir.deleteSync(recursive: true);
     });
 
-    test('v9 -> v12 keeps watch_history + favorites; downloads created',
+    test('v9 -> v13 keeps watch_history + favorites; downloads created',
         () async {
       _useLinuxSqlite();
       final dir = Directory.systemTemp.createTempSync('qa_mig_v9');
@@ -217,7 +217,7 @@ void main() {
         _ddlEpisodes,
         _ddlWatchHistories,
         // A real v9 DB's m3u_items was recreated with the FULL DDL at the v6->v7
-        // step (from<=6 drop+recreate); a v9->v12 upgrade never rebuilds it
+        // step (from<=6 drop+recreate); a v9->v13 upgrade never rebuilds it
         // (v9 > 6), so it must carry the current columns — beforeOpen builds an
         // index on m3u_items(playlist_id, category_id), which the minimal v6
         // shape lacks. Use the faithful current DDL.
@@ -258,11 +258,11 @@ void main() {
       // and the freshly-created downloads table is empty.
       final db = AppDatabase(NativeDatabase(File(path)));
       expect(await db.select(db.watchHistories).get(), hasLength(4),
-          reason: 'watch rows survive v9->v12');
+          reason: 'watch rows survive v9->v13');
       expect(await db.select(db.favorites).get(), hasLength(2),
-          reason: 'favorites survive v9->v12');
+          reason: 'favorites survive v9->v13');
       expect(await db.select(db.downloads).get(), isEmpty,
-          reason: 'downloads created empty at v9->v12');
+          reason: 'downloads created empty at v9->v13');
       await db.close();
 
       final after = sqlite3.open(path);
@@ -271,8 +271,8 @@ void main() {
               "SELECT COUNT(*) c FROM sqlite_master WHERE type='table' AND name='downloads'")
           .first['c'];
       expect(dlExistsAfter, 1, reason: 'downloads table now exists');
-      expect(after.userVersion, 12,
-          reason: 'user_version bumped to 12 — migration completed');
+      expect(after.userVersion, 13,
+          reason: 'user_version bumped to 13 — migration completed');
       after.dispose();
       dir.deleteSync(recursive: true);
     });
@@ -322,7 +322,7 @@ void main() {
       expect(beforeWatch, 4);
       expect(beforeM3u, 3);
 
-      // The migration now completes to v12. The from<=6 deleteTable('m3u_items')
+      // The migration now completes to v13. The from<=6 deleteTable('m3u_items')
       // step is a single-table DROP+recreate that must clear ONLY m3u_items and
       // never touch watch_histories — verify exactly that on the migrated DB.
       final db = AppDatabase(NativeDatabase(File(path)));
@@ -343,13 +343,13 @@ void main() {
           reason: 'from<=6 deleteTable cleared ONLY m3u_items (0 rows)');
       expect(afterWatch, 4,
           reason: 'watch_histories kept all 4 rows through the scoped DROP');
-      expect(afterVersion, 12,
-          reason: 'migration completed and bumped user_version to 12');
+      expect(afterVersion, 13,
+          reason: 'migration completed and bumped user_version to 13');
 
       dir.deleteSync(recursive: true);
     });
 
-    test('WORKING PATH v11 -> v12 preserves watch + favorites + downloads',
+    test('WORKING PATH v11 -> v13 preserves watch + favorites + downloads',
         () async {
       // v11 already has downloads (without error/url), so onUpgrade(11, 12)
       // runs ONLY the from<=11 addColumn step and does NOT hit the createTable
@@ -427,7 +427,7 @@ void main() {
       dir.deleteSync(recursive: true);
     });
 
-    test('v2 -> v12: from<=2 creates vod/series with the CURRENT DDL, yet the '
+    test('v2 -> v13: from<=2 creates vod/series with the CURRENT DDL, yet the '
         'later genre/tmdb_id addColumns do NOT duplicate; playlists survive',
         () async {
       _useLinuxSqlite();
@@ -453,7 +453,7 @@ void main() {
       final db = AppDatabase(NativeDatabase(File(path)));
       // Migration must complete without a duplicate-column throw.
       final pls = await db.select(db.playlists).get();
-      expect(pls, hasLength(1), reason: 'the v2 playlist row survives v2->v12');
+      expect(pls, hasLength(1), reason: 'the v2 playlist row survives v2->v13');
       expect(pls.single.type, 'PlaylistType.xtream',
           reason: 'the from<=3 xstream->xtream repair still runs');
       expect(await db.select(db.vodStreams).get(), isEmpty);
@@ -475,14 +475,14 @@ void main() {
           .map((r) => r['name'] as String)
           .toList();
       expect(seriesCols.where((c) => c == 'tmdb_id'), hasLength(1));
-      expect(after.userVersion, 12,
-          reason: 'migration completed and bumped user_version to 12');
+      expect(after.userVersion, 13,
+          reason: 'migration completed and bumped user_version to 13');
       after.dispose();
       dir.deleteSync(recursive: true);
     });
 
     test('BUGGY-BUILD COHORT v10 (downloads already FULL: error/url present) -> '
-        'v12 migrates idempotently and preserves all rows', () async {
+        'v13 migrates idempotently and preserves all rows', () async {
       _useLinuxSqlite();
       final dir = Directory.systemTemp.createTempSync('qa_mig_v10c');
       final path = p.join(dir.path, 'old.sqlite');
@@ -491,7 +491,7 @@ void main() {
       // in its full shape (error/url present, written by the buggy
       // createTable-current-DDL). Reopening with the fixed AppDatabase must NOT
       // throw — the from<=11 addColumn(error/url) detect the columns already
-      // exist and no-op — and must reach v12 with every row intact. This is the
+      // exist and no-op — and must reach v13 with every row intact. This is the
       // MAJORITY of affected users.
       final raw = sqlite3.open(path);
       for (final ddl in [
@@ -537,14 +537,14 @@ void main() {
       await db.close();
 
       final after = sqlite3.open(path);
-      expect(after.userVersion, 12,
-          reason: 'the stuck-at-10 cohort is rescued to v12');
+      expect(after.userVersion, 13,
+          reason: 'the stuck-at-10 cohort is rescued to v13');
       after.dispose();
       dir.deleteSync(recursive: true);
     });
 
     test('BUGGY-BUILD COHORT v9 (partial: tmdb_id + full downloads already '
-        'applied, user_version stuck at 9) -> v12 idempotently', () async {
+        'applied, user_version stuck at 9) -> v13 idempotently', () async {
       _useLinuxSqlite();
       final dir = Directory.systemTemp.createTempSync('qa_mig_v9c');
       final path = p.join(dir.path, 'old.sqlite');
@@ -554,7 +554,7 @@ void main() {
       // addColumn(error); user_version stayed at 9. So on disk: vod & series
       // ALREADY carry tmdb_id AND downloads ALREADY has error/url, yet
       // user_version is 9. The fixed migration must treat EVERY one of those
-      // addColumns as a no-op and still reach v12 with data intact.
+      // addColumns as a no-op and still reach v13 with data intact.
       final raw = sqlite3.open(path);
       for (final ddl in [
         _ddlPlaylists,
@@ -596,7 +596,7 @@ void main() {
       await db.close();
 
       final after = sqlite3.open(path);
-      expect(after.userVersion, 12);
+      expect(after.userVersion, 13);
       final vodCols = after
           .select('PRAGMA table_info(vod_streams)')
           .map((r) => r['name'] as String)
@@ -607,13 +607,13 @@ void main() {
       dir.deleteSync(recursive: true);
     });
 
-    test('idempotent re-run: a v12 schema whose user_version was left behind at '
+    test('idempotent re-run: a v13 schema whose user_version was left behind at '
         '10 migrates again without throwing (crash-safety)', () async {
       _useLinuxSqlite();
       final dir = Directory.systemTemp.createTempSync('qa_mig_rerun');
       final path = p.join(dir.path, 'old.sqlite');
 
-      // Migrate a v11 DB up to a real v12 schema first.
+      // Migrate a v11 DB up to a real v13 schema first.
       final raw = sqlite3.open(path);
       for (final ddl in [
         _ddlPlaylists,
@@ -644,11 +644,11 @@ void main() {
       await db1.close();
 
       // Simulate a crash that applied the schema but never committed the version
-      // bump: rewind user_version to 10 on the now-fully-v12 schema. Reopening
-      // must re-run onUpgrade(10,12) over already-present columns/tables and NOT
+      // bump: rewind user_version to 10 on the now-fully-v13 schema. Reopening
+      // must re-run onUpgrade(10,13) over already-present columns/tables and NOT
       // throw (createTable is IF NOT EXISTS; addColumns are idempotent).
       final mid = sqlite3.open(path);
-      expect(mid.userVersion, 12);
+      expect(mid.userVersion, 13);
       mid.userVersion = 10;
       mid.dispose();
 
@@ -658,7 +658,7 @@ void main() {
       await db2.close();
 
       final after = sqlite3.open(path);
-      expect(after.userVersion, 12, reason: 're-run completes back to v12');
+      expect(after.userVersion, 13, reason: 're-run completes back to v13');
       after.dispose();
       dir.deleteSync(recursive: true);
     });
@@ -699,6 +699,179 @@ void main() {
           reason: 'pl-B row must be untouched by the pl-A write');
 
       await db.close();
+    });
+  });
+
+  // Feature H (TV standalone playback) — the 12->13 additive migration adds two
+  // NULLABLE columns to watch_histories (container_extension, provider_id) so a
+  // `__cast__` history row can later rebuild a standalone Xtream URL. It follows
+  // the SAME hardened pattern as every prior additive step: idempotent
+  // _addColumnIfMissing inside the transaction()-wrapped onUpgrade. These tests
+  // are the regression guard against a repeat of the onUpgrade brick loop.
+  group('QA feature-H watch_histories 12->13', () {
+    test('v12 -> v13 adds container_extension + provider_id (nullable, default '
+        'NULL) and preserves every watch_history row', () async {
+      _useLinuxSqlite();
+      final dir = Directory.systemTemp.createTempSync('qa_mig_v12');
+      final path = p.join(dir.path, 'old.sqlite');
+
+      // A faithful v12 DB: current shape for every table EXCEPT watch_histories,
+      // which is at its pre-13 shape (no container_extension / provider_id).
+      final raw = sqlite3.open(path);
+      for (final ddl in [
+        _ddlPlaylists,
+        _ddlCategories,
+        _ddlUserInfos,
+        _ddlServerInfos,
+        _ddlLiveStreams,
+        _ddlVodStreamsCurrent,
+        _ddlSeriesStreamsCurrent,
+        _ddlSeriesInfos,
+        _ddlSeasons,
+        _ddlEpisodes,
+        _ddlWatchHistories, // v12: no container_extension / provider_id yet
+        _ddlM3uItemsCurrent,
+        _ddlM3uSeriesV6,
+        _ddlM3uEpisodesV6,
+        _ddlFavorites,
+        _ddlDownloadsCurrent,
+      ]) {
+        raw.execute(ddl);
+      }
+      _seedWatch(raw);
+      raw.execute(
+        'INSERT INTO favorites (id, playlist_id, content_type, stream_id, name, created_at, updated_at) VALUES '
+        "('f1', 'pl-A', 1, '100', 'Fav Movie', 1700000000, 1700000000)",
+      );
+      final beforeWatch =
+          raw.select('SELECT COUNT(*) c FROM watch_histories').first['c'];
+      // The new columns must NOT exist yet at v12.
+      final colsBefore = raw
+          .select('PRAGMA table_info(watch_histories)')
+          .map((r) => r['name'] as String)
+          .toList();
+      raw.userVersion = 12;
+      raw.dispose();
+
+      expect(beforeWatch, 4, reason: 'seeded 4 watch rows at v12');
+      expect(colsBefore, isNot(contains('container_extension')));
+      expect(colsBefore, isNot(contains('provider_id')));
+
+      // Open with the CURRENT schema (v13) -> Drift runs onUpgrade(12, 13),
+      // which executes ONLY the from<=12 step (adds both columns idempotently).
+      final db = AppDatabase(NativeDatabase(File(path)));
+      final watch = await db.select(db.watchHistories).get();
+      expect(watch, hasLength(4), reason: 'all 4 watch rows survive v12->v13');
+
+      // The two new columns exist and land NULL for every pre-existing row.
+      expect(watch.every((w) => w.containerExtension == null), isTrue,
+          reason: 'container_extension defaults NULL on migrated rows');
+      expect(watch.every((w) => w.providerId == null), isTrue,
+          reason: 'provider_id defaults NULL on migrated rows');
+      // Existing data is byte-for-byte intact.
+      final byKey = {for (final r in watch) '${r.playlistId}/${r.streamId}': r};
+      expect(byKey['pl-A/100']!.watchDuration, 300000);
+      expect(byKey['pl-A/100']!.totalDuration, 3600000);
+      expect(byKey['pl-A/200']!.title, 'Series B');
+      expect(byKey['pl-B/300']!.totalDuration, isNull);
+      // Favorites untouched by the watch_histories migration.
+      expect(await db.select(db.favorites).get(), hasLength(1));
+
+      // A fresh row CAN carry the new fields round-trip through the model.
+      await db.into(db.watchHistories).insertOnConflictUpdate(WatchHistory(
+            playlistId: '__cast__',
+            contentType: ContentType.vod,
+            streamId: '900',
+            watchDuration: const Duration(minutes: 5),
+            totalDuration: const Duration(hours: 1),
+            lastWatched: DateTime(2026),
+            title: 'Cast Movie',
+            containerExtension: 'mkv',
+            providerId: 'prov-1',
+          ).toDriftCompanion());
+      final cast = WatchHistory.fromDrift((await db.select(db.watchHistories).get())
+          .firstWhere((r) => r.streamId == '900'));
+      expect(cast.containerExtension, 'mkv');
+      expect(cast.providerId, 'prov-1');
+      await db.close();
+
+      // The new columns are present on disk exactly once, and the migration
+      // reached v13 and stays there (no half-migrated re-crash).
+      final after = sqlite3.open(path);
+      final colsAfter = after
+          .select('PRAGMA table_info(watch_histories)')
+          .map((r) => r['name'] as String)
+          .toList();
+      expect(colsAfter.where((c) => c == 'container_extension'), hasLength(1));
+      expect(colsAfter.where((c) => c == 'provider_id'), hasLength(1));
+      expect(after.userVersion, 13,
+          reason: 'user_version bumped to 13 — migration completed');
+      after.dispose();
+      dir.deleteSync(recursive: true);
+    });
+
+    test('idempotent re-run: a v13 schema whose user_version was rewound to 12 '
+        'migrates again without throwing "duplicate column" (crash-safety)',
+        () async {
+      _useLinuxSqlite();
+      final dir = Directory.systemTemp.createTempSync('qa_mig_v13rerun');
+      final path = p.join(dir.path, 'old.sqlite');
+
+      // Bring a v12 DB up to a real v13 schema first.
+      final raw = sqlite3.open(path);
+      for (final ddl in [
+        _ddlPlaylists,
+        _ddlCategories,
+        _ddlUserInfos,
+        _ddlServerInfos,
+        _ddlLiveStreams,
+        _ddlVodStreamsCurrent,
+        _ddlSeriesStreamsCurrent,
+        _ddlSeriesInfos,
+        _ddlSeasons,
+        _ddlEpisodes,
+        _ddlWatchHistories,
+        _ddlM3uItemsCurrent,
+        _ddlM3uSeriesV6,
+        _ddlM3uEpisodesV6,
+        _ddlFavorites,
+        _ddlDownloadsCurrent,
+      ]) {
+        raw.execute(ddl);
+      }
+      _seedWatch(raw);
+      raw.userVersion = 12;
+      raw.dispose();
+
+      final db1 = AppDatabase(NativeDatabase(File(path)));
+      expect(await db1.select(db1.watchHistories).get(), hasLength(4));
+      await db1.close();
+
+      // Simulate a crash that applied the schema (both columns now exist) but
+      // never committed the version bump: rewind user_version to 12 on the
+      // now-fully-v13 schema. Reopening must re-run onUpgrade(12,13) over the
+      // already-present columns and NOT throw — _addColumnIfMissing no-ops.
+      final mid = sqlite3.open(path);
+      expect(mid.userVersion, 13);
+      mid.userVersion = 12;
+      mid.dispose();
+
+      final db2 = AppDatabase(NativeDatabase(File(path)));
+      expect(await db2.select(db2.watchHistories).get(), hasLength(4),
+          reason: 'a re-run over an already-migrated schema is a safe no-op');
+      await db2.close();
+
+      final after = sqlite3.open(path);
+      expect(after.userVersion, 13, reason: 're-run completes back to v13');
+      // Still exactly one of each new column — no duplicate created.
+      final cols = after
+          .select('PRAGMA table_info(watch_histories)')
+          .map((r) => r['name'] as String)
+          .toList();
+      expect(cols.where((c) => c == 'container_extension'), hasLength(1));
+      expect(cols.where((c) => c == 'provider_id'), hasLength(1));
+      after.dispose();
+      dir.deleteSync(recursive: true);
     });
   });
 }

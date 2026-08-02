@@ -79,6 +79,41 @@ class AppLocalizationsTr extends AppLocalizations {
   String get cast_retry => 'Yeniden dene';
 
   @override
+  String get tv_standalone_section => 'TV / Yayın';
+
+  @override
+  String get tv_standalone_master_title =>
+      'Telefon olmadan TV\'de izlemeye devam et';
+
+  @override
+  String get tv_standalone_master_subtitle =>
+      'Güvenilir bir TV\'nin, uygulamayı kapattıktan sonra oynatmaya devam edebilmesi için sağlayıcı kimlik bilgilerinizi şifreli olarak saklamasına izin verir. Varsayılan olarak kapalı.';
+
+  @override
+  String tv_standalone_consent_title(String device) {
+    return 'Oturum $device üzerinde tutulsun mu?';
+  }
+
+  @override
+  String tv_standalone_consent_body(String provider) {
+    return '$provider kimlik bilgileriniz, telefonunuz olmadan izlemeye devam edebilmeniz için TV\'de ŞİFRELİ olarak saklanacak. Risk: rootlanmış veya ele geçirilmiş bir TV\'de çıkarılabilirler; PIN ile eşleştirme, eşleştirmeyi yakalayan bir saldırgana karşı korumalı değildir (bilinen bir güvenlik açığı).';
+  }
+
+  @override
+  String get tv_standalone_consent_accept => 'Aç';
+
+  @override
+  String get tv_standalone_consent_decline => 'Şimdi değil';
+
+  @override
+  String get tv_standalone_revoke_empty =>
+      'Hiçbir TV\'de saklanan kimlik bilgisi yok.';
+
+  @override
+  String get tv_standalone_revoke_action =>
+      'Bu TV\'deki kimlik bilgilerini unut';
+
+  @override
   String get slogan => 'IPTV Oynatıcı';
 
   @override

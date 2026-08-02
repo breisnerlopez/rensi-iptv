@@ -1,3 +1,22 @@
+# [2.18.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.17.0...v2.18.0) (2026-08-02)
+
+
+### Features
+
+* **Continúa en la TV sin el móvil (opcional):** si lo activas y das tu consentimiento, la TV guarda tus credenciales **cifradas** y puede **reanudar desde su propio historial** aunque el móvil no esté cerca ni conectado. Viene **desactivado por defecto**, es **revocable** cuando quieras, y al desvincular la TV se **borran** las credenciales guardadas
+* **Cada quien su propio historial:** el avance de lo que reproduces se sincroniza **solo con el móvil que envió** ese contenido — el historial tuyo y el del resto de la casa ya no se mezclan (cada móvil mantiene el suyo)
+
+
+### Bug Fixes
+
+* **Emparejamiento más seguro:** ahora se limita la cantidad de intentos de PIN al vincular la TV — tras varios fallos hay un bloqueo temporal que frena la adivinación por fuerza bruta
+
+
+### Notes
+
+* **Seguridad — "Continuar en la TV":** actívalo solo en televisores y redes de confianza. Las credenciales quedan **cifradas** en la TV, pero el emparejamiento por PIN no protege del todo frente a un atacante que logre interceptar la vinculación en una red no confiable (limitación conocida, que el propio diálogo de consentimiento te explica antes de activar)
+
+
 # [2.17.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.16.0...v2.17.0) (2026-08-01)
 
 

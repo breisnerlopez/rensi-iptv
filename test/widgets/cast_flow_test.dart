@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:rensi_iptv/controllers/cast_sender_controller.dart';
 import 'package:rensi_iptv/l10n/app_localizations.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
@@ -34,6 +35,9 @@ class _FakeSender extends PhoneSenderService {
     String ext = '',
     CastMeta? meta,
     int startPositionMs = 0,
+    bool standalone = false,
+    String pid = '',
+    String deviceId = '',
   }) async {}
   @override
   void sendCommand(String cmd, [Map<String, dynamic> extra = const {}]) =>
@@ -54,6 +58,13 @@ Widget _wrap(CastSenderController c, Widget child) => MaterialApp(
 
 void main() {
   setUp(() {
+    // Feature H (fase 5) — _sendLoad ahora resuelve el deviceId estable del
+    // móvil vía UserPreferences.getCastDeviceId() (SharedPreferences). Sin
+    // mockear la plataforma, SharedPreferences.getInstance() se queda
+    // esperando una respuesta de canal que nunca llega en `flutter test`
+    // (aquí no hay plugin nativo) y beginCast/submitPin cuelgan para siempre.
+    // Mismo patrón que test/controllers/cast_sender_controller_test.dart.
+    SharedPreferences.setMockInitialValues({});
     AppState.currentPlaylist = Playlist(
       id: 'p',
       name: 'P',

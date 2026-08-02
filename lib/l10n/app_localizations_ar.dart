@@ -79,6 +79,41 @@ class AppLocalizationsAr extends AppLocalizations {
   String get cast_retry => 'إعادة المحاولة';
 
   @override
+  String get tv_standalone_section => 'التلفزيون / البث';
+
+  @override
+  String get tv_standalone_master_title =>
+      'متابعة المشاهدة على التلفزيون بدون الهاتف';
+
+  @override
+  String get tv_standalone_master_subtitle =>
+      'يسمح لتلفزيون موثوق بتخزين بيانات اعتماد مزوّدك مشفّرة لمواصلة التشغيل بعد إغلاق التطبيق. معطّل افتراضيًا.';
+
+  @override
+  String tv_standalone_consent_title(String device) {
+    return 'الإبقاء على الجلسة على $device؟';
+  }
+
+  @override
+  String tv_standalone_consent_body(String provider) {
+    return 'سيتم تخزين بيانات اعتماد $provider مشفّرة على التلفزيون لتتمكن من متابعة المشاهدة بدون هاتفك. الخطر: على تلفزيون مُروّت أو مخترق يمكن استخراجها؛ والاقتران عبر رمز PIN ليس محصّنًا ضد مهاجم يلتقط عملية الاقتران (ثغرة معروفة).';
+  }
+
+  @override
+  String get tv_standalone_consent_accept => 'تفعيل';
+
+  @override
+  String get tv_standalone_consent_decline => 'ليس الآن';
+
+  @override
+  String get tv_standalone_revoke_empty =>
+      'لا يوجد تلفزيون يخزّن بيانات اعتماد.';
+
+  @override
+  String get tv_standalone_revoke_action =>
+      'نسيان بيانات الاعتماد على هذا التلفزيون';
+
+  @override
   String get slogan => 'مشغل IPTV';
 
   @override

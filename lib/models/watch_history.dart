@@ -16,6 +16,11 @@ import 'package:rensi_iptv/models/content_type.dart';
 /// a DVR window gives it a duration that makes the progress bar lie.
 List<WatchHistory> resumableFrom(List<WatchHistory> all) => all.where((h) {
       if (h.contentType == ContentType.liveStream) return false;
+      // Feature H (fase 5) / Corrección 1 — sin tarjetas anónimas: una fila que
+      // llegó por el sync de historial de cast y no pudo resolver su título del
+      // catálogo local queda con título vacío. Se conserva su posición en BD
+      // (por si luego aparece en el catálogo) pero NUNCA se ofrece en el rail.
+      if (h.title.trim().isEmpty) return false;
       final total = h.totalDuration?.inSeconds ?? 0;
       if (total <= 0) return false;
       final progress = (h.watchDuration?.inSeconds ?? 0) / total;
@@ -33,6 +38,15 @@ class WatchHistory {
   late String? imagePath;
   late String title;
 
+  /// container_extension (mp4/mkv/…) del stream. Opcional (default null): sólo
+  /// lo rellenan las filas que necesitan reconstruir una URL Xtream autónoma en
+  /// la TV (feature H). Los constructores/callers existentes no lo pasan.
+  late String? containerExtension;
+
+  /// providerId (playlist Xtream de origen) de las credenciales para la URL
+  /// autónoma. Opcional (default null), mismo motivo que [containerExtension].
+  late String? providerId;
+
   WatchHistory({
     required this.playlistId,
     required this.contentType,
@@ -43,6 +57,8 @@ class WatchHistory {
     required this.lastWatched,
     this.imagePath,
     required this.title,
+    this.containerExtension,
+    this.providerId,
   });
 
   WatchHistory.fromDrift(WatchHistoriesData data) {
@@ -59,6 +75,8 @@ class WatchHistory {
     lastWatched = data.lastWatched;
     imagePath = data.imagePath;
     title = data.title;
+    containerExtension = data.containerExtension;
+    providerId = data.providerId;
   }
 
   WatchHistoriesCompanion toDriftCompanion() {
@@ -72,6 +90,8 @@ class WatchHistory {
       lastWatched: Value(lastWatched),
       imagePath: Value(imagePath),
       title: Value(title),
+      containerExtension: Value(containerExtension),
+      providerId: Value(providerId),
     );
   }
 }

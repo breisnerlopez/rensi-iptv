@@ -163,7 +163,8 @@ Rensi is a single Flutter codebase targeting Android phone, Android TV and deskt
 - **Discovery** via mDNS/DNS-SD (`bonsoir`) — the TV advertises, the phone finds it
 - **Control channel** over `wss://` (self-signed EC certificate generated at runtime, **fingerprint-pinned**)
 - **Pairing** with a 6-digit PIN → HKDF/HMAC session keys; **trusted-device tokens** so paired TVs reconnect silently
-- The phone sends the **content URL + TMDb metadata** in the play command, so the TV never needs your credentials
+- The phone sends the **content URL + TMDb metadata** in the play command: by default the TV **never needs your credentials** for anything, it just plays whatever the phone tells it to
+- **Optional — "Keep playing on the TV without the phone":** with your explicit consent per (TV, provider) and a master switch that is **off by default**, the TV can store your provider credentials **encrypted on-device** (OS-level secure storage) so it can resume on its own even after the phone is closed. It's revocable any time from Settings (the TV wipes its credentials the next time the phone reconnects to it) and gets wiped automatically if you unpair the TV. Residual risk, stated plainly: while consent is active, those credentials also live on the TV — often a shared device — and first-time PIN pairing is, in theory, vulnerable to an attacker already on your network; only enable this on trusted TVs and networks
 
 ---
 

@@ -22,6 +22,21 @@
   "cast_stop": "Stop casting",
   "cast_error": "Couldn't connect to the TV",
   "cast_retry": "Retry",
+  "tv_standalone_section": "TV / Casting",
+  "tv_standalone_master_title": "Keep playing on the TV without the phone",
+  "tv_standalone_master_subtitle": "Lets a trusted TV store your provider credentials, encrypted, so it can keep playing after you close the app. Off by default.",
+  "tv_standalone_consent_title": "Keep the session on {device}?",
+  "@tv_standalone_consent_title": {
+    "placeholders": { "device": { "type": "String" } }
+  },
+  "tv_standalone_consent_body": "Your {provider} credentials will be stored ENCRYPTED on the TV so you can keep watching without your phone. Risk: on a rooted or compromised TV they could be extracted, and PIN pairing is not proof against an attacker who captures the pairing (a known vulnerability).",
+  "@tv_standalone_consent_body": {
+    "placeholders": { "provider": { "type": "String" } }
+  },
+  "tv_standalone_consent_accept": "Turn on",
+  "tv_standalone_consent_decline": "Not now",
+  "tv_standalone_revoke_empty": "No TV has stored credentials.",
+  "tv_standalone_revoke_action": "Forget credentials on this TV",
   "slogan": "IPTV Player",
   "search": "Search",
   "search_live_stream": "Search live stream",

@@ -78,6 +78,38 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cast_retry => '重试';
 
   @override
+  String get tv_standalone_section => '电视 / 投放';
+
+  @override
+  String get tv_standalone_master_title => '无需手机在电视上继续观看';
+
+  @override
+  String get tv_standalone_master_subtitle =>
+      '允许受信任的电视加密保存你的服务商凭据，以便在关闭应用后继续播放。默认关闭。';
+
+  @override
+  String tv_standalone_consent_title(String device) {
+    return '在 $device 上保持会话？';
+  }
+
+  @override
+  String tv_standalone_consent_body(String provider) {
+    return '你的 $provider 凭据将以加密方式保存在电视上，让你无需手机即可继续观看。风险：在已 root 或被入侵的电视上可能被提取；PIN 配对无法防御截获配对过程的攻击者（已知漏洞）。';
+  }
+
+  @override
+  String get tv_standalone_consent_accept => '开启';
+
+  @override
+  String get tv_standalone_consent_decline => '暂不';
+
+  @override
+  String get tv_standalone_revoke_empty => '没有电视保存了凭据。';
+
+  @override
+  String get tv_standalone_revoke_action => '忘记此电视上的凭据';
+
+  @override
   String get slogan => 'IPTV 播放器';
 
   @override
