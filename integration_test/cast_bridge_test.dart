@@ -20,7 +20,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'package:drift/drift.dart' show Value;
+
 import 'package:rensi_iptv/controllers/cast_sender_controller.dart';
+import 'package:rensi_iptv/database/database.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/cast/cast_protocol.dart';
@@ -203,6 +206,70 @@ void main() {
     expect(advanced, isTrue,
         reason: 'al terminar el ep 1 en la TV, el movil debe auto-avanzar al ep 2');
     await mark(tester, 'SERIES_EP2_PLAYING', seconds: 4);
+
+    await c.stopCasting();
+    await waitFor(tester, () => c.phase == CastPhase.idle, seconds: 6);
+    c.dispose();
+  });
+
+  // SERIES auto-advance via the DB FALLBACK (the user's actual failing state):
+  // cast episode 1 with the in-memory queue DELIBERATELY NULL. The only path to
+  // advance is `_advanceStreamedSeriesFromDb`, which resolves ep2 from the DB by
+  // seriesId. Seed 2 episodes into the harness in-memory DB (the same AppDatabase
+  // `getIt<AppDatabase>()` returns inside the controller), cast ep1 queue-null,
+  // reach natural EOF on the real TV, and assert the phone re-LOADs ep2 on the TV
+  // (proven E2E: the TV fetches ep2's series URL from the range server after EOF).
+  Future<void> seedSeries() async {
+    // Two episodes of series '999' on playlist 'm', ordered (season, episodeNum).
+    await harnessDb.into(harnessDb.episodes).insert(EpisodesCompanion.insert(
+          seriesId: '999',
+          episodeId: 'e1',
+          episodeNum: 1,
+          title: 'Episodio 1',
+          season: 1,
+          playlistId: 'm',
+          containerExtension: const Value('mp4'),
+        ));
+    await harnessDb.into(harnessDb.episodes).insert(EpisodesCompanion.insert(
+          seriesId: '999',
+          episodeId: 'e2',
+          episodeNum: 2,
+          title: 'Episodio 2',
+          season: 1,
+          playlistId: 'm',
+          containerExtension: const Value('mp4'),
+        ));
+  }
+
+  testWidgets('SERIES auto-advance DB-FALLBACK — queue NULL, TV EOF advances to ep2',
+      (tester) async {
+    if (pin.isEmpty || bridgeHost.isEmpty) {
+      return markTestSkipped('pasa --dart-define CAST_PIN/CAST_DEBUG_HOST/PORT');
+    }
+    seedPlaylist();
+    await seedSeries();
+
+    final c = CastSenderController();
+    // queue: null / index default — the failing state: NO in-memory queue, so the
+    // only path to advance is _advanceStreamedSeriesFromDb (resolves ep2 from BD).
+    await c.beginCast(epMedia('e1', 'Episodio 1'));
+    debugPrint('CAST_DBFB_PHASE_AFTER_BEGIN=${c.phase}');
+    if (c.phase == CastPhase.pairing) {
+      await waitFor(tester, () => c.phase == CastPhase.pairing);
+      await c.submitPin(pin);
+    }
+    final casting = await waitFor(tester, () => c.phase == CastPhase.casting);
+    expect(casting, isTrue, reason: 'la serie (cola null) debe llegar a casting (ep 1)');
+    debugPrint('CAST_DBFB_EP1 channel=${c.media?.channelId}');
+    await mark(tester, 'DBFB_EP1_PLAYING', seconds: 4);
+
+    // Short clip → EOF in ~15-20s; give the TV up to 45s for EOF + DB-fallback chain.
+    final advanced =
+        await waitFor(tester, () => c.media?.channelId == 'e2', seconds: 45);
+    debugPrint('CAST_DBFB_ADVANCED=$advanced channel=${c.media?.channelId}');
+    expect(advanced, isTrue,
+        reason: 'cola null: al terminar ep1 en la TV, la BD debe resolver ep2 y re-LOAD');
+    await mark(tester, 'DBFB_EP2_PLAYING', seconds: 5);
 
     await c.stopCasting();
     await waitFor(tester, () => c.phase == CastPhase.idle, seconds: 6);
