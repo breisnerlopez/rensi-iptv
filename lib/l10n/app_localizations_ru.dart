@@ -79,6 +79,11 @@ class AppLocalizationsRu extends AppLocalizations {
   String get cast_retry => 'Повторить';
 
   @override
+  String cast_tv_volume(int value) {
+    return 'Громкость ТВ  $value%';
+  }
+
+  @override
   String get tv_standalone_section => 'ТВ / Трансляция';
 
   @override
@@ -88,6 +93,13 @@ class AppLocalizationsRu extends AppLocalizations {
   @override
   String get tv_standalone_master_subtitle =>
       'Позволяет доверенному ТВ хранить учётные данные провайдера в зашифрованном виде, чтобы продолжать воспроизведение после закрытия приложения. По умолчанию выключено.';
+
+  @override
+  String get pause_cast_on_call_title => 'Приостанавливать ТВ во время звонка';
+
+  @override
+  String get pause_cast_on_call_subtitle =>
+      'Во время трансляции входящий звонок приостанавливает воспроизведение на ТВ и возобновляет его после завершения звонка.';
 
   @override
   String tv_standalone_consent_title(String device) {

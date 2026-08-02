@@ -88,6 +88,10 @@ String _videoDecoder = 'auto';
   List<({String tvId, String providerId})> _standaloneGrants = const [];
   Map<String, String> _playlistNames = const {};
 
+  // Pausar la TV al recibir una llamada mientras se castea (solo móvil; usa el
+  // permiso READ_PHONE_STATE). Default true.
+  bool _pauseCastOnCall = true;
+
   @override
   void initState() {
     super.initState();
@@ -117,6 +121,7 @@ String _videoDecoder = 'auto';
       final tmdb = await TmdbCredentialsService.getCredential();
       final tvStandaloneAllowed =
           await UserPreferences.getTvStandaloneAllowed();
+      final pauseCastOnCall = await UserPreferences.getPauseCastOnCall();
       final standaloneGrants = await StandaloneConsentStore.listGranted();
       final playlistNames = await _loadPlaylistNames();
       setState(() {
@@ -140,6 +145,7 @@ String _videoDecoder = 'auto';
         _appVersion = packageInfo.version;
         _hasTmdbCredential = tmdb != null;
         _tvStandaloneAllowed = tvStandaloneAllowed;
+        _pauseCastOnCall = pauseCastOnCall;
         _standaloneGrants = standaloneGrants;
         _playlistNames = playlistNames;
         _isLoading = false;
@@ -195,6 +201,19 @@ String _videoDecoder = 'auto';
       await UserPreferences.setTvStandaloneAllowed(value);
     } catch (_) {
       if (mounted) setState(() => _tvStandaloneAllowed = !value);
+    }
+  }
+
+  /// Pausar la TV al recibir una llamada mientras se castea. Optimista con
+  /// reversión ante fallo, como las otras switches. El permiso READ_PHONE_STATE
+  /// se pide de forma perezosa (la primera vez que se castea con el toggle ON),
+  /// no aquí, para no molestar al usuario que solo abre Ajustes.
+  Future<void> _savePauseCastOnCall(bool value) async {
+    setState(() => _pauseCastOnCall = value);
+    try {
+      await UserPreferences.setPauseCastOnCall(value);
+    } catch (_) {
+      if (mounted) setState(() => _pauseCastOnCall = !value);
     }
   }
 
@@ -860,6 +879,20 @@ String _videoDecoder = 'auto';
                       value: _tvStandaloneAllowed,
                       onChanged: _saveTvStandaloneAllowed,
                     ),
+                    // Pausar la TV al recibir una llamada: solo en móvil Android
+                    // (usa READ_PHONE_STATE y castear se hace desde el teléfono).
+                    if (Theme.of(context).platform == TargetPlatform.android &&
+                        !ResponsiveHelper.isDesktopOrTV(context)) ...[
+                      const Divider(height: 1),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.phone_paused_outlined),
+                        title: Text(context.loc.pause_cast_on_call_title),
+                        subtitle:
+                            Text(context.loc.pause_cast_on_call_subtitle),
+                        value: _pauseCastOnCall,
+                        onChanged: _savePauseCastOnCall,
+                      ),
+                    ],
                     if (_standaloneGrants.isEmpty) ...[
                       const Divider(height: 1),
                       ListTile(

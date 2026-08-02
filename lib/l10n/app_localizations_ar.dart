@@ -79,6 +79,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get cast_retry => 'إعادة المحاولة';
 
   @override
+  String cast_tv_volume(int value) {
+    return 'مستوى صوت التلفاز  $value%';
+  }
+
+  @override
   String get tv_standalone_section => 'التلفزيون / البث';
 
   @override
@@ -88,6 +93,13 @@ class AppLocalizationsAr extends AppLocalizations {
   @override
   String get tv_standalone_master_subtitle =>
       'يسمح لتلفزيون موثوق بتخزين بيانات اعتماد مزوّدك مشفّرة لمواصلة التشغيل بعد إغلاق التطبيق. معطّل افتراضيًا.';
+
+  @override
+  String get pause_cast_on_call_title => 'إيقاف التلفزيون مؤقتًا عند المكالمة';
+
+  @override
+  String get pause_cast_on_call_subtitle =>
+      'أثناء البث، تؤدي المكالمة الواردة إلى إيقاف التشغيل مؤقتًا على التلفزيون واستئنافه عند انتهاء المكالمة.';
 
   @override
   String tv_standalone_consent_title(String device) {

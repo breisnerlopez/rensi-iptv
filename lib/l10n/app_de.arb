@@ -22,9 +22,19 @@
   "cast_stop": "Streaming beenden",
   "cast_error": "Verbindung zum TV fehlgeschlagen",
   "cast_retry": "Erneut versuchen",
+  "cast_tv_volume": "TV-Lautstärke  {value}%",
+  "@cast_tv_volume": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
   "tv_standalone_section": "TV / Streaming",
   "tv_standalone_master_title": "Auf dem TV ohne Telefon weiterschauen",
   "tv_standalone_master_subtitle": "Erlaubt einem vertrauenswürdigen TV, deine Anbieter-Zugangsdaten verschlüsselt zu speichern, damit es nach dem Schließen der App weiter abspielen kann. Standardmäßig aus.",
+  "pause_cast_on_call_title": "TV bei Anruf pausieren",
+  "pause_cast_on_call_subtitle": "Während des Castings pausiert ein eingehender Anruf die Wiedergabe auf dem TV und setzt sie nach dem Anruf fort.",
   "tv_standalone_consent_title": "Sitzung auf {device} behalten?",
   "tv_standalone_consent_body": "Deine {provider}-Zugangsdaten werden VERSCHLÜSSELT auf dem TV gespeichert, damit du ohne Telefon weiterschauen kannst. Risiko: Auf einem gerooteten oder kompromittierten TV könnten sie ausgelesen werden; die PIN-Kopplung schützt nicht vor einem Angreifer, der die Kopplung mitschneidet (bekannte Schwachstelle).",
   "tv_standalone_consent_accept": "Aktivieren",

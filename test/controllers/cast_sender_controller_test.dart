@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rensi_iptv/controllers/cast_sender_controller.dart';
 import 'package:rensi_iptv/database/database.dart';
+import 'package:rensi_iptv/services/call_state_service.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
@@ -122,6 +123,29 @@ class _FakeSender extends PhoneSenderService {
   // the stream would kill the tracks channel the controller later subscribes to.
   @override
   Future<void> close() async => closed = true;
+}
+
+/// Fake del bridge de estado de llamada: sin canal nativo. Emite estados por un
+/// StreamController controlable y devuelve un permiso configurable, para probar
+/// la vigilancia de llamadas (pausa/reanuda el cast) de forma determinista.
+class _FakeCallState extends CallStateService {
+  _FakeCallState({this.granted = true});
+  final bool granted;
+  final _controller = StreamController<String>.broadcast();
+  int permissionRequests = 0;
+
+  @override
+  Future<bool> ensurePermission() async {
+    permissionRequests++;
+    return granted;
+  }
+
+  @override
+  Stream<String> callStates() => _controller.stream;
+
+  void emit(String s) {
+    if (!_controller.isClosed) _controller.add(s);
+  }
 }
 
 void main() {
@@ -710,6 +734,40 @@ void main() {
       expect(c.volume, 77);
     });
 
+    test('nudgeVolume: +5/-5, envío INMEDIATO (sin debounce) y clamp superior',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      fake.commands.clear();
+
+      // Un botón físico de volumen baja: -5 desde 100 (default) → 95, y el
+      // comando sale YA (sin esperar los ~180ms del debounce).
+      c.nudgeVolume(-5);
+      expect(c.volume, 95, reason: 'delta -5 aplicado');
+      expect(fake.commands, [CmdType.setVolume],
+          reason: 'cada pulsación aterriza de inmediato, sin coalescer');
+
+      // +5 → 100.
+      c.nudgeVolume(5);
+      expect(c.volume, 100, reason: 'delta +5 aplicado');
+
+      // Clamp superior: otro +5 no pasa de 100.
+      c.nudgeVolume(5);
+      expect(c.volume, 100, reason: 'clamp superior en 100');
+    });
+
+    test('nudgeVolume: clamp inferior en 0', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      c.setVolume(3); // optimista inmediato
+      c.nudgeVolume(-5); // 3 - 5 → 0 (clamp)
+      expect(c.volume, 0, reason: 'clamp inferior en 0');
+    });
+
     test('_onState: aplica el eco de vol cuando NO se arrastra', () async {
       final fake = _FakeSender(devices: [oneTv]);
       final c = make(fake);
@@ -1014,6 +1072,185 @@ void main() {
       // un segundo envío disparado por consumir la réplica.
       expect(fake.sentHistory.length, lessThanOrEqualTo(1));
       await c.stopCasting();
+    });
+  });
+
+  // ── Pausa-al-recibir-llamada mientras se castea ───────────────────────────
+  group('pausa por llamada (solo cast)', () {
+    test('pauseForCall pausa SOLO si está reproduciendo; es idempotente ante un '
+        'segundo evento (ringing→offhook no re-togglea)', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      fake.commands.clear();
+
+      // Tras castear, la TV está reproduciendo → pausa con un play_pause.
+      c.pauseForCall();
+      expect(fake.commands, [CmdType.playPause]);
+      // Un segundo evento (p. ej. offhook tras ringing) NO vuelve a togglear.
+      c.pauseForCall();
+      expect(fake.commands.length, 1, reason: 'ya pausado: no re-toggle');
+    });
+
+    test('resumeAfterCall reanuda SOLO si fuimos nosotros quienes pausamos',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      fake.commands.clear();
+
+      // Sin una pausa-por-llamada previa, resume es no-op.
+      c.resumeAfterCall();
+      expect(fake.commands, isEmpty);
+
+      // Pausamos por llamada y luego reanudamos: un toggle cada uno.
+      c.pauseForCall();
+      c.resumeAfterCall();
+      expect(fake.commands, [CmdType.playPause, CmdType.playPause]);
+      // Un segundo resume ya no hace nada (no estamos en pausa-por-llamada).
+      c.resumeAfterCall();
+      expect(fake.commands.length, 2);
+    });
+
+    test('si el usuario ya pausó a mano, una llamada NO re-togglea (no arranca '
+        'una TV pausada) y al colgar tampoco la reanuda', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      fake.commands.clear();
+
+      // Usuario pausa a mano (toggle → estado intencionado = pausado).
+      c.playPause();
+      expect(fake.commands, [CmdType.playPause]);
+      // Llega una llamada: como NO está reproduciendo, no togglea.
+      c.pauseForCall();
+      expect(fake.commands.length, 1, reason: 'no togglear una TV ya pausada');
+      // Y al colgar no reanuda (no fuimos nosotros quienes pausamos).
+      c.resumeAfterCall();
+      expect(fake.commands.length, 1);
+    });
+
+    test('paused-for-call → el usuario togglea A MANO → al colgar '
+        'resumeAfterCall NO manda un toggle extra (el usuario tomó el control)',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      fake.commands.clear();
+
+      // La TV pausa por una llamada entrante.
+      c.pauseForCall();
+      expect(fake.commands, [CmdType.playPause]);
+
+      // Mientras sigue "pausada por llamada", el usuario decide a mano
+      // reanudar (o pausar) desde el control remoto: esto debe relinquir el
+      // flag _pausedForCall, tomando el control manual del estado de play.
+      c.playPause();
+      expect(fake.commands, [CmdType.playPause, CmdType.playPause]);
+
+      // La llamada termina: como el usuario ya tomó el control manual,
+      // resumeAfterCall debe ser un no-op (NO un tercer toggle que revertiría
+      // la acción manual del usuario).
+      c.resumeAfterCall();
+      expect(fake.commands.length, 2,
+          reason: 'resumeAfterCall es no-op: nos relinquimos el control al '
+              'usuario togglear a mano durante la pausa-por-llamada');
+    });
+
+    test('glue: con el toggle ON y permiso concedido, ringing pausa e idle '
+        'reanuda vía el stream de estado de llamada', () async {
+      await UserPreferences.setPauseCastOnCall(true);
+      final fake = _FakeSender(devices: [oneTv]);
+      final callFake = _FakeCallState(granted: true);
+      final c =
+          CastSenderController(senderFactory: () => fake, callState: callFake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      expect(c.isCasting, isTrue);
+      // _maybeStartCallWatch es unawaited (lee prefs + pide permiso): asentar.
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(callFake.permissionRequests, 1,
+          reason: 'se pide el permiso una vez por sesión de casting');
+      fake.commands.clear();
+
+      callFake.emit('ringing');
+      await Future<void>.delayed(Duration.zero);
+      expect(fake.commands, [CmdType.playPause], reason: 'pausa al sonar');
+
+      callFake.emit('idle');
+      await Future<void>.delayed(Duration.zero);
+      expect(fake.commands, [CmdType.playPause, CmdType.playPause],
+          reason: 'reanuda al colgar');
+
+      await c.stopCasting();
+    });
+
+    test('glue: con el toggle OFF no se pide permiso ni se vigilan llamadas',
+        () async {
+      await UserPreferences.setPauseCastOnCall(false);
+      final fake = _FakeSender(devices: [oneTv]);
+      final callFake = _FakeCallState(granted: true);
+      final c =
+          CastSenderController(senderFactory: () => fake, callState: callFake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(callFake.permissionRequests, 0, reason: 'toggle OFF: no se pide');
+      fake.commands.clear();
+
+      callFake.emit('ringing');
+      await Future<void>.delayed(Duration.zero);
+      expect(fake.commands, isEmpty, reason: 'no se vigilan llamadas');
+
+      await c.stopCasting();
+    });
+
+    test('glue: permiso DENEGADO → no se suscribe (una llamada no pausa)',
+        () async {
+      await UserPreferences.setPauseCastOnCall(true);
+      final fake = _FakeSender(devices: [oneTv]);
+      final callFake = _FakeCallState(granted: false);
+      final c =
+          CastSenderController(senderFactory: () => fake, callState: callFake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(callFake.permissionRequests, 1);
+      fake.commands.clear();
+
+      callFake.emit('ringing');
+      await Future<void>.delayed(Duration.zero);
+      expect(fake.commands, isEmpty,
+          reason: 'sin permiso: la función es un no-op silencioso');
+
+      await c.stopCasting();
+    });
+
+    test('al parar el casting se libera la vigilancia (idle posterior no '
+        'reanuda una TV que ya no controlamos)', () async {
+      await UserPreferences.setPauseCastOnCall(true);
+      final fake = _FakeSender(devices: [oneTv]);
+      final callFake = _FakeCallState(granted: true);
+      final c =
+          CastSenderController(senderFactory: () => fake, callState: callFake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      callFake.emit('ringing');
+      await Future<void>.delayed(Duration.zero);
+      await c.stopCasting();
+      fake.commands.clear();
+
+      // Tras stopCasting, la suscripción se canceló: un idle rezagado no toca
+      // nada (el sender ya es null y _pausedForCall se limpió).
+      callFake.emit('idle');
+      await Future<void>.delayed(Duration.zero);
+      expect(fake.commands, isEmpty);
     });
   });
 }

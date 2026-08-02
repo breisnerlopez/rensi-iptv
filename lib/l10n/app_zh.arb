@@ -22,9 +22,19 @@
   "cast_stop": "停止投屏",
   "cast_error": "无法连接到电视",
   "cast_retry": "重试",
+  "cast_tv_volume": "电视音量  {value}%",
+  "@cast_tv_volume": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
   "tv_standalone_section": "电视 / 投放",
   "tv_standalone_master_title": "无需手机在电视上继续观看",
   "tv_standalone_master_subtitle": "允许受信任的电视加密保存你的服务商凭据，以便在关闭应用后继续播放。默认关闭。",
+  "pause_cast_on_call_title": "来电时暂停电视播放",
+  "pause_cast_on_call_subtitle": "投屏时，来电会暂停电视上的播放，通话结束后自动恢复。",
   "tv_standalone_consent_title": "在 {device} 上保持会话？",
   "tv_standalone_consent_body": "你的 {provider} 凭据将以加密方式保存在电视上，让你无需手机即可继续观看。风险：在已 root 或被入侵的电视上可能被提取；PIN 配对无法防御截获配对过程的攻击者（已知漏洞）。",
   "tv_standalone_consent_accept": "开启",

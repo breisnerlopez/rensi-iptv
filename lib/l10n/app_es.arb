@@ -22,9 +22,19 @@
   "cast_stop": "Dejar de transmitir",
   "cast_error": "No se pudo conectar con la TV",
   "cast_retry": "Reintentar",
+  "cast_tv_volume": "Volumen TV  {value}%",
+  "@cast_tv_volume": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
   "tv_standalone_section": "TV / Transmisión",
   "tv_standalone_master_title": "Seguir viendo en la TV sin el móvil",
   "tv_standalone_master_subtitle": "Permite que un televisor de confianza guarde tus credenciales del proveedor, cifradas, para seguir reproduciendo cuando cierres la app. Desactivado por defecto.",
+  "pause_cast_on_call_title": "Pausar la TV al recibir una llamada",
+  "pause_cast_on_call_subtitle": "Mientras transmites, una llamada entrante pausa la reproducción en la TV y la reanuda al colgar.",
   "tv_standalone_consent_title": "¿Mantener la sesión en {device}?",
   "tv_standalone_consent_body": "Se guardarán tus credenciales de {provider} CIFRADAS en el televisor para que puedas seguir viendo sin el móvil. Riesgo: en un televisor con root o comprometido podrían extraerse; el emparejamiento por PIN no es a prueba de un atacante que capture el emparejamiento (vulnerabilidad conocida).",
   "tv_standalone_consent_accept": "Activar",

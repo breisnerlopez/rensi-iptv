@@ -102,22 +102,29 @@ class CastMiniController extends StatelessWidget {
     );
   }
 
-  void _openControls(BuildContext context, CastSenderController controller) {
-    showModalBottomSheet<void>(
-      context: appNavigatorKey.currentContext ?? context,
-      useRootNavigator: true,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => ChangeNotifierProvider<CastSenderController>.value(
-        value: controller,
-        child: FractionallySizedBox(
-          heightFactor: 0.72,
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            child: const CastingScreen(),
-          ),
+  void _openControls(BuildContext context, CastSenderController controller) =>
+      openCastControls(context, controller);
+}
+
+/// Abre el panel de controles de la TV (destino, play/pausa, volumen, pistas,
+/// detener) como hoja modal sobre el navegador raíz. Reutilizado por el
+/// mini-control y por el handoff del reproductor: al enviar un título a la TV,
+/// tras cerrar el player se muestran estos controles para tenerlos a mano.
+void openCastControls(BuildContext context, CastSenderController controller) {
+  showModalBottomSheet<void>(
+    context: appNavigatorKey.currentContext ?? context,
+    useRootNavigator: true,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (_) => ChangeNotifierProvider<CastSenderController>.value(
+      value: controller,
+      child: FractionallySizedBox(
+        heightFactor: 0.72,
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: const CastingScreen(),
         ),
       ),
-    );
-  }
+    ),
+  );
 }

@@ -7,8 +7,12 @@
 // secretos) y viajan cifradas por el canal de control; nunca a un backend.
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+import '../services/app_navigator.dart';
+import '../services/call_state_service.dart';
+import '../services/hardware_volume_service.dart';
 import '../models/content_type.dart';
 import '../models/playlist_model.dart';
 import '../models/watch_history.dart';
@@ -136,12 +140,37 @@ class CastSenderController extends ChangeNotifier {
   CastSenderController({
     PhoneSenderService Function()? senderFactory,
     CastTrustStore trustStore = const CastTrustStore(),
+    HardwareVolumeService? hwVolume,
+    CallStateService? callState,
   })  : _senderFactory = senderFactory ?? PhoneSenderService.new,
-        _trust = trustStore;
+        _trust = trustStore,
+        _hwVolume = hwVolume ?? HardwareVolumeService.instance,
+        _callState = callState ?? const CallStateService() {
+    // Route hardware VOLUME_UP/DOWN presses (forwarded by the native layer only
+    // while casting) to [nudgeVolume]. The service's channel calls are try/caught
+    // no-ops without a native peer, so this stays inert in `flutter test`.
+    _hwVolume.onStep = nudgeVolume;
+  }
 
   final PhoneSenderService Function() _senderFactory;
   final CastTrustStore _trust;
+  final HardwareVolumeService _hwVolume;
+  final CallStateService _callState;
   PhoneSenderService? _sender;
+
+  // Pausa-al-recibir-llamada mientras se castea. Solo se activa cuando el
+  // casting empieza Y el toggle (UserPreferences.getPauseCastOnCall) está ON; se
+  // pide el permiso READ_PHONE_STATE como mucho UNA vez por sesión de casting.
+  // [_callSub] es la suscripción al stream de estado de llamada (null = inactivo,
+  // suscribir registra el listener nativo; cancelar lo libera). [_pausedForCall]
+  // recuerda que fuimos NOSOTROS quienes pausamos por una llamada (para reanudar
+  // solo en ese caso). [_tvPlaying] es el estado de reproducción INTENCIONADO de
+  // la TV (playPause es un toggle: sin rastrearlo, una llamada podría dar el
+  // toggle equivocado). [_callWatchRequested] evita re-pedir el permiso.
+  StreamSubscription<String>? _callSub;
+  bool _pausedForCall = false;
+  bool _callWatchRequested = false;
+  bool _tvPlaying = false;
 
   // Streaming de un archivo LOCAL (descarga offline) del móvil a la TV por la
   // LAN. Cuando [_localUrl] != null, el LOAD envía esta URL (sin credenciales)
@@ -250,8 +279,22 @@ class CastSenderController extends ChangeNotifier {
   bool get isCasting => _phase == CastPhase.casting;
 
   void _set(CastPhase p, {String? error}) {
+    final wasCasting = _phase == CastPhase.casting;
     _phase = p;
     _error = error;
+    // Tell the native layer to intercept (or release) the phone's hardware
+    // volume keys exactly when casting starts/stops. Best-effort no-op off-device.
+    final nowCasting = p == CastPhase.casting;
+    if (nowCasting != wasCasting) {
+      _hwVolume.setCastingActive(nowCasting);
+      if (nowCasting) {
+        // La TV arranca reproduciendo tras el LOAD; empieza a vigilar llamadas.
+        _tvPlaying = true;
+        unawaited(_maybeStartCallWatch());
+      } else {
+        _stopCallWatch();
+      }
+    }
     notifyListeners();
   }
 
@@ -940,7 +983,81 @@ class CastSenderController extends ChangeNotifier {
     _resyncTimer = null;
   }
 
-  void playPause() => _sender?.sendCommand(CmdType.playPause);
+  void playPause() {
+    if (_sender == null) return;
+    _sender!.sendCommand(CmdType.playPause);
+    // Rastrear el estado INTENCIONADO de la TV: playPause es un toggle, así que
+    // pauseForCall/resumeAfterCall necesitan saber si estaba reproduciendo para
+    // no dar el toggle equivocado. Un `state` posterior lo corrige si drifta.
+    _tvPlaying = !_tvPlaying;
+    // Si el usuario togglea a mano MIENTRAS estamos pausados-por-llamada, su
+    // acción manual toma el control: soltamos el flag para que, al colgar,
+    // resumeAfterCall() NO dispare un toggle automático que revierta lo que el
+    // usuario acaba de decidir (sería un toggle "fantasma" no pedido por nadie).
+    _pausedForCall = false;
+  }
+
+  // ── Pausa-al-recibir-llamada (solo mientras se castea) ────────────────────
+
+  /// Arranca la vigilancia de llamadas si el toggle está ON y se concede el
+  /// permiso. Idempotente (no re-suscribe si ya está activa) y best-effort: sin
+  /// permiso o sin peer nativo (tests/desktop) es un no-op silencioso, y el
+  /// permiso se pide como mucho una vez por sesión de casting.
+  Future<void> _maybeStartCallWatch() async {
+    if (_callSub != null || _callWatchRequested) return;
+    bool enabled;
+    try {
+      enabled = await UserPreferences.getPauseCastOnCall();
+    } catch (_) {
+      enabled = false; // sin prefs (tests) → no vigilar
+    }
+    if (!enabled || _phase != CastPhase.casting) return;
+    _callWatchRequested = true; // pedir el permiso como mucho una vez por sesión
+    final granted = await _callState.ensurePermission();
+    // El casting pudo terminar mientras se resolvía el permiso, o el permiso fue
+    // denegado: no suscribir (ni reintentar/molestar más en esta sesión).
+    if (!granted || _phase != CastPhase.casting || _callSub != null) return;
+    _callSub = _callState.callStates().listen(_onCallState);
+  }
+
+  void _onCallState(String state) {
+    switch (state) {
+      case 'ringing':
+      case 'offhook':
+        pauseForCall();
+      case 'idle':
+        resumeAfterCall();
+    }
+  }
+
+  /// Libera la vigilancia de llamadas (fin de casting / dispose). Idempotente.
+  void _stopCallWatch() {
+    _callSub?.cancel();
+    _callSub = null;
+    _callWatchRequested = false;
+    _pausedForCall = false;
+  }
+
+  /// Pausa la TV por una llamada entrante, SOLO si está reproduciendo (evita un
+  /// toggle equivocado). Idempotente: un segundo evento (ringing→offhook) no
+  /// vuelve a togglear. Recuerda que fuimos nosotros para reanudar luego.
+  void pauseForCall() {
+    if (_phase != CastPhase.casting || _sender == null) return;
+    if (_pausedForCall || !_tvPlaying) return;
+    _sender!.sendCommand(CmdType.playPause);
+    _tvPlaying = false;
+    _pausedForCall = true;
+  }
+
+  /// Reanuda la TV al terminar la llamada, SOLO si fuimos nosotros quienes
+  /// pausamos (si el usuario ya la había pausado a mano, no la reanudamos).
+  void resumeAfterCall() {
+    if (!_pausedForCall) return;
+    _pausedForCall = false;
+    if (_phase != CastPhase.casting || _sender == null) return;
+    _sender!.sendCommand(CmdType.playPause);
+    _tvPlaying = true;
+  }
 
   /// Zap: el móvil (que tiene el catálogo) reenvía un LOAD del canal
   /// siguiente/anterior; la TV cambia de canal sin round-trip de comando.
@@ -1036,6 +1153,50 @@ class CastSenderController extends ChangeNotifier {
     _sender?.sendCommand(CmdType.setVolume, {'v': _volume.round()});
   }
 
+  /// Nudges the TV's cast volume by [delta] (a hardware VOLUME_UP/DOWN press
+  /// while casting maps to +5 / -5). Unlike [setVolume], this sends the command
+  /// IMMEDIATELY (cancels the debounce) so each physical press lands crisply,
+  /// and pops a brief on-screen indicator of the new TV volume so the user gets
+  /// feedback even when the cast control sheet isn't open.
+  void nudgeVolume(int delta) {
+    _volume = (_volume + delta).clamp(0, 100);
+    notifyListeners();
+    _volumeDebounce?.cancel();
+    _sender?.sendCommand(CmdType.setVolume, {'v': _volume.round()});
+    _showVolumeToast(_volume.round());
+  }
+
+  // Transient "Volumen TV  N%" indicator shown on a hardware volume nudge.
+  // Mounted into the root navigator's Overlay (via appNavigatorKey), so it works
+  // even when no cast sheet is open. Single instance: a new nudge refreshes the
+  // existing entry instead of stacking. Auto-dismisses after [_toastDuration].
+  OverlayEntry? _volumeToast;
+  Timer? _volumeToastTimer;
+  final ValueNotifier<int> _volumeToastValue = ValueNotifier<int>(0);
+  static const _toastDuration = Duration(milliseconds: 1100);
+
+  void _showVolumeToast(int volume) {
+    // No navigator (unit tests / not yet mounted) → skip silently.
+    final overlay = appNavigatorKey.currentState?.overlay;
+    if (overlay == null) return;
+    _volumeToastValue.value = volume;
+    if (_volumeToast == null) {
+      _volumeToast = OverlayEntry(
+        builder: (context) => _VolumeToast(value: _volumeToastValue),
+      );
+      overlay.insert(_volumeToast!);
+    }
+    _volumeToastTimer?.cancel();
+    _volumeToastTimer = Timer(_toastDuration, _removeVolumeToast);
+  }
+
+  void _removeVolumeToast() {
+    _volumeToastTimer?.cancel();
+    _volumeToastTimer = null;
+    _volumeToast?.remove();
+    _volumeToast = null;
+  }
+
   void _onTracks(Map<String, dynamic> msg) {
     List<CastTrack> parse(String key) => ((msg[key] as List?) ?? const [])
         .map((e) => CastTrack.fromJson(e as Map<String, dynamic>))
@@ -1076,6 +1237,10 @@ class CastSenderController extends ChangeNotifier {
     final pos = (msg['pos'] as num?)?.toInt() ?? 0;
     final dur = (msg['dur'] as num?)?.toInt() ?? 0;
     if (pos <= 0 || dur <= 0) return;
+    // Un `state` con posición real es prueba de que la TV está reproduciendo:
+    // corrige el estado intencionado por si driftó (salvo que lo tengamos pausado
+    // por una llamada, para que un eco rezagado no dispare un resume espurio).
+    if (!_pausedForCall) _tvPlaying = true;
     _lastPos = pos;
     _lastDur = dur;
     final now = DateTime.now();
@@ -1222,8 +1387,80 @@ class CastSenderController extends ChangeNotifier {
   void dispose() {
     _volumeDebounce?.cancel();
     _resyncTimer?.cancel();
+    _callSub?.cancel();
+    _removeVolumeToast();
+    _volumeToastValue.dispose();
+    // Release the hardware-key hook if we owned it (avoid a dangling closure to
+    // a disposed controller). Only clear if it still points at us. Also drop the
+    // native casting flag as defense-in-depth so volume keys can never stay
+    // hijacked if this controller is torn down mid-cast (the singleton normally
+    // only dies with the process, but don't rely on that).
+    if (_hwVolume.onStep == nudgeVolume) _hwVolume.onStep = null;
+    _hwVolume.setCastingActive(false);
     _sender?.close();
     _fileServer?.stop();
     super.dispose();
+  }
+}
+
+/// The small centered pill that shows the TV's new volume on a hardware nudge.
+/// Rebuilds only when [value] changes (a rapid press just refreshes the number).
+class _VolumeToast extends StatelessWidget {
+  const _VolumeToast({required this.value});
+
+  final ValueNotifier<int> value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.82),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.volume_up, color: Colors.white, size: 22),
+                  const SizedBox(width: 10),
+                  ValueListenableBuilder<int>(
+                    valueListenable: value,
+                    builder: (context, v, _) {
+                      // Este OverlayEntry vive bajo el Overlay raíz de la
+                      // MaterialApp, así que AppLocalizations.of(context)
+                      // normalmente resuelve. Por si acaso (contexto huérfano,
+                      // localización aún no lista, etc.) se cae al literal en
+                      // español SIN lanzar: el toast de volumen nunca debe
+                      // crashear la app.
+                      String text;
+                      try {
+                        text = AppLocalizations.of(context)
+                                ?.cast_tv_volume(v) ??
+                            'Volumen TV  $v%';
+                      } catch (_) {
+                        text = 'Volumen TV  $v%';
+                      }
+                      return Text(
+                        text,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

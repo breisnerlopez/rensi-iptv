@@ -80,6 +80,11 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cast_retry => 'Erneut versuchen';
 
   @override
+  String cast_tv_volume(int value) {
+    return 'TV-Lautstärke  $value%';
+  }
+
+  @override
   String get tv_standalone_section => 'TV / Streaming';
 
   @override
@@ -89,6 +94,13 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get tv_standalone_master_subtitle =>
       'Erlaubt einem vertrauenswürdigen TV, deine Anbieter-Zugangsdaten verschlüsselt zu speichern, damit es nach dem Schließen der App weiter abspielen kann. Standardmäßig aus.';
+
+  @override
+  String get pause_cast_on_call_title => 'TV bei Anruf pausieren';
+
+  @override
+  String get pause_cast_on_call_subtitle =>
+      'Während des Castings pausiert ein eingehender Anruf die Wiedergabe auf dem TV und setzt sie nach dem Anruf fort.';
 
   @override
   String tv_standalone_consent_title(String device) {

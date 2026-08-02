@@ -79,6 +79,11 @@ class AppLocalizationsTr extends AppLocalizations {
   String get cast_retry => 'Yeniden dene';
 
   @override
+  String cast_tv_volume(int value) {
+    return 'TV sesi  %$value';
+  }
+
+  @override
   String get tv_standalone_section => 'TV / Yayın';
 
   @override
@@ -88,6 +93,13 @@ class AppLocalizationsTr extends AppLocalizations {
   @override
   String get tv_standalone_master_subtitle =>
       'Güvenilir bir TV\'nin, uygulamayı kapattıktan sonra oynatmaya devam edebilmesi için sağlayıcı kimlik bilgilerinizi şifreli olarak saklamasına izin verir. Varsayılan olarak kapalı.';
+
+  @override
+  String get pause_cast_on_call_title => 'Arama sırasında TV\'yi duraklat';
+
+  @override
+  String get pause_cast_on_call_subtitle =>
+      'Yayın sırasında gelen bir arama TV\'deki oynatmayı duraklatır ve arama bitince devam ettirir.';
 
   @override
   String tv_standalone_consent_title(String device) {

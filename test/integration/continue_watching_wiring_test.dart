@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
@@ -99,18 +98,35 @@ void main() {
             'the rail fills up with things already seen');
   });
 
-  testWidgets('a title barely started is not offered', (tester) async {
+  testWidgets('a title only glanced at (a few seconds) is not offered',
+      (tester) async {
     final p = await seedWith(
         tester,
         () => _writeHistory('vod_1_movie_2', 'Andrei Rublev',
-            watched: 60, total: 7200));
+            watched: 10, total: 7200));
 
     await pumpScreen(tester, XtreamCodeHomeScreen(playlist: p));
     await tester.pumpAndSettle(const Duration(milliseconds: 600));
 
     expect(find.text('Andrei Rublev'), findsNothing,
-        reason: 'a title opened for a minute by accident is not something you '
-            'are partway through');
+        reason: 'a title opened for a few seconds by accident (< 30s and < 2%) '
+            'is not something you are partway through');
+  });
+
+  testWidgets('a movie watched ~30s+ IS offered even if that is under 2%',
+      (tester) async {
+    // On a 2h movie 2% is ~2.4 min, so the old bare-2% floor hid a real
+    // few-minutes-in play. The 30s absolute floor now surfaces it.
+    final p = await seedWith(
+        tester,
+        () => _writeHistory('vod_1_movie_9', 'Stalker (1979)',
+            watched: 45, total: 7200));
+
+    await pumpScreen(tester, XtreamCodeHomeScreen(playlist: p));
+    await tester.pumpAndSettle(const Duration(milliseconds: 600));
+
+    expect(find.text('Stalker (1979)'), findsWidgets,
+        reason: '45s watched clears the ~30s resume floor');
   });
 
   testWidgets('the M3U home is wired too', (tester) async {

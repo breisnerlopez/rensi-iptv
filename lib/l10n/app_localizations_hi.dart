@@ -79,6 +79,11 @@ class AppLocalizationsHi extends AppLocalizations {
   String get cast_retry => 'फिर से कोशिश करें';
 
   @override
+  String cast_tv_volume(int value) {
+    return 'टीवी वॉल्यूम  $value%';
+  }
+
+  @override
   String get tv_standalone_section => 'टीवी / कास्टिंग';
 
   @override
@@ -88,6 +93,13 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get tv_standalone_master_subtitle =>
       'किसी विश्वसनीय टीवी को आपके प्रोवाइडर की क्रेडेंशियल एन्क्रिप्टेड रूप में सहेजने देता है, ताकि ऐप बंद करने के बाद भी वह चलता रहे। डिफ़ॉल्ट रूप से बंद।';
+
+  @override
+  String get pause_cast_on_call_title => 'कॉल के दौरान टीवी रोकें';
+
+  @override
+  String get pause_cast_on_call_subtitle =>
+      'कास्टिंग के दौरान, आने वाली कॉल टीवी पर प्लेबैक को रोक देती है और कॉल समाप्त होने पर फिर से शुरू कर देती है।';
 
   @override
   String tv_standalone_consent_title(String device) {

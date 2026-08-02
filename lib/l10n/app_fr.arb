@@ -22,9 +22,19 @@
   "cast_stop": "Arrêter la diffusion",
   "cast_error": "Impossible de se connecter au téléviseur",
   "cast_retry": "Réessayer",
+  "cast_tv_volume": "Volume TV  {value} %",
+  "@cast_tv_volume": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
   "tv_standalone_section": "TV / Diffusion",
   "tv_standalone_master_title": "Continuer sur la TV sans le téléphone",
   "tv_standalone_master_subtitle": "Permet à une TV de confiance d'enregistrer vos identifiants de fournisseur, chiffrés, pour continuer la lecture après la fermeture de l'app. Désactivé par défaut.",
+  "pause_cast_on_call_title": "Mettre la TV en pause pendant un appel",
+  "pause_cast_on_call_subtitle": "Pendant la diffusion, un appel entrant met la lecture en pause sur la TV et la reprend à la fin de l'appel.",
   "tv_standalone_consent_title": "Garder la session sur {device} ?",
   "tv_standalone_consent_body": "Vos identifiants {provider} seront enregistrés CHIFFRÉS sur la TV pour continuer à regarder sans votre téléphone. Risque : sur une TV rootée ou compromise, ils pourraient être extraits ; l'appairage par code PIN ne protège pas contre un attaquant qui capture l'appairage (vulnérabilité connue).",
   "tv_standalone_consent_accept": "Activer",

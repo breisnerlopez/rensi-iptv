@@ -22,9 +22,19 @@
   "cast_stop": "Yayını durdur",
   "cast_error": "TV'ye bağlanılamadı",
   "cast_retry": "Yeniden dene",
+  "cast_tv_volume": "TV sesi  %{value}",
+  "@cast_tv_volume": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
   "tv_standalone_section": "TV / Yayın",
   "tv_standalone_master_title": "Telefon olmadan TV'de izlemeye devam et",
   "tv_standalone_master_subtitle": "Güvenilir bir TV'nin, uygulamayı kapattıktan sonra oynatmaya devam edebilmesi için sağlayıcı kimlik bilgilerinizi şifreli olarak saklamasına izin verir. Varsayılan olarak kapalı.",
+  "pause_cast_on_call_title": "Arama sırasında TV'yi duraklat",
+  "pause_cast_on_call_subtitle": "Yayın sırasında gelen bir arama TV'deki oynatmayı duraklatır ve arama bitince devam ettirir.",
   "tv_standalone_consent_title": "Oturum {device} üzerinde tutulsun mu?",
   "tv_standalone_consent_body": "{provider} kimlik bilgileriniz, telefonunuz olmadan izlemeye devam edebilmeniz için TV'de ŞİFRELİ olarak saklanacak. Risk: rootlanmış veya ele geçirilmiş bir TV'de çıkarılabilirler; PIN ile eşleştirme, eşleştirmeyi yakalayan bir saldırgana karşı korumalı değildir (bilinen bir güvenlik açığı).",
   "tv_standalone_consent_accept": "Aç",

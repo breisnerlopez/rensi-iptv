@@ -22,9 +22,19 @@
   "cast_stop": "Stop casting",
   "cast_error": "Couldn't connect to the TV",
   "cast_retry": "Retry",
+  "cast_tv_volume": "TV volume  {value}%",
+  "@cast_tv_volume": {
+    "placeholders": {
+      "value": {
+        "type": "int"
+      }
+    }
+  },
   "tv_standalone_section": "TV / Casting",
   "tv_standalone_master_title": "Keep playing on the TV without the phone",
   "tv_standalone_master_subtitle": "Lets a trusted TV store your provider credentials, encrypted, so it can keep playing after you close the app. Off by default.",
+  "pause_cast_on_call_title": "Pause the TV during a call",
+  "pause_cast_on_call_subtitle": "While casting, an incoming call pauses playback on the TV and resumes it when the call ends.",
   "tv_standalone_consent_title": "Keep the session on {device}?",
   "@tv_standalone_consent_title": {
     "placeholders": { "device": { "type": "String" } }

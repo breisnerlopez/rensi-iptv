@@ -34,6 +34,7 @@ class UserPreferences {
   static const String _keySeekOnDoubleTap = 'seek_on_double_tap';
   static const String _keyAutoPipOnHome = 'auto_pip_on_home';
   static const String _keyTvStandaloneAllowed = 'tv_standalone_allowed';
+  static const String _keyPauseCastOnCall = 'pause_cast_on_call';
 
   static const List<String> _backupKeys = [
     _keyLastPlaylist,
@@ -61,6 +62,7 @@ class UserPreferences {
     _keySeekOnDoubleTap,
     _keyAutoPipOnHome,
     _keyTvStandaloneAllowed,
+    _keyPauseCastOnCall,
   ];
 
   static Future<Map<String, Object>> exportSettings() async {
@@ -487,6 +489,19 @@ class UserPreferences {
   static Future<void> setTvStandaloneAllowed(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyTvStandaloneAllowed, value);
+  }
+
+  /// Si, mientras se castea, una llamada entrante debe pausar la reproducción en
+  /// la TV (y reanudarla al colgar). Default true: comportamiento esperado, pero
+  /// desactivable. Solo aplica en el móvil con permiso READ_PHONE_STATE.
+  static Future<bool> getPauseCastOnCall() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyPauseCastOnCall) ?? true;
+  }
+
+  static Future<void> setPauseCastOnCall(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyPauseCastOnCall, value);
   }
 
   static const String _keyCastDeviceId = 'cast_device_id';

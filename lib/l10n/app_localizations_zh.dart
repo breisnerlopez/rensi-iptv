@@ -78,6 +78,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cast_retry => '重试';
 
   @override
+  String cast_tv_volume(int value) {
+    return '电视音量  $value%';
+  }
+
+  @override
   String get tv_standalone_section => '电视 / 投放';
 
   @override
@@ -86,6 +91,12 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get tv_standalone_master_subtitle =>
       '允许受信任的电视加密保存你的服务商凭据，以便在关闭应用后继续播放。默认关闭。';
+
+  @override
+  String get pause_cast_on_call_title => '来电时暂停电视播放';
+
+  @override
+  String get pause_cast_on_call_subtitle => '投屏时，来电会暂停电视上的播放，通话结束后自动恢复。';
 
   @override
   String tv_standalone_consent_title(String device) {

@@ -6,7 +6,11 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
 import android.speech.RecognizerIntent
+import android.telephony.PhoneStateListener
+import android.telephony.TelephonyCallback
+import android.telephony.TelephonyManager
 import android.util.Rational
+import android.view.KeyEvent
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -16,6 +20,16 @@ class MainActivity : AudioServiceActivity() {
     private val pipChannel = "info.breisner.rensi.iptv/pip"
     private val pipEventsChannel = "info.breisner.rensi.iptv/pip_events"
     private val voiceChannel = "info.breisner.rensi.iptv/voice"
+    private val hwVolumeChannel = "info.breisner.rensi.iptv/hwvolume"
+    private val callStateChannel = "info.breisner.rensi.iptv/callstate"
+
+    // While casting, the phone's hardware VOLUME_UP/DOWN keys must control the
+    // TV's cast volume, not the phone's. Dart flips [castingActive] via the
+    // hwvolume channel; [dispatchKeyEvent] consumes the keys and forwards each
+    // press to Dart only while it is true. When false, the keys fall through to
+    // the system unchanged (normal phone volume).
+    private var hwVolumeMethodChannel: MethodChannel? = null
+    private var castingActive = false
 
     // The system voice overlay is a foreign activity: we hand its result back
     // to Dart through a saved MethodChannel.Result, completed exactly once in
@@ -29,6 +43,20 @@ class MainActivity : AudioServiceActivity() {
     private var lastAspectRatio: Rational = Rational(16, 9)
     // Whether Dart wants us to enter PiP automatically on home/back gesture.
     private var autoPipEnabled: Boolean = false
+
+    // Phone call-state bridge (feature: pause the cast on an incoming call). Dart
+    // listens on [callStateChannel] ONLY while casting AND the toggle is on; on
+    // onListen we register a telephony listener that emits "ringing"/"offhook"/
+    // "idle", and on onCancel we UNREGISTER it (so we never hold the listener —
+    // nor need READ_PHONE_STATE — when the feature is inactive). Registration is
+    // wrapped in try/catch: without the permission it can throw SecurityException
+    // or simply deliver nothing; either way we no-op and never crash.
+    private var callStateSink: EventChannel.EventSink? = null
+    // API < 31 path (legacy PhoneStateListener via TelephonyManager.listen).
+    private var phoneStateListener: PhoneStateListener? = null
+    // API >= 31 path (TelephonyCallback via registerTelephonyCallback). Kept as
+    // Any? so the class still loads on older API levels (the type is 31+).
+    private var telephonyCallback: Any? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -82,6 +110,118 @@ class MainActivity : AudioServiceActivity() {
                     else -> result.notImplemented()
                 }
             }
+
+        hwVolumeMethodChannel =
+            MethodChannel(flutterEngine.dartExecutor.binaryMessenger, hwVolumeChannel).apply {
+                setMethodCallHandler { call, result ->
+                    when (call.method) {
+                        "setCastingActive" -> {
+                            castingActive = (call.arguments as? Boolean) ?: false
+                            result.success(null)
+                        }
+                        "ping" -> result.success(null)
+                        else -> result.notImplemented()
+                    }
+                }
+            }
+
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, callStateChannel)
+            .setStreamHandler(object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    callStateSink = events
+                    registerCallStateListener()
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    unregisterCallStateListener()
+                    callStateSink = null
+                }
+            })
+    }
+
+    // Maps an Android CALL_STATE_* constant to the string Dart expects and pushes
+    // it to the sink (on the main thread — EventSink is not thread-safe).
+    private fun emitCallState(state: Int) {
+        val name = when (state) {
+            TelephonyManager.CALL_STATE_RINGING -> "ringing"
+            TelephonyManager.CALL_STATE_OFFHOOK -> "offhook"
+            else -> "idle"
+        }
+        runOnUiThread { callStateSink?.success(name) }
+    }
+
+    // Registers the phone-state listener behind the API-level split. Best-effort:
+    // if READ_PHONE_STATE isn't granted the platform can throw SecurityException
+    // (or just never deliver) — we catch and no-op so the feature degrades to
+    // "never pauses" instead of crashing.
+    private fun registerCallStateListener() {
+        val tm = getSystemService(TELEPHONY_SERVICE) as? TelephonyManager ?: return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val cb = object : TelephonyCallback(), TelephonyCallback.CallStateListener {
+                    override fun onCallStateChanged(state: Int) = emitCallState(state)
+                }
+                telephonyCallback = cb
+                tm.registerTelephonyCallback(mainExecutor, cb)
+            } else {
+                val listener = object : PhoneStateListener() {
+                    @Deprecated("Deprecated in API 31; used only on API < 31")
+                    override fun onCallStateChanged(state: Int, phoneNumber: String?) =
+                        emitCallState(state)
+                }
+                phoneStateListener = listener
+                @Suppress("DEPRECATION")
+                tm.listen(listener, PhoneStateListener.LISTEN_CALL_STATE)
+            }
+        } catch (_: SecurityException) {
+            // No READ_PHONE_STATE → silently give up (feature just won't pause).
+        } catch (_: Exception) {
+            // Any other platform hiccup → no-op, never crash the activity.
+        }
+    }
+
+    // Releases the listener so we don't hold it (nor the permission requirement)
+    // once Dart stops listening (cast ended / toggle off). Idempotent.
+    private fun unregisterCallStateListener() {
+        val tm = getSystemService(TELEPHONY_SERVICE) as? TelephonyManager
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                (telephonyCallback as? TelephonyCallback)?.let { tm?.unregisterTelephonyCallback(it) }
+            } else {
+                phoneStateListener?.let {
+                    @Suppress("DEPRECATION")
+                    tm?.listen(it, PhoneStateListener.LISTEN_NONE)
+                }
+            }
+        } catch (_: Exception) {
+            // Ignore: unregistering a listener that was never fully registered.
+        }
+        telephonyCallback = null
+        phoneStateListener = null
+    }
+
+    // While casting, hijack the hardware VOLUME_UP/DOWN keys: forward each press
+    // to Dart (which nudges the TV's cast volume) and CONSUME the event so the
+    // system volume UI / phone volume never changes. VOLUME_MUTE and every other
+    // key — and all keys when not casting — fall through to super unchanged.
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (castingActive &&
+            (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
+                event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)
+        ) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                val up = event.keyCode == KeyEvent.KEYCODE_VOLUME_UP
+                runOnUiThread {
+                    hwVolumeMethodChannel?.invokeMethod(
+                        "onVolumeKey",
+                        mapOf("dir" to if (up) "up" else "down"),
+                    )
+                }
+            }
+            // Consume both DOWN and UP so the OS never applies phone volume.
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     // True when a recognizer that can satisfy ACTION_RECOGNIZE_SPEECH is

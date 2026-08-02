@@ -79,6 +79,11 @@ class AppLocalizationsPt extends AppLocalizations {
   String get cast_retry => 'Tentar novamente';
 
   @override
+  String cast_tv_volume(int value) {
+    return 'Volume da TV  $value%';
+  }
+
+  @override
   String get tv_standalone_section => 'TV / Transmissão';
 
   @override
@@ -88,6 +93,13 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get tv_standalone_master_subtitle =>
       'Permite que uma TV confiável armazene suas credenciais do provedor, criptografadas, para continuar reproduzindo após fechar o app. Desativado por padrão.';
+
+  @override
+  String get pause_cast_on_call_title => 'Pausar a TV ao receber uma chamada';
+
+  @override
+  String get pause_cast_on_call_subtitle =>
+      'Durante a transmissão, uma chamada recebida pausa a reprodução na TV e a retoma quando a chamada termina.';
 
   @override
   String tv_standalone_consent_title(String device) {

@@ -26,7 +26,9 @@ import 'package:rensi_iptv/models/tmdb_search_result.dart';
 import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/tmdb_cast_resolver.dart';
 import 'package:rensi_iptv/utils/pre_buffer_monitor.dart';
+import 'package:rensi_iptv/services/app_navigator.dart';
 import 'package:rensi_iptv/widgets/cast/cast_flow.dart';
+import 'package:rensi_iptv/widgets/cast/cast_mini_controller.dart';
 import 'package:rensi_iptv/widgets/cast/pause_info_panel.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:rensi_iptv/utils/subtitle_configuration.dart';
@@ -965,7 +967,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // reconectándose), avisar — sin dejar el player atascado.
     _player.stop();
     final messenger = ScaffoldMessenger.maybeOf(context);
-    Navigator.of(context).maybePop();
+    _popAfterCastHandoff();
     messenger?.showSnackBar(
       SnackBar(
         content: Text(ok ? context.loc.cast_sent_to_tv : context.loc.cast_send_failed),
@@ -1041,7 +1043,35 @@ class _PlayerWidgetState extends State<PlayerWidget>
       // el reproductor ES la ruta superior: cerrarlo devuelve al usuario a la
       // navegación mientras la TV reproduce (el control vive en el mini-control).
       _player.stop();
-      Navigator.of(context).maybePop();
+      _popAfterCastHandoff(showControls: true);
+    }
+  }
+
+  /// Cierre PROGRAMÁTICO tras ceder la reproducción a la TV (handoff o recast).
+  /// DEBE saltarse el guard de "confirmar salida con doble BACK" (el PopScope de
+  /// Fix #10a: `canPop = !_anyOverlayOpen && _backExitArmed`): ese guard existe
+  /// para el BACK del USUARIO, no para este cierre intencional. Con `maybePop()`
+  /// el pop quedaba VETADO (_backExitArmed=false, el usuario nunca pulsó BACK) y
+  /// el player se quedaba montado mostrando el fallback "Reproduciendo en" (sin
+  /// nombre de TV ni controles), sin poder llegar a la CastingScreen (donde vive
+  /// el volumen). `pop()` imperativo ignora `canPop`; `canPop()` del navigator
+  /// evita reventar si el player fuese la ruta raíz.
+  void _popAfterCastHandoff({bool showControls = false}) {
+    if (!mounted) return;
+    final nav = Navigator.of(context);
+    if (nav.canPop()) nav.pop();
+    // Tras devolver a la navegación, abrir el panel de controles de la TV (el
+    // mismo del mini-control: volumen, play/pausa, pistas, detener) para que el
+    // usuario los tenga a mano justo después de enviar a la TV. Diferido al
+    // siguiente frame para que el pop del player asiente antes de la hoja modal;
+    // usa el navegador raíz (el context del player ya no sirve tras el pop).
+    if (showControls) {
+      final c = _cast;
+      final ctx = appNavigatorKey.currentContext;
+      if (c != null && ctx != null) {
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => openCastControls(ctx, c));
+      }
     }
   }
 

@@ -325,8 +325,12 @@ void main() {
 
       final bytes = await BackupService.exportBytes(passphrase: passphrase);
       expect(BackupService.looksEncrypted(bytes), isTrue);
-      // Sanity: the plain passphrase should not appear in the ciphertext.
-      expect(utf8.decode(bytes, allowMalformed: true), isNot(contains('u ')));
+      // Sanity: a DISTINCTIVE plaintext secret must not survive into the
+      // ciphertext. A 2-char canary (e.g. 'u\x00') is flaky — those bytes
+      // appear by chance in the random-salted ciphertext often enough to
+      // fail intermittently as the payload grows; the URL host 'x.com' won't.
+      expect(
+          utf8.decode(bytes, allowMalformed: true), isNot(contains('x.com')));
 
       await PlaylistService.deletePlaylist('p1');
       final result = await BackupService.importBytes(

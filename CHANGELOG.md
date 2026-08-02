@@ -1,3 +1,19 @@
+# [2.18.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.18.0...v2.18.1) (2026-08-02)
+
+
+### Features
+
+* **Sube y baja el volumen de la TV con los botones físicos del teléfono** mientras casteas — antes solo se podía desde el control de la app (aparece un aviso "Volumen TV  N%")
+* **La TV se pausa cuando te entra una llamada** y sigue al colgar — opcional, lo activas o desactivas en Ajustes → TV / Casting
+* **Al enviar un título a la TV se abren de una vez los controles** (volumen, play/pausa, pistas de audio y subtítulos, detener), sin tener que buscar el mini-control
+
+
+### Bug Fixes
+
+* **Enviar a la TV ya no deja el móvil "pegado" mostrando "Reproduciendo en":** el reproductor se cierra y vuelves a la app con los controles a mano
+* **"Continuar viendo" muestra una película después de verla ~30 segundos** — antes, en películas largas, había que ver varios minutos para que apareciera
+
+
 # [2.18.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.17.0...v2.18.0) (2026-08-02)
 
 

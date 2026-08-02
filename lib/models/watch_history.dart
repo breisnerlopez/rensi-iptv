@@ -14,6 +14,14 @@ import 'package:rensi_iptv/models/content_type.dart';
 /// barely-started, which is a title opened by accident rather than one you are
 /// partway through. Live is excluded outright — a channel has no position, and
 /// a DVR window gives it a duration that makes the progress bar lie.
+///
+/// Floor: a title is offered once you've watched **≥ [_kResumeMinSeconds]s OR
+/// ≥ 2%**, whichever comes first. The bare 2% floor hid real short viewings —
+/// on a 90-min movie 2% is ~1.8 min, so a legitimate few-minutes-in play never
+/// showed; the absolute-seconds floor fixes that while an accidental 3-second
+/// tap still stays out. The 95% ceiling keeps hiding the near-finished.
+const int _kResumeMinSeconds = 30;
+
 List<WatchHistory> resumableFrom(List<WatchHistory> all) => all.where((h) {
       if (h.contentType == ContentType.liveStream) return false;
       // Feature H (fase 5) / Corrección 1 — sin tarjetas anónimas: una fila que
@@ -23,8 +31,10 @@ List<WatchHistory> resumableFrom(List<WatchHistory> all) => all.where((h) {
       if (h.title.trim().isEmpty) return false;
       final total = h.totalDuration?.inSeconds ?? 0;
       if (total <= 0) return false;
-      final progress = (h.watchDuration?.inSeconds ?? 0) / total;
-      return progress > 0.02 && progress < 0.95;
+      final watched = h.watchDuration?.inSeconds ?? 0;
+      final progress = watched / total;
+      return (watched >= _kResumeMinSeconds || progress > 0.02) &&
+          progress < 0.95;
     }).toList();
 
 class WatchHistory {

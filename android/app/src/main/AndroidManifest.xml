@@ -31,6 +31,12 @@
          ~6h/24h runtime budget — a very large download could hit it; the plugin
          resumes from background so this is a soft limit, not data loss. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Pausar la TV al recibir una llamada mientras se castea: el móvil escucha
+         el estado de la telefonía (TelephonyManager/TelephonyCallback) para
+         pausar/reanudar la reproducción en la TV. Solo se registra el listener
+         cuando la función está activa y el casting en curso; si el usuario no
+         concede el permiso, la función es un no-op silencioso (nunca crashea). -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
     <!-- In-app file browser (mainly for Android-TV boxes whose stripped
          DocumentsUI can't satisfy the system picker). Scoped to legacy

@@ -252,6 +252,12 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get cast_retry;
 
+  /// No description provided for @cast_tv_volume.
+  ///
+  /// In en, this message translates to:
+  /// **'TV volume  {value}%'**
+  String cast_tv_volume(int value);
+
   /// No description provided for @tv_standalone_section.
   ///
   /// In en, this message translates to:
@@ -269,6 +275,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Lets a trusted TV store your provider credentials, encrypted, so it can keep playing after you close the app. Off by default.'**
   String get tv_standalone_master_subtitle;
+
+  /// No description provided for @pause_cast_on_call_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause the TV during a call'**
+  String get pause_cast_on_call_title;
+
+  /// No description provided for @pause_cast_on_call_subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'While casting, an incoming call pauses playback on the TV and resumes it when the call ends.'**
+  String get pause_cast_on_call_subtitle;
 
   /// No description provided for @tv_standalone_consent_title.
   ///
