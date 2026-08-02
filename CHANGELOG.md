@@ -1,3 +1,11 @@
+# [2.18.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.18.1...v2.18.2) (2026-08-02)
+
+
+### Bug Fixes
+
+* **Las series ahora SÍ avanzan al siguiente capítulo al castearlas a la TV** de forma fiable — incluso si volviste de otra app, reanudaste desde "Continuar viendo" o la sesión se reconectó. Antes, en esos casos, la TV podía quedarse en el fotograma final del episodio sin continuar (ahora, si hace falta, el siguiente episodio se resuelve directamente del catálogo)
+
+
 # [2.18.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.18.0...v2.18.1) (2026-08-02)
 
 

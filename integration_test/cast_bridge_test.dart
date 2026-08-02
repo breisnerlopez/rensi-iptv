@@ -162,6 +162,53 @@ void main() {
     c.dispose();
   });
 
+  // SERIES auto-advance across the real TV: cast episode 1 (a SHORT clip so EOF
+  // arrives in seconds), let the TV reach end-of-file, and assert the phone
+  // auto-advances the queue to episode 2 and re-LOADs it on the TV.
+  CastMedia epMedia(String id, String title) => CastMedia(
+        channelId: id,
+        contentType: 'series',
+        title: title,
+        ext: 'mp4',
+        playlistId: 'm',
+        historyId: id,
+        seriesId: '999',
+        imagePath: '',
+        meta: meta,
+      );
+
+  testWidgets('SERIES auto-advance — TV EOF advances the queue to episode 2',
+      (tester) async {
+    if (pin.isEmpty || bridgeHost.isEmpty) {
+      return markTestSkipped('pasa --dart-define CAST_PIN/CAST_DEBUG_HOST/PORT');
+    }
+    seedPlaylist();
+    final eps = [epMedia('e1', 'Episodio 1'), epMedia('e2', 'Episodio 2')];
+    final c = CastSenderController();
+    await c.beginCast(eps[0], queue: eps, index: 0);
+    debugPrint('CAST_SERIES_PHASE_AFTER_BEGIN=${c.phase}');
+    if (c.phase == CastPhase.pairing) {
+      await waitFor(tester, () => c.phase == CastPhase.pairing);
+      await c.submitPin(pin);
+    }
+    final casting = await waitFor(tester, () => c.phase == CastPhase.casting);
+    expect(casting, isTrue, reason: 'la serie debe llegar a casting (ep 1)');
+    debugPrint('CAST_SERIES_EP1 channel=${c.media?.channelId} index=casting');
+    await mark(tester, 'SERIES_EP1_PLAYING', seconds: 4);
+
+    // The clip is ~6s; give the TV up to 40s to reach EOF and the chain to run.
+    final advanced =
+        await waitFor(tester, () => c.media?.channelId == 'e2', seconds: 40);
+    debugPrint('CAST_SERIES_ADVANCED=$advanced channel=${c.media?.channelId}');
+    expect(advanced, isTrue,
+        reason: 'al terminar el ep 1 en la TV, el movil debe auto-avanzar al ep 2');
+    await mark(tester, 'SERIES_EP2_PLAYING', seconds: 4);
+
+    await c.stopCasting();
+    await waitFor(tester, () => c.phase == CastPhase.idle, seconds: 6);
+    c.dispose();
+  });
+
   testWidgets('H8 — superseded takeover by a 2nd sender', (tester) async {
     if (pin.isEmpty || bridgeHost.isEmpty) {
       return markTestSkipped('pasa --dart-define CAST_PIN/CAST_DEBUG_HOST/PORT');

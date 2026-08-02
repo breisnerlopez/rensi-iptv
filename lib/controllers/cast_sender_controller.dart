@@ -9,6 +9,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../database/database.dart';
 import '../l10n/app_localizations.dart';
 import '../services/app_navigator.dart';
 import '../services/call_state_service.dart';
@@ -18,6 +19,7 @@ import '../models/playlist_model.dart';
 import '../models/watch_history.dart';
 import '../repositories/user_preferences.dart';
 import '../services/app_state.dart';
+import '../services/service_locator.dart';
 import '../services/event_bus.dart';
 import '../services/cast/cast_protocol.dart';
 import '../services/cast/cast_trust_store.dart';
@@ -841,28 +843,113 @@ class CastSenderController extends ChangeNotifier {
   /// final y el usuario sale con BACK (que dispara `ended` → idle).
   void _onCompleted() {
     if (_phase != CastPhase.casting) return;
-    final q = _queue;
     final media = _media;
-    if (media == null || q == null || _index + 1 >= q.length) return;
+    if (media == null) return;
     // Avanza en dos casos: una serie por STREAM (contentType 'series') o una
     // serie DESCARGADA (contentType 'file' + isDownloadedSeries). NO avanza en
     // VOD por stream ni en una película descargada (esos llegan con queue null o
-    // contentType 'vod'/'file' sin el tag → guarda arriba o este check).
+    // contentType 'vod'/'file' sin el tag → este check).
     final isSeries = media.contentType == 'series' || media.isDownloadedSeries;
     if (!isSeries) return;
-    final nextIndex = _index + 1;
-    final next = q[nextIndex];
-    if (next.isDownloadedSeries && next.localFilePath != null) {
-      // Serie descargada: el siguiente episodio es un ARCHIVO local que hay que
-      // re-servir por la LAN (con su propia URL). Servimos ANTES de comprometer
-      // el avance, para no dejar el estado a medias si el re-servido falla.
-      unawaited(_advanceLocalSeries(nextIndex, next));
-    } else {
-      // Serie por stream: la TV re-arma la URL con las credenciales de la
-      // playlist; basta comprometer el avance y reenviar el LOAD.
-      _commitAdvance(nextIndex, next);
-      unawaited(_sendLoad());
+    final q = _queue;
+    // 1) Camino preferente: la cola en memoria armada al iniciar el cast (rápida,
+    //    sin tocar la BD). Cubre el caso normal (se casteó desde el reproductor de
+    //    episodios, que pasa la cola completa ordenada).
+    if (q != null && _index + 1 < q.length) {
+      final nextIndex = _index + 1;
+      final next = q[nextIndex];
+      if (next.isDownloadedSeries && next.localFilePath != null) {
+        // Serie descargada: el siguiente episodio es un ARCHIVO local que hay que
+        // re-servir por la LAN (con su propia URL). Servimos ANTES de comprometer
+        // el avance, para no dejar el estado a medias si el re-servido falla.
+        unawaited(_advanceLocalSeries(nextIndex, next));
+      } else {
+        // Serie por stream: la TV re-arma la URL con las credenciales de la
+        // playlist; basta comprometer el avance y reenviar el LOAD.
+        _commitAdvance(nextIndex, next);
+        unawaited(_sendLoad());
+      }
+      return;
     }
+    // 2) Respaldo para una serie por STREAM cuando la cola en memoria NO da un
+    //    siguiente: cola null (se casteó sin cola), reconexión, temporada parcial
+    //    o índice desviado. Resuelve el SIGUIENTE episodio directo de la BD por la
+    //    serie + orden (temporada, episodio) del episodio ACTUAL, de modo que las
+    //    series por stream auto-avancen independientemente de cómo se inició el
+    //    cast (raíz del bug "la serie no continúa en la TV" con la cola frágil).
+    //    Una serie DESCARGADA NO entra aquí: su siguiente episodio es un archivo
+    //    local (no una fila de BD) y solo el camino de cola sabe servirlo.
+    if (media.contentType == 'series' &&
+        media.localFilePath == null &&
+        _localUrl == null) {
+      unawaited(_advanceStreamedSeriesFromDb(media));
+    }
+  }
+
+  /// Respaldo de auto-avance para una serie por STREAM: cuando la cola en memoria
+  /// no ofrece un siguiente episodio, resuelve el siguiente desde la BD a partir
+  /// del episodio [media] que acaba de terminar. Busca la fila del episodio actual
+  /// (por su id + playlist), toma su `seriesId` y pide todos los episodios de la
+  /// serie ordenados (temporada, episodio); el inmediatamente posterior es el
+  /// siguiente. Reconstruye además `_queue`/`_index` con esa lista para que los
+  /// próximos finales usen ya el camino de cola (auto-reparación). Si no hay BD
+  /// (tests que solo montan el controlador), no hay serie/fila, o el actual ya es
+  /// el ÚLTIMO episodio, no hace nada: la TV se queda en el fin (BACK sale).
+  Future<void> _advanceStreamedSeriesFromDb(CastMedia media) async {
+    if (_phase != CastPhase.casting) return;
+    final playlistId = media.playlistId.isNotEmpty
+        ? media.playlistId
+        : (AppState.currentPlaylist?.id ?? '');
+    if (playlistId.isEmpty) return;
+    final currentId = media.channelId;
+    final AppDatabase db;
+    try {
+      db = getIt<AppDatabase>();
+    } catch (_) {
+      return; // sin BD registrada (p. ej. un test unitario mínimo) → sin respaldo
+    }
+    // seriesId: el que traiga el media (si se pobló) o el de la fila del episodio.
+    var seriesId = media.seriesId;
+    final List<EpisodesData> eps;
+    try {
+      // Un read de BD colgado/erróneo NUNCA debe dejar la TV congelada en el fin
+      // del episodio sin recurso: acotar con timeout + atrapar, igual que
+      // _resolveStartPosition. Ante timeout/error → no avanzar (best-effort).
+      final currentRow = await db
+          .findEpisodesById(currentId, playlistId)
+          .timeout(const Duration(seconds: 4));
+      seriesId ??= currentRow?.seriesId;
+      if (seriesId == null) return;
+      eps = await db
+          .getEpisodesBySeriesId(seriesId, playlistId)
+          .timeout(const Duration(seconds: 4));
+    } catch (_) {
+      return;
+    }
+    if (eps.length <= 1) return;
+    final idx = eps.indexWhere((e) => e.episodeId == currentId);
+    // No se encontró el actual, o es el último episodio de la serie → no avanzar.
+    if (idx < 0 || idx + 1 >= eps.length) return;
+    // Reengancharse pudo cambiar el estado mientras leíamos la BD.
+    if (_phase != CastPhase.casting || _media?.channelId != currentId) return;
+    final meta = media.meta;
+    final queue = [
+      for (final e in eps)
+        CastMedia(
+          channelId: e.episodeId,
+          contentType: 'series',
+          title: e.title,
+          ext: e.containerExtension ?? '',
+          imagePath: e.movieImage ?? '',
+          playlistId: playlistId,
+          seriesId: seriesId,
+          historyId: e.episodeId,
+          meta: meta,
+        )
+    ];
+    _queue = queue;
+    _commitAdvance(idx + 1, queue[idx + 1]);
+    await _sendLoad();
   }
 
   /// Comete el avance al episodio [next] (índice [i] en la cola): actualiza

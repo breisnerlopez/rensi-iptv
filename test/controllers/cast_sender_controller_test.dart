@@ -419,6 +419,123 @@ void main() {
     expect(fake.loads.length, atLast);
   });
 
+  // Respaldo de auto-avance por STREAM resuelto desde la BD, para cuando la cola
+  // en memoria NO ofrece un siguiente episodio (cola null porque se casteó sin
+  // cola, reconexión que la perdió, temporada parcial o índice desviado). Este es
+  // el caso que rompía "la serie no continúa en la TV" pese a que el `completed`
+  // llegaba bien (verificado en 2 emuladores: la cadena TV→móvil funciona; lo
+  // frágil era depender solo de la cola). El respaldo resuelve el siguiente por
+  // (temporada, episodio) del episodio actual.
+  group('auto-avance por STREAM desde la BD (respaldo sin cola)', () {
+    late AppDatabase db;
+    setUp(() async {
+      await getIt.reset();
+      db = createTestDatabase();
+      getIt.registerSingleton<AppDatabase>(db);
+      // Serie 'S1': 2 temporadas × 2 episodios. Se insertan DESORDENADOS a
+      // propósito (ids no contiguos, temporada/episodio barajados) para probar
+      // que el respaldo se apoya en el ORDER BY (temporada, episodio) de la BD.
+      Future<void> ep(String id, int s, int n) =>
+          db.insertEpisode(EpisodesCompanion.insert(
+            seriesId: 'S1',
+            episodeId: id,
+            episodeNum: n,
+            title: 'S${s}E$n',
+            season: s,
+            playlistId: 'p',
+          ));
+      await ep('e12', 1, 2);
+      await ep('e21', 2, 1);
+      await ep('e11', 1, 1);
+      await ep('e22', 2, 2);
+    });
+    tearDown(() async {
+      await getIt.reset();
+      await db.close();
+    });
+
+    CastMedia streamedEp(String id) => CastMedia(
+          channelId: id,
+          contentType: 'series',
+          title: 'ep $id',
+          ext: 'mkv',
+          playlistId: 'p',
+          historyId: id,
+        );
+
+    test('cola null: al completar, resuelve el SIGUIENTE episodio desde la BD',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      // beginCast SIN cola (queue null) — el escenario que dejaba la serie sin
+      // auto-avanzar en la TV.
+      await c.beginCast(streamedEp('e11'), queue: null, index: 0);
+      await c.submitPin('123456');
+      final before = fake.loads.length;
+      fake.onCompleted?.call();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(c.media?.channelId, 'e12', reason: 'S1E1 → S1E2 vía BD');
+      expect(fake.loads.last['id'], 'e12');
+      expect(fake.loads.length, before + 1);
+    });
+
+    test('cruza el fin de temporada: S1E2 → S2E1 (vía BD)', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(streamedEp('e12'), queue: null, index: 0);
+      await c.submitPin('123456');
+      fake.onCompleted?.call();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(c.media?.channelId, 'e21',
+          reason: 'último de la temporada 1 → primero de la 2');
+      expect(fake.loads.last['id'], 'e21');
+    });
+
+    test('tras avanzar por BD, la cola queda REPARADA (próximo salto sin BD)',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(streamedEp('e11'), queue: null, index: 0);
+      await c.submitPin('123456');
+      fake.onCompleted?.call(); // e11 → e12 (por BD, reconstruye la cola)
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(c.media?.channelId, 'e12');
+      fake.onCompleted?.call(); // e12 → e21 (ya por la cola reparada)
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(c.media?.channelId, 'e21',
+          reason: 'la cola reconstruida cubre el resto de la serie');
+    });
+
+    test('último episodio de la serie: NO avanza (la TV se queda en el fin)',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(streamedEp('e22'), queue: null, index: 0);
+      await c.submitPin('123456');
+      final before = fake.loads.length;
+      fake.onCompleted?.call();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(c.media?.channelId, 'e22');
+      expect(fake.loads.length, before, reason: 'sin siguiente → sin LOAD');
+    });
+
+    test('VOD por stream NO usa el respaldo de BD (no auto-avanza)', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      // Mismo id que un episodio, pero contentType 'vod' → jamás debe avanzar.
+      await c.beginCast(
+          const CastMedia(
+              channelId: 'e11', contentType: 'vod', title: 'peli', playlistId: 'p'),
+          queue: null);
+      await c.submitPin('123456');
+      final before = fake.loads.length;
+      fake.onCompleted?.call();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(fake.loads.length, before,
+          reason: 'VOD no auto-avanza aunque existan episodios homónimos');
+    });
+  });
+
   test('castNextEpisode: NO aplica a VOD ni a vivo (solo series)', () async {
     final fake = _FakeSender(devices: [oneTv]);
     final c = make(fake);
