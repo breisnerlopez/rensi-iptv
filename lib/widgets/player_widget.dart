@@ -262,6 +262,15 @@ class _PlayerWidgetState extends State<PlayerWidget>
   String? _castMetaForId; // id de contenido al que pertenece _castMeta
   Future<CastMeta?>? _castMetaFuture;
 
+  // Feature H (fix) — seriesId de la SERIE del episodio actual, resuelto por BD
+  // para el CAST. Un ContentItem de episodio (Xtream) NO lleva seriesStream (lo
+  // construyen series_screen/episode_screen sin él), así que sin esto el
+  // `_castMedia.seriesId` viaja null → la fila `__cast__` de la TV queda sin
+  // seriesId → el auto-avance standalone NUNCA arranca. Todos los episodios de la
+  // cola comparten la misma serie, así que un solo id vale para toda la cola.
+  String? _castSeriesId;
+  String? _castSeriesIdForId; // id del episodio al que pertenece _castSeriesId
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -345,6 +354,44 @@ class _PlayerWidgetState extends State<PlayerWidget>
     if (!mounted) return;
     if (m != null && _castMetaForId == widget.contentItem.id) _castMeta = m;
   }
+
+  /// Feature H (fix) — resuelve (una vez por episodio, acotado) el `seriesId` de
+  /// la SERIE del episodio actual para que el LOAD lo lleve. El ContentItem de un
+  /// episodio Xtream se construye SIN seriesStream (ver series_screen /
+  /// episode_screen), así que `contentItem.seriesStream?.seriesId` es null y el
+  /// auto-avance standalone de la TV nunca podía arrancar. Se lee de la BD por la
+  /// MISMA vía que [_reliableCastInfo] (`findEpisodesById`), que es local y
+  /// rápida. Best-effort: ante cualquier fallo / sin fila / no-Xtream / no-serie
+  /// queda null y el LOAD degrada al comportamiento de un solo episodio.
+  Future<void> _ensureCastSeriesId() async {
+    final item = widget.contentItem;
+    if (item.contentType != ContentType.series) return;
+    // Si el propio item ya trae el seriesId (algún camino sí lo adjunta), o ya lo
+    // resolvimos para este episodio, no repetir.
+    if ((item.seriesStream?.seriesId.isNotEmpty ?? false) ||
+        (_castSeriesIdForId == item.id && _castSeriesId != null)) {
+      return;
+    }
+    if (!isXtreamCode) return;
+    final playlistId = AppState.currentPlaylist?.id;
+    if (playlistId == null) return;
+    try {
+      final ep = await _database
+          .findEpisodesById(item.id, playlistId)
+          .timeout(const Duration(seconds: 2), onTimeout: () => null);
+      final sid = ep?.seriesId;
+      if (!mounted) return;
+      if (sid != null && sid.isNotEmpty && item.id == widget.contentItem.id) {
+        _castSeriesId = sid;
+        _castSeriesIdForId = item.id;
+      }
+    } catch (_) {/* best-effort: sin seriesId → cola de un solo episodio */}
+  }
+
+  /// seriesId a usar al armar un CastMedia de serie: el del propio item si lo
+  /// trae, si no el resuelto por BD ([_ensureCastSeriesId]).
+  String? _castSeriesIdFor(ContentItem it) =>
+      it.seriesStream?.seriesId ?? _castSeriesId;
 
   /// Resuelve el meta TMDb del contenido actual (best-effort). Para SERIE usa el
   /// nombre de la SERIE (no el del episodio) y su tmdbId de serie; para película,
@@ -483,7 +530,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         ext: widget.contentItem.containerExtension ?? '',
         imagePath: widget.contentItem.imagePath,
         playlistId: AppState.currentPlaylist?.id ?? '',
-        seriesId: widget.contentItem.seriesStream?.seriesId,
+        seriesId: _castSeriesIdFor(widget.contentItem),
         // Misma clave de historial que _saveWatchHistory (Xtream: id; M3U:
         // m3uItem.id) para no duplicar "continuar viendo".
         historyId: isXtreamCode
@@ -511,7 +558,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
           ext: it.containerExtension ?? '',
           imagePath: it.imagePath,
           playlistId: AppState.currentPlaylist?.id ?? '',
-          seriesId: it.seriesStream?.seriesId,
+          // Todos los episodios de la cola son de la MISMA serie → el seriesId
+          // resuelto por BD para el episodio actual vale para todos.
+          seriesId: _castSeriesIdFor(it),
           historyId: isXtreamCode ? it.id : it.m3uItem?.id ?? it.id,
           meta: _castMeta,
         )
@@ -934,7 +983,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
     final isLocalFile = !url.startsWith('http');
     // Solo un stream normal lleva ficha TMDb; el archivo local no. Resolver
     // (acotado) antes del re-LOAD para que el meta viaje si está disponible.
-    if (!isLocalFile) await _ensureCastMeta();
+    if (!isLocalFile) {
+      await _ensureCastMeta();
+      await _ensureCastSeriesId();
+    }
     // Serie descargada abierta mientras se castea: arma la cola de episodios
     // hermanos descargados para que el re-LOAD también auto-avance en la TV.
     (List<CastMedia>?, int) localQueue = (null, 0);
@@ -1017,6 +1069,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // para que el LOAD lo incluya. Ya se lanzó al activar el gate, así que aquí
     // normalmente ya resolvió y no añade espera.
     await _ensureCastMeta();
+    // Resolver también el seriesId (BD, rápido) para que el LOAD de una serie
+    // lleve el sid → la TV puede auto-avanzar sola por toda la serie.
+    await _ensureCastSeriesId();
     if (!mounted) return; // el player pudo cerrarse durante la espera del meta
     var casting = false;
     try {

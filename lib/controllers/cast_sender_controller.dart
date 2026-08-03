@@ -138,7 +138,7 @@ class CastTrack {
       );
 }
 
-class CastSenderController extends ChangeNotifier {
+class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
   CastSenderController({
     PhoneSenderService Function()? senderFactory,
     CastTrustStore trustStore = const CastTrustStore(),
@@ -152,6 +152,10 @@ class CastSenderController extends ChangeNotifier {
     // while casting) to [nudgeVolume]. The service's channel calls are try/caught
     // no-ops without a native peer, so this stays inert in `flutter test`.
     _hwVolume.onStep = nudgeVolume;
+    // Observa el ciclo de vida para revalidar la sesión de casting al volver del
+    // fondo (ver [didChangeAppLifecycleState]/[_verifyLivenessOnResume]). Inerte
+    // hasta que el sistema emita eventos: no hace nada fuera de una sesión viva.
+    WidgetsBinding.instance.addObserver(this);
   }
 
   final PhoneSenderService Function() _senderFactory;
@@ -220,6 +224,38 @@ class CastSenderController extends ChangeNotifier {
   // build vieja (que no eco un `state` inmediato al reconectar) confirme con su
   // tick periódico ANTES de que el fallback dispare un re-LOAD innecesario.
   static const _resyncTimeout = Duration(seconds: 7);
+
+  // ── Revalidación de la sesión al volver del fondo (foreground liveness) ─────
+  // El pingInterval del socket (ver PhoneSenderService) mantiene vivo y vigila el
+  // canal MIENTRAS la app corre. Pero al backgroundear el móvil, los timers del
+  // isolate se congelan: un socket que murió (NAT/Wi-Fi power-save) durante esos
+  // minutos puede tardar en detectarse al volver, y hasta entonces el móvil
+  // mandaría `stop`/comandos a un socket muerto (la queja del usuario: "el stop
+  // no hace nada en la TV"). Por eso, al RESUMIR con un casting en curso, en vez
+  // de confiar en un socket posiblemente muerto se SONDEA: se pide `getTracks`
+  // (la TV siempre responde) y se espera CUALQUIER mensaje entrante; si ninguno
+  // llega en la ventana, el socket está muerto → se fuerza la MISMA reconexión
+  // no destructiva de siempre (no reinicia la TV desde 0).
+  DateTime? _lastTvInboundAt; // último mensaje recibido de la TV (liveness)
+  bool _awaitingLivenessPong = false; // sonda de resume en vuelo
+  Timer? _livenessTimer;
+  // > _livenessFreshWindow, con holgura para un Android TV real que despierta de
+  // standby bajo carga y tarda unos segundos en responder al `getTracks`: un
+  // margen apretado daría un falso-positivo de socket muerto y una reconexión
+  // innecesaria. La TV responde a getTracks en ms cuando está despierta; 9s cubre
+  // el peor caso de wake sin arriesgar el falso-positivo.
+  static const _livenessProbeTimeout = Duration(seconds: 9);
+  // Si oímos a la TV hace menos que esto, el socket está vivo: no hace falta
+  // sondear (un resume breve, o los `state` bufferizados que llegan al reanudar).
+  static const _livenessFreshWindow = Duration(seconds: 6);
+  // Token MONOTÓNICO de sesión/socket. Se incrementa en beginCast (sesión nueva),
+  // en cada reconexión EXITOSA (socket nuevo) y al terminar (stop/teardown). La
+  // sonda de liveness captura el token al armarse y NO actúa si cambió mientras
+  // esperaba — así una sonda de la sesión/socket A jamás fuerza una reconexión
+  // sobre una sesión B ya reconectada/reiniciada (races que el gate detectó:
+  // reconexión-fantasma tras un ping-kill, y cruce entre stop+nuevo-cast dentro
+  // de la ventana de sonda). Es el guardián REAL; los cancel/clear son refuerzo.
+  int _sessionGen = 0;
 
   // Volumen de reproducción en la TV (escala 0-100, igual que UserPreferences/
   // media_kit). Optimista: se actualiza local al mover el slider y se
@@ -317,6 +353,11 @@ class CastSenderController extends ChangeNotifier {
     _wrongPin = false;
     _superseded = false; // un cast nuevo puede volver a reconectar
     _cancelResync(); // un cast nuevo no debe arrastrar un reenganche pendiente
+    // Sesión nueva: invalida cualquier sonda de liveness de una sesión anterior
+    // (una que aún no venció NO debe forzar una reconexión sobre ESTE cast).
+    _sessionGen++;
+    _cancelLivenessProbe();
+    _lastTvInboundAt = null;
     _set(CastPhase.discovering);
     try {
       final finder = _senderFactory();
@@ -822,6 +863,10 @@ class CastSenderController extends ChangeNotifier {
     _lastPos = 0;
     _lastDur = 0;
     _cancelResync();
+    // Fin de sesión (cesión a otro dispositivo): invalida cualquier sonda viva.
+    _sessionGen++;
+    _cancelLivenessProbe();
+    _lastTvInboundAt = null;
     _set(CastPhase.idle); // SIN error → la UI de cast/mini-control se retira sola
     await _fileServer?.stop();
     _fileServer = null;
@@ -998,6 +1043,93 @@ class CastSenderController extends ChangeNotifier {
     }
   }
 
+  /// Ciclo de vida de la app: al VOLVER a primer plano, revalida la sesión de
+  /// casting (ver [_verifyLivenessOnResume]). No hace nada fuera de una sesión.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _verifyLivenessOnResume();
+  }
+
+  /// Registra que llegó CUALQUIER mensaje de la TV (state/tracks/historySync):
+  /// prueba de que el socket sigue vivo. Si había una sonda de liveness en vuelo
+  /// (resume), la resuelve como "vivo" y desarma su timeout.
+  void _markTvInbound() {
+    _lastTvInboundAt = DateTime.now();
+    if (_awaitingLivenessPong) {
+      _awaitingLivenessPong = false;
+      _livenessTimer?.cancel();
+      _livenessTimer = null;
+    }
+  }
+
+  /// Desarma incondicionalmente cualquier sonda de liveness pendiente. Se llama
+  /// en los bordes de sesión (beginCast/stop/teardown) para que una sonda armada
+  /// en la sesión anterior no sobreviva a la siguiente. El token de sesión es la
+  /// garantía última (una sonda vieja no actúa aunque su timer llegara a correr);
+  /// esto es el refuerzo que evita siquiera dispararlo.
+  void _cancelLivenessProbe() {
+    _awaitingLivenessPong = false;
+    _livenessTimer?.cancel();
+    _livenessTimer = null;
+  }
+
+  /// Al reanudar la app con un casting en curso: si no hemos oído a la TV hace
+  /// poco, sondea la sesión (getTracks) y espera respuesta; si no llega, el
+  /// socket está muerto → fuerza la reconexión no destructiva. No-op si no hay
+  /// sesión viva, ya se está reconectando/cediendo, o ya hay una sonda en vuelo.
+  void _verifyLivenessOnResume() {
+    if (_phase != CastPhase.casting ||
+        _reconnecting ||
+        _superseded ||
+        _sender == null ||
+        _awaitingLivenessPong) {
+      return;
+    }
+    // ¿Oímos a la TV hace muy poco? Socket vivo (incluye los `state` que se
+    // bufferizan y se entregan de golpe al reanudar) → nada que sondear.
+    final last = _lastTvInboundAt;
+    if (last != null && DateTime.now().difference(last) < _livenessFreshWindow) {
+      return;
+    }
+    // Token de la sesión/socket ACTUAL: si cambia mientras esperamos (una
+    // reconexión por ping-kill completa antes, o un stop+nuevo-cast entra en la
+    // ventana), la respuesta tardía de este timer queda invalidada y NO fuerza
+    // una reconexión sobre una sesión que ya no es la que sondeamos.
+    final gen = _sessionGen;
+    _awaitingLivenessPong = true;
+    // Sonda: la TV SIEMPRE responde a getTracks. `add` sobre un socket ya cerrado
+    // no siempre lanza (puede bufferizar en silencio): el timeout lo cubre igual.
+    try {
+      _sender!.sendCommand(CmdType.getTracks);
+    } catch (_) {/* socket ya cerrado: el timeout dispara la reconexión */}
+    _livenessTimer?.cancel();
+    _livenessTimer = Timer(_livenessProbeTimeout, () {
+      // El token cambió → sesión/socket distinto al que sondeamos: sonda obsoleta.
+      if (gen != _sessionGen) return;
+      if (!_awaitingLivenessPong) return; // la TV respondió → sesión viva
+      _awaitingLivenessPong = false;
+      // Nada de la TV en la ventana: socket muerto. Guardas por si la sesión
+      // cambió mientras esperábamos (stop/superseded/reconexión ya en marcha).
+      if (_phase != CastPhase.casting || _reconnecting || _superseded) return;
+      _forceReconnectStaleSocket(gen);
+    });
+  }
+
+  /// Fuerza la reconexión de un socket que el sondeo de resume dio por muerto.
+  /// Suelta el sender muerto y arranca [_reconnect] — la MISMA reconexión no
+  /// destructiva de onDisconnected (la TV siguió reproduciendo; no reinicia
+  /// desde 0). No pasa por onDone del socket (close() cancela su suscripción, así
+  /// que ese onDone no dispararía), por eso invoca _reconnect directamente.
+  /// [gen] es el token capturado al armar la sonda: si ya no es el actual, otra
+  /// reconexión/sesión ganó la carrera y esta llamada NO debe cerrar su socket.
+  void _forceReconnectStaleSocket(int gen) {
+    if (gen != _sessionGen) return;
+    if (_reconnecting || _superseded || _phase != CastPhase.casting) return;
+    final dead = _sender;
+    unawaited(dead?.close()); // suelta el socket muerto (sin esperar su cierre)
+    _reconnect();
+  }
+
   Future<void> _reconnect() async {
     if (_superseded) return; // cedido a otro dispositivo: no reconectar
     final device = _device, pin = _pin, media = _media;
@@ -1023,6 +1155,12 @@ class CastSenderController extends ChangeNotifier {
         await _sender!.connect(device.host, device.port, secure: device.secure);
         if (await _sender!.pair(pin)) {
           _reconnecting = false;
+          // Socket NUEVO recién pareado: bump del token de sesión (invalida una
+          // sonda de liveness vieja que aún esperara — evita la reconexión
+          // fantasma en que el pingInterval reconecta ANTES de que venza la sonda)
+          // y márcalo como recién oído (un canal fresco nunca es "stale").
+          _sessionGen++;
+          _markTvInbound();
           // Se detuvo el casting mientras reconectábamos (stop/superseded en
           // pleno backoff): no re-enganchar ni armar el fallback.
           if (_phase != CastPhase.casting) {
@@ -1288,6 +1426,7 @@ class CastSenderController extends ChangeNotifier {
   }
 
   void _onTracks(Map<String, dynamic> msg) {
+    _markTvInbound(); // prueba de socket vivo (resuelve la sonda de resume)
     List<CastTrack> parse(String key) => ((msg[key] as List?) ?? const [])
         .map((e) => CastTrack.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -1300,6 +1439,7 @@ class CastSenderController extends ChangeNotifier {
   /// escribir un WatchHistory en el móvil, de modo que lo casteado aparezca en
   /// "continuar viendo". Throttle a ~1 escritura cada 10s.
   void _onState(Map<String, dynamic> msg) {
+    _markTvInbound(); // prueba de socket vivo (resuelve la sonda de resume)
     // Ignorar ticks rezagados de OTRO contenido: al auto-avanzar de episodio, un
     // 'state' final del episodio saliente (pos≈dur) podía llegar tras el swap de
     // _media y escribirse bajo el streamId del ENTRANTE (marcándolo ~100% visto).
@@ -1421,6 +1561,7 @@ class CastSenderController extends ChangeNotifier {
   /// `streamId`) para que el progreso hecho en la TV (incl. standalone) aparezca
   /// en "continuar viendo" del teléfono. NO respondemos (evita el ping-pong).
   Future<void> _onHistorySync(List<HistorySyncItem> items) async {
+    _markTvInbound(); // prueba de socket vivo (resuelve la sonda de resume)
     if (items.isEmpty) return;
     final playlistId = _activeSyncPlaylistId;
     if (playlistId.isEmpty) return;
@@ -1459,6 +1600,11 @@ class CastSenderController extends ChangeNotifier {
     _lastPos = 0;
     _lastDur = 0;
     _cancelResync();
+    // Fin de sesión: invalida cualquier sonda de liveness en vuelo, para que un
+    // stop seguido de un nuevo cast dentro de la ventana no herede la sonda vieja.
+    _sessionGen++;
+    _cancelLivenessProbe();
+    _lastTvInboundAt = null;
     _set(CastPhase.idle);
     await _fileServer?.stop();
     // Teardown del socket en segundo plano: dar un instante a que el frame
@@ -1475,6 +1621,8 @@ class CastSenderController extends ChangeNotifier {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _livenessTimer?.cancel();
     _volumeDebounce?.cancel();
     _resyncTimer?.cancel();
     _callSub?.cancel();

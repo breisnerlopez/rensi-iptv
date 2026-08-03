@@ -116,6 +116,18 @@ class PhoneSenderService {
     return found.values.toList();
   }
 
+  /// Latido de la conexión de control: dart:io envía un frame ping cada
+  /// [_kPingInterval] y, si no llega el pong en el mismo lapso, CIERRA el socket
+  /// (disparando el `onDone` de abajo → reconexión). Sin esto, durante la
+  /// reproducción el móvil no manda nada por el canal, y un socket ocioso muere
+  /// en silencio a los pocos minutos por el NAT/power-save del Wi-Fi: el
+  /// medio-abierto NO se detecta, así que el móvil se cree conectado y manda
+  /// `stop`/comandos al vacío. Los frames ping/pong son transparentes al
+  /// protocolo (viven a nivel de dart:io; el stream de mensajes de `.listen` no
+  /// los ve). ~12s mantiene el socket caliente muy por debajo de los timeouts
+  /// típicos de NAT (30-60s) y detecta una caída en ≤2×intervalo.
+  static const _kPingInterval = Duration(seconds: 12);
+
   /// Abre el WebSocket con la TV y espera el reto de emparejamiento.
   /// Con [secure] usa wss:// y captura el cert presentado para pinearlo (el
   /// pinning se cierra en pair(), atado al PIN).
@@ -131,6 +143,8 @@ class PhoneSenderService {
     } else {
       _ws = await WebSocket.connect('ws://$host:$port');
     }
+    // Latido: mantiene vivo el socket ocioso y detecta el medio-abierto (ver arriba).
+    _ws!.pingInterval = _kPingInterval;
     _sub = _ws!.listen(_onMessage, onDone: () {
       if (_pairResult?.isCompleted == false) _pairResult!.complete(false);
       // Tras `superseded` el cierre es esperado (nos cedieron el control): NO

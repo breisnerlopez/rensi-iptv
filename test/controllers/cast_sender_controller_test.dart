@@ -2,6 +2,7 @@
 // inyectado — sin sockets ni red. Cubre el flujo feliz y los caminos de error.
 import 'dart:async';
 
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rensi_iptv/controllers/cast_sender_controller.dart';
 import 'package:rensi_iptv/database/database.dart';
@@ -46,12 +47,14 @@ class _FakeSender extends PhoneSenderService {
   final List<String> wipedPids = []; // pids de CmdType.wipeStandalone enviados
   final List<List<HistorySyncItem>> sentHistory = []; // sendHistorySync enviados
   bool closed = false;
+  int connectCalls = 0; // veces que se abrió el canal (detecta una reconexión)
 
   @override
   Future<List<CastDevice>> discover({Duration timeout = const Duration(seconds: 4)}) async =>
       devices;
   @override
   Future<void> connect(String host, int port, {bool secure = false}) async {
+    connectCalls++;
     if (failConnect) throw Exception('connect failed');
   }
   @override
@@ -1371,6 +1374,181 @@ void main() {
       callFake.emit('idle');
       await Future<void>.delayed(Duration.zero);
       expect(fake.commands, isEmpty);
+    });
+  });
+
+  // ── Revalidación de liveness al volver del fondo (BUG 2: el socket muere en
+  //    silencio mientras el móvil está backgroundeado; al reanudar hay que
+  //    detectarlo y reconectar, no mandar `stop`/comandos a un socket muerto) ──
+  group('foreground liveness', () {
+    test(
+        'resume con socket MUERTO (la TV no responde a la sonda) → getTracks + '
+        'reconexión forzada NO destructiva', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      expect(c.isCasting, isTrue);
+      final before = fake.loads.length; // 1
+      final connectsBefore = fake.connectCalls; // 1 (conexión inicial)
+      expect(fake.commands, isNot(contains(CmdType.getTracks)));
+
+      // Vuelve a primer plano SIN haber oído a la TV hace poco → sondea.
+      c.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await Future<void>.delayed(Duration.zero); // deja salir la sonda
+      expect(fake.commands, contains(CmdType.getTracks),
+          reason: 'sondea la sesión con getTracks al reanudar');
+
+      // La TV NO responde: pasado el timeout de sonda (9s) + el 1er backoff (1s)
+      // se fuerza la reconexión, y la sesión se re-engancha SIN re-LOAD.
+      await Future<void>.delayed(const Duration(seconds: 11));
+      expect(c.isCasting, isTrue, reason: 'sigue casteando tras reconectar');
+      expect(fake.connectCalls, greaterThan(connectsBefore),
+          reason: 'se forzó una reconexión (se reabrió el canal)');
+      expect(fake.loads.length, before,
+          reason: 'reenganche silencioso: sin re-LOAD que reinicie la TV');
+
+      // Un `state` confirma la sesión viva y cancela el fallback de resync.
+      fake.emitState({'id': media.channelId, 'pos': 30000, 'dur': 600000});
+      await c.stopCasting();
+    }, timeout: const Timeout(Duration(seconds: 25)));
+
+    test('resume con socket VIVO (la TV responde a la sonda) → NO reconecta',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      final before = fake.loads.length;
+      final connectsBefore = fake.connectCalls;
+
+      c.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await Future<void>.delayed(Duration.zero);
+      expect(fake.commands, contains(CmdType.getTracks));
+
+      // La TV responde a la sonda (cualquier mensaje entrante prueba liveness):
+      // se cancela el timeout, así que NO se fuerza reconexión.
+      fake.emitTracks({'audio': const [], 'sub': const []});
+      await Future<void>.delayed(const Duration(seconds: 10)); // > timeout de sonda
+
+      expect(fake.connectCalls, connectsBefore,
+          reason: 'socket vivo: no se fuerza reconexión');
+      expect(c.isCasting, isTrue);
+      expect(fake.loads.length, before, reason: 'sin re-LOAD');
+      await c.stopCasting();
+    }, timeout: const Timeout(Duration(seconds: 18)));
+
+    test('resume con respuesta de LATENCIA MEDIA (4s < 9s) → NO stale, sin '
+        'reconexión (margen del timeout)', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      final connectsBefore = fake.connectCalls;
+
+      c.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await Future<void>.delayed(Duration.zero);
+      expect(fake.commands, contains(CmdType.getTracks));
+
+      // Un Android TV despertando de standby responde con retraso: a los 4s
+      // (dentro del timeout de 9s) contesta → la sesión NO es stale.
+      await Future<void>.delayed(const Duration(seconds: 4));
+      fake.emitTracks({'audio': const [], 'sub': const []});
+      // Deja pasar el resto de la ventana de sonda: no debe reconectar.
+      await Future<void>.delayed(const Duration(seconds: 6)); // total 10s > 9s
+      expect(fake.connectCalls, connectsBefore,
+          reason: 'respuesta a 4s (< 9s) → socket vivo, sin falso-positivo');
+      expect(c.isCasting, isTrue);
+      await c.stopCasting();
+    }, timeout: const Timeout(Duration(seconds: 18)));
+
+    test('carrera: el pingInterval reconecta ANTES de que venza la sonda → la '
+        'sonda obsoleta (token viejo) NO fuerza una 2ª reconexión fantasma',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      final connectsAfterCast = fake.connectCalls; // 1
+
+      // Resume arma la sonda de liveness (sin inbound reciente).
+      c.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await Future<void>.delayed(Duration.zero);
+      expect(fake.commands, contains(CmdType.getTracks));
+
+      // En paralelo, el pingInterval detecta la caída → onDisconnected →
+      // _reconnect, que COMPLETA (~1s backoff) mucho antes de que venza la sonda
+      // (9s): la reconexión exitosa bumpea el token de sesión.
+      fake.onDisconnected?.call();
+      await Future<void>.delayed(const Duration(seconds: 2));
+      expect(fake.connectCalls, connectsAfterCast + 1,
+          reason: 'una sola reconexión (la del ping)');
+      expect(c.isCasting, isTrue);
+      // Confirma la sesión viva (cancela el fallback de resync del reconnect).
+      fake.emitState({'id': media.channelId, 'pos': 1000, 'dur': 600000});
+
+      // Deja VENCER la sonda vieja (9s): con el token ya bumpeado NO debe cerrar
+      // el socket recién reconectado ni forzar una reconexión fantasma.
+      await Future<void>.delayed(const Duration(seconds: 9));
+      expect(fake.connectCalls, connectsAfterCast + 1,
+          reason: 'la sonda obsoleta no fuerza una reconexión fantasma');
+      expect(c.isCasting, isTrue);
+      await c.stopCasting();
+    }, timeout: const Timeout(Duration(seconds: 25)));
+
+    test('carrera: stop + nuevo cast dentro de la ventana de sonda → la sonda de '
+        'la sesión vieja NO toca la nueva', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+
+      // Arma la sonda de la sesión A.
+      c.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await Future<void>.delayed(Duration.zero);
+      expect(fake.commands, contains(CmdType.getTracks));
+
+      // Detén A y arranca un cast NUEVO (sesión B) DENTRO de la ventana (9s).
+      await c.stopCasting();
+      fake.commands.clear();
+      await c.beginCast(media);
+      await c.submitPin('123456');
+      expect(c.isCasting, isTrue);
+      final connectsB = fake.connectCalls;
+
+      // Deja vencer la sonda de la sesión A: no debe reconectar/matar la sesión B.
+      await Future<void>.delayed(const Duration(seconds: 10));
+      expect(c.isCasting, isTrue, reason: 'la sesión B sigue sana');
+      expect(fake.connectCalls, connectsB,
+          reason: 'la sonda de A no fuerza una reconexión en B');
+      await c.stopCasting();
+    }, timeout: const Timeout(Duration(seconds: 20)));
+
+    test('resume con la TV oída hace POCO → NO sondea (socket ya vivo)', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      await c.beginCast(media);
+      await c.submitPin('123456');
+
+      // Un `state` reciente prueba que el socket está vivo.
+      fake.emitState({'id': media.channelId, 'pos': 1000, 'dur': 600000});
+      await Future<void>.delayed(Duration.zero);
+      fake.commands.clear();
+
+      c.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await Future<void>.delayed(Duration.zero);
+      expect(fake.commands, isNot(contains(CmdType.getTracks)),
+          reason: 'oímos a la TV hace <6s → no hace falta sondear');
+      await c.stopCasting();
+    });
+
+    test('resume sin casting en curso → no-op (no sonda)', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = make(fake);
+      c.didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await Future<void>.delayed(Duration.zero);
+      expect(fake.commands, isNot(contains(CmdType.getTracks)));
+      expect(c.phase, CastPhase.idle);
     });
   });
 }

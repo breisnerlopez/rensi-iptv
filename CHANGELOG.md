@@ -1,3 +1,13 @@
+# [2.19.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.19.0...v2.19.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* **El "continuar la serie en la TV sin el móvil" ahora SÍ funciona:** en v2.19.0 no encadenaba los capítulos porque no se guardaba a qué serie pertenecía el contenido enviado; ahora el móvil lo resuelve y la TV avanza sola hasta el final de la serie. Para las series que ya habías enviado, actualiza también el **móvil** y **vuelve a enviarlas una vez**
+* **La conexión con la TV ya no se cae tras unos minutos:** se añadió un "latido" que mantiene viva la conexión y detecta si se corta para reconectar. Antes, pasado un rato, el móvil creía seguir conectado y "detener" no hacía nada en la TV
+* **Al volver a la app tras un rato, el control de la TV se recupera:** el móvil comprueba que la conexión siga viva y reconecta si hace falta — sin reiniciar la reproducción
+
+
 # [2.19.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.18.2...v2.19.0) (2026-08-02)
 
 

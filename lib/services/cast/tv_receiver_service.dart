@@ -298,7 +298,17 @@ class TvReceiverService {
     _handleSocket(ws, peer);
   }
 
+  /// Latido de la conexión de control (mismo motivo/valor que el emisor móvil,
+  /// ver [PhoneSenderService]). dart:io envía un ping cada [_kPingInterval] y
+  /// cierra el socket si no llega el pong: mantiene vivo el canal ocioso a
+  /// través de NAT/power-save y limpia un socket medio-abierto (su `onDone`
+  /// suelta `_controllingWs`/`_activeWs`). Frames transparentes al protocolo.
+  static const _kPingInterval = Duration(seconds: 12);
+
   void _handleSocket(WebSocket ws, [String peer = 'unknown']) {
+    // Latido: mantiene vivo el socket ocioso durante la reproducción (el móvil
+    // no manda nada por el canal) y detecta el medio-abierto (ver arriba).
+    ws.pingInterval = _kPingInterval;
     if (!_connectController.isClosed) _connectController.add(null);
     // Estado de emparejamiento POR conexión.
     final salt = randomBytes(16);
@@ -483,7 +493,23 @@ class TvReceiverService {
       } catch (e) {
         ws.add(encodeMsg(MsgType.error, {'e': e.toString()}));
       }
-    });
+    }, onDone: () => _releaseSocket(ws), onError: (_) => _releaseSocket(ws));
+  }
+
+  /// Un socket de control se cerró — BACK/stop del móvil, o el [pingInterval]
+  /// mató un medio-abierto (NAT/Wi-Fi power-save). Suelta las referencias
+  /// globales que apuntaban a ÉL para no dejar `_controllingWs`/`_activeWs`
+  /// colgando de un socket muerto. Sin esto, tras una caída silenciosa del
+  /// controlador un 2º móvil que tomara el control mandaría `superseded` al
+  /// socket MUERTO del 1º (tragado por el try/catch de [_handleSocket]) en vez de
+  /// a su socket vivo, y el 1º nunca se enteraría de que perdió el control. Solo
+  /// limpia si la referencia sigue siendo ESTE socket: un LOAD posterior de otra
+  /// conexión (toma de control) ya pudo reasignar `_controllingWs`/`_activeWs`, y
+  /// el cierre diferido del socket cedido (`superseded`) no debe borrar al nuevo
+  /// dueño.
+  void _releaseSocket(WebSocket ws) {
+    if (identical(_controllingWs, ws)) _controllingWs = null;
+    if (identical(_activeWs, ws)) _activeWs = null;
   }
 
   static String _genPin() {
