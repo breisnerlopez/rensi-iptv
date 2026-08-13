@@ -68,6 +68,7 @@ class CmdType {
   static const selectAudio = 'sel_audio'; // + campo 'id'
   static const selectSubtitle = 'sel_sub'; // + campo 'id' ('' = off)
   static const setVolume = 'set_volume'; // + campo 'v' (0-100)
+  static const seek = 'seek'; // + campo 'ms' (posición absoluta en milisegundos)
 
   /// Feature H — el móvil pide a la TV que BORRE las credenciales standalone
   /// guardadas para un proveedor (+ campo 'pid'). Lo dispara el "olvidar

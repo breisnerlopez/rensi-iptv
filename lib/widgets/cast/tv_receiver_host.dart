@@ -224,6 +224,16 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
   double _lastVolume = 100; // default sensato si aún no llegó ningún evento
   static const _volumeThrottleDelay = Duration(milliseconds: 250);
 
+  // QA fix — auto-push de pistas TV→móvil. El móvil pedía las pistas con
+  // `getTracks` (petición/respuesta), pero cuando ese `get` corría en la ventana
+  // en que el player de la TV aún NO había resuelto sus pistas (media_kit las
+  // emite un instante DESPUÉS del open), la TV respondía con una lista vacía o
+  // rancia y el sheet del móvil se quedaba sin audios/subtítulos. Solución: en
+  // vez de depender solo del pull, la TV EMPUJA la lista de pistas cada vez que
+  // el player emite 'player_tracks' (la lista cambió), con el mismo payload que
+  // el caso `getTracks`. Así el móvil recibe las pistas en cuanto existen.
+  StreamSubscription<Tracks>? _tracksSub;
+
   // Fin-de-título → móvil (para auto-avance de series). El PlayerWidget de la TV
   // emite 'cast_player_completed' al acabar un VOD/serie; lo reenviamos como
   // MsgType.completed. Distinto de MsgType.ended (BACK/stop cierra la ruta).
@@ -471,18 +481,20 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
         }
         break;
       case CmdType.getTracks:
-        _service?.sendMessage('tracks', {
-          'audio': _serializeTracks(
-              PlayerState.audios, PlayerState.selectedAudio.id),
-          'sub': _serializeTracks(
-              PlayerState.subtitles, PlayerState.selectedSubtitle.id),
-        });
+        _sendTracks();
         break;
       case CmdType.selectAudio:
         final id = msg['id'] as String? ?? '';
         final t = PlayerState.audios.firstWhere((x) => x.id == id,
             orElse: () => AudioTrack.auto());
         EventBus().emit('audio_track_changed', t);
+        // RETADOR (reflejo de selección): 'player_tracks' solo dispara cuando
+        // cambia la LISTA de pistas, no cuando se selecciona una. El player
+        // consume 'audio_track_changed' de forma síncrona y actualiza
+        // PlayerState.selectedAudio; en el siguiente turno del event loop ya está
+        // fijado, así que re-empujamos las pistas para que el móvil vea el nuevo
+        // flag `sel`.
+        scheduleMicrotask(_sendTracks);
         break;
       case CmdType.selectSubtitle:
         final id = msg['id'] as String? ?? '';
@@ -491,10 +503,19 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
             : PlayerState.subtitles.firstWhere((x) => x.id == id,
                 orElse: () => SubtitleTrack.no());
         EventBus().emit('subtitle_track_changed', t);
+        // Ver RETADOR arriba: re-empujar tras aplicar la selección de subtítulo.
+        scheduleMicrotask(_sendTracks);
         break;
       case CmdType.setVolume:
         final v = (msg['v'] as num?)?.toDouble();
         if (v != null) EventBus().emit('cast_set_volume', v.clamp(0, 100));
+        break;
+      case CmdType.seek:
+        // Seek móvil→TV (VOD/serie): el móvil manda la posición absoluta en ms. El
+        // PlayerWidget (receptor) la aplica y EXCLUYE vivo en su listener (un seek
+        // en vivo lanza "--force-seekable=yes").
+        final ms = (msg['ms'] as num?)?.toInt();
+        if (ms != null) EventBus().emit('cast_seek', ms);
         break;
       case CmdType.wipeStandalone:
         // Feature H — el móvil revocó el consentimiento de un proveedor: borrar
@@ -505,6 +526,18 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
         }
         break;
     }
+  }
+
+  /// Envía al móvil la lista ACTUAL de pistas (audio/subtítulo) con el flag `sel`
+  /// del seleccionado. Mismo payload que el caso `getTracks`; se usa tanto por el
+  /// auto-push (cuando cambia la lista) como tras aplicar un selectAudio/Subtitle.
+  void _sendTracks() {
+    _service?.sendMessage('tracks', {
+      'audio':
+          _serializeTracks(PlayerState.audios, PlayerState.selectedAudio.id),
+      'sub': _serializeTracks(
+          PlayerState.subtitles, PlayerState.selectedSubtitle.id),
+    });
   }
 
   List<Map<String, dynamic>> _serializeTracks(List<dynamic> tracks, String selId) {
@@ -610,6 +643,15 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
       _completedSent = true;
       _service?.sendMessage(MsgType.completed, {'id': _currentChannelId});
     });
+    // Auto-push de pistas: cuando el player de la TV resuelve/cambia su lista de
+    // pistas (media_kit emite 'player_tracks'), empujarlas al móvil. Evita la
+    // carrera del pull `getTracks` que llegaba antes de que existieran las pistas
+    // y devolvía una lista vacía/rancia (ver [_tracksSub]).
+    _tracksSub?.cancel();
+    _tracksSub = EventBus().on<Tracks>('player_tracks').listen((_) {
+      if (!_playing) return;
+      _sendTracks();
+    });
     _positionSub?.cancel();
     _positionSub =
         EventBus().on<Map<String, dynamic>>('cast_player_position').listen((e) {
@@ -648,6 +690,8 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
   void _stopPositionForwarding({bool sendFinal = false}) {
     _positionSub?.cancel();
     _positionSub = null;
+    _tracksSub?.cancel();
+    _tracksSub = null;
     _completedSub?.cancel();
     _completedSub = null;
     _volumeSub?.cancel();
@@ -701,6 +745,7 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     _commandSub?.cancel();
     _historySub?.cancel();
     _positionSub?.cancel();
+    _tracksSub?.cancel();
     _completedSub?.cancel();
     _volumeSub?.cancel();
     _volumeThrottle?.cancel();

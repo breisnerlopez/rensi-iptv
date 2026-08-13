@@ -9,6 +9,9 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get prebuffer_too_slow => '连接速度太慢，无法播放此画质';
+
+  @override
   String get prebuffer_preparing => '正在准备…';
 
   @override

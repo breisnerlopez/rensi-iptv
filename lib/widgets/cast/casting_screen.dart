@@ -58,6 +58,12 @@ class CastingScreen extends StatelessWidget {
                     _roundBtn(Icons.skip_next, c.castNextEpisode),
                 ],
               ),
+              // Scrub de posición (seek móvil→TV): solo VOD/serie. En vivo se
+              // oculta por completo (además del guard del listener del player).
+              if (!c.isLive) ...[
+                const SizedBox(height: 20),
+                _scrubRow(context, c),
+              ],
               const SizedBox(height: 24),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -172,6 +178,75 @@ class CastingScreen extends StatelessWidget {
     if (v <= 0) return Icons.volume_off;
     if (v < 50) return Icons.volume_down;
     return Icons.volume_up;
+  }
+
+  /// Slider de scrub de posición para VOD/serie casteado. Se alimenta de la
+  /// posición/duración que la TV reporta ([castPositionMs]/[castDurationMs]).
+  /// Mientras no haya duración conocida (aún no llegó el primer `state`, throttle
+  /// ~5s), se muestra DESHABILITADO (onChanged null) para no permitir un salto a
+  /// ciegas ni dividir por cero — nunca crashea.
+  Widget _scrubRow(BuildContext context, CastSenderController c) {
+    final durMs = c.castDurationMs;
+    final posMs = c.castPositionMs;
+    final enabled = c.canScrub; // !isLive && durMs > 0
+    final value = enabled ? (posMs / durMs).clamp(0.0, 1.0) : 0.0;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: [
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: _accent,
+              thumbColor: _accent,
+              inactiveTrackColor: const Color(0xFF1E1E24),
+              overlayColor: _accent.withValues(alpha: 0.2),
+            ),
+            child: Slider(
+              value: value,
+              // Deshabilitado hasta conocer la duración: sin ella no hay a dónde
+              // saltar. Al arrastrar, actualización local optimista (el thumb sigue
+              // al dedo) y al soltar se manda el seek a la TV (como el volumen).
+              onChanged: enabled
+                  ? (v) => c.updateSeekDrag(
+                      Duration(milliseconds: (v * durMs).round()))
+                  : null,
+              onChangeStart: enabled ? (_) => c.beginSeekDrag() : null,
+              onChangeEnd: enabled
+                  ? (v) =>
+                      c.endSeekDrag(Duration(milliseconds: (v * durMs).round()))
+                  : null,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(_fmtDuration(posMs),
+                    style:
+                        const TextStyle(color: Colors.white54, fontSize: 12)),
+                Text(enabled ? _fmtDuration(durMs) : '--:--',
+                    style:
+                        const TextStyle(color: Colors.white54, fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// H:MM:SS (o M:SS bajo una hora) desde milisegundos, para las etiquetas del
+  /// slider de scrub. Valores no positivos → '0:00'.
+  String _fmtDuration(int ms) {
+    if (ms <= 0) return '0:00';
+    final d = Duration(milliseconds: ms);
+    final h = d.inHours;
+    final m = d.inMinutes % 60;
+    final s = d.inSeconds % 60;
+    final mm = m.toString().padLeft(h > 0 ? 2 : 1, '0');
+    final ss = s.toString().padLeft(2, '0');
+    return h > 0 ? '$h:$mm:$ss' : '$mm:$ss';
   }
 
   Widget _roundBtn(IconData icon, VoidCallback onTap, {bool big = false}) {

@@ -1,4 +1,5 @@
 {
+  "prebuffer_too_slow": "Bu kalite için bağlantı çok yavaş",
   "prebuffer_preparing": "Hazırlanıyor…",
   "prebuffer_ready": "Akıcı oynatmaya hazır",
   "prebuffer_slow": "Yavaş bağlantı",

@@ -1,4 +1,5 @@
 {
+  "prebuffer_too_slow": "连接速度太慢，无法播放此画质",
   "prebuffer_preparing": "正在准备…",
   "prebuffer_ready": "可以流畅播放了",
   "prebuffer_slow": "连接较慢",

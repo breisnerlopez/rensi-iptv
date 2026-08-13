@@ -9,6 +9,9 @@ class AppLocalizationsTr extends AppLocalizations {
   AppLocalizationsTr([String locale = 'tr']) : super(locale);
 
   @override
+  String get prebuffer_too_slow => 'Bu kalite için bağlantı çok yavaş';
+
+  @override
   String get prebuffer_preparing => 'Hazırlanıyor…';
 
   @override

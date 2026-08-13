@@ -109,6 +109,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
   StreamSubscription? _playbackSpeedSubscription;
   StreamSubscription? _castPlayPauseSubscription;
   StreamSubscription? _castSetVolumeSubscription;
+  StreamSubscription? _castSeekSubscription;
   Duration? _seekPos;
   Duration? _seekDur;
   Timer? _seekHideTimer;
@@ -235,6 +236,20 @@ class _PlayerWidgetState extends State<PlayerWidget>
   // Live-stream stall watchdog.
   StreamSubscription<bool>? _bufferingSubscription;
   Timer? _stallTimer;
+  // Watchdog de AVANCE de posición en vivo (hallazgo de QA). En un corte de red
+  // que excede el readahead (~15s), `_player.state.position` NO sigue avanzando:
+  // se RESETEA a 0 y ahí se queda con `playing=true`, sin recuperación cuando la
+  // red vuelve. El `_stallTimer` de arriba nunca dispara porque lo arma la señal
+  // `buffering`, que `cache-pause=no` suprime. Este watchdog es INDEPENDIENTE de
+  // esa señal: mira solo si la posición avanza y, si lleva >20s sin avanzar en
+  // vivo, reabre el stream (que reabre en el borde en vivo, ya es seguro).
+  Timer? _liveWatchdogTimer;
+  int _lastLivePosMs = -1;
+  DateTime? _lastLiveAdvanceAt;
+  // Guarda de reentrada de _reopenCurrent(): todos sus llamadores (stall-timer,
+  // error-handler, conectividad, retry y este watchdog) pueden solaparse; sin
+  // esto dos `_player.open()` concurrentes compiten sobre el mismo player.
+  bool _reopenInProgress = false;
   // Guard against disposing the native player twice (lifecycle + dispose()).
   bool _playerDisposed = false;
 
@@ -598,6 +613,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
   PreBufferMonitor? _preBuffer;
   bool _preBuffering = false;
   final Stopwatch _preBufferClock = Stopwatch();
+  // Estado TERMINAL del pre-buffer (hallazgo de QA): cuando se agota el techo de
+  // 8s y el colchón sigue vacío / las lecturas de propiedades se colgaron, forzar
+  // play sobre un player atascado es PEOR que el overlay. En su lugar se marca
+  // esto y se muestra una tarjeta "conexión demasiado lenta" con Reintentar. Se
+  // reinicia a false al reintentar / al empezar un nuevo pre-buffer.
+  bool _preBufferTooSlow = false;
+  // Ticks consecutivos con techo agotado y buffer vacío antes de dar por
+  // terminal (auditor): una ÚNICA lectura ≤0.05 / timeout de getProperty NO debe
+  // tapar con la tarjeta terminal un vídeo que en TV ya reproduce por debajo. Se
+  // exige confirmarlo 2 ticks seguidos; cualquier tick con colchón lo resetea.
+  int _tooSlowStreak = 0;
 
   // Watchdog de la carga inicial: cuenta el tiempo en "Preparando…" para poder
   // avisar (y ofrecer Reintentar) si la apertura del stream se cuelga sin lanzar
@@ -631,6 +657,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
     final tv = ResponsiveHelper.isTelevisionDevice;
     _preBuffer = PreBufferMonitor(targetSecs: isLive ? 4 : 15);
     _preBuffering = true;
+    _preBufferTooSlow = false; // nuevo pre-buffer: limpiar el estado terminal
+    _tooSlowStreak = 0;
     if (tv) {
       // En la TV (receptor de casting) NO retener el vídeo: algunas cajas no
       // llenan/reportan la caché con el vídeo en pausa antes del primer frame,
@@ -652,36 +680,71 @@ class _PlayerWidgetState extends State<PlayerWidget>
         t.cancel();
         return;
       }
+      // (a) CORRECCIÓN (hallazgo de QA): calcular `elapsed` y evaluar el TECHO de
+      // 8s ANTES de los `getProperty`. Bajo inanición de red esos reads se
+      // cuelgan; si el techo se evaluara DESPUÉS (como antes), nunca se alcanzaría
+      // y el overlay quedaría pegado con métricas congeladas para siempre. Con el
+      // techo calculado primero, la salida es alcanzable en cada tick.
+      final elapsed = _preBufferClock.elapsed;
+      final maxWaited = elapsed >= const Duration(seconds: 8);
+      // (b) Cada `getProperty` con timeout de 1s: un read colgado no puede atascar
+      // el tick. Centinela '-1' = "no se pudo leer" → buffer sin datos utilizables.
       double buf = 0, spd = 0;
       final pf = _player.platform;
       if (pf is NativePlayer) {
         try {
-          buf = double.tryParse(
-                  await pf.getProperty('demuxer-cache-duration')) ??
-              0;
-          spd = double.tryParse(await pf.getProperty('cache-speed')) ?? 0;
-        } catch (_) {}
+          final bufStr = await pf
+              .getProperty('demuxer-cache-duration')
+              .timeout(const Duration(seconds: 1), onTimeout: () => '-1');
+          final spdStr = await pf
+              .getProperty('cache-speed')
+              .timeout(const Duration(seconds: 1), onTimeout: () => '-1');
+          buf = double.tryParse(bufStr) ?? -1;
+          spd = double.tryParse(spdStr) ?? 0;
+        } catch (_) {
+          buf = -1; // read fallido → tratar como sin datos utilizables
+        }
       }
-      _preBuffer!.add(PreBufferSample(buf, spd, _preBufferClock.elapsed));
-      if (mounted) setState(() {});
-      final elapsed = _preBufferClock.elapsed;
+      // Solo alimentar el monitor con una lectura BUENA (buf>=0): un -1 (read
+      // colgado/fallido) no debe contaminar las métricas mostradas.
+      final readOk = buf >= 0;
+      if (readOk) {
+        _preBuffer!.add(PreBufferSample(buf, spd, elapsed));
+      }
+      if (mounted) setState(() {}); // setState alcanzable en cada tick
       final tv = ResponsiveHelper.isTelevisionDevice;
       // Piso (solo TV): mostrar "preparando" al menos 1.5s tras enviar el
       // contenido; con buena conexión el colchón se llena en 1-2 ticks y no se
       // llegaba a ver el estado. En el móvil se inicia en cuanto hay colchón.
       final minShown = !tv || elapsed >= const Duration(milliseconds: 1500);
-      // TECHO de seguridad: NUNCA retener el vídeo indefinidamente. En algunos
-      // backends (p. ej. cajas de TV) la caché no reporta duración con el vídeo
-      // en pausa, o un live pausado no la llena, así que 'isReady' no llegaría
-      // nunca y el vídeo quedaría retenido → "círculo de carga infinito" al
-      // castear. Pasado el máximo, reproducir igual (mejor un arranque sin
-      // colchón que un cuelgue eterno).
-      final maxWaited = elapsed >= const Duration(seconds: 8);
       // Sin datos (stalled): no tiene sentido seguir reteniendo — soltar y dejar
       // que el player normal (buffering/stall-watchdog/error) tome el control.
       final stalled = _preBuffer!.phase == BufferPhase.stalled;
-      if ((_preBuffer!.isReady && minShown) || stalled || maxWaited) {
-        _finishPreBuffer(); // arranca: colchón listo, o sin datos, o techo agotado
+      // Colchón utilizable realmente acumulado (lectura buena Y algo en caché).
+      final hasUsableBuffer = readOk && buf > 0.05;
+      if (hasUsableBuffer) _tooSlowStreak = 0; // colchón visto → no es terminal
+      if (maxWaited && !hasUsableBuffer) {
+        // TERMINAL (RETADOR + auditor): techo agotado y el buffer sigue vacío /
+        // los reads se colgaron → forzar play sobre un player atascado es PEOR que
+        // el overlay. Pero se exigen 2 ticks SEGUIDOS así (una lectura ≤0.05 /
+        // timeout aislada no tapa un vídeo que ya reproduce por debajo). Al
+        // confirmarse, marcar "demasiado lento" y mostrar la tarjeta con
+        // Reintentar; NO reproducir. Se mantiene `_preBuffering=true` para que el
+        // overlay siga pintándose (ahora en su variante terminal).
+        _tooSlowStreak++;
+        if (_tooSlowStreak >= 2) {
+          _preBufferTimer?.cancel();
+          _preBufferClock.stop();
+          if (mounted) setState(() => _preBufferTooSlow = true);
+          return;
+        }
+      }
+      if ((_preBuffer!.isReady && minShown) ||
+          stalled ||
+          (maxWaited && hasUsableBuffer)) {
+        // Arranca solo si hay colchón listo, no hay datos (stalled → cede al
+        // player normal) o el techo se agotó PERO con colchón utilizable.
+        _finishPreBuffer();
       }
     });
   }
@@ -724,6 +787,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
   void _finishPreBuffer() {
     _preBufferTimer?.cancel();
     _preBufferClock.stop();
+    _preBufferTooSlow = false; // sale del pre-buffer: limpiar el estado terminal
+    _tooSlowStreak = 0;
     if (!_preBuffering) return;
     _preBuffering = false;
     _player.play();
@@ -875,6 +940,66 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Widget _buildPreBuffer(BuildContext context) {
     if (!_preBuffering || _preBuffer == null) return const SizedBox.shrink();
     final loc = context.loc;
+    // Estado TERMINAL (hallazgo de QA): el techo se agotó con el buffer vacío /
+    // reads colgados. En vez del overlay pegado con métricas congeladas, una
+    // tarjeta clara con Reintentar (y "Reproducir ahora" como acción secundaria).
+    if (_preBufferTooSlow) {
+      return Positioned.fill(
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.92),
+          alignment: Alignment.center,
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wifi_off, color: Colors.redAccent, size: 46),
+                const SizedBox(height: 16),
+                Text(
+                  loc.prebuffer_too_slow,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: AppThemes.tenFoot(context, 17),
+                      fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: 260,
+                  child: FilledButton.icon(
+                    autofocus: ResponsiveHelper.isTelevisionDevice,
+                    style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFD2603A),
+                        padding: const EdgeInsets.symmetric(vertical: 13)),
+                    onPressed: () {
+                      // Reintentar: limpiar el pre-buffer y reabrir el stream.
+                      setState(() {
+                        _preBufferTooSlow = false;
+                        _preBuffering = false;
+                      });
+                      _retryPlayback();
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: Text(loc.cast_retry),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: 260,
+                  child: TextButton(
+                    // Secundario: reproducir igual (acepta el riesgo de arrancar
+                    // sin colchón). Usa el mismo _finishPreBuffer de siempre.
+                    onPressed: _finishPreBuffer,
+                    child: Text(loc.prebuffer_play_now,
+                        style: const TextStyle(color: Colors.white70)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     final m = _preBuffer!;
     final speedMbps = m.speedBps / (1024 * 1024);
     final (String status, Color color, IconData icon) = switch (m.phase) {
@@ -1242,6 +1367,37 @@ class _PlayerWidgetState extends State<PlayerWidget>
       _player.setVolume(v);
     });
 
+    // Cast: el móvil arrastró el slider de scrub del sheet de control; saltar la
+    // reproducción del receptor (la TV) a la posición absoluta que envía (ms).
+    _castSeekSubscription = EventBus().on<int>('cast_seek').listen((ms) {
+      // [GUARD RETADOR — crítico] Excluir vivo AQUÍ, no solo en la UI del emisor:
+      // `_player.seek` sobre un stream en vivo lanza el error no-fatal
+      // "Cannot seek … --force-seekable=yes". La UI ya oculta el slider en vivo,
+      // pero este guard es la defensa real (un emisor viejo/otra ruta podría
+      // emitir igual).
+      if (widget.contentItem.contentType == ContentType.liveStream) return;
+      // Clampa el ms entrante a [0, dur-1s] ANTES de saltar — replica la
+      // protección de _seekBy (~:_seekBy): (a) descarta un objetivo fuera de rango
+      // (consistente con el clamp de setVolume) y (b) tapa 1s antes del final para
+      // NO aterrizar EXACTO en EOF, que carrearía con `completed`/auto-avance de
+      // serie. Con duración desconocida (0, aún sin metadatos) solo se garantiza
+      // >= 0 (no hay tope superior fiable).
+      final durMs = _player.state.duration.inMilliseconds;
+      var target = ms < 0 ? 0 : ms;
+      if (durMs > 0) {
+        final capMs = durMs > 1000 ? durMs - 1000 : durMs;
+        if (target > capMs) target = capMs;
+      }
+      _pendingSeekTarget = Duration(milliseconds: target);
+      // Reusar EXACTAMENTE la ruta del seek local: confirmar con `resume` según el
+      // estado ACTUAL de reproducción — un scrub NO debe des-pausar la TV (si el
+      // usuario la había pausado, sigue pausada tras el salto). Así _commitSeek
+      // activa la gracia (`_seekInProgress`) que impide que el re-buffer del salto
+      // levante el panel de pausa, hace el seek y reinicia la línea base del
+      // watchdog; solo reanuda con play() si ya estaba reproduciendo.
+      _commitSeek(resume: _player.state.playing);
+    });
+
     // External subtitle from a URL (.srt/.ass/.vtt).
     _externalSubUriSubscription = EventBus()
         .on<String>('load_external_subtitle_uri')
@@ -1292,6 +1448,45 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _saveWatchHistory();
       }
     });
+
+    // Watchdog de AVANCE de posición en vivo (hallazgo de QA — ver el campo
+    // [_liveWatchdogTimer]). Timer SEPARADO del de historial: cada 5s comprueba
+    // si la posición del stream en vivo sigue avanzando. Es basado en POSICIÓN (no
+    // en la señal `buffering`) porque un corte que excede el readahead resetea la
+    // posición a 0 con `playing=true` y SIN emitir `buffering` (lo suprime
+    // `cache-pause=no`), así que el `_stallTimer` clásico nunca lo ve.
+    _liveWatchdogTimer =
+        Timer.periodic(const Duration(seconds: 5), (_) {
+      // Blindaje (auditor cond. 2): el timer puede sobrevivir un instante a la
+      // liberación del player (detached / dispose) — nunca leer `_player.state`
+      // sobre un player ya liberado ni actuar tras el unmount.
+      if (_playerDisposed || !mounted) return;
+      final ci = widget.contentItem;
+      if (ci.contentType != ContentType.liveStream) return;
+      // Estados en que una posición "quieta" es esperada y NO es un cuelgue:
+      // pausa, seek en curso, cast comprometido, o un reopen ya en vuelo. Se
+      // reinicia la línea base y se espera al próximo tick.
+      if (!_player.state.playing ||
+          _seekInProgress ||
+          _pendingSeekTarget != null ||
+          _castCommitted ||
+          _reopenInProgress) {
+        _resetLiveWatchdogBaseline();
+        return;
+      }
+      final pos = _player.state.position.inMilliseconds;
+      if (pos > _lastLivePosMs) {
+        // Avanzó: todo bien, mover la línea base.
+        _lastLivePosMs = pos;
+        _lastLiveAdvanceAt = DateTime.now();
+      } else if (_lastLiveAdvanceAt != null &&
+          DateTime.now().difference(_lastLiveAdvanceAt!) >
+              const Duration(seconds: 20)) {
+        // >20s sin avanzar (incluye el reset-a-0, que NO es > lastPos): reabrir en
+        // el borde en vivo. _reopenCurrent ya es seguro para live y reentrante.
+        _reopenCurrent();
+      }
+    });
   }
 
   @override
@@ -1301,6 +1496,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     WidgetsBinding.instance.removeObserver(this);
     _watchHistoryTimer?.cancel();
     _periodicHistoryTimer?.cancel();
+    _liveWatchdogTimer?.cancel();
     _stallTimer?.cancel();
     _channelDebounceTimer?.cancel();
     _okHoldTimer?.cancel();
@@ -1325,6 +1521,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _playbackSpeedSubscription?.cancel();
     _castPlayPauseSubscription?.cancel();
     _castSetVolumeSubscription?.cancel();
+    _castSeekSubscription?.cancel();
     _seekHideTimer?.cancel();
     _seekCommitTimer?.cancel();
     _seekGraceTimer?.cancel();
@@ -1377,6 +1574,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // un seek diferido no debe dispararse sobre un player ya liberado.
     _seekCommitTimer?.cancel();
     _seekGraceTimer?.cancel();
+    // Idem para el watchdog en vivo: sin esto podría hacer un tick contra el
+    // player recién liberado (detached libera aquí sin pasar por dispose()).
+    _liveWatchdogTimer?.cancel();
     await _player.dispose();
   }
 
@@ -1581,35 +1781,67 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // _castingController() es null y _castCommitted false, así que su reopen de
     // stall en vivo queda intacto.
     if (_castCommitted || _castingController() != null) return;
-    // Live streams are not seekable: passing start:Duration.zero makes libmpv
-    // attempt a seek-to-0 on reopen, which fires the non-fatal
-    // "Cannot seek … --force-seekable=yes" error (triggered by the 15s stall
-    // watchdog). Omit start entirely for live; VOD/series keep their resume.
-    // VOD/series: reanudar desde la posición REAL del player (no
-    // _pendingWatchDuration, que se pone a null tras cada guardado de historial
-    // → reabría en 0 y "reiniciaba desde el principio"). Live no lleva start.
-    final Duration? start = computeReopenStart(
-      isLive: contentItem.contentType == ContentType.liveStream,
-      livePos: _player.state.position,
-      lastGood: _lastGoodPosition,
-      pending: _pendingWatchDuration,
-    );
-    // Preserve a multi-item VOD queue: reopening a bare Media would collapse the
-    // native Playlist to a single item and break jump/next for the rest of the
-    // session. The current item's url is read live (it may have been healed).
-    if (_queue != null &&
-        _queue!.length > 1 &&
-        contentItem.contentType != ContentType.liveStream) {
-      final medias = [
-        for (var i = 0; i < _queue!.length; i++)
-          Media(i == _currentItemIndex ? contentItem.url : _queue![i].url,
-              start: i == _currentItemIndex ? start : Duration.zero),
-      ];
-      await _player.open(Playlist(medias, index: _currentItemIndex),
-          play: true);
-    } else {
-      await _player.open(Media(contentItem.url, start: start), play: true);
+    // Guarda de reentrada (hallazgo de QA): varios caminos pueden llamar aquí a
+    // la vez (stall-timer, error-handler, conectividad, retry, live-watchdog).
+    // Sin esto se solaparían dos `_player.open()` sobre el mismo player. Se pone
+    // true SOLO tras pasar las guardas de arriba (si retornáramos antes, el flag
+    // quedaría atascado en true y bloquearía todo reopen futuro).
+    if (_reopenInProgress) return;
+    _reopenInProgress = true;
+    try {
+      // Live streams are not seekable: passing start:Duration.zero makes libmpv
+      // attempt a seek-to-0 on reopen, which fires the non-fatal
+      // "Cannot seek … --force-seekable=yes" error (triggered by the 15s stall
+      // watchdog). Omit start entirely for live; VOD/series keep their resume.
+      // VOD/series: reanudar desde la posición REAL del player (no
+      // _pendingWatchDuration, que se pone a null tras cada guardado de historial
+      // → reabría en 0 y "reiniciaba desde el principio"). Live no lleva start.
+      final Duration? start = computeReopenStart(
+        isLive: contentItem.contentType == ContentType.liveStream,
+        livePos: _player.state.position,
+        lastGood: _lastGoodPosition,
+        pending: _pendingWatchDuration,
+      );
+      // Preserve a multi-item VOD queue: reopening a bare Media would collapse
+      // the native Playlist to a single item and break jump/next for the rest of
+      // the session. The current item's url is read live (it may have been
+      // healed).
+      if (_queue != null &&
+          _queue!.length > 1 &&
+          contentItem.contentType != ContentType.liveStream) {
+        final medias = [
+          for (var i = 0; i < _queue!.length; i++)
+            Media(i == _currentItemIndex ? contentItem.url : _queue![i].url,
+                start: i == _currentItemIndex ? start : Duration.zero),
+        ];
+        await _player
+            .open(Playlist(medias, index: _currentItemIndex), play: true)
+            // Timeout defensivo (auditor): un `open()` colgado NO debe dejar
+            // `_reopenInProgress=true` atascado bloqueando toda recuperación
+            // futura. En el caso normal (open rápido) es transparente.
+            .timeout(const Duration(seconds: 12), onTimeout: () {});
+      } else {
+        await _player
+            .open(Media(contentItem.url, start: start), play: true)
+            .timeout(const Duration(seconds: 12), onTimeout: () {});
+      }
+    } finally {
+      _reopenInProgress = false;
+      // GRACIA tras el reopen: reiniciar la línea base del watchdog en vivo para
+      // que espere ~20s frescos antes de poder volver a disparar (el stream nuevo
+      // tarda un momento en arrancar y avanzar; sin esto se dispararía en bucle).
+      _resetLiveWatchdogBaseline();
     }
+  }
+
+  /// Reinicia la línea base del watchdog de avance en vivo: la posición actual
+  /// pasa a ser el último avance conocido y el reloj arranca de cero. Se llama al
+  /// (re)abrir, al reanudar, al salir de un buffering legítimo, en cada seek y al
+  /// cambiar de contenido — cualquier evento tras el cual una posición "quieta"
+  /// es esperada y NO debe contar hacia el umbral de reopen.
+  void _resetLiveWatchdogBaseline() {
+    _lastLiveAdvanceAt = DateTime.now();
+    _lastLivePosMs = _player.state.position.inMilliseconds;
   }
 
   /// If a VOD failed because its cached container extension is stale, reopen
@@ -1679,6 +1911,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
   /// User-triggered retry from the error screen.
   void _retryPlayback() {
     _errorHandler.reset();
+    _preBufferTooSlow = false; // cualquier reintento limpia el estado terminal
+    _tooSlowStreak = 0;
     // Reiniciar el watchdog de carga para el nuevo intento.
     _loadClock
       ..reset()
@@ -2122,6 +2356,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _playingSubscription = _player.stream.playing.listen((playing) {
       if (playing) {
         WakelockPlus.enable();
+        // Reanudó (p. ej. tras una pausa): reiniciar la línea base del watchdog en
+        // vivo para no contar el tiempo pausado como "sin avanzar".
+        _resetLiveWatchdogBaseline();
         // Arrancó de verdad: matar el watchdog de "buffering sin arrancar" y
         // quitar el overlay de Reintentar si estaba puesto.
         _hasStartedPlaying = true;
@@ -2200,7 +2437,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
           _stopMidPlayBufferPoll();
         }
       }
-      if (!buffering) return;
+      if (!buffering) {
+        // Salió de un buffering legítimo: reiniciar la línea base del watchdog en
+        // vivo (la posición pudo quedar quieta durante el re-buffer sin ser un
+        // cuelgue de red).
+        _resetLiveWatchdogBaseline();
+        return;
+      }
       final isLiveContent = contentItem.contentType == ContentType.liveStream;
       if (isLiveContent && contentItem.url.isNotEmpty) {
         _stallTimer = Timer(const Duration(seconds: 15), () {
@@ -2281,6 +2524,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
       // posición como historial del ep2. El nuevo episodio arranca en 0.
       _lastGoodPosition = null;
       _pendingWatchDuration = null;
+      // Cambió el contenido: reiniciar la línea base del watchdog en vivo (no
+      // arrastrar la posición del ítem saliente).
+      _resetLiveWatchdogBaseline();
       // El prompt "Siguiente episodio" pertenecía al episodio SALIENTE: reinícialo
       // para el nuevo (vuelve a poder ofrecerse en sus últimos ~30s).
       _showNextEpisodePrompt = false;
@@ -2355,6 +2601,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
             // -------------------------------------------
 
             await _player.open(Playlist([Media(item.url)]), play: true);
+            // Cambio de canal en vivo: reiniciar la línea base del watchdog para no
+            // arrastrar la posición del canal anterior.
+            _resetLiveWatchdogBaseline();
             EventBus().emit('player_content_item', item);
             EventBus().emit('player_content_item_index', index);
             _errorHandler.reset();
@@ -2489,6 +2738,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
         // explicitly — otherwise it can keep firing every 20s against an
         // already-disposed player/content if the engine survives detach.
         _periodicHistoryTimer?.cancel();
+        _liveWatchdogTimer?.cancel();
         await _disposePlayer();
         _audioHandler.setPlayer(null);
         await _audioHandler.stop();
@@ -2621,6 +2871,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // no tocar un player liberado.
     if (!mounted || _playerDisposed) return;
     _player.seek(target);
+    // La posición saltó por el seek: reiniciar la línea base del watchdog en vivo
+    // para que el salto no cuente como avance ni como cuelgue.
+    _resetLiveWatchdogBaseline();
     if (resume) {
       _player.play();
       // Gracia: ignorar el 'playing=false' del re-buffer para no levantar el

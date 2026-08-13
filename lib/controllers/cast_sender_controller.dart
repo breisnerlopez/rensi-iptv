@@ -279,6 +279,21 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
   List<CastTrack> get audioTracks => List.unmodifiable(_audioTracks);
   List<CastTrack> get subtitleTracks => List.unmodifiable(_subtitleTracks);
 
+  // --- Scrub de posición (seek móvil→TV) para VOD/serie en streaming ---
+  // Última posición/duración (ms) que la TV reportó en su `state` — alimentan el
+  // slider de scrub de la hoja de casting. El `state` de la TV llega throttled
+  // (~5s), así que el thumb avanza a saltos salvo durante un arrastre (optimista).
+  int get castPositionMs => _lastPos;
+  int get castDurationMs => _lastDur;
+  // ¿Se puede hacer scrub? Solo VOD/serie (no en vivo — un seek en vivo lanza el
+  // error "--force-seekable=yes") y solo cuando ya conocemos la duración (la TV la
+  // manda con dur:0 en vivo y aún no la tenemos hasta el primer `state`).
+  bool get canScrub => !isLive && _lastDur > 0;
+  // true MIENTRAS el usuario arrastra el slider de scrub: [_onState] IGNORA el eco
+  // de posición de la TV durante el gesto (igual que [_draggingVolume] con `vol`),
+  // para que un eco en tránsito no haga saltar el thumb bajo el dedo.
+  bool _draggingPosition = false;
+
   /// El contenido casteado es en vivo (zap ± aplica).
   bool get isLive => _media?.contentType == 'live';
 
@@ -1352,6 +1367,38 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
   void selectSubtitle(String id) =>
       _sender?.sendCommand(CmdType.selectSubtitle, {'id': id});
 
+  /// Salta la reproducción de la TV a [pos] (posición ABSOLUTA). Espeja el patrón
+  /// de [setVolume]/[selectAudio]. La TV excluye vivo en su lado (el guard real
+  /// vive en el listener 'cast_seek' del PlayerWidget). Compat: un receptor viejo
+  /// sin este `case` simplemente lo ignora.
+  void seekTo(Duration pos) {
+    // No mandar contra un socket muerto en pleno backoff (igual que castNext/
+    // castNextEpisode): el comando se perdería en silencio. Tras reconectar, el
+    // usuario puede volver a arrastrar.
+    if (_reconnecting) return;
+    _sender?.sendCommand(CmdType.seek, {'ms': pos.inMilliseconds});
+  }
+
+  /// El usuario EMPIEZA a arrastrar el slider de scrub: silencia el eco de
+  /// posición de la TV hasta soltar (ver [_draggingPosition]).
+  void beginSeekDrag() => _draggingPosition = true;
+
+  /// El usuario ARRASTRA el slider a [pos]: actualización local OPTIMISTA (el
+  /// thumb sigue al dedo sin esperar la vuelta de la TV). No manda comando aún.
+  void updateSeekDrag(Duration pos) {
+    _lastPos = pos.inMilliseconds;
+    notifyListeners();
+  }
+
+  /// El usuario SUELTA el slider en [pos]: fija la posición local y MANDA el
+  /// comando de seek a la TV, reactivando el eco.
+  void endSeekDrag(Duration pos) {
+    _draggingPosition = false;
+    _lastPos = pos.inMilliseconds;
+    notifyListeners();
+    seekTo(pos);
+  }
+
   /// Fija el volumen de reproducción en la TV (0-100). Actualización local
   /// optimista (el slider reacciona sin esperar la vuelta) inmediata; el
   /// COMANDO a la TV se debounce (ver [_volumeDebounce]) para no inundar la
@@ -1471,8 +1518,15 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
     // corrige el estado intencionado por si driftó (salvo que lo tengamos pausado
     // por una llamada, para que un eco rezagado no dispare un resume espurio).
     if (!_pausedForCall) _tvPlaying = true;
-    _lastPos = pos;
+    // La duración siempre se toma (habilita el slider de scrub). La posición se
+    // ignora mientras el usuario arrastra el slider (igual que el eco de volumen):
+    // un eco en tránsito no debe pelear con el dedo. Notifica para que el slider
+    // de scrub refleje el avance de la TV (barato: el `state` llega ~cada 5s).
     _lastDur = dur;
+    if (!_draggingPosition) {
+      _lastPos = pos;
+      notifyListeners();
+    }
     final now = DateTime.now();
     final last = _lastHistoryWrite;
     if (last != null && now.difference(last) < const Duration(seconds: 10)) {

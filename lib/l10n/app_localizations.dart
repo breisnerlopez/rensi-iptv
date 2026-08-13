@@ -114,6 +114,12 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @prebuffer_too_slow.
+  ///
+  /// In en, this message translates to:
+  /// **'Connection too slow for this quality'**
+  String get prebuffer_too_slow;
+
   /// No description provided for @prebuffer_preparing.
   ///
   /// In en, this message translates to:

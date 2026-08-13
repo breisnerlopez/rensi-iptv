@@ -9,6 +9,10 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get prebuffer_too_slow =>
+      'Соединение слишком медленное для этого качества';
+
+  @override
   String get prebuffer_preparing => 'Подготовка…';
 
   @override
