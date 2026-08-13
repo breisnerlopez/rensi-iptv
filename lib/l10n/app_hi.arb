@@ -1,4 +1,5 @@
 {
+  "prebuffer_too_slow": "इस गुणवत्ता के लिए कनेक्शन बहुत धीमा है",
   "prebuffer_preparing": "तैयार हो रहा है…",
   "prebuffer_ready": "सुचारू प्लेबैक के लिए तैयार",
   "prebuffer_slow": "धीमा कनेक्शन",

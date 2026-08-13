@@ -1,4 +1,5 @@
 {
+  "prebuffer_too_slow": "Conexión demasiado lenta para esta calidad",
   "prebuffer_preparing": "Preparando…",
   "prebuffer_ready": "Listo para reproducción fluida",
   "prebuffer_slow": "Conexión lenta",

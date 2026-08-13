@@ -9,6 +9,9 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
+  String get prebuffer_too_slow => 'الاتصال بطيء جدًا لهذه الجودة';
+
+  @override
   String get prebuffer_preparing => 'جارٍ التحضير…';
 
   @override

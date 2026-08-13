@@ -44,6 +44,7 @@ class _FakeSender extends PhoneSenderService {
   final List<String> loadDeviceIds = []; // `did` enviado en cada LOAD
   final List<String?> loadSeriesIds = []; // `sid` enviado en cada LOAD
   final List<String> commands = [];
+  final List<int> seekMs = []; // ms de CmdType.seek enviados (scrub móvil→TV)
   final List<String> wipedPids = []; // pids de CmdType.wipeStandalone enviados
   final List<List<HistorySyncItem>> sentHistory = []; // sendHistorySync enviados
   bool closed = false;
@@ -88,6 +89,9 @@ class _FakeSender extends PhoneSenderService {
     commands.add(cmd);
     if (cmd == CmdType.wipeStandalone && extra['pid'] is String) {
       wipedPids.add(extra['pid'] as String);
+    }
+    if (cmd == CmdType.seek && extra['ms'] is int) {
+      seekMs.add(extra['ms'] as int);
     }
   }
 
@@ -923,6 +927,130 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(c.volume, 65,
           reason: 'tras soltar, el eco vuelve a aplicar con normalidad');
+    });
+  });
+
+  // ── Scrub de posición (seek móvil→TV) para VOD/serie en streaming ─────────
+  // NOTA (cobertura del guard de vivo): el guard "excluir vivo" y el clamp+cap
+  // 1s-antes-de-EOF viven en el LISTENER 'cast_seek' del PlayerWidget (lado
+  // receptor), no en el controlador. Ejercerlos exigiría montar el PlayerWidget
+  // con un Player nativo MOCKEADO para observar la llamada interna `_player.seek`
+  // (o su ausencia) — media_kit expone `Player` como clase concreta, así que no
+  // hay infra para interceptar `seek()` sin un display/emulador. El guard es un
+  // early-return trivial de una línea y su riesgo real (el error
+  // "--force-seekable=yes" en vivo) ya quedó validado en el rig. Aquí se cubre
+  // exhaustivamente el lado controlador: envío del comando, drag helpers, freno
+  // del eco durante el arrastre, canScrub y el guard de reconexión.
+  group('scrub de posición (seek móvil→TV)', () {
+    const vod = CastMedia(
+      channelId: '7001',
+      contentType: 'vod',
+      title: 'Peli',
+      ext: 'mp4',
+      playlistId: 'p',
+      historyId: '7001',
+    );
+
+    Future<CastSenderController> castVod(_FakeSender fake) async {
+      final c = make(fake);
+      await c.beginCast(vod);
+      await c.submitPin('123456');
+      return c;
+    }
+
+    test('seekTo: envía CmdType.seek con el ms correcto', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = await castVod(fake);
+      c.seekTo(const Duration(minutes: 3)); // 180000 ms
+      expect(fake.commands, contains(CmdType.seek));
+      expect(fake.seekMs, [180000]);
+    });
+
+    test('seekTo: no-op SEGURO mientras se reconecta (socket en backoff)',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = await castVod(fake);
+      fake.commands.clear();
+      fake.seekMs.clear();
+
+      fake.onDisconnected?.call(); // arranca _reconnect → _reconnecting=true
+      c.seekTo(const Duration(minutes: 5));
+      expect(fake.seekMs, isEmpty,
+          reason: 'no mandar el seek contra un socket muerto en backoff');
+      expect(fake.commands.where((x) => x == CmdType.seek), isEmpty);
+
+      await c.stopCasting();
+    });
+
+    test('updateSeekDrag: fija la posición ÓPTIMISTA (el thumb sigue al dedo)',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = await castVod(fake);
+      var notifications = 0;
+      c.addListener(() => notifications++);
+
+      c.beginSeekDrag();
+      c.updateSeekDrag(const Duration(seconds: 90));
+      expect(c.castPositionMs, 90000, reason: 'posición local optimista');
+      expect(notifications, greaterThan(0), reason: 'notifica para redibujar');
+      // Aún NO se manda el comando: el seek sale al soltar.
+      expect(fake.seekMs, isEmpty);
+    });
+
+    test('_onState: IGNORA el eco de posición MIENTRAS se arrastra (evita el '
+        'jitter del thumb), pero SÍ toma la duración', () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = await castVod(fake);
+
+      c.beginSeekDrag();
+      c.updateSeekDrag(const Duration(seconds: 90)); // 90000 bajo el dedo
+      // Un eco REZAGADO de la TV llega mid-arrastre con una posición vieja.
+      fake.emitState({'id': vod.channelId, 'pos': 5000, 'dur': 600000});
+      await Future<void>.delayed(Duration.zero);
+      expect(c.castPositionMs, 90000,
+          reason: 'el eco de posición NO debe pelear con el dedo');
+      expect(c.castDurationMs, 600000,
+          reason: 'la duración sí se toma siempre (habilita el slider)');
+    });
+
+    test('endSeekDrag: fija la posición, MANDA el seek y reactiva el eco',
+        () async {
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = await castVod(fake);
+
+      c.beginSeekDrag();
+      c.updateSeekDrag(const Duration(seconds: 90));
+      c.endSeekDrag(const Duration(seconds: 90));
+      expect(c.castPositionMs, 90000);
+      expect(fake.seekMs, [90000], reason: 'al soltar sale el seek a la TV');
+
+      // Tras soltar, el próximo eco vuelve a aplicar con normalidad.
+      fake.emitState({'id': vod.channelId, 'pos': 95000, 'dur': 600000});
+      await Future<void>.delayed(Duration.zero);
+      expect(c.castPositionMs, 95000,
+          reason: 'tras soltar, el eco de posición vuelve a sincronizar');
+    });
+
+    test('canScrub: false en vivo, false sin duración, true en VOD con duración',
+        () async {
+      // Vivo: nunca scrub (un seek en vivo lanza --force-seekable=yes).
+      final fakeLive = _FakeSender(devices: [oneTv]);
+      final cLive = make(fakeLive);
+      await cLive.beginCast(media); // media global es 'live'
+      await cLive.submitPin('123456');
+      expect(cLive.canScrub, isFalse, reason: 'vivo: sin scrub');
+
+      // VOD sin duración conocida aún (ningún state con dur>0): deshabilitado.
+      final fake = _FakeSender(devices: [oneTv]);
+      final c = await castVod(fake);
+      expect(c.castDurationMs, 0);
+      expect(c.canScrub, isFalse,
+          reason: 'sin duración no hay a dónde saltar (slider deshabilitado)');
+
+      // Llega el primer state con duración → habilitado.
+      fake.emitState({'id': vod.channelId, 'pos': 1000, 'dur': 600000});
+      await Future<void>.delayed(Duration.zero);
+      expect(c.canScrub, isTrue, reason: 'VOD con duración conocida: scrub OK');
     });
   });
 

@@ -1,4 +1,5 @@
 {
+  "prebuffer_too_slow": "الاتصال بطيء جدًا لهذه الجودة",
   "prebuffer_preparing": "جارٍ التحضير…",
   "prebuffer_ready": "جاهز للتشغيل السلس",
   "prebuffer_slow": "اتصال بطيء",

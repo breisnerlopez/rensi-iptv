@@ -1,4 +1,5 @@
 {
+  "prebuffer_too_slow": "Connection too slow for this quality",
   "prebuffer_preparing": "Preparing…",
   "prebuffer_ready": "Ready for smooth playback",
   "prebuffer_slow": "Slow connection",

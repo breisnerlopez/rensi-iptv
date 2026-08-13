@@ -9,6 +9,9 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get prebuffer_too_slow => 'इस गुणवत्ता के लिए कनेक्शन बहुत धीमा है';
+
+  @override
   String get prebuffer_preparing => 'तैयार हो रहा है…';
 
   @override

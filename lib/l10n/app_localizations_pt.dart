@@ -9,6 +9,9 @@ class AppLocalizationsPt extends AppLocalizations {
   AppLocalizationsPt([String locale = 'pt']) : super(locale);
 
   @override
+  String get prebuffer_too_slow => 'Conexão muito lenta para esta qualidade';
+
+  @override
   String get prebuffer_preparing => 'Preparando…';
 
   @override
