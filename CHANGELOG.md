@@ -1,3 +1,14 @@
+# [2.19.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.19.1...v2.19.2) (2026-08-13)
+
+
+### Bug Fixes
+
+* **El panel de pistas al castear ya no aparece vacío:** al enviar a la TV, las pistas de audio y subtítulos se muestran en cuanto están listas (antes, si el móvil las pedía demasiado pronto, quedaban vacías)
+* **La TV en vivo intenta reconectarse sola tras un corte de red:** si un canal en vivo se queda congelado por un problema de conexión, la TV vuelve a abrir el stream al recuperarse la señal, en vez de quedarse trabada
+* **Aviso claro cuando la conexión es demasiado lenta:** con una conexión muy por debajo de lo necesario, en vez de quedarse en "Cargando…" para siempre, la TV muestra "Conexión demasiado lenta para esta calidad" con un botón de Reintentar
+* **Adelantar y atrasar desde el móvil mientras se ve en la TV:** ahora podés mover la barra de tiempo de una película o serie que estás enviando a la TV desde el propio móvil (respeta si estaba en pausa y no salta al final por error)
+
+
 # [2.19.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.19.0...v2.19.1) (2026-08-03)
 
 
