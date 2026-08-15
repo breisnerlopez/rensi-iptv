@@ -210,6 +210,11 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
   int _lastPos = 0;
   int _lastDur = 0;
   String _currentChannelId = '';
+  // FIX-2: estado play/pausa REAL del PlayerWidget de la TV (por el evento
+  // 'cast_player_playing'), reenviado al móvil en `_sendState` como campo
+  // autoritativo. Default true: al arrancar el LOAD la TV reproduce.
+  StreamSubscription<bool>? _playingSub;
+  bool _lastPlaying = true;
 
   // Reenvío de volumen TV→móvil (eco para que el slider del móvil refleje el
   // volumen real de la TV). Coalescido/throttled (~250ms tras el ÚLTIMO
@@ -632,6 +637,7 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     _lastStateSent = null;
     _lastPos = 0;
     _lastDur = 0;
+    _lastPlaying = true; // FIX-2: un LOAD nuevo arranca reproduciendo
     // Fin-de-título: el player de la TV emite 'cast_player_completed' al acabar
     // un VOD/serie. Reenviarlo UNA vez por episodio (el guard evita duplicados
     // si el stream 'completed' de media_kit reemite) para que el móvil decida el
@@ -683,6 +689,16 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
         _sendState(_lastPos, _lastDur);
       });
     });
+    // FIX-2: play/pausa real de la TV → envío INMEDIATO en la transición (bypass
+    // del gate pos<=0||dur<=0 y del throttle de 5s, que solo viven en el path de
+    // posición), para que el móvil no muestre el icono equivocado ~5s.
+    _playingSub?.cancel();
+    _playingSub = EventBus().on<bool>('cast_player_playing').listen((playing) {
+      if (playing == _lastPlaying) return; // solo en cambios reales
+      _lastPlaying = playing;
+      _lastStateSent = DateTime.now();
+      _sendState(_lastPos, _lastDur);
+    });
   }
 
   /// Corta el reenvío de posición; si [sendFinal], manda una última posición
@@ -698,6 +714,8 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     _volumeSub = null;
     _volumeThrottle?.cancel();
     _volumeThrottle = null;
+    _playingSub?.cancel();
+    _playingSub = null;
     if (sendFinal && _lastPos > 0) {
       _sendState(_lastPos, _lastDur);
     }
@@ -730,7 +748,11 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
 
   void _sendState(int pos, int dur) {
     _service?.sendMessage(MsgType.state, {
+      // 'status' se mantiene por compat con emisores viejos (leían 'playing'
+      // hardcodeado). FIX-2: 'playing' es el campo AUTORITATIVO nuevo con el
+      // estado real; un emisor viejo lo ignora, uno nuevo deja de inferir.
       'status': 'playing',
+      'playing': _lastPlaying,
       'pos': pos,
       'dur': dur,
       'id': _currentChannelId,
@@ -749,6 +771,7 @@ class _TvReceiverHostState extends State<TvReceiverHost> {
     _completedSub?.cancel();
     _volumeSub?.cancel();
     _volumeThrottle?.cancel();
+    _playingSub?.cancel();
     _pinTimeoutTimer?.cancel();
     _loadNotifier?.dispose();
     _service?.stop();

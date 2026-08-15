@@ -21,6 +21,31 @@ String buildMediaUrl(ContentItem contentItem) {
   }
 }
 
+/// Builds an Xtream **timeshift / catch-up** URL for replaying a past programme
+/// on an archive-enabled live channel:
+///   `{host}/timeshift/{user}/{pass}/{durationMinutes}/{YYYY-MM-DD:HH-MM}/{streamId}.ts`
+///
+/// [start] is the programme's start time and [durationMinutes] its length; the
+/// panel serves the recorded window from that instant. The date/time is encoded
+/// in the provider's expected `YYYY-MM-DD:HH-MM` shape. Returns null when there
+/// is no current playlist (nothing to authenticate against).
+String? buildTimeshiftUrl({
+  required String streamId,
+  required DateTime start,
+  required int durationMinutes,
+}) {
+  final playlist = AppState.currentPlaylist;
+  if (playlist == null) return null;
+  // Xtream timeshift expects the START in the SERVER/local wall-clock the panel
+  // records against; use local time (the same basis the EPG is displayed in).
+  final t = start.toLocal();
+  String two(int n) => n.toString().padLeft(2, '0');
+  final stamp =
+      '${t.year}-${two(t.month)}-${two(t.day)}:${two(t.hour)}-${two(t.minute)}';
+  final dur = durationMinutes <= 0 ? 1 : durationMinutes;
+  return '${playlist.url}/timeshift/${playlist.username}/${playlist.password}/$dur/$stamp/$streamId.ts';
+}
+
 /// The container extensions to try, in order, when a VOD fails to demux because
 /// the cached extension is stale (provider re-encoded the title). Kept small: 2
 /// alternates cap the worst-case retry latency at ~a few seconds.

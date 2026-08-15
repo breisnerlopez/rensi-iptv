@@ -130,6 +130,14 @@ class LiveStreams extends Table {
   TextColumn get playlistId => text()(); // Ekstra property
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
 
+  // Catch-up / timeshift (Xtream `tv_archive` = 1 when the channel keeps an
+  // archive; `tv_archive_duration` = how many days back it's retained). 0 means
+  // the provider exposes no archive for this channel — the UI degrades to
+  // live-only when so.
+  IntColumn get tvArchive => integer().withDefault(const Constant(0))();
+  IntColumn get tvArchiveDuration =>
+      integer().withDefault(const Constant(0))();
+
   @override
   Set<Column> get primaryKey => {streamId, playlistId};
 
@@ -496,6 +504,11 @@ class Favorites extends Table {
 
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
 
+  /// Manual drag order (nullable): NULL rows fall back to createdAt-desc. Written
+  /// to ALL rows of a deduplicated "Mi lista" card so the order is deterministic
+  /// and doesn't depend on which row wins the dedup (schema v14).
+  IntColumn get sortOrder => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 
@@ -532,6 +545,41 @@ class Downloads extends Table {
   TextColumn get url => text().nullable()();
 }
 
+/// Full EPG programme guide (now/next/timeline). Populated from an external
+/// XMLTV source (or a panel's full guide); keyed by the channel's epg id so it
+/// joins to [LiveStreams.epgChannelId]. Rows are replaced per playlist on refresh.
+@DataClassName('EpgProgramData')
+class EpgPrograms extends Table {
+  TextColumn get channelId => text()();
+  TextColumn get playlistId => text()();
+  DateTimeColumn get start => dateTime()();
+  DateTimeColumn get stop => dateTime()();
+  TextColumn get title => text()();
+  TextColumn get description => text().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {channelId, playlistId, start};
+
+  @override
+  List<Index> get indexes => [
+        Index('idx_epg_channel_time', 'channel_id, playlist_id, start'),
+      ];
+}
+
+/// A scheduled EPG reminder: fire a local notification shortly before [start].
+@DataClassName('ReminderData')
+class Reminders extends Table {
+  TextColumn get id => text()(); // "<playlistId>:<channelId>:<startEpoch>"
+  TextColumn get channelId => text()();
+  TextColumn get playlistId => text()();
+  TextColumn get title => text()();
+  DateTimeColumn get start => dateTime()();
+  IntColumn get notificationId => integer()(); // for cancellation
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     Playlists,
@@ -550,6 +598,8 @@ class Downloads extends Table {
     M3uSeries,
     M3uEpisodes,
     Favorites,
+    EpgPrograms,
+    Reminders,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -577,7 +627,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 17;
 
   // === PLAYLIST İŞLEMLERİ ===
 
@@ -645,8 +695,62 @@ class AppDatabase extends _$AppDatabase {
       await deleteEpisodesByPlaylistId(id);
       await deleteM3uSeriesByPlaylistId(id);
       await deleteM3uEpisodesByPlaylistId(id);
+      await (delete(epgPrograms)..where((e) => e.playlistId.equals(id))).go();
+      await (delete(reminders)..where((r) => r.playlistId.equals(id))).go();
       await (delete(playlists)..where((p) => p.id.equals(id))).go();
     });
+  }
+
+  Future<void> upsertReminder(RemindersCompanion reminder) =>
+      into(reminders).insertOnConflictUpdate(reminder);
+
+  Future<void> deleteReminderById(String id) async {
+    await (delete(reminders)..where((r) => r.id.equals(id))).go();
+  }
+
+  Future<ReminderData?> getReminderById(String id) =>
+      (select(reminders)..where((r) => r.id.equals(id))).getSingleOrNull();
+
+  Future<List<ReminderData>> getAllReminders() =>
+      (select(reminders)..orderBy([(r) => OrderingTerm.asc(r.start)])).get();
+
+  /// Replace ALL EPG rows for a playlist with a fresh guide (from XMLTV / a panel
+  /// full-guide refresh). Atomic: old rows gone only if the new batch lands.
+  Future<void> replaceEpgForPlaylist(
+    String playlistId,
+    List<EpgProgramsCompanion> programs,
+  ) async {
+    await transaction(() async {
+      await (delete(epgPrograms)..where((e) => e.playlistId.equals(playlistId)))
+          .go();
+      // Real XMLTV feeds occasionally carry two <programme> entries with the
+      // same (channelId, playlistId, start) — plain insertAll would abort the
+      // whole transaction on that PK clash and drop the entire guide. Last-write
+      // wins instead so a dirty feed still loads.
+      await batch((b) => b.insertAllOnConflictUpdate(epgPrograms, programs));
+    });
+  }
+
+  /// Programmes for a channel within a time window (for the now/next/grid view),
+  /// ordered chronologically.
+  Future<List<EpgProgramData>> getEpgForChannel(
+    String channelId,
+    String playlistId, {
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final q = select(epgPrograms)
+      ..where((e) =>
+          e.channelId.equals(channelId) & e.playlistId.equals(playlistId));
+    if (from != null) q.where((e) => e.stop.isBiggerThanValue(from));
+    if (to != null) q.where((e) => e.start.isSmallerThanValue(to));
+    q.orderBy([(e) => OrderingTerm.asc(e.start)]);
+    return q.get();
+  }
+
+  Future<void> deleteEpgByPlaylistId(String playlistId) async {
+    await (delete(epgPrograms)..where((e) => e.playlistId.equals(playlistId)))
+        .go();
   }
 
   // Playlist güncelle
@@ -1877,9 +1981,19 @@ class AppDatabase extends _$AppDatabase {
   /// writes/toggles stay playlist-scoped via [getFavoritesByPlaylist]. Ordered
   /// by `createdAt desc` — the plain [getAllFavorites] above has no ORDER BY, so
   /// the list would otherwise arrive in SQLite's rowid order, not most-recent.
+  // Manual-order first (sortOrder ASC), NULLs last via coalesce to a large
+  // sentinel (portable — avoids NULLS LAST syntax not on older SQLite), then
+  // createdAt DESC as the fallback for un-ordered rows. Shared by all favourite
+  // reads so ordering is consistent.
+  static const int _favSortNullSentinel = 2000000000;
+  List<OrderingTerm Function($FavoritesTable)> get _favOrder => [
+        (f) => OrderingTerm.asc(
+            coalesce([f.sortOrder, const Constant(_favSortNullSentinel)])),
+        (f) => OrderingTerm.desc(f.createdAt),
+      ];
+
   Future<List<Favorite>> getAllFavoritesAcrossPlaylists() async {
-    final query = select(favorites)
-      ..orderBy([(f) => OrderingTerm.desc(f.createdAt)]);
+    final query = select(favorites)..orderBy(_favOrder);
     final favoritesData = await query.get();
     return favoritesData.map((data) => Favorite.fromDrift(data)).toList();
   }
@@ -1887,7 +2001,7 @@ class AppDatabase extends _$AppDatabase {
   Future<List<Favorite>> getFavoritesByPlaylist(String playlistId) async {
     final query = select(favorites)
       ..where((f) => f.playlistId.equals(playlistId))
-      ..orderBy([(f) => OrderingTerm.desc(f.createdAt)]);
+      ..orderBy(_favOrder);
     final favoritesData = await query.get();
     return favoritesData.map((data) => Favorite.fromDrift(data)).toList();
   }
@@ -1902,9 +2016,25 @@ class AppDatabase extends _$AppDatabase {
             f.playlistId.equals(playlistId) &
             f.contentType.equals(contentType.index),
       )
-      ..orderBy([(f) => OrderingTerm.desc(f.createdAt)]);
+      ..orderBy(_favOrder);
     final favoritesData = await query.get();
     return favoritesData.map((data) => Favorite.fromDrift(data)).toList();
+  }
+
+  /// Batch-write manual sort positions. The reorder UI passes a map of favourite
+  /// row id → position; ALL rows of a deduplicated card get the SAME position so
+  /// the order is deterministic regardless of which row represents the card.
+  Future<void> setFavoriteSortOrders(Map<String, int> orders) async {
+    if (orders.isEmpty) return;
+    await batch((b) {
+      for (final entry in orders.entries) {
+        b.update(
+          favorites,
+          FavoritesCompanion(sortOrder: Value(entry.value)),
+          where: (f) => f.id.equals(entry.key),
+        );
+      }
+    });
   }
 
   Future<bool> isFavorite(
@@ -2064,6 +2194,40 @@ class AppDatabase extends _$AppDatabase {
               m, watchHistories, watchHistories.containerExtension);
           await _addColumnIfMissing(
               m, watchHistories, watchHistories.providerId);
+        }
+
+        if (from <= 13) {
+          // Manual favourite ordering: one nullable column, additive, existing
+          // rows stay NULL and fall back to createdAt-desc. Idempotent guard as
+          // with every other column above.
+          await _addColumnIfMissing(m, favorites, favorites.sortOrder);
+        }
+
+        if (from <= 14) {
+          // Full EPG guide table (XMLTV / panel guide). New table → createTable,
+          // guarded so a re-run after a crash doesn't fail on an existing table.
+          await customStatement('CREATE TABLE IF NOT EXISTS "epg_programs" ('
+              '"channel_id" TEXT NOT NULL, "playlist_id" TEXT NOT NULL, '
+              '"start" INTEGER NOT NULL, "stop" INTEGER NOT NULL, '
+              '"title" TEXT NOT NULL, "description" TEXT NULL, '
+              'PRIMARY KEY ("channel_id", "playlist_id", "start"))');
+        }
+
+        if (from <= 15) {
+          // EPG reminders table. New table, IF NOT EXISTS for crash-safety.
+          await customStatement('CREATE TABLE IF NOT EXISTS "reminders" ('
+              '"id" TEXT NOT NULL, "channel_id" TEXT NOT NULL, '
+              '"playlist_id" TEXT NOT NULL, "title" TEXT NOT NULL, '
+              '"start" INTEGER NOT NULL, "notification_id" INTEGER NOT NULL, '
+              'PRIMARY KEY ("id"))');
+        }
+        if (from <= 16) {
+          // Catch-up / timeshift columns on live_streams. Additive, idempotent
+          // (default 0 = no archive) — old rows just get 0 until the next sync
+          // refreshes them from the panel.
+          await _addColumnIfMissing(m, liveStreams, liveStreams.tvArchive);
+          await _addColumnIfMissing(
+              m, liveStreams, liveStreams.tvArchiveDuration);
         }
       });
     },

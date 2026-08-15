@@ -1,4 +1,5 @@
 // Seeds the in-memory DB so an Xtream home renders populated (no network).
+import 'package:drift/drift.dart' show Value;
 import 'package:rensi_iptv/database/database.dart';
 import 'package:rensi_iptv/models/category.dart';
 import 'package:rensi_iptv/models/category_type.dart';
@@ -102,4 +103,63 @@ Future<Playlist> seedXtreamHome(AppDatabase db) async {
   await db.insertSeriesStreams(seriesStreams);
 
   return playlist;
+}
+
+/// Seeds a catch-up-capable live channel (tv_archive>0) plus a small EPG for it:
+/// one PAST programme (replayable from archive), one LIVE now, one FUTURE
+/// (reminder-eligible). Times are relative to [now] so the guide's now/past/
+/// future logic is exercised deterministically. Returns the channel's stream id.
+Future<String> seedEpgAndArchiveChannel(
+  AppDatabase db,
+  Playlist playlist, {
+  DateTime? now,
+}) async {
+  final base = now ?? DateTime.now();
+  const chId = 'archive_epg_1';
+  const streamId = 'live_1_archive';
+
+  await db.insertLiveStreams([
+    LiveStream(
+      streamId: streamId,
+      name: 'Canal Archivo',
+      streamIcon: '',
+      categoryId: 'live_1',
+      epgChannelId: chId,
+      playlistId: playlist.id,
+      tvArchive: 1,
+      tvArchiveDuration: 7,
+    ),
+  ]);
+
+  await db.replaceEpgForPlaylist(playlist.id, [
+    // PAST: fully aired → catch-up "play from start".
+    EpgProgramsCompanion.insert(
+      channelId: chId,
+      playlistId: playlist.id,
+      start: base.subtract(const Duration(hours: 2)),
+      stop: base.subtract(const Duration(hours: 1)),
+      title: 'Programa Pasado',
+      description: const Value('Emitido hace un rato'),
+    ),
+    // LIVE: airing now → highlighted; also catch-up-from-start eligible.
+    EpgProgramsCompanion.insert(
+      channelId: chId,
+      playlistId: playlist.id,
+      start: base.subtract(const Duration(minutes: 20)),
+      stop: base.add(const Duration(minutes: 40)),
+      title: 'Programa En Vivo',
+      description: const Value('Ahora mismo'),
+    ),
+    // FUTURE: reminder-eligible.
+    EpgProgramsCompanion.insert(
+      channelId: chId,
+      playlistId: playlist.id,
+      start: base.add(const Duration(hours: 1)),
+      stop: base.add(const Duration(hours: 2)),
+      title: 'Programa Futuro',
+      description: const Value('Más tarde'),
+    ),
+  ]);
+
+  return streamId;
 }

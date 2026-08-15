@@ -9,6 +9,153 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get accent_color => '强调色';
+
+  @override
+  String get search_trending => '热门';
+
+  @override
+  String get dvr_record => '录制';
+
+  @override
+  String get dvr_stop => '停止录制';
+
+  @override
+  String get dvr_recording => '录制中…';
+
+  @override
+  String get dvr_saved => '录制已保存';
+
+  @override
+  String get dvr_failed => '无法录制此频道';
+
+  @override
+  String get dvr_experimental => 'DVR（实验性）';
+
+  @override
+  String get dvr_experimental_hint => '边看边录制直播频道。可靠性取决于提供商的流。';
+
+  @override
+  String get epg_catchup_play => '从头播放';
+
+  @override
+  String get epg_catchup_unavailable => '该节目无法回看';
+
+  @override
+  String get epg_section => '电视指南 (EPG)';
+
+  @override
+  String get epg_xmltv_url => 'XMLTV 指南网址';
+
+  @override
+  String get epg_xmltv_hint => '可选。用于当前/下一个时间线的完整节目指南 (XMLTV)。';
+
+  @override
+  String get epg_refresh => '保存并刷新指南';
+
+  @override
+  String epg_refreshed(Object count) {
+    return '指南已更新（$count 个节目）';
+  }
+
+  @override
+  String get epg_refresh_failed => '无法加载指南';
+
+  @override
+  String get epg_guide => '指南';
+
+  @override
+  String get set_reminder => '提醒我';
+
+  @override
+  String get reminder_set => '已设置提醒';
+
+  @override
+  String get reminder_removed => '已移除提醒';
+
+  @override
+  String get confirm => '确认';
+
+  @override
+  String get parental_control => '家长控制';
+
+  @override
+  String get parental_enter_pin => '输入 PIN';
+
+  @override
+  String get parental_wrong_pin => 'PIN 错误';
+
+  @override
+  String get parental_set_pin => '设置 PIN';
+
+  @override
+  String get parental_remove_pin => '移除 PIN';
+
+  @override
+  String get parental_lock_category => '锁定（家长）';
+
+  @override
+  String get parental_pin_hint => '4 位 PIN';
+
+  @override
+  String get parental_locked_note => '锁定的分类打开时需要输入 PIN。请先设置 PIN 以启用。';
+
+  @override
+  String get amoled_dark => 'AMOLED（纯黑）';
+
+  @override
+  String get open_external_player => '在外部播放器中打开';
+
+  @override
+  String get external_player_failed => '未找到外部播放器';
+
+  @override
+  String get reorder => '重新排序';
+
+  @override
+  String get reorder_done => '完成';
+
+  @override
+  String get screen_fit => '屏幕适配';
+
+  @override
+  String get fit_contain => '适应';
+
+  @override
+  String get fit_cover => '缩放';
+
+  @override
+  String get fit_fill => '拉伸';
+
+  @override
+  String get tmdb_onboarding_title => '获取最佳封面';
+
+  @override
+  String get tmdb_onboarding_body =>
+      'Rensi 使用 TMDb 显示您目录的海报和背景图。添加您免费的 TMDb API 密钥以获得最佳体验，或跳过——您随时可以在设置中添加。';
+
+  @override
+  String get tmdb_onboarding_skip => '暂时跳过';
+
+  @override
+  String get cast_audio => '音频';
+
+  @override
+  String get cast_subtitles => '字幕';
+
+  @override
+  String get cast_subtitles_off => '关闭';
+
+  @override
+  String get paste => '粘贴';
+
+  @override
+  String get show_password => '显示密码';
+
+  @override
+  String get hide_password => '隐藏密码';
+
+  @override
   String get prebuffer_too_slow => '连接速度太慢，无法播放此画质';
 
   @override
@@ -301,16 +448,16 @@ class AppLocalizationsZh extends AppLocalizations {
   String get audio_track => '音频轨道';
 
   @override
-  String get speed => 'Speed';
+  String get speed => '速度';
 
   @override
-  String get load => 'Load';
+  String get load => '加载';
 
   @override
-  String get external_subtitle => 'External subtitle';
+  String get external_subtitle => '外部字幕';
 
   @override
-  String get external_subtitle_url => 'External subtitle (URL)';
+  String get external_subtitle_url => '外部字幕（URL）';
 
   @override
   String get subtitle_track => '字幕轨道';
@@ -319,7 +466,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settings => '设置';
 
   @override
-  String get hold_ok_for_options => 'Hold OK for audio & subtitles';
+  String get hold_ok_for_options => '长按 OK 键选择音频和字幕';
 
   @override
   String get general_settings => '常规设置';
@@ -1038,7 +1185,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get support_on_github_description => '在 GitHub 上为项目做出贡献';
 
   @override
-  String get last_channel => 'Last channel';
+  String get last_channel => '上一个频道';
 
   @override
   String get select_channel => '选择频道';
@@ -1605,8 +1752,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get download_retry => '重试';
 
   @override
-  String get tv_cast_replay_hint =>
-      'Watched by casting from your phone. Send it again from your phone to play it here.';
+  String get tv_cast_replay_hint => '通过手机投屏观看。请从手机重新发送以在此处播放。';
 
   @override
   String tv_status_discoverable(String deviceName) {

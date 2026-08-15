@@ -493,7 +493,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
       children: [
         ...List.generate(5, (index) {
           return Padding(
-            padding: const EdgeInsets.only(right: 4),
+            padding: const EdgeInsetsDirectional.only(end: 4),
             child: Icon(
               index < rating.round()
                   ? Icons.star_rounded
@@ -592,7 +592,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
       borderRadius: BorderRadius.circular(12),
       child: Container(
         width: 200,
-        margin: const EdgeInsets.only(right: 12),
+        margin: const EdgeInsetsDirectional.only(end: 12),
         decoration: BoxDecoration(
           color: Colors.grey.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
@@ -968,7 +968,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                         ),
                         if (isRecent)
                           Container(
-                            margin: const EdgeInsets.only(left: 6),
+                            margin: const EdgeInsetsDirectional.only(start: 6),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
                               vertical: 2,

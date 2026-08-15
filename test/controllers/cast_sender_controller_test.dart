@@ -759,6 +759,131 @@ void main() {
     await c.stopCasting(); // corta el bucle de reconexión pendiente
   });
 
+  test('FIX-4: playPause es no-op durante la reconexión (no voltea el icono ni '
+      'toca el socket muerto en backoff)', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    await c.beginCast(media);
+    await c.submitPin('123456');
+    expect(c.isCasting, isTrue);
+    final playingBefore = c.isTvPlaying;
+    final cmdsBefore = fake.commands.length;
+
+    // Caída del socket → _reconnect → _reconnecting=true (backoff).
+    fake.onDisconnected?.call();
+
+    // Un playPause AHORA no debe: (a) mandar al socket muerto, (b) voltear el
+    // icono óptimista (que mentiría, porque la TV no reacciona hasta re-sync).
+    c.playPause();
+    expect(fake.commands.length, cmdsBefore,
+        reason: 'no envía play_pause al socket en backoff');
+    expect(c.isTvPlaying, playingBefore,
+        reason: 'el icono NO se voltea durante la reconexión (no miente)');
+
+    await c.stopCasting(); // corta el bucle de reconexión pendiente
+  });
+
+  test('F2: llamada que TERMINA durante la reconexión → reanuda al reconectar',
+      () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    await c.beginCast(media);
+    await c.submitPin('123456');
+    expect(c.isTvPlaying, isTrue); // casting arranca reproduciendo (optimista)
+    c.pauseForCall(); // entra una llamada → pausa la TV
+    expect(c.isTvPlaying, isFalse);
+
+    fake.onDisconnected?.call(); // el socket cae → _reconnecting
+    c.resumeAfterCall(); // la llamada cuelga MIENTRAS reconectamos → diferido
+    expect(c.isTvPlaying, isFalse, reason: 'aún reconectando: no reanuda todavía');
+    final cmdsBefore = fake.commands.length;
+
+    // Deja completar la reconexión (backoff 1s + pair del fake).
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    expect(c.isTvPlaying, isTrue,
+        reason: 'tras reconectar honra el resume diferido');
+    expect(fake.commands.length, greaterThan(cmdsBefore),
+        reason: 'mandó playPause al reanudar');
+    await c.stopCasting();
+  });
+
+  test('F2: reconexión con la llamada AÚN activa → NO reanuda (no despausa en '
+      'mitad de la llamada)', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    await c.beginCast(media);
+    await c.submitPin('123456');
+    c.pauseForCall();
+    expect(c.isTvPlaying, isFalse);
+
+    fake.onDisconnected?.call(); // reconecta MIENTRAS la llamada sigue activa
+    // NO llamamos resumeAfterCall: la llamada no ha terminado.
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    expect(c.isTvPlaying, isFalse,
+        reason: 'la llamada sigue activa: la TV NO debe reanudar al reconectar');
+
+    // Al colgar (ya reconectados), reanuda con normalidad.
+    c.resumeAfterCall();
+    expect(c.isTvPlaying, isTrue, reason: 'al colgar tras reconectar, reanuda');
+    await c.stopCasting();
+  });
+
+  test('FIX-2: el campo `playing` es AUTORITATIVO (pausa aunque la posición no '
+      'avance)', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    await c.beginCast(media);
+    await c.submitPin('123456');
+    expect(c.isTvPlaying, isTrue); // óptimista al castear
+
+    // La TV manda su estado REAL: pausada (posición congelada).
+    fake.emitState(
+        {'id': media.channelId, 'pos': 30000, 'dur': 600000, 'playing': false});
+    await Future<void>.delayed(Duration.zero);
+    expect(c.isTvPlaying, isFalse,
+        reason: 'el campo playing autoritativo pone pausa al instante');
+    await c.stopCasting();
+  });
+
+  test('FIX-2 latch: tras el campo `playing`, un eco de posición rezagado NO '
+      'revierte a reproduciendo', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    await c.beginCast(media);
+    await c.submitPin('123456');
+    // TV pausa (autoritativo) → activa el latch.
+    fake.emitState(
+        {'id': media.channelId, 'pos': 30000, 'dur': 600000, 'playing': false});
+    await Future<void>.delayed(Duration.zero);
+    expect(c.isTvPlaying, isFalse);
+    // Eco rezagado con posición MAYOR y SIN campo playing: la inferencia está
+    // apagada por el latch → NO debe forzar reproduciendo.
+    fake.emitState({'id': media.channelId, 'pos': 45000, 'dur': 600000});
+    await Future<void>.delayed(Duration.zero);
+    expect(c.isTvPlaying, isFalse,
+        reason: 'latch: la inferencia por posición queda desactivada');
+    await c.stopCasting();
+  });
+
+  test('FIX-2 compat: TV vieja SIN campo `playing` → sigue infiriendo por '
+      'avance de posición', () async {
+    final fake = _FakeSender(devices: [oneTv]);
+    final c = make(fake);
+    await c.beginCast(media);
+    await c.submitPin('123456');
+    c.playPause(); // pausa óptimista local → _tvPlaying=false
+    expect(c.isTvPlaying, isFalse);
+    // TV vieja: `state` sin el campo. 1er heartbeat se ignora (suppress-once);
+    // el 2º con posición que AVANZA infiere reproducción.
+    fake.emitState({'id': media.channelId, 'pos': 10000, 'dur': 600000});
+    await Future<void>.delayed(Duration.zero);
+    fake.emitState({'id': media.channelId, 'pos': 20000, 'dur': 600000});
+    await Future<void>.delayed(Duration.zero);
+    expect(c.isTvPlaying, isTrue,
+        reason: 'compat: sin campo, la inferencia por avance sigue viva');
+    await c.stopCasting();
+  });
+
   test('superseded: OTRO dispositivo toma el control → idle silencioso, sin '
       'error y sin reconectar', () async {
     final fake = _FakeSender(devices: [oneTv]);

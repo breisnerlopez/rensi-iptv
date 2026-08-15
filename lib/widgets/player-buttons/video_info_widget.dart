@@ -523,7 +523,7 @@ class _VideoInfoWidgetState extends State<VideoInfoWidget> {
     rows.add(const SizedBox(height: 20));
     rows.add(
       Padding(
-        padding: const EdgeInsets.only(left: 4, bottom: 8),
+        padding: const EdgeInsetsDirectional.only(start: 4, bottom: 8),
         child: Text(
           context.loc.stream_info,
           style: TextStyle(

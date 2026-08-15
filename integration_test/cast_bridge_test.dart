@@ -300,4 +300,80 @@ void main() {
     c1.dispose();
     c2.dispose();
   });
+
+  // Escenario 7 (plan): reconexión REAL sobre el bridge. Un script externo rompe
+  // y restaura el `adb forward` de la TV durante la ventana `RECON_WINDOW` (entre
+  // las marcas BEFORE y AFTER); el móvil debe detectar la caída (ping/liveness),
+  // reconectar (re-pair con el PIN guardado) y seguir casteando con la posición
+  // avanzando. Prueba el transporte real (dart:io wss + TLS re-pair) que el test
+  // headless con _FakeSender no ejercita.
+  testWidgets('RECONNECT — caída+restauración de socket → sigue casteando y la '
+      'posición avanza', (tester) async {
+    if (pin.isEmpty || bridgeHost.isEmpty) {
+      return markTestSkipped('pasa --dart-define CAST_PIN/CAST_DEBUG_HOST/PORT');
+    }
+    seedPlaylist();
+    final c = await pairAndCast(tester, media: vodMedia(startMs: 5000));
+    // Deja que la reproducción se establezca y captura una posición base.
+    final gotPos =
+        await waitFor(tester, () => c.castPositionMs > 6000, seconds: 30);
+    final posBeforeBreak = c.castPositionMs;
+    debugPrint('CAST_RECON_BEFORE pos=$posBeforeBreak gotPos=$gotPos '
+        'phase=${c.phase}');
+    // Ventana durante la cual el script externo rompe+restaura el forward.
+    await mark(tester, 'RECON_WINDOW', seconds: 32);
+    final posAfter = c.castPositionMs;
+    debugPrint('CAST_RECON_AFTER pos=$posAfter phase=${c.phase} '
+        'casting=${c.isCasting}');
+    expect(c.isCasting, isTrue,
+        reason: 'tras caída+reconexión sigue casteando (no idle/error)');
+    expect(posAfter, greaterThan(posBeforeBreak),
+        reason: 'la reproducción continuó tras la reconexión (posición avanzó)');
+    await c.stopCasting();
+    await waitFor(tester, () => c.phase == CastPhase.idle, seconds: 6);
+    c.dispose();
+  });
+
+  // FIX-2 — estado play/pausa AUTORITATIVO del receptor. La TV pausa POR SU
+  // CUENTA (un script externo manda MEDIA_PLAY_PAUSE al emulador TV durante la
+  // ventana FIX2_PAUSE_TV_NOW); el emisor NO llama playPause, así que su
+  // `isTvPlaying` solo puede volverse false si el campo `playing` autoritativo
+  // que emite el receptor se propaga. Verifica la MITAD RECEPTORA en device (la
+  // que los gates pidieron por el precedente test-pasa/device-falla).
+  testWidgets('FIX-2 receptor — pausa/reanuda round-trip REAL en device (la TV '
+      'pausa de verdad y el estado se propaga)', (tester) async {
+    if (pin.isEmpty || bridgeHost.isEmpty) {
+      return markTestSkipped('pasa --dart-define CAST_PIN/CAST_DEBUG_HOST/PORT');
+    }
+    seedPlaylist();
+    final c = await pairAndCast(tester, media: vodMedia(startMs: 3000));
+    await waitFor(tester, () => c.castPositionMs > 4000, seconds: 25);
+    expect(c.isTvPlaying, isTrue, reason: 'la TV reproduce al castear');
+
+    // Pausar: el receptor recibe el comando, pausa el player REAL de libmpv →
+    // su `stream.playing` emite false → (FIX-2) emite 'cast_player_playing' →
+    // el host lo reenvía en `state`. La prueba de que la TV pausó DE VERDAD en
+    // device es que la posición se CONGELA.
+    c.playPause();
+    await mark(tester, 'FIX2_PAUSED', seconds: 6); // deja fluir el state
+    final posA = c.castPositionMs;
+    await mark(tester, 'FIX2_PAUSED_HOLD', seconds: 6);
+    final posB = c.castPositionMs;
+    debugPrint('CAST_FIX2_PAUSE posA=$posA posB=$posB '
+        'isTvPlaying=${c.isTvPlaying}');
+    expect(posB - posA, lessThan(2500),
+        reason: 'la TV pausó DE VERDAD en device (posición congelada)');
+    expect(c.isTvPlaying, isFalse, reason: 'el móvil refleja la pausa');
+
+    // Reanudar: la TV vuelve a reproducir → la posición avanza otra vez.
+    c.playPause();
+    final resumed =
+        await waitFor(tester, () => c.castPositionMs > posB + 3000, seconds: 18);
+    debugPrint('CAST_FIX2_RESUME pos=${c.castPositionMs} resumed=$resumed '
+        'isTvPlaying=${c.isTvPlaying}');
+    expect(resumed, isTrue, reason: 'la TV reanudó en device (posición avanza)');
+    expect(c.isTvPlaying, isTrue, reason: 'el móvil refleja la reanudación');
+    await c.stopCasting();
+    c.dispose();
+  });
 }

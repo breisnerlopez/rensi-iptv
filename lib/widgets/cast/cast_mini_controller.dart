@@ -8,10 +8,10 @@ import 'package:provider/provider.dart';
 
 import '../../controllers/cast_sender_controller.dart';
 import '../../l10n/localization_extension.dart';
+import '../../redesign/rensi_widgets.dart';
 import '../../services/app_navigator.dart';
+import '../../utils/app_themes.dart';
 import 'casting_screen.dart';
-
-const _accent = Color(0xFFD2603A);
 
 class CastMiniController extends StatelessWidget {
   const CastMiniController({super.key});
@@ -23,6 +23,8 @@ class CastMiniController extends StatelessWidget {
     final loc = context.loc;
     final device = c.device?.name ?? '';
     final title = c.media?.title ?? '';
+    final r = rensi(context);
+    final scheme = Theme.of(context).colorScheme;
 
     return Align(
       alignment: Alignment.bottomCenter,
@@ -35,7 +37,7 @@ class CastMiniController extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(
               8, 0, 8, 8 + kBottomNavigationBarHeight),
           child: Material(
-            color: const Color(0xFF1A1A20),
+            color: r.surface2,
             elevation: 10,
             borderRadius: BorderRadius.circular(14),
             clipBehavior: Clip.antiAlias,
@@ -45,7 +47,7 @@ class CastMiniController extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Row(
                   children: [
-                    const Icon(Icons.cast_connected, color: _accent, size: 26),
+                    Icon(Icons.cast_connected, color: r.accent, size: 26),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -56,15 +58,17 @@ class CastMiniController extends StatelessWidget {
                             '${loc.cast_playing_on} $device'.trim(),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.white54, fontSize: 12),
+                            style: TextStyle(color: r.text2, fontSize: AppThemes.labelSize),
                           ),
                           if (title.isNotEmpty)
                             Text(
                               title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                  color: scheme.onSurface,
+                                  fontSize: AppThemes.bodySmallSize,
+                                  fontWeight: FontWeight.w600),
                             ),
                         ],
                       ),
@@ -80,7 +84,10 @@ class CastMiniController extends StatelessWidget {
                       label: 'Play/Pause',
                       button: true,
                       child: IconButton(
-                        icon: const Icon(Icons.play_arrow, color: Colors.white),
+                        icon: Icon(
+                          c.isTvPlaying ? Icons.pause : Icons.play_arrow,
+                          color: scheme.onSurface,
+                        ),
                         onPressed: c.playPause,
                       ),
                     ),
@@ -88,7 +95,7 @@ class CastMiniController extends StatelessWidget {
                       label: loc.cast_stop,
                       button: true,
                       child: IconButton(
-                        icon: const Icon(Icons.stop, color: Colors.white70),
+                        icon: Icon(Icons.stop, color: r.text2),
                         onPressed: c.stopCasting,
                       ),
                     ),

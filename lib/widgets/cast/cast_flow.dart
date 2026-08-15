@@ -9,9 +9,9 @@ import '../../controllers/cast_sender_controller.dart';
 import '../../database/database.dart';
 import '../../l10n/app_localizations.dart';
 import '../../l10n/localization_extension.dart';
+import '../../redesign/rensi_widgets.dart';
 import '../../services/download_service.dart';
-
-const _accent = Color(0xFFD2603A);
+import '../../utils/app_themes.dart';
 
 /// Botón de casting para la barra del reproductor. Cambia de icono según si ya
 /// se está transmitiendo.
@@ -52,7 +52,7 @@ Future<void> startCastFlow(BuildContext context, CastMedia media,
   controller.beginCast(media, queue: queue, index: index);
   await showModalBottomSheet<void>(
     context: context,
-    backgroundColor: const Color(0xFF15151A),
+    backgroundColor: rensi(context).surface2,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -101,7 +101,7 @@ Future<void> _maybePromptStandaloneConsent(
           child: Text(loc.tv_standalone_consent_decline),
         ),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: _accent),
+          style: FilledButton.styleFrom(backgroundColor: rensi(context).accent),
           onPressed: () => Navigator.of(dialogCtx).pop(true),
           child: Text(loc.tv_standalone_consent_accept),
         ),
@@ -136,7 +136,7 @@ Future<void> startLocalFileCastFlow(
   );
   await showModalBottomSheet<void>(
     context: context,
-    backgroundColor: const Color(0xFF15151A),
+    backgroundColor: rensi(context).surface2,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -231,7 +231,9 @@ class _CastSheetState extends State<_CastSheet> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    // Tokenized: white24 was invisible on the light-theme sheet
+                    // surface (surface2 is a light beige in light mode).
+                    color: rensi(context).hairline2,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -256,10 +258,11 @@ class _CastSheetState extends State<_CastSheet> {
           const SizedBox(height: 8),
           for (final d in c.devices)
             ListTile(
-              leading: const Icon(Icons.tv, color: _accent),
-              title: Text(d.name, style: const TextStyle(color: Colors.white)),
+              leading: Icon(Icons.tv, color: rensi(context).accent),
+              title: Text(d.name,
+                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface)),
               subtitle: Text(d.host,
-                  style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                  style: TextStyle(color: rensi(context).text3, fontSize: AppThemes.labelSize)),
               onTap: () => c.connectTo(d),
             ),
         ];
@@ -288,7 +291,7 @@ class _CastSheetState extends State<_CastSheet> {
       _title(c.device?.name ?? loc.cast_to_tv),
       const SizedBox(height: 8),
       Text(loc.cast_enter_pin,
-          style: const TextStyle(color: Colors.white70, fontSize: 15)),
+          style: TextStyle(color: rensi(context).text2, fontSize: AppThemes.bodySmallSize)),
       const SizedBox(height: 16),
       TextField(
         controller: _pinCtrl,
@@ -296,16 +299,19 @@ class _CastSheetState extends State<_CastSheet> {
         maxLength: 6,
         autofocus: true,
         textAlign: TextAlign.center,
-        style: const TextStyle(
-            color: Colors.white, fontSize: 30, letterSpacing: 10, fontWeight: FontWeight.bold),
+        style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: AppThemes.h2Size,
+            letterSpacing: 10,
+            fontWeight: FontWeight.bold),
         decoration: InputDecoration(
           counterText: '',
           errorText: c.wrongPin ? loc.cast_wrong_pin : null,
-          enabledBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.white24),
+          enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: rensi(context).hairline2),
           ),
-          focusedBorder: const OutlineInputBorder(
-            borderSide: BorderSide(color: _accent, width: 2),
+          focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: rensi(context).accent, width: 2),
           ),
         ),
         onSubmitted: (v) => c.submitPin(v.trim()),
@@ -316,20 +322,23 @@ class _CastSheetState extends State<_CastSheet> {
   }
 
   Widget _title(String t) => Text(t,
-      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold));
+      style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurface,
+          fontSize: AppThemes.h3Size,
+          fontWeight: FontWeight.bold));
 
   Widget _status(String text, {bool spinner = false, IconData? icon}) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 20),
         child: Column(
           children: [
             if (spinner)
-              const CircularProgressIndicator(color: _accent)
+              CircularProgressIndicator(color: rensi(context).accent)
             else if (icon != null)
-              Icon(icon, color: Colors.white38, size: 48),
+              Icon(icon, color: rensi(context).text3, size: 48),
             const SizedBox(height: 16),
             Text(text,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 16)),
+                style: TextStyle(color: rensi(context).text2, fontSize: AppThemes.bodySmallSize)),
           ],
         ),
       );
@@ -337,7 +346,7 @@ class _CastSheetState extends State<_CastSheet> {
   Widget _primaryButton(String label, VoidCallback onTap) => SizedBox(
         height: 48,
         child: FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: _accent),
+          style: FilledButton.styleFrom(backgroundColor: rensi(context).accent),
           onPressed: onTap,
           child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
         ),

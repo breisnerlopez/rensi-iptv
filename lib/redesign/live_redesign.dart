@@ -11,11 +11,47 @@ import 'package:rensi_iptv/utils/responsive_helper.dart';
 import 'package:rensi_iptv/services/epg_service.dart';
 import 'package:rensi_iptv/widgets/live/now_playing_line.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/services/app_state.dart';
+import 'package:rensi_iptv/widgets/epg_guide_sheet.dart';
 
 /// "En vivo" — channel rows grouped by category chips. When the panel provides
 /// a schedule, each row also shows what is on now and how far through it is
 /// (see [NowPlayingLine]); channels without a listing simply show the channel,
 /// so a gap in the provider's data looks like a gap, not like a stuck row.
+
+/// Wraps a horizontal chip strip in a [ShaderMask] that fades the leading and
+/// trailing ~24px to transparent, so a scrollable category strip dissolves at
+/// the edges instead of being cut at a hard line. The gradient's alpha drives
+/// the mask (BlendMode.dstIn), so the RGB colour never tints the theme.
+/// Painting-only: it does not intercept hit-testing, so scroll and taps still
+/// reach the chips underneath.
+Widget _fadeEdges(Widget child) {
+  const double fade = 24.0;
+  return ShaderMask(
+    blendMode: BlendMode.dstIn,
+    shaderCallback: (Rect bounds) {
+      if (bounds.width <= fade * 2) {
+        return const LinearGradient(
+          colors: [Colors.black, Colors.black],
+        ).createShader(bounds);
+      }
+      final double f = fade / bounds.width;
+      return LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: const [
+          Colors.transparent,
+          Colors.black,
+          Colors.black,
+          Colors.transparent,
+        ],
+        stops: [0.0, f, 1 - f, 1.0],
+      ).createShader(bounds);
+    },
+    child: child,
+  );
+}
+
 class LiveRedesign extends StatefulWidget {
   const LiveRedesign({
     this.epgService,
@@ -269,7 +305,7 @@ class _LiveRedesignState extends State<LiveRedesign> {
                       ),
                     ),
                   Expanded(
-                    child: ListView.separated(
+                    child: _fadeEdges(ListView.separated(
                       scrollDirection: Axis.horizontal,
                       // No leading gutter once the picker button already carries
                       // the safe inset; keep the trailing one so the last chip
@@ -290,7 +326,7 @@ class _LiveRedesignState extends State<LiveRedesign> {
                           onTap: () => _selectCategory(i),
                         ),
                       ),
-                    ),
+                    )),
                   ),
                 ],
               ),
@@ -602,8 +638,10 @@ class _ChannelRow extends StatelessWidget {
                                     Container(color: r.surface3),
                               )
                             : Container(color: r.surface3),
-                        Positioned(
-                          left: 5,
+                        PositionedDirectional(
+                          // start (not left) so the channel-number badge mirrors
+                          // to the correct corner in RTL (Arabic) locales.
+                          start: 5,
                           bottom: 5,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
@@ -649,6 +687,33 @@ class _ChannelRow extends StatelessWidget {
                           // used different wording from the header, and was the
                           // only saturated colour on screen five times over.
                           // Its space now carries what is actually on.
+                          // Guide button: opens the full EPG (now/next + reminders)
+                          // for channels that carry an epg id.
+                          if ((item.liveStream?.epgChannelId ?? '').isNotEmpty)
+                            IconButton(
+                              icon: const Icon(Icons.calendar_month_outlined,
+                                  size: 18),
+                              tooltip: context.loc.epg_guide,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              onPressed: () => showModalBottomSheet<void>(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => EpgGuideSheet(
+                                  channelId: item.liveStream!.epgChannelId,
+                                  playlistId: item.liveStream?.playlistId ??
+                                      AppState.currentPlaylist?.id ??
+                                      '',
+                                  channelName: item.name,
+                                  streamId: item.liveStream!.streamId,
+                                  hasArchive:
+                                      item.liveStream?.hasArchive ?? false,
+                                  archiveDays:
+                                      item.liveStream?.tvArchiveDuration ?? 0,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                       // Real EPG now, so the progress bar means something. A

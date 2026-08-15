@@ -271,6 +271,15 @@ class WatchHistoryController extends ChangeNotifier {
         throw StateError('the panel returned no series info for '
             '${episode.seriesId}');
       }
+      // Parental: continue-watching for series pushes EpisodeScreen directly, so
+      // it must gate here (the ContentItem built below carries no seriesStream →
+      // the navigate-level gate would fail open). Look up the series' category.
+      final series = await _database.findSeriesById(
+        episode.seriesId,
+        AppState.currentPlaylist!.id,
+      );
+      if (!context.mounted) return;
+      if (!await parentalAllowsCategory(context, series?.categoryId)) return;
       if (!context.mounted) return;
       await Navigator.push(
         context,
@@ -300,6 +309,8 @@ class WatchHistoryController extends ChangeNotifier {
         throw StateError('watch history points at an item no longer in the '
             'playlist: ${history.streamId}');
       }
+      if (!context.mounted) return;
+      if (!await parentalAllowsCategory(context, m3uItem.categoryId)) return;
       if (!context.mounted) return;
       await Navigator.push(
         context,

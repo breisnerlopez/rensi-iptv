@@ -191,7 +191,7 @@ void main() {
 
       // The migration reached v13 and stays there (no half-migrated re-crash).
       final after = sqlite3.open(path);
-      expect(after.userVersion, 13,
+      expect(after.userVersion, 17,
           reason: 'user_version bumped to 13 — migration completed');
       after.dispose();
       dir.deleteSync(recursive: true);
@@ -271,7 +271,7 @@ void main() {
               "SELECT COUNT(*) c FROM sqlite_master WHERE type='table' AND name='downloads'")
           .first['c'];
       expect(dlExistsAfter, 1, reason: 'downloads table now exists');
-      expect(after.userVersion, 13,
+      expect(after.userVersion, 17,
           reason: 'user_version bumped to 13 — migration completed');
       after.dispose();
       dir.deleteSync(recursive: true);
@@ -343,7 +343,7 @@ void main() {
           reason: 'from<=6 deleteTable cleared ONLY m3u_items (0 rows)');
       expect(afterWatch, 4,
           reason: 'watch_histories kept all 4 rows through the scoped DROP');
-      expect(afterVersion, 13,
+      expect(afterVersion, 17,
           reason: 'migration completed and bumped user_version to 13');
 
       dir.deleteSync(recursive: true);
@@ -475,7 +475,7 @@ void main() {
           .map((r) => r['name'] as String)
           .toList();
       expect(seriesCols.where((c) => c == 'tmdb_id'), hasLength(1));
-      expect(after.userVersion, 13,
+      expect(after.userVersion, 17,
           reason: 'migration completed and bumped user_version to 13');
       after.dispose();
       dir.deleteSync(recursive: true);
@@ -537,7 +537,7 @@ void main() {
       await db.close();
 
       final after = sqlite3.open(path);
-      expect(after.userVersion, 13,
+      expect(after.userVersion, 17,
           reason: 'the stuck-at-10 cohort is rescued to v13');
       after.dispose();
       dir.deleteSync(recursive: true);
@@ -596,7 +596,7 @@ void main() {
       await db.close();
 
       final after = sqlite3.open(path);
-      expect(after.userVersion, 13);
+      expect(after.userVersion, 17);
       final vodCols = after
           .select('PRAGMA table_info(vod_streams)')
           .map((r) => r['name'] as String)
@@ -648,7 +648,7 @@ void main() {
       // must re-run onUpgrade(10,13) over already-present columns/tables and NOT
       // throw (createTable is IF NOT EXISTS; addColumns are idempotent).
       final mid = sqlite3.open(path);
-      expect(mid.userVersion, 13);
+      expect(mid.userVersion, 17);
       mid.userVersion = 10;
       mid.dispose();
 
@@ -658,7 +658,7 @@ void main() {
       await db2.close();
 
       final after = sqlite3.open(path);
-      expect(after.userVersion, 13, reason: 're-run completes back to v13');
+      expect(after.userVersion, 17, reason: 're-run completes back to v13');
       after.dispose();
       dir.deleteSync(recursive: true);
     });
@@ -804,7 +804,7 @@ void main() {
           .toList();
       expect(colsAfter.where((c) => c == 'container_extension'), hasLength(1));
       expect(colsAfter.where((c) => c == 'provider_id'), hasLength(1));
-      expect(after.userVersion, 13,
+      expect(after.userVersion, 17,
           reason: 'user_version bumped to 13 — migration completed');
       after.dispose();
       dir.deleteSync(recursive: true);
@@ -852,7 +852,7 @@ void main() {
       // now-fully-v13 schema. Reopening must re-run onUpgrade(12,13) over the
       // already-present columns and NOT throw — _addColumnIfMissing no-ops.
       final mid = sqlite3.open(path);
-      expect(mid.userVersion, 13);
+      expect(mid.userVersion, 17);
       mid.userVersion = 12;
       mid.dispose();
 
@@ -862,7 +862,7 @@ void main() {
       await db2.close();
 
       final after = sqlite3.open(path);
-      expect(after.userVersion, 13, reason: 're-run completes back to v13');
+      expect(after.userVersion, 17, reason: 're-run completes back to v13');
       // Still exactly one of each new column — no duplicate created.
       final cols = after
           .select('PRAGMA table_info(watch_histories)')
@@ -870,6 +870,95 @@ void main() {
           .toList();
       expect(cols.where((c) => c == 'container_extension'), hasLength(1));
       expect(cols.where((c) => c == 'provider_id'), hasLength(1));
+      after.dispose();
+      dir.deleteSync(recursive: true);
+    });
+
+    test(
+        'v13 -> v17 adds favorites.sort_order, epg_programs + reminders tables, '
+        'and live_streams catch-up columns; preserves data', () async {
+      _useLinuxSqlite();
+      final dir = Directory.systemTemp.createTempSync('qa_mig_v13_v17');
+      final path = p.join(dir.path, 'old.sqlite');
+
+      final raw = sqlite3.open(path);
+      for (final ddl in [
+        _ddlPlaylists,
+        _ddlCategories,
+        _ddlUserInfos,
+        _ddlServerInfos,
+        _ddlLiveStreams, // old shape: no tv_archive columns
+        _ddlVodStreamsCurrent,
+        _ddlSeriesStreamsCurrent,
+        _ddlSeriesInfos,
+        _ddlSeasons,
+        _ddlEpisodes,
+        _ddlWatchHistories,
+        _ddlM3uItemsCurrent,
+        _ddlM3uSeriesV6,
+        _ddlM3uEpisodesV6,
+        _ddlFavorites, // no sort_order yet (added at v14)
+        _ddlDownloadsCurrent,
+      ]) {
+        raw.execute(ddl);
+      }
+      raw.execute(
+        'INSERT INTO favorites (id, playlist_id, content_type, stream_id, name, created_at, updated_at) VALUES '
+        "('f1', 'pl-A', 1, '100', 'Fav Movie', 1700000000, 1700000000)",
+      );
+      raw.execute(
+        "INSERT INTO live_streams (stream_id, name, stream_icon, category_id, epg_channel_id, playlist_id, created_at) "
+        "VALUES ('ls1', 'Canal 1', '', 'c1', 'ch.1', 'pl-A', 1700000000)",
+      );
+      raw.userVersion = 13;
+      raw.dispose();
+
+      // Open through AppDatabase → onUpgrade(13,17) runs every additive step.
+      final db = AppDatabase(NativeDatabase(File(path)));
+      expect(await db.select(db.favorites).get(), hasLength(1),
+          reason: 'favorite survives v13->v17');
+      // The new EPG table is usable.
+      await db.replaceEpgForPlaylist('pl-A', [
+        EpgProgramsCompanion.insert(
+          channelId: 'ch.1',
+          playlistId: 'pl-A',
+          start: DateTime.utc(2026, 1, 1, 12, 0),
+          stop: DateTime.utc(2026, 1, 1, 12, 30),
+          title: 'Noon News',
+        ),
+      ]);
+      final epg = await db.getEpgForChannel('ch.1', 'pl-A');
+      expect(epg, hasLength(1));
+      expect(epg.first.title, 'Noon News');
+      // The migrated live_streams row exposes the catch-up columns at default 0.
+      final ls = await db.select(db.liveStreams).getSingle();
+      expect(ls.tvArchive, 0);
+      expect(ls.tvArchiveDuration, 0);
+      await db.close();
+
+      final after = sqlite3.open(path);
+      expect(after.userVersion, 17);
+      // sort_order landed on favorites, exactly once.
+      final favCols = after
+          .select('PRAGMA table_info(favorites)')
+          .map((r) => r['name'] as String)
+          .toList();
+      expect(favCols.where((c) => c == 'sort_order'), hasLength(1));
+      // Both new tables exist, exactly once each.
+      for (final t in ['epg_programs', 'reminders']) {
+        final n = after
+            .select(
+                "SELECT COUNT(*) c FROM sqlite_master WHERE type='table' AND name=?",
+                [t]).first['c'];
+        expect(n, 1, reason: '$t created exactly once');
+      }
+      // Catch-up columns present on live_streams, exactly once each.
+      final lsCols = after
+          .select('PRAGMA table_info(live_streams)')
+          .map((r) => r['name'] as String)
+          .toList();
+      expect(lsCols.where((c) => c == 'tv_archive'), hasLength(1));
+      expect(lsCols.where((c) => c == 'tv_archive_duration'), hasLength(1));
       after.dispose();
       dir.deleteSync(recursive: true);
     });

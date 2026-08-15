@@ -155,7 +155,7 @@ class _SaveToListButtonState extends State<SaveToListButton> {
           Text(
             label,
             style: TextStyle(
-              fontSize: AppThemes.tenFoot(context, 11.5),
+              fontSize: AppThemes.tenFoot(context, AppThemes.microSize),
               fontWeight: FontWeight.w600,
               color: color,
             ),

@@ -361,7 +361,7 @@ class _DownloadTile extends StatelessWidget {
         return [
           if (download.filePath != null)
             const Padding(
-              padding: EdgeInsets.only(right: 4),
+              padding: EdgeInsetsDirectional.only(end: 4),
               child: Icon(Icons.play_arrow),
             ),
           if (download.filePath != null)

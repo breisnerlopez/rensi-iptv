@@ -155,8 +155,10 @@ class MyApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       title: 'Rensi IPTV',
-      theme: AppThemes.lightTheme,
-      darkTheme: AppThemes.darkTheme,
+      // F4 — reconstruye los temas con el acento elegido (reactivo, como amoled).
+      theme: AppThemes.themeFor(Brightness.light, accent: themeProvider.accent),
+      darkTheme: AppThemes.themeFor(Brightness.dark,
+          amoled: themeProvider.amoled, accent: themeProvider.accent),
       themeMode: themeProvider.themeMode,
       // TV-grade focus visuals (fat coloured borders + tinted overlays)
       // only land on large screens / Android TV. Phones keep the stock

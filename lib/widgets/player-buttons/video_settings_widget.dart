@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/services/player_state.dart';
+import 'package:rensi_iptv/repositories/user_preferences.dart';
+import 'package:rensi_iptv/services/external_player_service.dart';
+import 'package:rensi_iptv/utils/build_media_url.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:media_kit/media_kit.dart' hide PlayerState;
 import 'package:rensi_iptv/utils/app_themes.dart';
@@ -309,6 +312,13 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _buildScreenFitSection(context),
+                const SizedBox(height: 16),
+                if (ExternalPlayerService.isSupported &&
+                    PlayerState.currentContent != null) ...[
+                  _buildExternalPlayerRow(context),
+                  const SizedBox(height: 16),
+                ],
                 _buildTrackSectionGeneric<VideoTrack>(
                   context,
                   icon: Icons.video_settings,
@@ -456,6 +466,126 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
     );
   }
 
+  /// "Screen fit" control: Fit (contain) / Zoom (cover) / Stretch (fill). Writes
+  /// to the reactive [PlayerState.videoFit] (the video rebuilds live) and
+  /// persists the choice.
+  Widget _buildScreenFitSection(BuildContext context) {
+    final loc = context.loc;
+    final current = PlayerState.videoFit.value;
+    final options = <(BoxFit, String)>[
+      (BoxFit.contain, loc.fit_contain),
+      (BoxFit.cover, loc.fit_cover),
+      (BoxFit.fill, loc.fit_fill),
+    ];
+    void select(BoxFit fit) {
+      PlayerState.videoFit.value = fit; // reactive → video rebuilds
+      UserPreferences.setVideoFit(PlayerState.videoFitToString(fit));
+      if (mounted) setState(() {});
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.aspect_ratio, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                loc.screen_fit,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: AppThemes.bodySmallSize,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final (fit, label) in options)
+              _fitChip(label, current == fit, () => select(fit)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Panel-local chip: this settings panel renders over the dark video scrim and
+  // is intentionally theme-independent (white on translucent), so it does NOT
+  // use RensiChip / rensi(context) — that would need the app ThemeExtension the
+  // over-video panel never carries.
+  Widget _fitChip(String label, bool active, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? Colors.white : Colors.white.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? Colors.black : Colors.white,
+            fontSize: AppThemes.bodySmallSize,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// "Open in external player" row: launches the current stream in VLC/MX via an
+  /// ACTION_VIEW intent. Android-only (gated by the caller).
+  Widget _buildExternalPlayerRow(BuildContext context) {
+    final loc = context.loc;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () async {
+        final content = PlayerState.currentContent;
+        if (content == null) return;
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        try {
+          await ExternalPlayerService.open(buildMediaUrl(content),
+              title: content.name);
+        } catch (_) {
+          messenger?.showSnackBar(
+            SnackBar(content: Text(loc.external_player_failed)),
+          );
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            const Icon(Icons.open_in_new, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                loc.open_external_player,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: AppThemes.bodySmallSize,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildTrackSectionGeneric<T>(
     BuildContext context, {
     required IconData icon,
@@ -514,7 +644,7 @@ class _VideoSettingsOverlayState extends State<_VideoSettingsOverlay> {
                 )),
           ] else
             Padding(
-              padding: const EdgeInsets.only(left: 32, top: 8),
+              padding: const EdgeInsetsDirectional.only(start: 32, top: 8),
               child: Text(
                 context.loc.no_tracks_available,
                 style: TextStyle(

@@ -286,6 +286,45 @@ void main() {
       expect(await TmdbCredentialsService.getCredential(), 'local-token');
     });
 
+    // Regression (F3 gate): with a shared embedded default active but no
+    // user-saved key, exportBytes must NOT leak the shared default into the
+    // backup — it reads the STORED (user) key, which is null here.
+    test('exportBytes does NOT leak the shared default TMDb key', () async {
+      TmdbCredentialsService.debugDefaultOverride = 'shared-default-key';
+      addTearDown(() => TmdbCredentialsService.debugDefaultOverride = null);
+      await TmdbCredentialsService.deleteCredential(); // no user key
+      // Sanity: the effective key is the default, but the stored one is null.
+      expect(await TmdbCredentialsService.getCredential(), 'shared-default-key');
+      expect(await TmdbCredentialsService.getStoredCredential(), isNull);
+
+      final bytes = await BackupService.exportBytes();
+      final payload = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+      final creds = payload['credentials'] as Map<String, dynamic>?;
+      expect(creds?.containsKey('tmdb') ?? false, isFalse);
+    });
+
+    // Regression (F3 gate): on a fresh install (shared default active, no user
+    // key), a keepLocal import must still restore the real key from the backup —
+    // the "existing" check reads the STORED key (null), not the effective default.
+    test('importBytes keepLocal restores backup key despite the shared default',
+        () async {
+      TmdbCredentialsService.debugDefaultOverride = 'shared-default-key';
+      addTearDown(() => TmdbCredentialsService.debugDefaultOverride = null);
+      await TmdbCredentialsService.deleteCredential(); // fresh install
+      final payload = {
+        'schemaVersion': 1,
+        'playlists': <Map<String, dynamic>>[],
+        'settings': <String, dynamic>{},
+        'credentials': {'tmdb': 'real-user-token-from-backup'},
+      };
+      await BackupService.importBytes(
+        Uint8List.fromList(utf8.encode(jsonEncode(payload))),
+        strategy: BackupMergeStrategy.keepLocal,
+      );
+      expect(await TmdbCredentialsService.getStoredCredential(),
+          'real-user-token-from-backup');
+    });
+
     test('importSettings clamps out-of-range numeric values', () async {
       final payload = {
         'schemaVersion': 1,

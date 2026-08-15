@@ -1,8 +1,11 @@
 import 'package:rensi_iptv/repositories/user_preferences.dart';
+import 'package:rensi_iptv/services/parental_service.dart';
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
 import 'package:provider/provider.dart';
 import '../../controllers/xtream_code_home_controller.dart';
+import '../../redesign/rensi_widgets.dart';
+import '../../widgets/section_title_widget.dart';
 
 class CategorySettingsScreen extends StatefulWidget {
   final XtreamCodeHomeController controller;
@@ -15,6 +18,7 @@ class CategorySettingsScreen extends StatefulWidget {
 
 class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
   Set<String> _hiddenCategories = {};
+  Set<String> _lockedCategories = {};
   bool _hasChanges = false;
 
   @override
@@ -25,9 +29,32 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
 
   Future<void> _loadHiddenCategories() async {
     final hidden = await UserPreferences.getHiddenCategories();
+    final locked = await UserPreferences.getLockedCategories();
     setState(() {
       _hiddenCategories = hidden.toSet();
+      _lockedCategories = locked.toSet();
     });
+  }
+
+  /// Parental lock toggle for a category (asks for the PIN on open — the PIN is
+  /// set in Settings; if none is set the lock is a no-op until then).
+  Future<void> _toggleLocked(String categoryId) async {
+    final adding = !_lockedCategories.contains(categoryId);
+    setState(() {
+      if (adding) {
+        _lockedCategories.add(categoryId);
+      } else {
+        _lockedCategories.remove(categoryId);
+      }
+    });
+    await UserPreferences.setLockedCategories(_lockedCategories.toList());
+    // Locking is a no-op without a PIN — nudge the user to set one so the lock
+    // actually gates content (fail-open otherwise).
+    if (adding && !await ParentalService.instance.hasPin() && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(context.loc.parental_locked_note)),
+      );
+    }
   }
 
   Future<void> _toggleHidden(bool isVisible, String categoryId) async {
@@ -81,18 +108,17 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
           ),
           body: Consumer<XtreamCodeHomeController>(
             builder: (context, controller, _) {
-              return ListView(
+              return RensiSafeColumn(
+                verticalPadding: 8,
+                child: ListView(
                 children: [
-                  ListTile(
-                    title: Text(context.loc.live),
-                    tileColor: Colors.black12,
-                  ),
+                  SectionTitleWidget(title: context.loc.live),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       TextButton(
                         onPressed: () => _setAllCategoriesVisible(
-                          widget.controller.liveCategories!.map(
+                          (widget.controller.liveCategories ?? const []).map(
                             (c) => c.category.categoryId,
                           ),
                           true,
@@ -101,7 +127,7 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                       ),
                       TextButton(
                         onPressed: () => _setAllCategoriesVisible(
-                          widget.controller.liveCategories!.map(
+                          (widget.controller.liveCategories ?? const []).map(
                             (c) => c.category.categoryId,
                           ),
                           false,
@@ -114,7 +140,17 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                     final isHidden = _hiddenCategories.contains(
                       cat.category.categoryId,
                     );
+                    final isLocked =
+                        _lockedCategories.contains(cat.category.categoryId);
                     return SwitchListTile(
+                      secondary: IconButton(
+                        icon: Icon(isLocked
+                            ? Icons.lock
+                            : Icons.lock_open_outlined),
+                        tooltip: context.loc.parental_lock_category,
+                        onPressed: () =>
+                            _toggleLocked(cat.category.categoryId),
+                      ),
                       title: Text(cat.category.categoryName),
                       value: !isHidden,
                       onChanged: (val) =>
@@ -123,10 +159,7 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                   }),
 
                   const Divider(),
-                  ListTile(
-                    title: Text(context.loc.movies),
-                    tileColor: Colors.black12,
-                  ),
+                  SectionTitleWidget(title: context.loc.movies),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -154,7 +187,17 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                     final isHidden = _hiddenCategories.contains(
                       cat.category.categoryId,
                     );
+                    final isLocked =
+                        _lockedCategories.contains(cat.category.categoryId);
                     return SwitchListTile(
+                      secondary: IconButton(
+                        icon: Icon(isLocked
+                            ? Icons.lock
+                            : Icons.lock_open_outlined),
+                        tooltip: context.loc.parental_lock_category,
+                        onPressed: () =>
+                            _toggleLocked(cat.category.categoryId),
+                      ),
                       title: Text(cat.category.categoryName),
                       value: !isHidden,
                       onChanged: (val) =>
@@ -163,10 +206,7 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                   }),
 
                   const Divider(),
-                  ListTile(
-                    title: Text(context.loc.series_plural),
-                    tileColor: Colors.black12,
-                  ),
+                  SectionTitleWidget(title: context.loc.series_plural),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -194,7 +234,17 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                     final isHidden = _hiddenCategories.contains(
                       cat.category.categoryId,
                     );
+                    final isLocked =
+                        _lockedCategories.contains(cat.category.categoryId);
                     return SwitchListTile(
+                      secondary: IconButton(
+                        icon: Icon(isLocked
+                            ? Icons.lock
+                            : Icons.lock_open_outlined),
+                        tooltip: context.loc.parental_lock_category,
+                        onPressed: () =>
+                            _toggleLocked(cat.category.categoryId),
+                      ),
                       title: Text(cat.category.categoryName),
                       value: !isHidden,
                       onChanged: (val) =>
@@ -202,6 +252,7 @@ class _CategorySettingsScreenState extends State<CategorySettingsScreen> {
                     );
                   }),
                 ],
+                ),
               );
             },
           ),

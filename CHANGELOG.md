@@ -1,3 +1,34 @@
+# [2.20.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.19.2...v2.20.0) (2026-08-15)
+
+
+### Features
+
+* **Guía de programación (EPG) completa:** cargá una guía XMLTV desde Ajustes y mirá qué hay ahora y a continuación en cada canal, con una línea de tiempo por canal
+* **Recordatorios de programas:** poné un recordatorio en un programa futuro de la guía y recibí una notificación antes de que empiece
+* **Catch-up / ver desde el inicio:** en canales que guardan archivo, reproducí un programa ya emitido con barra de tiempo (aparece un botón en la guía; si tu proveedor no ofrece archivo, simplemente no aparece)
+* **Control parental:** protegé categorías con un PIN (se pide en todas las formas de reproducir, no solo al abrir la categoría). El PIN se guarda cifrado
+* **Abrir en un reproductor externo:** enviá un stream a VLC o MX Player desde el reproductor
+* **Ajuste de pantalla:** elegí cómo encaja el video (ajustar, rellenar, zoom) y se recuerda
+* **Tema AMOLED y color de acento:** modo oscuro con negro puro para pantallas OLED, y ahora podés elegir el color de acento entre varios presets (cada uno validado para que el texto siempre se lea bien, en claro, oscuro y AMOLED)
+* **Portada panorámica en el inicio:** el destacado de la pantalla principal ahora muestra un fondo horizontal (16:9) en vez de estirar el póster
+* **Sugerencias de tendencias en la búsqueda:** al abrir la búsqueda sin historial, se muestran títulos en tendencia (si configuraste una clave de TMDb)
+* **Grabar mientras ves (experimental):** activándolo en la pantalla de Desarrollador, aparece un botón para grabar el canal en vivo que estás mirando
+* **Clave de TMDb propia:** la app trae una por defecto y te ofrece poner la tuya en un paso opcional al crear la primera lista
+
+
+### Bug Fixes
+
+* **El móvil refleja el estado real de play/pausa de la TV:** cuando pausás o reanudás en la TV, el ícono del móvil ahora se corresponde con lo que realmente pasa en la pantalla, sin quedarse "al revés" unos segundos
+* **Se reanuda tras una llamada aunque haya reconexión:** si entra una llamada mientras casteás y justo se reconecta la sesión, al colgar la TV vuelve a reproducir (y nunca reanuda en mitad de la llamada)
+* **El selector de pistas ya no gira para siempre:** si la TV no responde con las pistas, tras unos segundos muestra "No hay pistas disponibles" en vez de un círculo eterno
+
+
+### Notes
+
+* Al actualizar desde una versión anterior, la base de datos se migra de forma automática y segura (solo agrega, no borra nada de lo que ya tenías)
+* Para que la guía EPG y los recordatorios funcionen necesitás una URL XMLTV; el catch-up depende de que tu proveedor guarde archivo
+
+
 # [2.19.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.19.1...v2.19.2) (2026-08-13)
 
 

@@ -10,6 +10,7 @@ import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/widgets/cast/casting_screen.dart';
 
 class _FakeSender extends PhoneSenderService {
@@ -49,6 +50,9 @@ class _FakeSender extends PhoneSenderService {
 
 Widget _wrap(CastSenderController c, Widget child) => MaterialApp(
       locale: const Locale('es'),
+      // The cast screens now read RensiColors via rensi(context); supply the
+      // real app theme (which registers that ThemeExtension) so they render.
+      theme: AppThemes.darkTheme,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: ChangeNotifierProvider<CastSenderController>.value(
@@ -94,8 +98,11 @@ void main() {
     expect(find.text('Sala'), findsOneWidget);
     expect(find.text('Canal'), findsOneWidget);
 
-    // El botón de play envía el comando play/pausa.
-    await tester.tap(find.byIcon(Icons.play_arrow));
+    // El botón play/pausa refleja el estado real de la TV: tras iniciar el cast
+    // la TV está reproduciendo, así que muestra el icono de PAUSA (MOV-M3: antes
+    // mostraba siempre play_arrow sin importar el estado). Al tocarlo envía el
+    // comando play/pausa.
+    await tester.tap(find.byIcon(Icons.pause));
     await tester.pump();
     expect(fake.commands, contains('play_pause'));
 
@@ -106,6 +113,34 @@ void main() {
     // ...y el teardown del socket (envío del 'stop' + cierre) ocurre después,
     // con un pequeño delay; drenarlo para no dejar timers pendientes.
     await tester.pump(const Duration(milliseconds: 200));
+  });
+
+  testWidgets('FIX-3: TrackSheetBody no gira para siempre — tras el timeout de '
+      '6s muestra estado vacío si la TV no reporta pistas', (tester) async {
+    // Aislado (sin beginCast/modal/CastingScreen): la TV nunca reporta pistas →
+    // audioTracks queda vacío → el sheet debe pasar de spinner a estado vacío.
+    final c = CastSenderController(senderFactory: () => _FakeSender());
+    await tester.pumpWidget(MaterialApp(
+      locale: const Locale('es'),
+      theme: AppThemes.darkTheme,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: ChangeNotifierProvider<CastSenderController>.value(
+        value: c,
+        child: const Scaffold(body: TrackSheetBody(audio: true)),
+      ),
+    ));
+    await tester.pump();
+
+    // Al principio: spinner (esperando pistas de la TV).
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('No hay pistas disponibles'), findsNothing);
+
+    // Pasado el timeout de 6s SIN pistas → estado vacío honesto, sin spinner.
+    await tester.pump(const Duration(seconds: 7));
+    expect(find.byType(CircularProgressIndicator), findsNothing,
+        reason: 'el spinner no gira indefinidamente');
+    expect(find.text('No hay pistas disponibles'), findsOneWidget);
   });
 
   test('la TV avisa "ended" → el móvil sale de casting a idle sin reconectar',

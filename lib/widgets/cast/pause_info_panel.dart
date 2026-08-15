@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/localization_extension.dart';
 import '../../models/content_type.dart';
 import '../../models/tmdb_search_result.dart';
+import '../../redesign/rensi_widgets.dart';
 import '../../services/cast/cast_protocol.dart';
 import '../../utils/app_themes.dart';
 import '../tmdb_cast_rail.dart';
@@ -135,8 +136,8 @@ class PauseInfoPanel extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.pause_circle_filled,
-                        color: Color(0xFFD2603A), size: 26),
+                    Icon(Icons.pause_circle_filled,
+                        color: rensi(context).accent, size: 26),
                     const SizedBox(width: 10),
                     Text(
                       title,
@@ -167,7 +168,7 @@ class PauseInfoPanel extends StatelessWidget {
                             minHeight: 5,
                             backgroundColor: Colors.white24,
                             valueColor:
-                                const AlwaysStoppedAnimation(Color(0xFFD2603A)),
+                                AlwaysStoppedAnimation(rensi(context).accent),
                           ),
                         ),
                       ),

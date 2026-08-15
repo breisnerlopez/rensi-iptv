@@ -29,6 +29,14 @@ class PlaylistScreenState extends State<PlaylistScreen> {
 }
 
 class _PlaylistScreenBody extends StatelessWidget {
+  // Single source of truth for the "create playlist" affordance. It surfaces in
+  // two platform-gated places that are NEVER shown together: an AppBar action on
+  // TV/desktop (no FAB there — a FAB sits in the overscan corner) and a
+  // FloatingActionButton on touch. Both must read identically — same icon, same
+  // localized label/semantics, same handler — so the action feels like one
+  // control wherever the platform chooses to place it. Do not fork these.
+  static const IconData _createPlaylistIcon = Icons.add;
+
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -73,8 +81,9 @@ class _PlaylistScreenBody extends StatelessWidget {
       // a second one.
       actions: ResponsiveHelper.isDesktopOrTV(context)
           ? [
+              // TV/desktop placement of the shared create-playlist control.
               IconButton(
-                icon: const Icon(Icons.add),
+                icon: const Icon(_createPlaylistIcon),
                 tooltip: context.loc.create_new_playlist,
                 onPressed: () => _navigateToCreatePlaylist(context),
               ),
@@ -136,10 +145,12 @@ class _PlaylistScreenBody extends StatelessWidget {
   }
 
   Widget _buildFloatingActionButton(BuildContext context) {
+    // Touch placement of the shared create-playlist control — same icon,
+    // label/semantics and handler as the AppBar action on TV/desktop.
     return FloatingActionButton(
       onPressed: () => _navigateToCreatePlaylist(context),
       tooltip: context.loc.create_new_playlist,
-      child: const Icon(Icons.add, color: Colors.white),
+      child: const Icon(_createPlaylistIcon, color: Colors.white),
     );
   }
 

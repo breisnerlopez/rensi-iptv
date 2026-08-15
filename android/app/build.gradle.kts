@@ -21,6 +21,9 @@ android {
     ndkVersion = "27.0.12077973"
 
     compileOptions {
+        // Required by flutter_local_notifications (EPG reminders): it uses
+        // java.time APIs that must be desugared to run on minSdk 24.
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -70,4 +73,10 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Backports java.time (and other JDK 8+ APIs) so flutter_local_notifications
+    // works on API 24+. Version tracked to the plugin's requirement.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

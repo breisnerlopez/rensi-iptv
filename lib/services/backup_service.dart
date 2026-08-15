@@ -80,7 +80,9 @@ class BackupService {
     final settings = await UserPreferences.exportSettings();
     final credentials = <String, dynamic>{};
     if (includeSecrets) {
-      final tmdb = await TmdbCredentialsService.getCredential();
+      // Stored (user's own) key ONLY — never the embedded shared default, which
+      // must not leak into exported backup files.
+      final tmdb = await TmdbCredentialsService.getStoredCredential();
       if (tmdb != null && tmdb.isNotEmpty) {
         credentials['tmdb'] = tmdb;
       }
@@ -244,8 +246,11 @@ class BackupService {
       final tmdb = credentials['tmdb'];
       if (tmdb is String && tmdb.isNotEmpty) {
         // Honour the same conflict policy as playlists: when the user picked
-        // "keep local", we don't clobber an existing credential.
-        final existing = await TmdbCredentialsService.getCredential();
+        // "keep local", we don't clobber an existing credential. Check the STORED
+        // (user's own) key — not the effective one — so a real key from the
+        // backup isn't silently dropped on a fresh install where only the shared
+        // default exists.
+        final existing = await TmdbCredentialsService.getStoredCredential();
         if (existing == null || strategy == BackupMergeStrategy.overwrite) {
           await TmdbCredentialsService.saveCredential(tmdb);
         }

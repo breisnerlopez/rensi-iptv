@@ -48,6 +48,17 @@ class M3UHomeController extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
 
+  ViewState get viewState => _viewState;
+
+  String? get errorMessage => _errorMessage;
+
+  /// Retry after a load failure: clears the error state and re-runs the load.
+  Future<void> retry() async {
+    _setViewState(ViewState.idle);
+    await _loadM3uItems();
+    await _loadCategories();
+  }
+
   M3UHomeController({int initialIndex = 0}) {
     _pageController = PageController();
     _currentIndex = initialIndex.clamp(0, 4);
@@ -123,6 +134,12 @@ class M3UHomeController extends ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
+
+      // Idempotent: retry() (and any future re-run) can call this again on the
+      // same instance, so clear before re-adding or every rail duplicates.
+      _liveCategories.clear();
+      _vodCategories.clear();
+      _seriesCategories.clear();
 
       var categories = await _repository.getCategories();
       for (var category in categories!) {

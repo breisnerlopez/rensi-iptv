@@ -188,6 +188,11 @@ class RedesignHome extends StatelessWidget {
     ];
 
     final showEmpty = cats.isEmpty && continueWatching.isEmpty;
+    // MOV-M7: feed pobre (una sola sección y sin "continuar viendo") — añadir un
+    // hint discreto al final para que no quede casi vacío (el _PopularRail se
+    // oculta sin clave TMDb).
+    final showSparseHint =
+        !showEmpty && cats.length <= 1 && continueWatching.isEmpty;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -195,7 +200,8 @@ class RedesignHome extends StatelessWidget {
         bottom: false,
         child: ListView.builder(
           padding: const EdgeInsets.only(bottom: 18),
-          itemCount: leading.length + (showEmpty ? 1 : cats.length),
+          itemCount: leading.length +
+              (showEmpty ? 1 : cats.length + (showSparseHint ? 1 : 0)),
           itemBuilder: (context, index) {
             if (index < leading.length) return leading[index];
             if (showEmpty) {
@@ -213,7 +219,9 @@ class RedesignHome extends StatelessWidget {
                         context.loc.home_empty_title,
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                            color: Colors.white,
+                            // SYS-M2: empty-state sobre surface temática (NO sobre
+                            // video) → token, para que no sea invisible en claro.
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontSize: tv ? 20 : 16,
                             fontWeight: FontWeight.w700),
                       ),
@@ -241,6 +249,30 @@ class RedesignHome extends StatelessWidget {
               );
             }
             final i = index - leading.length;
+            if (showSparseHint && i == cats.length) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(40, 30, 40, 40),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.explore_outlined, size: 40, color: r.text3),
+                      const SizedBox(height: 12),
+                      Text(context.loc.home_empty_hint,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: r.text3, fontSize: tv ? 15 : 13)),
+                      const SizedBox(height: 16),
+                      OutlinedButton.icon(
+                        onPressed: onSearch,
+                        icon: const Icon(Icons.search, size: 18),
+                        label: Text(context.loc.search),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
             return _CategoryRail(
               category: cats[i],
               posterWidth: posterW,
@@ -429,6 +461,10 @@ class _Hero extends StatelessWidget {
       onPressed: () => onPlay(item),
       autofocus: tv,
       style: FilledButton.styleFrom(
+        // SYS-A3 design rule: white-on-black is reserved for the ONE "play over
+        // artwork" CTA (the hero), a deliberate Netflix-style exception. Every
+        // other primary action uses the terracotta accent (the theme default).
+        // Do not reuse white for buttons elsewhere.
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         minimumSize: Size(0, tv ? 60 : 50),
@@ -437,9 +473,11 @@ class _Hero extends StatelessWidget {
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       icon: const Icon(Icons.play_arrow_rounded, size: 24),
+      // SYS-M1: snap to the type scale (no half-points): 16 phone / 18 TV.
       label: Text(context.loc.start_watching,
           style: TextStyle(
-              fontSize: tv ? 19 : 15.5, fontWeight: FontWeight.w700)),
+              fontSize: tv ? AppThemes.bodySize : AppThemes.bodySmallSize,
+              fontWeight: FontWeight.w700)),
     );
     // This is the remote's landing target on entry, and it was the ONE control
     // with no visible focus state: a white fill ringed in #FFF5F0 by the theme
@@ -466,7 +504,10 @@ class _Hero extends StatelessWidget {
                 ),
               ),
         const SizedBox(width: 12),
-        _GlassBtn(icon: Icons.info_outline, onTap: () => onOpen(item)),
+        _GlassBtn(
+            icon: Icons.info_outline,
+            semanticLabel: context.loc.info,
+            onTap: () => onOpen(item)),
         const SizedBox(width: 10),
         SaveToListButton(
           item: item,
@@ -558,9 +599,9 @@ class _Hero extends StatelessWidget {
           // Landscape backdrop when the provider gave us one. The hero used to
           // render `item.imagePath` — a 2:3 POSTER — with BoxFit.cover into a
           // wide box, which crops ~15% of it and scales it hard. Series already
-          // carry backdropPath in the DB and the detail screens use it; the
-          // hero was the one place still stretching a poster.
-          RensiKeyArt(item: item, preferBackdrop: true, titleScale: 0),
+          // carry backdropPath in the DB; F3 resolves a 16:9 backdrop for the VOD
+          // hero via TMDb (when it has a tmdbId), degrading to the poster.
+          _HeroBackdrop(item: item),
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -597,6 +638,70 @@ class _Hero extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// F3 — Hero backdrop 16:9. Resuelve el backdrop del VOD del hero vía TMDb
+/// SOLO cuando tiene `tmdbId` (la llamada `detail` está cacheada en TmdbService);
+/// mientras resuelve / si no hay tmdbId / sin key / sin backdrop, `RensiKeyArt.raw`
+/// cae al póster — sin bloqueo ni parpadeo. Solo-tmdbId a propósito: el VOD no
+/// expone año, así que un `searchTitle` por título sería un match frágil (peli
+/// equivocada). Series ya traen su backdrop en la BD (fallback conservado).
+class _HeroBackdrop extends StatefulWidget {
+  const _HeroBackdrop({required this.item});
+  final ContentItem item;
+
+  @override
+  State<_HeroBackdrop> createState() => _HeroBackdropState();
+}
+
+class _HeroBackdropState extends State<_HeroBackdrop> {
+  List<String>? _backdrop;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolve();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HeroBackdrop old) {
+    super.didUpdateWidget(old);
+    // Cambió el ítem del hero (recarga de catálogo / cambio de playlist).
+    if (old.item.id != widget.item.id) {
+      _backdrop = null;
+      _resolve();
+    }
+  }
+
+  Future<void> _resolve() async {
+    final id = widget.item.tmdbId;
+    if (id == null || id <= 0) return; // sin tmdbId → póster (degradación limpia)
+    final itemId = widget.item.id;
+    try {
+      final d = await TmdbService().detail(id, TmdbMediaType.movie);
+      final bp = d.backdropPath;
+      // Solo un backdrop REAL 16:9 (no el fallback a póster de backdropUrl); y
+      // que el hero no haya cambiado mientras resolvíamos.
+      if (!mounted || widget.item.id != itemId || bp == null || bp.isEmpty) {
+        return;
+      }
+      setState(() => _backdrop = [d.backdropUrl]);
+    } catch (_) {
+      // TmdbException (noKey/rejected/rate/network) → degradar al póster.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RensiKeyArt.raw(
+      seed: widget.item.id,
+      title: widget.item.name,
+      imagePath: widget.item.imagePath,
+      backdrop: _backdrop ?? widget.item.seriesStream?.backdropPath,
+      preferBackdrop: true,
+      titleScale: 0,
     );
   }
 }
@@ -654,9 +759,12 @@ class _HeroMeta extends StatelessWidget {
 }
 
 class _GlassBtn extends StatelessWidget {
-  const _GlassBtn({required this.icon, this.onTap});
+  const _GlassBtn({required this.icon, this.onTap, this.semanticLabel});
   final IconData icon;
   final VoidCallback? onTap;
+
+  /// Screen-reader label: an icon-only button otherwise reads as just "button".
+  final String? semanticLabel;
   @override
   Widget build(BuildContext context) {
     return FocusHighlight(
@@ -667,13 +775,17 @@ class _GlassBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           side: BorderSide(color: Colors.white.withValues(alpha: 0.25)),
         ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: SizedBox(
-              width: 50,
-              height: 50,
-              child: Icon(icon, size: 22, color: Colors.white)),
+        child: Semantics(
+          button: true,
+          label: semanticLabel,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onTap,
+            child: SizedBox(
+                width: 50,
+                height: 50,
+                child: Icon(icon, size: 22, color: Colors.white)),
+          ),
         ),
       ),
     );
@@ -757,9 +869,12 @@ class _ContinueRail extends StatelessWidget {
                         colors: [Color(0xD1000000), Color(0x00000000)],
                         stops: [0.0, 0.6],
                       ))),
-                      const Center(
+                      // MOV-M7: overlay de play más tenue (antes 44px blanco
+                      // sólido, permanente sobre cada póster) — más pequeño y
+                      // semitransparente para no competir con el arte.
+                      Center(
                         child: Icon(Icons.play_circle_outline,
-                            size: 44, color: Colors.white),
+                            size: 34, color: Colors.white.withValues(alpha: 0.82)),
                       ),
                       Positioned(
                         left: 12,

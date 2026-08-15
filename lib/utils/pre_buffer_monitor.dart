@@ -95,3 +95,25 @@ class PreBufferMonitor {
 
   bool get isReady => phase == BufferPhase.ready;
 }
+
+/// Pure discriminator (FIX-1): between two pre-buffer ticks, decide whether the
+/// player is GENUINELY reproducing (video advancing on screen) versus paused,
+/// frozen, or seeking. Real playback advances the position by roughly the
+/// wall-clock elapsed between ticks (Δpos ≈ Δwall); a SEEK — e.g. a resume/
+/// "Continue watching" jump — moves the position far beyond the wall time in a
+/// single tick, so it is NOT counted as real playback.
+///
+/// Comparing against Δwall (not a fixed ceiling) is deliberate: under the exact
+/// bug condition the demuxer `getProperty` reads hang and delay the tick, so
+/// both Δpos and Δwall grow together and the check still holds. [slack] absorbs
+/// timer/decoder jitter. Pure so it can be exercised headlessly (no media_kit).
+bool isRealPlaybackAdvance({
+  required bool playing,
+  required Duration dPos,
+  required Duration dWall,
+  Duration slack = const Duration(milliseconds: 750),
+}) {
+  if (!playing) return false;
+  if (dPos <= Duration.zero || dWall <= Duration.zero) return false;
+  return dPos <= dWall + slack;
+}

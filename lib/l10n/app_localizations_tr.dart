@@ -9,6 +9,157 @@ class AppLocalizationsTr extends AppLocalizations {
   AppLocalizationsTr([String locale = 'tr']) : super(locale);
 
   @override
+  String get accent_color => 'Vurgu rengi';
+
+  @override
+  String get search_trending => 'Trend';
+
+  @override
+  String get dvr_record => 'Kaydet';
+
+  @override
+  String get dvr_stop => 'Kaydı durdur';
+
+  @override
+  String get dvr_recording => 'Kaydediliyor…';
+
+  @override
+  String get dvr_saved => 'Kayıt kaydedildi';
+
+  @override
+  String get dvr_failed => 'Bu yayın kaydedilemedi';
+
+  @override
+  String get dvr_experimental => 'DVR (deneysel)';
+
+  @override
+  String get dvr_experimental_hint =>
+      'Bir canlı kanalı izlerken kaydedin. Güvenilirlik sağlayıcıya bağlıdır.';
+
+  @override
+  String get epg_catchup_play => 'Baştan izle';
+
+  @override
+  String get epg_catchup_unavailable =>
+      'Bu program için geri sarma kullanılamıyor';
+
+  @override
+  String get epg_section => 'TV Rehberi (EPG)';
+
+  @override
+  String get epg_xmltv_url => 'XMLTV rehber URL\'si';
+
+  @override
+  String get epg_xmltv_hint =>
+      'İsteğe bağlı. Şimdi/sonraki için tam program rehberi (XMLTV).';
+
+  @override
+  String get epg_refresh => 'Kaydet ve yenile';
+
+  @override
+  String epg_refreshed(Object count) {
+    return 'Rehber güncellendi ($count program)';
+  }
+
+  @override
+  String get epg_refresh_failed => 'Rehber yüklenemedi';
+
+  @override
+  String get epg_guide => 'Rehber';
+
+  @override
+  String get set_reminder => 'Hatırlat';
+
+  @override
+  String get reminder_set => 'Hatırlatıcı ayarlandı';
+
+  @override
+  String get reminder_removed => 'Hatırlatıcı kaldırıldı';
+
+  @override
+  String get confirm => 'Onayla';
+
+  @override
+  String get parental_control => 'Ebeveyn denetimi';
+
+  @override
+  String get parental_enter_pin => 'PIN girin';
+
+  @override
+  String get parental_wrong_pin => 'Yanlış PIN';
+
+  @override
+  String get parental_set_pin => 'PIN ayarla';
+
+  @override
+  String get parental_remove_pin => 'PIN\'i kaldır';
+
+  @override
+  String get parental_lock_category => 'Kilitle (ebeveyn)';
+
+  @override
+  String get parental_pin_hint => '4 haneli PIN';
+
+  @override
+  String get parental_locked_note =>
+      'Kilitli kategoriler açılırken PIN ister. Etkinleştirmek için bir PIN ayarlayın.';
+
+  @override
+  String get amoled_dark => 'AMOLED (saf siyah)';
+
+  @override
+  String get open_external_player => 'Harici oynatıcıda aç';
+
+  @override
+  String get external_player_failed => 'Harici oynatıcı bulunamadı';
+
+  @override
+  String get reorder => 'Yeniden sırala';
+
+  @override
+  String get reorder_done => 'Bitti';
+
+  @override
+  String get screen_fit => 'Ekran uyumu';
+
+  @override
+  String get fit_contain => 'Sığdır';
+
+  @override
+  String get fit_cover => 'Yakınlaştır';
+
+  @override
+  String get fit_fill => 'Uzat';
+
+  @override
+  String get tmdb_onboarding_title => 'En iyi görselleri edinin';
+
+  @override
+  String get tmdb_onboarding_body =>
+      'Rensi, kataloğunuz için afiş ve arka plan görsellerini göstermek amacıyla TMDb kullanır. En iyi deneyim için ücretsiz TMDb API anahtarınızı ekleyin veya atlayın — daha sonra Ayarlar\'dan ekleyebilirsiniz.';
+
+  @override
+  String get tmdb_onboarding_skip => 'Şimdilik atla';
+
+  @override
+  String get cast_audio => 'Ses';
+
+  @override
+  String get cast_subtitles => 'Altyazılar';
+
+  @override
+  String get cast_subtitles_off => 'Kapalı';
+
+  @override
+  String get paste => 'Yapıştır';
+
+  @override
+  String get show_password => 'Şifreyi göster';
+
+  @override
+  String get hide_password => 'Şifreyi gizle';
+
+  @override
   String get prebuffer_too_slow => 'Bu kalite için bağlantı çok yavaş';
 
   @override
@@ -309,16 +460,16 @@ class AppLocalizationsTr extends AppLocalizations {
   String get audio_track => 'Ses Parçası';
 
   @override
-  String get speed => 'Speed';
+  String get speed => 'Hız';
 
   @override
-  String get load => 'Load';
+  String get load => 'Yükle';
 
   @override
-  String get external_subtitle => 'External subtitle';
+  String get external_subtitle => 'Harici altyazı';
 
   @override
-  String get external_subtitle_url => 'External subtitle (URL)';
+  String get external_subtitle_url => 'Harici altyazı (URL)';
 
   @override
   String get subtitle_track => 'Altyazı Parçası';
@@ -327,7 +478,8 @@ class AppLocalizationsTr extends AppLocalizations {
   String get settings => 'Ayarlar';
 
   @override
-  String get hold_ok_for_options => 'Hold OK for audio & subtitles';
+  String get hold_ok_for_options =>
+      'Ses ve altyazı için OK tuşunu basılı tutun';
 
   @override
   String get general_settings => 'Genel Ayarlar';
@@ -1075,7 +1227,7 @@ class AppLocalizationsTr extends AppLocalizations {
       'Projeye GitHub üzerinden katkıda bulunun';
 
   @override
-  String get last_channel => 'Last channel';
+  String get last_channel => 'Son kanal';
 
   @override
   String get select_channel => 'Kanal Seç';
@@ -1667,7 +1819,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get tv_cast_replay_hint =>
-      'Watched by casting from your phone. Send it again from your phone to play it here.';
+      'Telefonunuzdan yayınlanarak izlendi. Burada oynatmak için telefonunuzdan tekrar gönderin.';
 
   @override
   String tv_status_discoverable(String deviceName) {

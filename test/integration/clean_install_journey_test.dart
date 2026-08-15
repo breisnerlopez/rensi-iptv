@@ -83,6 +83,10 @@ void main() {
       await tester.runAsync(() async {
         p = await seedXtreamHome(harnessDb);
         await UserPreferences.setLastPlaylist(p.id);
+        // Mark the one-time TMDb-key nudge as seen: this test exercises playlist
+        // persistence/navigation, not the nudge (which would otherwise gate the
+        // home on the cold-start restarts below).
+        await UserPreferences.setTmdbOnboardingSeen(true);
         PlaylistService.invalidateCache();
       });
 

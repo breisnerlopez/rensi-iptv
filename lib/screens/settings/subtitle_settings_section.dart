@@ -1,6 +1,8 @@
 import 'package:rensi_iptv/repositories/user_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import '../../redesign/rensi_settings.dart';
+import '../../redesign/rensi_widgets.dart';
 import '../../widgets/color_picker_tile_widget.dart';
 import '../../widgets/dropdown_tile_widget.dart';
 import '../../widgets/slider_tile_widget.dart';
@@ -168,8 +170,8 @@ class _SubtitleSettingsScreenState extends State<SubtitleSettingsScreen> {
     return Container(
       width: double.infinity,
       color: Theme.of(context).scaffoldBackgroundColor,
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: RensiSettingsCard(
+        margin: const EdgeInsets.symmetric(vertical: 8),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -236,7 +238,9 @@ class _SubtitleSettingsScreenState extends State<SubtitleSettingsScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
+          : RensiSafeColumn(
+              verticalPadding: 8,
+              child: Column(
               children: [
                 _buildPreviewCard(),
 
@@ -244,11 +248,8 @@ class _SubtitleSettingsScreenState extends State<SubtitleSettingsScreen> {
                   child: ListView(
                     padding: const EdgeInsets.only(bottom: 16),
                     children: [
-                      Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
+                      RensiSettingsCard(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
                         child: Column(
                           children: [
                             Padding(
@@ -333,11 +334,8 @@ class _SubtitleSettingsScreenState extends State<SubtitleSettingsScreen> {
 
                       const SizedBox(height: 8),
 
-                      Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
+                      RensiSettingsCard(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
                         child: Column(
                           children: [
                             Padding(
@@ -380,11 +378,8 @@ class _SubtitleSettingsScreenState extends State<SubtitleSettingsScreen> {
                       ),
 
                       const SizedBox(height: 8),
-                      Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
+                      RensiSettingsCard(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
                         child: Column(
                           children: [
                             Padding(
@@ -469,6 +464,7 @@ class _SubtitleSettingsScreenState extends State<SubtitleSettingsScreen> {
                   ),
                 ),
               ],
+              ),
             ),
     );
   }

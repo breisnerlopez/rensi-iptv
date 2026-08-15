@@ -5,6 +5,7 @@ import 'package:rensi_iptv/repositories/user_preferences.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/channel_number_buffer.dart';
 import 'package:rensi_iptv/services/download_service.dart';
+import 'package:rensi_iptv/services/dvr_service.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/services/pip_service.dart';
 import 'package:rensi_iptv/services/sleep_timer_service.dart';
@@ -250,6 +251,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
   // error-handler, conectividad, retry y este watchdog) pueden solaparse; sin
   // esto dos `_player.open()` concurrentes compiten sobre el mismo player.
   bool _reopenInProgress = false;
+
+  // Experimental DVR (record-while-watching): only surfaced on a live channel
+  // when the developer flag is on. _recording tracks an in-flight dump.
+  bool _dvrEnabled = false;
+  bool _recording = false;
+  // In-flight guard so a double-tap can't launch two concurrent start/stop
+  // calls (which would race the post-await _recording flip and orphan a file).
+  bool _dvrBusy = false;
   // Guard against disposing the native player twice (lifecycle + dispose()).
   bool _playerDisposed = false;
 
@@ -624,6 +633,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
   // tapar con la tarjeta terminal un vídeo que en TV ya reproduce por debajo. Se
   // exige confirmarlo 2 ticks seguidos; cualquier tick con colchón lo resetea.
   int _tooSlowStreak = 0;
+  // FIX-1 (overlay vs. reproducción real): posición y reloj del tick anterior del
+  // pre-buffer, para detectar reproducción REAL (la TV ya reproduce por debajo del
+  // overlay). Se comparan SIEMPRE entre dos lecturas (nunca contra 0) y se siembran
+  // en el primer tick (null = aún sin sembrar) para que un LOAD con reanudación
+  // —que pone position>0 de golpe— no se confunda con avance de reproducción.
+  Duration? _lastPreBufferPos;
+  Duration? _lastPreBufferElapsed;
 
   // Watchdog de la carga inicial: cuenta el tiempo en "Preparando…" para poder
   // avisar (y ofrecer Reintentar) si la apertura del stream se cuelga sin lanzar
@@ -659,6 +675,8 @@ class _PlayerWidgetState extends State<PlayerWidget>
     _preBuffering = true;
     _preBufferTooSlow = false; // nuevo pre-buffer: limpiar el estado terminal
     _tooSlowStreak = 0;
+    _lastPreBufferPos = null; // sin sembrar → el primer tick solo siembra
+    _lastPreBufferElapsed = null;
     if (tv) {
       // En la TV (receptor de casting) NO retener el vídeo: algunas cajas no
       // llenan/reportan la caché con el vídeo en pausa antes del primer frame,
@@ -711,6 +729,26 @@ class _PlayerWidgetState extends State<PlayerWidget>
       if (readOk) {
         _preBuffer!.add(PreBufferSample(buf, spd, elapsed));
       }
+      // FIX-1: señal AUTORITATIVA de reproducción real. En TV el vídeo ya
+      // reproduce por debajo del overlay (`_player.play()` en el open), así que si
+      // el player está `playing` y la posición avanza a ~tiempo real, el overlay
+      // (cosmético en TV) y el estado terminal "conexión lenta" son un falso
+      // positivo. Se mide contra el tick anterior (nunca contra 0) usando el reloj
+      // de pared: reproducción real ⇒ Δpos ≈ Δwall; un SEEK (p.ej. reanudación)
+      // ⇒ Δpos ≫ Δwall. Comparar contra Δwall (no un techo fijo) tolera ticks
+      // retrasados por los getProperty colgados —justo el caso del bug—, donde
+      // Δpos y Δwall crecen juntos.
+      final pos = _player.state.position;
+      bool realPlayback = false;
+      if (_lastPreBufferPos != null && _lastPreBufferElapsed != null) {
+        realPlayback = isRealPlaybackAdvance(
+          playing: _player.state.playing,
+          dPos: pos - _lastPreBufferPos!,
+          dWall: elapsed - _lastPreBufferElapsed!,
+        );
+      }
+      _lastPreBufferPos = pos;
+      _lastPreBufferElapsed = elapsed;
       if (mounted) setState(() {}); // setState alcanzable en cada tick
       final tv = ResponsiveHelper.isTelevisionDevice;
       // Piso (solo TV): mostrar "preparando" al menos 1.5s tras enviar el
@@ -722,15 +760,17 @@ class _PlayerWidgetState extends State<PlayerWidget>
       final stalled = _preBuffer!.phase == BufferPhase.stalled;
       // Colchón utilizable realmente acumulado (lectura buena Y algo en caché).
       final hasUsableBuffer = readOk && buf > 0.05;
-      if (hasUsableBuffer) _tooSlowStreak = 0; // colchón visto → no es terminal
-      if (maxWaited && !hasUsableBuffer) {
+      // FIX-1: reproducción real confirmada ⇒ no es terminal por definición
+      // (aunque las métricas del demuxer estén ciegas), como tampoco lo es si hay
+      // colchón. Cualquiera de las dos resetea la racha.
+      if (hasUsableBuffer || realPlayback) _tooSlowStreak = 0;
+      if (maxWaited && !hasUsableBuffer && !realPlayback) {
         // TERMINAL (RETADOR + auditor): techo agotado y el buffer sigue vacío /
         // los reads se colgaron → forzar play sobre un player atascado es PEOR que
         // el overlay. Pero se exigen 2 ticks SEGUIDOS así (una lectura ≤0.05 /
-        // timeout aislada no tapa un vídeo que ya reproduce por debajo). Al
-        // confirmarse, marcar "demasiado lento" y mostrar la tarjeta con
-        // Reintentar; NO reproducir. Se mantiene `_preBuffering=true` para que el
-        // overlay siga pintándose (ahora en su variante terminal).
+        // timeout aislada no tapa un vídeo que ya reproduce por debajo). El guard
+        // `!realPlayback` (FIX-1) evita el falso positivo del bug reportado: la TV
+        // ya reproduce por debajo con caché ilegible → NUNCA marcar terminal.
         _tooSlowStreak++;
         if (_tooSlowStreak >= 2) {
           _preBufferTimer?.cancel();
@@ -741,9 +781,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
       if ((_preBuffer!.isReady && minShown) ||
           stalled ||
-          (maxWaited && hasUsableBuffer)) {
-        // Arranca solo si hay colchón listo, no hay datos (stalled → cede al
-        // player normal) o el techo se agotó PERO con colchón utilizable.
+          (maxWaited && hasUsableBuffer) ||
+          (realPlayback && minShown)) {
+        // Arranca (baja el overlay) si: hay colchón listo; no hay datos (stalled →
+        // cede al player normal); el techo se agotó con colchón utilizable; o —
+        // FIX-1— se confirmó reproducción REAL (respetando el piso de 1.5s en TV).
+        // Tras bajar el overlay, si la red muere al instante, el control pasa a
+        // _midPlayBuffering / _vodStuckTimer / _stallTimer (red de seguridad).
         _finishPreBuffer();
       }
     });
@@ -1068,6 +1112,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
   bool _needsCastGate() {
     if (ResponsiveHelper.isTelevisionDevice || !mounted) return false;
+    // Catch-up/timeshift NO es casteable: su URL de archivo (overrideUrl) no
+    // viaja por CastMedia, así que la TV reconstruiría una URL VOD desde el id
+    // del canal live → contenido equivocado/404; y el historial de cast lo
+    // persistiría en "Continuar viendo" (URL que caduca). Se queda en el móvil.
+    if (contentItem.isCatchup) return false;
     // Reproducción LOCAL/offline (descargas): su url es una ruta del sistema de
     // archivos, no http/https. No gasta datos y castear un archivo local es una
     // acción explícita aparte, así que el gate pre-reproducción solo es fricción
@@ -1089,6 +1138,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
   /// reenviarlo a la TV. null en la TV receptora, sin provider, o si no castea.
   CastSenderController? _castingController() {
     if (ResponsiveHelper.isTelevisionDevice || !mounted) return null;
+    // Catch-up nunca se reenvía a la TV (ver _needsCastGate): la TV no puede
+    // reconstruir la URL de archivo. Se reproduce localmente aunque haya sesión.
+    if (contentItem.isCatchup) return null;
     try {
       final cast = context.read<CastSenderController>();
       _cast ??= cast;
@@ -1326,6 +1378,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
     );
     _tuneForPerformance();
     watchHistoryService = WatchHistoryService();
+
+    // Experimental DVR is opt-in and live-only; load the flag without blocking.
+    if (contentItem.contentType == ContentType.liveStream) {
+      UserPreferences.getDvrExperimental().then((on) {
+        if (mounted && on) setState(() => _dvrEnabled = true);
+      });
+    }
 
     super.initState();
     videoTrackSubscription = EventBus()
@@ -1577,6 +1636,16 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // Idem para el watchdog en vivo: sin esto podría hacer un tick contra el
     // player recién liberado (detached libera aquí sin pasar por dispose()).
     _liveWatchdogTimer?.cancel();
+    // Finalize any in-flight DVR recording BEFORE freeing the native player:
+    // stop() sets stream-record='' (flushing the file) and clears the service's
+    // _activePath. Without this, closing the player mid-record would leave the
+    // file unfinalized and the singleton stuck, disabling recording for the rest
+    // of the process. Best-effort — never let it block teardown.
+    if (DvrService.instance.isRecording) {
+      try {
+        await DvrService.instance.stop(_player);
+      } catch (_) {}
+    }
     await _player.dispose();
   }
 
@@ -1716,6 +1785,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // In dispose the State is already unmounted, so allow an explicit
     // ignoreMounted to still flush the final position.
     if (_pendingWatchDuration == null || (!mounted && !ignoreMounted)) return;
+    // Catch-up/timeshift plays as a seekable VOD but is transient: its archive
+    // URL expires with the provider's retention window, so never persist it to
+    // "Continue watching" (a saved resume would 404 once the window passes).
+    if (contentItem.isCatchup) return;
     // See the field doc on _savingHistory: a call already in flight wins: a
     // second, CONCURRENT call must not start (it would race the first's
     // still-pending null-out of _pendingWatchDuration below and double-save).
@@ -2354,6 +2427,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // Keep the screen on while actually playing; release it on pause/stop so
     // we don't hold the wakelock in the background.
     _playingSubscription = _player.stream.playing.listen((playing) {
+      // FIX-2: la TV receptora reenvía su estado play/pausa REAL al móvil (junto
+      // al 'cast_player_position'), para que el emisor no lo tenga que INFERIR por
+      // el avance de la posición (que en pausa se congela y no distingue bien).
+      // Solo en TV: en el móvil nadie consume el evento.
+      if (ResponsiveHelper.isTelevisionDevice) {
+        EventBus().emit('cast_player_playing', playing);
+      }
       if (playing) {
         WakelockPlus.enable();
         // Reanudó (p. ej. tras una pausa): reiniciar la línea base del watchdog en
@@ -2600,6 +2680,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
             _currentItemIndex = index;
             // -------------------------------------------
 
+            // A live channel switch finalizes any in-flight DVR recording: it
+            // belongs to the channel being left, and leaving stream-record set
+            // would splice the new channel into the same file.
+            if (DvrService.instance.isRecording) {
+              await DvrService.instance.stop(_player);
+              if (mounted) setState(() => _recording = false);
+            }
+
             await _player.open(Playlist([Media(item.url)]), play: true);
             // Cambio de canal en vivo: reiniciar la línea base del watchdog para no
             // arrastrar la posición del canal anterior.
@@ -2748,6 +2836,37 @@ class _PlayerWidgetState extends State<PlayerWidget>
     }
   }
 
+
+  /// Toggle the experimental DVR dump of the live stream currently playing.
+  /// Best-effort: on start failure or an empty stop, tell the user plainly.
+  Future<void> _toggleRecording() async {
+    if (_dvrBusy) return; // ignore a re-tap while a start/stop is in flight
+    _dvrBusy = true;
+    final messenger = ScaffoldMessenger.of(context);
+    final loc = context.loc;
+    try {
+      if (_recording) {
+        final path = await DvrService.instance.stop(_player);
+        if (!mounted) return;
+        setState(() => _recording = false);
+        messenger.showSnackBar(SnackBar(
+          content: Text(path != null ? loc.dvr_saved : loc.dvr_failed),
+        ));
+      } else {
+        final path = await DvrService.instance
+            .start(_player, channelName: contentItem.name);
+        if (!mounted) return;
+        if (path == null) {
+          messenger.showSnackBar(SnackBar(content: Text(loc.dvr_failed)));
+          return;
+        }
+        setState(() => _recording = true);
+        messenger.showSnackBar(SnackBar(content: Text(loc.dvr_recording)));
+      }
+    } finally {
+      _dvrBusy = false;
+    }
+  }
 
   /// Tune libmpv (via media_kit) for smooth IPTV playback on low-power Android
   /// TV boxes (e.g. Amlogic Mi Box). NOTE: `hwdec` is intentionally NOT set here
@@ -3979,6 +4098,26 @@ class _PlayerWidgetState extends State<PlayerWidget>
                 icon: const Icon(
                   Icons.fullscreen,
                   color: Colors.white,
+                  size: 24,
+                ),
+                style: IconButton.styleFrom(backgroundColor: Colors.black54),
+              ),
+            ),
+
+          // Experimental DVR: record-while-watching a live channel (opt-in flag).
+          if (_dvrEnabled &&
+              contentItem.contentType == ContentType.liveStream)
+            Positioned(
+              top: 8,
+              left: 8,
+              child: IconButton(
+                onPressed: _toggleRecording,
+                tooltip: _recording ? context.loc.dvr_stop : context.loc.dvr_record,
+                icon: Icon(
+                  _recording
+                      ? Icons.stop_circle
+                      : Icons.fiber_manual_record,
+                  color: _recording ? Colors.red : Colors.white,
                   size: 24,
                 ),
                 style: IconButton.styleFrom(backgroundColor: Colors.black54),

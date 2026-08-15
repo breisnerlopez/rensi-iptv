@@ -30,6 +30,7 @@ import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
 import 'package:rensi_iptv/utils/audio_handler.dart';
 import 'package:rensi_iptv/widgets/cast/casting_screen.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/widgets/player_widget.dart';
 
 import '../integration/harness.dart';
@@ -131,6 +132,9 @@ void main() {
         child: MaterialApp(
           navigatorKey: appNavigatorKey,
           locale: const Locale('es'),
+          // The cast controls panel (CastingScreen) opened by the handoff now
+          // reads RensiColors via rensi(context); supply the real app theme.
+          theme: AppThemes.darkTheme,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: const Scaffold(body: Center(child: Text('home'))),

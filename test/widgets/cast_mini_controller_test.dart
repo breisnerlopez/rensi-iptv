@@ -14,6 +14,7 @@ import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/widgets/cast/cast_mini_controller.dart';
 
 class _FakeSender extends PhoneSenderService {
@@ -50,6 +51,9 @@ Widget _app(CastSenderController c) => ChangeNotifierProvider<CastSenderControll
       // builder de MaterialApp (sin Overlay por encima de él).
       child: MaterialApp(
         locale: const Locale('es'),
+        // The mini-controller now reads RensiColors via rensi(context); supply
+        // the real app theme (which registers that ThemeExtension).
+        theme: AppThemes.darkTheme,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         builder: (context, child) => Stack(children: [child!, const CastMiniController()]),
@@ -82,8 +86,10 @@ void main() {
     // Sin "No Overlay widget found" ni "RenderFlex overflowed".
     expect(tester.takeException(), isNull);
     // El título largo se muestra elipsado (los botones no se convirtieron en
-    // error widgets), y siguen presentes ambos controles.
-    expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+    // error widgets), y siguen presentes ambos controles. Tras iniciar el cast
+    // la TV reproduce → el botón muestra PAUSA (MOV-M3: el icono ahora refleja
+    // el estado real en vez de ser siempre play_arrow).
+    expect(find.byIcon(Icons.pause), findsOneWidget);
     expect(find.byIcon(Icons.stop), findsOneWidget);
   });
 

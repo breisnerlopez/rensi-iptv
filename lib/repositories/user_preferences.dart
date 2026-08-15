@@ -34,6 +34,7 @@ class UserPreferences {
   static const String _keySeekOnDoubleTap = 'seek_on_double_tap';
   static const String _keyAutoPipOnHome = 'auto_pip_on_home';
   static const String _keyTvStandaloneAllowed = 'tv_standalone_allowed';
+  static const String _keyDvrExperimental = 'dvr_experimental_enabled';
   static const String _keyPauseCastOnCall = 'pause_cast_on_call';
 
   static const List<String> _backupKeys = [
@@ -259,6 +260,19 @@ class UserPreferences {
     return prefs.getBool(_keyAutoPipOnHome) ?? true;
   }
 
+  /// Experimental DVR: record-while-watching a live channel via libmpv's
+  /// `stream-record`. OFF by default — the feature is behind this flag because
+  /// its stability depends on the provider stream and the pinned libmpv build.
+  static Future<void> setDvrExperimental(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyDvrExperimental, enabled);
+  }
+
+  static Future<bool> getDvrExperimental() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyDvrExperimental) ?? false;
+  }
+
   static Future<double> getSubtitleFontSize() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getDouble(_keySubtitleFontSize) ?? 32.0;
@@ -385,6 +399,23 @@ class UserPreferences {
     return prefs.getStringList(_hiddenCategoriesKey) ?? [];
   }
 
+  // Parental-locked categories: content in them asks for the parental PIN when
+  // opened/played (gated at the navigate/play choke point and at category-open).
+  // NOT hidden from view — it still appears in rails/search, but won't open
+  // without the PIN until the session is unlocked. Separate from
+  // hidden_categories (a plain hide toggle).
+  static const String _lockedCategoriesKey = 'locked_categories';
+
+  static Future<List<String>> getLockedCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(_lockedCategoriesKey) ?? [];
+  }
+
+  static Future<void> setLockedCategories(List<String> categoryIds) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_lockedCategoriesKey, categoryIds);
+  }
+
   static Future<void> setThemeMode(ThemeMode mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyThemeMode, mode.toString().split('.').last);
@@ -447,6 +478,60 @@ class UserPreferences {
     await prefs.setString(_keyVideoDecoder, value);
   }
 
+  // Optional external XMLTV guide URL (full EPG source). Empty → use the panel's
+  // per-channel short EPG only.
+  static const String _keyXmltvUrl = 'xmltv_url';
+
+  static Future<String> getXmltvUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyXmltvUrl) ?? '';
+  }
+
+  static Future<void> setXmltvUrl(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyXmltvUrl, value.trim());
+  }
+
+  // AMOLED (pure-black) variant of the dark theme.
+  static const String _keyAmoled = 'amoled_enabled';
+
+  static Future<bool> getAmoled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyAmoled) ?? false;
+  }
+
+  static Future<void> setAmoled(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyAmoled, value);
+  }
+
+  // Video screen-fit: 'contain' (default) | 'cover' | 'fill'.
+  static const String _keyVideoFit = 'video_fit';
+
+  static Future<String> getVideoFit() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyVideoFit) ?? 'contain';
+  }
+
+  static Future<void> setVideoFit(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyVideoFit, value);
+  }
+
+  // F4 — id del preset de acento elegido (por id estable, no índice). Vacío →
+  // el ThemeProvider cae al default (terracota).
+  static const String _keyAccentId = 'accent_id';
+
+  static Future<String> getAccentId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyAccentId) ?? '';
+  }
+
+  static Future<void> setAccentId(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyAccentId, id);
+  }
+
   // How many times the "hold OK for options" TV hint has been shown, so it
   // stops nagging once the user has learned the gesture.
   static Future<int> getOkHintShownCount() async {
@@ -502,6 +587,20 @@ class UserPreferences {
   static Future<void> setPauseCastOnCall(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyPauseCastOnCall, value);
+  }
+
+  // Whether the one-time TMDb-key onboarding nudge has been shown (so it appears
+  // at most once, when the user first has a playlist but no personal key).
+  static const String _keyTmdbOnboardingSeen = 'tmdb_onboarding_seen';
+
+  static Future<bool> getTmdbOnboardingSeen() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyTmdbOnboardingSeen) ?? false;
+  }
+
+  static Future<void> setTmdbOnboardingSeen(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyTmdbOnboardingSeen, value);
   }
 
   static const String _keyCastDeviceId = 'cast_device_id';

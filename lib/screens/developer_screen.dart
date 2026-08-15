@@ -60,10 +60,15 @@ class _DeveloperScreenState extends State<DeveloperScreen> {
   late Future<_DevInfo> _future;
   bool _refreshing = false;
 
+  bool _dvr = false;
+
   @override
   void initState() {
     super.initState();
     _future = _load();
+    UserPreferences.getDvrExperimental().then((v) {
+      if (mounted) setState(() => _dvr = v);
+    });
   }
 
   Future<_DevInfo> _load({bool forceRefresh = false}) async {
@@ -283,6 +288,19 @@ class _DeveloperScreenState extends State<DeveloperScreen> {
       Icons.sync_outlined,
       loc.dev_last_sync,
       info.lastSync == null ? loc.dev_never : _fmtDate(info.lastSync!),
+    ));
+
+    // Experimental features (opt-in, may be unreliable).
+    widgets.add(SectionTitleWidget(title: loc.dvr_experimental));
+    widgets.add(SwitchListTile(
+      secondary: const Icon(Icons.fiber_manual_record_outlined),
+      title: Text(loc.dvr_experimental),
+      subtitle: Text(loc.dvr_experimental_hint),
+      value: _dvr,
+      onChanged: (v) async {
+        await UserPreferences.setDvrExperimental(v);
+        if (mounted) setState(() => _dvr = v);
+      },
     ));
 
     return widgets;

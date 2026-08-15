@@ -178,6 +178,15 @@ class XtreamCodeHomeController extends ChangeNotifier {
   @visibleForTesting
   Future<void> debugReloadCategories() => _loadCategories(_all);
 
+  /// Retry after a load failure: shows the loading screen (isLoading was dead
+  /// before — _viewState was never set to loading), then re-runs the catalogue
+  /// load, which ends in success or error.
+  Future<void> retry() async {
+    _setViewState(ViewState.loading);
+    await _loadCategories(_all);
+    await reloadHiddenCategoriesFromPrefs();
+  }
+
   void onNavigationTap(int index) {
     _currentIndex = index;
     notifyListeners();
@@ -392,7 +401,10 @@ class XtreamCodeHomeController extends ChangeNotifier {
         ..clear()
         ..addAll(tmpSeries);
 
-      notifyListeners();
+      // Success: clears any prior error and drops the loading state a retry set
+      // (also harmless for the initial load and background refresh, which start
+      // from idle). _setViewState notifies.
+      _setViewState(ViewState.success);
     } catch (e, st) {
       debugPrint(scrubCredentials(st));
       _errorMessage = scrubCredentials(e);

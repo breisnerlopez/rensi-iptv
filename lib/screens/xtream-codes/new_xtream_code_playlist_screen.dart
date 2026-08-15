@@ -395,7 +395,7 @@ class NewXtreamCodePlaylistScreenState
                     Icons.content_paste,
                     color: colorScheme.onSurface.withOpacity(0.6),
                   ),
-                  tooltip: 'Pegar',
+                  tooltip: context.loc.paste,
                   onPressed: () => _pasteInto(_passwordController),
                 ),
                 IconButton(
@@ -403,6 +403,11 @@ class NewXtreamCodePlaylistScreenState
                     _obscurePassword ? Icons.visibility : Icons.visibility_off,
                     color: colorScheme.onSurface.withOpacity(0.6),
                   ),
+                  // Localized label so a screen reader announces the sensitive
+                  // reveal-password control (was unlabelled: read as "button").
+                  tooltip: _obscurePassword
+                      ? context.loc.show_password
+                      : context.loc.hide_password,
                   onPressed: () {
                     setState(() {
                       _obscurePassword = !_obscurePassword;
@@ -442,14 +447,15 @@ class NewXtreamCodePlaylistScreenState
   ) {
     return SizedBox(
       height: 56,
-      child: ElevatedButton(
+      // F4: FilledButton toma accentInk (relleno) + onAccent (texto) del tema →
+      // el label pasa AA (≥4.5) en los 6 presets. Antes ElevatedButton con
+      // backgroundColor: primary (accent crudo) daba ~3.8:1 (fallaba AA).
+      child: FilledButton(
         focusNode: _submitNode,
         onPressed: controller.isLoading
             ? null
             : (_isFormValid ? _savePlaylist : null),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
+        style: FilledButton.styleFrom(
           disabledBackgroundColor: colorScheme.onSurface.withOpacity(0.12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -471,20 +477,31 @@ class NewXtreamCodePlaylistScreenState
                     ),
                   ),
                   SizedBox(width: 12),
-                  Text(
-                    context.loc.submitting,
-                    style: TextStyle(fontSize: AppThemes.bodySmallSize, fontWeight: FontWeight.w600),
+                  Flexible(
+                    child: Text(
+                      context.loc.submitting,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: AppThemes.bodySmallSize, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ],
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.save, size: 20),
                   SizedBox(width: 8),
-                  Text(
-                    context.loc.submit_create_playlist,
-                    style: TextStyle(fontSize: AppThemes.bodySmallSize, fontWeight: FontWeight.w600),
+                  // Flexible+ellipsis: long localisations (e.g. de) overflowed the
+                  // button on narrow phones — mirror of the M3U save-button fix.
+                  Flexible(
+                    child: Text(
+                      context.loc.submit_create_playlist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: AppThemes.bodySmallSize, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ],
               ),
@@ -612,6 +629,7 @@ class NewXtreamCodePlaylistScreenState
         password: _passwordController.text.trim(),
       );
 
+      if (!mounted) return; // createPlaylist awaited; guard before navigating
       if (playlist != null) {
         Navigator.pushReplacement(
           context,
@@ -620,6 +638,10 @@ class NewXtreamCodePlaylistScreenState
                 XtreamCodeDataLoaderScreen(playlist: playlist),
           ),
         );
+      } else {
+        // Don't leave the user tapping "Guardar" with nothing happening when
+        // createPlaylist returns null (persistence failure).
+        controller.setError(context.loc.error_occurred);
       }
     }
   }

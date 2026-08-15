@@ -9,6 +9,157 @@ class AppLocalizationsDe extends AppLocalizations {
   AppLocalizationsDe([String locale = 'de']) : super(locale);
 
   @override
+  String get accent_color => 'Akzentfarbe';
+
+  @override
+  String get search_trending => 'Angesagt';
+
+  @override
+  String get dvr_record => 'Aufnehmen';
+
+  @override
+  String get dvr_stop => 'Aufnahme stoppen';
+
+  @override
+  String get dvr_recording => 'Aufnahme läuft…';
+
+  @override
+  String get dvr_saved => 'Aufnahme gespeichert';
+
+  @override
+  String get dvr_failed => 'Dieser Stream konnte nicht aufgenommen werden';
+
+  @override
+  String get dvr_experimental => 'DVR (experimentell)';
+
+  @override
+  String get dvr_experimental_hint =>
+      'Einen Live-Kanal beim Ansehen aufnehmen. Zuverlässigkeit hängt vom Anbieter ab.';
+
+  @override
+  String get epg_catchup_play => 'Von Anfang an ansehen';
+
+  @override
+  String get epg_catchup_unavailable =>
+      'Aufnahme für diese Sendung nicht verfügbar';
+
+  @override
+  String get epg_section => 'TV-Guide (EPG)';
+
+  @override
+  String get epg_xmltv_url => 'XMLTV-Guide-URL';
+
+  @override
+  String get epg_xmltv_hint =>
+      'Optional. Ein vollständiger Programmführer (XMLTV) für die Jetzt/Nächste-Ansicht.';
+
+  @override
+  String get epg_refresh => 'Speichern & aktualisieren';
+
+  @override
+  String epg_refreshed(Object count) {
+    return 'Guide aktualisiert ($count Sendungen)';
+  }
+
+  @override
+  String get epg_refresh_failed => 'Guide konnte nicht geladen werden';
+
+  @override
+  String get epg_guide => 'Guide';
+
+  @override
+  String get set_reminder => 'Erinnern';
+
+  @override
+  String get reminder_set => 'Erinnerung gesetzt';
+
+  @override
+  String get reminder_removed => 'Erinnerung entfernt';
+
+  @override
+  String get confirm => 'Bestätigen';
+
+  @override
+  String get parental_control => 'Kindersicherung';
+
+  @override
+  String get parental_enter_pin => 'PIN eingeben';
+
+  @override
+  String get parental_wrong_pin => 'Falsche PIN';
+
+  @override
+  String get parental_set_pin => 'PIN festlegen';
+
+  @override
+  String get parental_remove_pin => 'PIN entfernen';
+
+  @override
+  String get parental_lock_category => 'Sperren (Kindersicherung)';
+
+  @override
+  String get parental_pin_hint => '4-stellige PIN';
+
+  @override
+  String get parental_locked_note =>
+      'Gesperrte Kategorien fragen beim Öffnen nach der PIN. Zum Aktivieren eine PIN festlegen.';
+
+  @override
+  String get amoled_dark => 'AMOLED (reines Schwarz)';
+
+  @override
+  String get open_external_player => 'In externem Player öffnen';
+
+  @override
+  String get external_player_failed => 'Kein externer Player gefunden';
+
+  @override
+  String get reorder => 'Neu anordnen';
+
+  @override
+  String get reorder_done => 'Fertig';
+
+  @override
+  String get screen_fit => 'Bildanpassung';
+
+  @override
+  String get fit_contain => 'Anpassen';
+
+  @override
+  String get fit_cover => 'Zoom';
+
+  @override
+  String get fit_fill => 'Strecken';
+
+  @override
+  String get tmdb_onboarding_title => 'Beste Grafiken erhalten';
+
+  @override
+  String get tmdb_onboarding_body =>
+      'Rensi nutzt TMDb, um Poster und Hintergrundbilder für deinen Katalog anzuzeigen. Füge deinen kostenlosen TMDb-API-Schlüssel für das beste Erlebnis hinzu, oder überspringe – du kannst ihn später in den Einstellungen ergänzen.';
+
+  @override
+  String get tmdb_onboarding_skip => 'Vorerst überspringen';
+
+  @override
+  String get cast_audio => 'Audio';
+
+  @override
+  String get cast_subtitles => 'Untertitel';
+
+  @override
+  String get cast_subtitles_off => 'Aus';
+
+  @override
+  String get paste => 'Einfügen';
+
+  @override
+  String get show_password => 'Passwort anzeigen';
+
+  @override
+  String get hide_password => 'Passwort ausblenden';
+
+  @override
   String get prebuffer_too_slow => 'Verbindung zu langsam für diese Qualität';
 
   @override
@@ -311,16 +462,16 @@ class AppLocalizationsDe extends AppLocalizations {
   String get audio_track => 'Audio-Spur';
 
   @override
-  String get speed => 'Speed';
+  String get speed => 'Geschwindigkeit';
 
   @override
-  String get load => 'Load';
+  String get load => 'Laden';
 
   @override
-  String get external_subtitle => 'External subtitle';
+  String get external_subtitle => 'Externer Untertitel';
 
   @override
-  String get external_subtitle_url => 'External subtitle (URL)';
+  String get external_subtitle_url => 'Externer Untertitel (URL)';
 
   @override
   String get subtitle_track => 'Untertitel-Spur';
@@ -329,7 +480,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get settings => 'Einstellungen';
 
   @override
-  String get hold_ok_for_options => 'Hold OK for audio & subtitles';
+  String get hold_ok_for_options => 'OK gedrückt halten für Audio & Untertitel';
 
   @override
   String get general_settings => 'Allgemeine Einstellungen';
@@ -1087,7 +1238,7 @@ class AppLocalizationsDe extends AppLocalizations {
       'Zum Projekt auf GitHub beitragen';
 
   @override
-  String get last_channel => 'Last channel';
+  String get last_channel => 'Letzter Sender';
 
   @override
   String get select_channel => 'Kanal Auswählen';
@@ -1692,7 +1843,7 @@ class AppLocalizationsDe extends AppLocalizations {
 
   @override
   String get tv_cast_replay_hint =>
-      'Watched by casting from your phone. Send it again from your phone to play it here.';
+      'Durch Casting von deinem Handy angesehen. Sende es erneut von deinem Handy, um es hier abzuspielen.';
 
   @override
   String tv_status_discoverable(String deviceName) {

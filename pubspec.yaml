@@ -2,7 +2,7 @@ name: rensi_iptv
 description: "Rensi IPTV — Reproductor IPTV para móvil y Android TV"
 publish_to: "none"
 
-version: 2.19.2+60
+version: 2.20.0+61
 
 environment:
   sdk: ^3.9.2
@@ -55,6 +55,14 @@ dependencies:
   collection: ^1.19.1
   connectivity_plus: ^6.1.4
   url_launcher: ^6.3.2
+  # Launch a stream in an external player (VLC/MX) with an explicit video MIME —
+  # url_launcher can't set the type/package those players expect.
+  android_intent_plus: ^5.3.0
+  # XMLTV EPG parsing (full programme guide from an external XMLTV source).
+  xml: ^6.5.0
+  # EPG programme reminders: schedule a local notification for a future show.
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
   package_info_plus: ^8.0.0
   wakelock_plus: ^1.2.5
   # Casting / segunda pantalla (feat/cast-second-screen):

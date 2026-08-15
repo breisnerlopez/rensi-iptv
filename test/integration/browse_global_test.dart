@@ -358,4 +358,46 @@ void main() {
           reason: 'nunca bajo la lista que el usuario tenía activa (A)');
     });
   }, timeout: const Timeout(Duration(seconds: 60)));
+
+  // VOLUME / anti-ANR (residual "C-b"): the global merge of a HUGE catalogue
+  // across 2+ playlists must complete correctly and not crash/OOM. This locks
+  // the functional side of the scale concern (a fast test host can't reproduce a
+  // weak-TV frame stall, but it proves the fan-out + lossless dedup + sort finish
+  // at 50k rows without throwing). Dedup by definitive tmdbId still holds at scale.
+  testWidgets('VOLUME: 50k VOD across 2 playlists merges without crashing; '
+      'tmdbId dedup still collapses cross-list duplicates', (tester) async {
+    await tester.runAsync(() async {
+      await PlaylistService.savePlaylist(_pl('A'));
+      await PlaylistService.savePlaylist(_pl('B'));
+      AppState.currentPlaylist = _pl('A');
+      // 25k distinct movies per playlist (unique names, no tmdbId → all survive).
+      await harnessDb.insertVodStreams([
+        for (var i = 0; i < 25000; i++)
+          _vod('A', 'Movie A $i', DateTime(2020, 1, 1)),
+      ]);
+      await harnessDb.insertVodStreams([
+        for (var i = 0; i < 25000; i++)
+          _vod('B', 'Movie B $i', DateTime(2021, 1, 1)),
+      ]);
+      // Three titles present in BOTH playlists with the SAME tmdbId → must
+      // collapse to ONE card each even inside the 50k merge.
+      await harnessDb.insertVodStreams([
+        for (final t in [7001, 7002, 7003]) ...[
+          _vod('A', 'Shared $t', DateTime(2022), tmdbId: t),
+          _vod('B', 'Shared $t copy', DateTime(2022), tmdbId: t),
+        ],
+      ]);
+      GlobalSearchService().invalidateGlobalCatalogue();
+    });
+
+    // Mount + await the full global load; must not throw / time out.
+    await _mountAndLoad(tester);
+    final state = tester.state(find.byType(BrowseRedesign)) as dynamic;
+    // ignore: avoid_dynamic_calls
+    final int movieCount = (state.debugFullMovieCount as int?) ?? -1;
+    // 50000 distinct + 3 shared-by-tmdbId collapsed to 3 = 50003 (not 50006).
+    expect(movieCount, 50003,
+        reason: 'lossless merge keeps all distinct titles and tmdbId-dedups the '
+            'three cross-list duplicates');
+  }, timeout: const Timeout(Duration(seconds: 120)));
 }

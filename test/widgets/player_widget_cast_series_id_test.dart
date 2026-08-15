@@ -29,6 +29,7 @@ import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
 import 'package:rensi_iptv/utils/audio_handler.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/widgets/player_widget.dart';
 
 import '../integration/harness.dart';
@@ -135,6 +136,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('es'),
+        theme: AppThemes.darkTheme,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: ChangeNotifierProvider<CastSenderController>.value(

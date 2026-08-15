@@ -35,11 +35,25 @@ class _VideoWidgetState extends State<VideoWidget> {
   bool _speedUpOnLongPress = true;
   bool _seekOnDoubleTap = true;
   bool _isLoading = true;
+  // Screen-fit, kept in sync with the reactive PlayerState.videoFit notifier so
+  // the video rebuilds when the user changes it from the "screen fit" control.
+  BoxFit _fit = PlayerState.videoFit.value;
 
   @override
   void initState() {
     super.initState();
+    PlayerState.videoFit.addListener(_onFitChanged);
     _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    PlayerState.videoFit.removeListener(_onFitChanged);
+    super.dispose();
+  }
+
+  void _onFitChanged() {
+    if (mounted) setState(() => _fit = PlayerState.videoFit.value);
   }
 
   Future<void> _loadSettings() async {
@@ -48,6 +62,9 @@ class _VideoWidgetState extends State<VideoWidget> {
     final seekGesture = await UserPreferences.getSeekGesture();
     final speedUpOnLongPress = await UserPreferences.getSpeedUpOnLongPress();
     final seekOnDoubleTap = await UserPreferences.getSeekOnDoubleTap();
+    final fit = await UserPreferences.getVideoFit();
+    // Publish to the shared notifier so the settings control and the video agree.
+    PlayerState.videoFit.value = PlayerState.videoFitFromString(fit);
     if (mounted) {
       setState(() {
         _brightnessGesture = brightnessGesture;
@@ -55,6 +72,7 @@ class _VideoWidgetState extends State<VideoWidget> {
         _seekGesture = seekGesture;
         _speedUpOnLongPress = speedUpOnLongPress;
         _seekOnDoubleTap = seekOnDoubleTap;
+        _fit = PlayerState.videoFit.value;
         _isLoading = false;
       });
     }
@@ -137,6 +155,7 @@ class _VideoWidgetState extends State<VideoWidget> {
         child: Scaffold(
           body: Video(
             controller: widget.controller,
+            fit: _fit,
             resumeUponEnteringForegroundMode: true,
             pauseUponEnteringBackgroundMode: !PlayerState.backgroundPlay,
             subtitleViewConfiguration: widget.subtitleViewConfiguration,
@@ -184,6 +203,7 @@ class _VideoWidgetState extends State<VideoWidget> {
           child: Scaffold(
             body: Video(
               controller: widget.controller,
+            fit: _fit,
               resumeUponEnteringForegroundMode: true,
               pauseUponEnteringBackgroundMode: !PlayerState.backgroundPlay,
               subtitleViewConfiguration: widget.subtitleViewConfiguration,
@@ -193,6 +213,7 @@ class _VideoWidgetState extends State<VideoWidget> {
       default:
         return Video(
           controller: widget.controller,
+          fit: _fit,
           controls: NoVideoControls,
           resumeUponEnteringForegroundMode: true,
           pauseUponEnteringBackgroundMode: !PlayerState.backgroundPlay,

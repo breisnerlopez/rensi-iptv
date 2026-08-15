@@ -10,6 +10,9 @@ import 'package:rensi_iptv/controllers/xtream_code_home_controller.dart';
 import 'package:rensi_iptv/models/api_configuration_model.dart';
 import 'package:rensi_iptv/models/category_view_model.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
+import 'package:rensi_iptv/models/view_state.dart';
+import 'package:rensi_iptv/widgets/playlist_states.dart';
+import 'package:rensi_iptv/widgets/parental_pin_dialog.dart';
 import 'package:rensi_iptv/controllers/watch_history_controller.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/models/watch_history.dart';
@@ -237,6 +240,19 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
     if (controller.isLoading) {
       return _buildLoadingScreen(context);
     }
+    // The controller computes ViewState.error on a catalogue-load failure, but
+    // the UI only ever checked isLoading → an error fell through to the generic
+    // empty home with no banner/retry. Surface it with a retry instead.
+    if (controller.viewState == ViewState.error) {
+      return Scaffold(
+        body: SafeArea(
+          child: PlaylistErrorState(
+            error: controller.errorMessage ?? context.loc.error_occurred,
+            onRetry: controller.retry,
+          ),
+        ),
+      );
+    }
     return ConfirmExitScope(
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -446,13 +462,25 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
         return ListRedesign(
           key: ValueKey('milista_${controller.currentIndex == 3}'),
           onOpen: (it) => navigateByContentType(context, it),
+          // Empty-state "Explorar catálogo" must actually go to the Browse tab
+          // (index 1); without this it was a silent no-op.
+          onBrowse: () => controller.onNavigationTap(1),
         );
       default:
         return XtreamCodePlaylistSettingsScreen(playlist: widget.playlist);
     }
   }
 
-  void _navigateToCategoryDetail(CategoryViewModel category) {
+  Future<void> _navigateToCategoryDetail(CategoryViewModel category) async {
+    // Parental gate: a locked category asks for the PIN before opening (unless
+    // the session is already unlocked / no PIN is set — the dialog handles that).
+    final locked = await UserPreferences.getLockedCategories();
+    if (locked.contains(category.category.categoryId)) {
+      if (!mounted) return;
+      final ok = await showParentalPinDialog(context);
+      if (!ok) return;
+    }
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(

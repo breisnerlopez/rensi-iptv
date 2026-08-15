@@ -270,7 +270,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
   Widget _buildSeasonCard(int season, int index) {
     return Container(
       width: 200,
-      margin: const EdgeInsets.only(right: 12),
+      margin: const EdgeInsetsDirectional.only(end: 12),
       decoration: BoxDecoration(
         color: Colors.grey.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),

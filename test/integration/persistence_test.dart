@@ -15,7 +15,11 @@ void main() {
   testWidgets('Persistencia: la última playlist restaura su home al reiniciar',
       (tester) async {
     // Simula un reinicio: prefs ya tienen last_playlist de una sesión previa.
-    await setUpHarness(prefs: {'last_playlist': 'test-playlist-1'});
+    // (Returning user: ya vio el nudge de TMDb, así que va directo al home.)
+    await setUpHarness(prefs: {
+      'last_playlist': 'test-playlist-1',
+      'tmdb_onboarding_seen': true,
+    });
     await tester.runAsync(() async {
       await seedXtreamHome(harnessDb);
     });

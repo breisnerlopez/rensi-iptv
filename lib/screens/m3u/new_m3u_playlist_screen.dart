@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:rensi_iptv/controllers/m3u_controller.dart';
 import 'package:rensi_iptv/models/playlist_model.dart';
 import 'package:rensi_iptv/screens/m3u/m3u_data_loader_screen.dart';
 import 'package:rensi_iptv/services/m3u_parser.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/l10n/app_localizations.dart';
 import 'package:rensi_iptv/utils/picker_helper.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -301,8 +303,10 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                   child: Container(
                     padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                     decoration: BoxDecoration(
+                      // F4: el segmento seleccionado lleva TEXTO (onAccent) → su
+                      // relleno usa accentInk (≥4.5), no el accent crudo (~3.8).
                       color: _isUrlSource
-                          ? colorScheme.primary
+                          ? rensi(context).accentInk
                           : Colors.transparent,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(12),
@@ -352,8 +356,9 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
                   child: Container(
                     padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                     decoration: BoxDecoration(
+                      // F4: relleno accentInk para texto ≥4.5 (no accent crudo).
                       color: !_isUrlSource
-                          ? colorScheme.primary
+                          ? rensi(context).accentInk
                           : Colors.transparent,
                       borderRadius: BorderRadius.only(
                         topRight: Radius.circular(12),
@@ -446,7 +451,11 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
               return context.loc.m3u_url_required;
             }
 
-            final uri = Uri.tryParse(value.trim());
+            // Normalize FIRST (prepend http:// to a bare host like
+            // `dominio.com:8080`) so a non-technical user pasting a host without
+            // scheme is accepted instead of hard-rejected. _savePlaylist applies
+            // the same normalization, so what validates is what gets used.
+            final uri = Uri.tryParse(_normalizeM3uUrl(value));
             if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
               return context.loc.url_format_error;
             }
@@ -537,14 +546,14 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
   ) {
     return SizedBox(
       height: 56,
-      child: ElevatedButton(
+      // F4: FilledButton toma accentInk+onAccent del tema (label ≥4.5 en los 6
+      // presets); antes primary crudo daba ~3.8:1 (fallaba AA).
+      child: FilledButton(
         focusNode: _submitNode,
         onPressed: controller.isLoading
             ? null
             : (_isFormValid ? _savePlaylist : null),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
+        style: FilledButton.styleFrom(
           disabledBackgroundColor: colorScheme.onSurface.withOpacity(0.12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -673,58 +682,129 @@ class NewM3uPlaylistScreenState extends State<NewM3uPlaylistScreen> {
     );
   }
 
-  Future<void> _savePlaylist() async {
-    if (_formKey.currentState!.validate()) {
-      final playlistController = Provider.of<PlaylistController>(
-        context,
-        listen: false,
-      );
+  /// Prepend `http://` when the user pasted a bare host (`dominio.com:8080`):
+  /// the parser rejects anything without an http/https scheme, and a non-technical
+  /// user pasting a bare host would otherwise get a hard "invalid scheme" failure.
+  String _normalizeM3uUrl(String raw) {
+    final s = raw.trim();
+    if (s.isEmpty) return s;
+    if (!s.contains('://')) return 'http://$s';
+    return s;
+  }
 
-      playlistController.clearError();
-
-      var playlist = await playlistController.createPlaylist(
-        name: _nameController.text.trim(),
-        type: PlaylistType.m3u,
-        url: _isUrlSource ? _urlController.text : _selectedFileName,
-      );
-
-      List<M3uItem> m3uItems = [];
-      showLoadingDialog(context, context.loc.loading_m3u);
-
-      try {
-        if (_isUrlSource) {
-          // Never log the playlist URL: M3U/Xtream get.php URLs embed
-          // username/password in the query string.
-          final params = {'id': playlist!.id, 'url': _urlController.text};
-
-          m3uItems = await compute(M3uParser.parseM3uUrl, params);
-        } else {
-          // Read straight from the bytes the picker handed us — no second
-          // file-system hop, no permission prompt.
-          final params = <String, Object>{
-            'id': playlist!.id,
-            'bytes': _selectedFileBytes!,
-          };
-
-          m3uItems = await compute(M3uParser.parseM3uBytes, params);
-        }
-      } catch (ex) {}
-
-      Navigator.of(context).pop();
-
-      if (m3uItems.length == 0) {
-        playlistController.setError(context.loc.m3u_error);
-        await playlistController.deletePlaylist(playlist!.id);
-        return;
-      }
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) =>
-              M3uDataLoaderScreen(playlist: playlist!, m3uItems: m3uItems),
-        ),
-      );
+  /// Map an [M3uParseException] code to the localized message so the error card
+  /// says WHY it failed (bad URL / HTTP 404 / too large / offline) instead of a
+  /// generic "M3U Error". Takes [loc] (captured before the await) rather than
+  /// reading `context` — the catch runs after an await where the widget may be
+  /// disposed.
+  String _localizeM3uError(AppLocalizations loc, M3uParseException ex) {
+    final detail = ex.detail ?? '';
+    switch (ex.code) {
+      case 'm3u_url_invalid_scheme':
+        return loc.m3u_url_invalid_scheme;
+      case 'm3u_url_http_status':
+        return loc.m3u_url_http_status(detail);
+      case 'm3u_url_response_too_large':
+        return loc.m3u_url_response_too_large;
+      case 'm3u_url_fetch_failed':
+        return loc.m3u_url_fetch_failed(detail);
+      case 'm3u_file_read_failed':
+        return loc.m3u_file_read_failed(detail);
+      default:
+        return loc.m3u_error;
     }
+  }
+
+  Future<void> _savePlaylist() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final playlistController = Provider.of<PlaylistController>(
+      context,
+      listen: false,
+    );
+    // Capture everything that depends on `context` BEFORE any await, so the
+    // teardown below never touches a possibly-disposed State.context:
+    //  - loc: for building messages after the parse.
+    //  - dialogNav: showDialog uses the ROOT navigator, which outlives this
+    //    widget — popping it in `finally` dismisses the loading dialog even if
+    //    the user navigated away mid-fetch (previously it leaked).
+    final loc = context.loc;
+    final dialogNav = Navigator.of(context, rootNavigator: true);
+
+    playlistController.clearError();
+
+    final sourceUrl =
+        _isUrlSource ? _normalizeM3uUrl(_urlController.text) : _selectedFileName;
+
+    final playlist = await playlistController.createPlaylist(
+      name: _nameController.text.trim(),
+      type: PlaylistType.m3u,
+      url: sourceUrl,
+    );
+
+    if (!mounted) return;
+    if (playlist == null) {
+      // Don't leave the user tapping "Guardar" with nothing happening.
+      playlistController.setError(loc.error_occurred);
+      return;
+    }
+
+    List<M3uItem> m3uItems = [];
+    String? errorMsg;
+    // Latch: if the user dismisses the loading dialog with the hardware BACK
+    // during the parse (barrierDismissible:false doesn't block hardware back),
+    // its Future completes and flips this to false, so the finally below does
+    // NOT pop again — a second pop would remove the underlying screen.
+    var dialogOpen = true;
+    showLoadingDialog(context, loc.loading_m3u).then((_) => dialogOpen = false);
+
+    try {
+      if (_isUrlSource) {
+        // Never log the playlist URL: M3U/Xtream get.php URLs embed
+        // username/password in the query string. sourceUrl is non-null in the
+        // URL branch (it came from _normalizeM3uUrl); type the map as
+        // <String,String> so compute() infers the right callback signature.
+        final params = <String, String>{'id': playlist.id, 'url': sourceUrl!};
+        // .timeout bounds a panel that accepts the connection but never sends a
+        // body (the "spinner that never resolves" symptom) — the HttpClient's
+        // connectionTimeout only covers TCP setup, not the response.
+        m3uItems = await compute(M3uParser.parseM3uUrl, params)
+            .timeout(const Duration(seconds: 45));
+      } else {
+        // Read straight from the bytes the picker handed us — no second
+        // file-system hop, no permission prompt.
+        final params = <String, Object>{
+          'id': playlist.id,
+          'bytes': _selectedFileBytes!,
+        };
+        m3uItems = await compute(M3uParser.parseM3uBytes, params)
+            .timeout(const Duration(seconds: 45));
+      }
+    } on TimeoutException {
+      errorMsg = loc.m3u_url_fetch_failed('timeout');
+    } on M3uParseException catch (ex) {
+      errorMsg = _localizeM3uError(loc, ex);
+    } catch (_) {
+      errorMsg = loc.m3u_error;
+    } finally {
+      // Dismiss the loading dialog unless the user already did (via hardware
+      // BACK) — the latch prevents a double-pop that would drop the screen.
+      if (dialogOpen) dialogNav.pop();
+    }
+
+    if (errorMsg != null || m3uItems.isEmpty) {
+      playlistController.setError(errorMsg ?? loc.m3u_error);
+      await playlistController.deletePlaylist(playlist.id);
+      return;
+    }
+
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            M3uDataLoaderScreen(playlist: playlist, m3uItems: m3uItems),
+      ),
+    );
   }
 }

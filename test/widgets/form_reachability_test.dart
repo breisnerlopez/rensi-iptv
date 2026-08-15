@@ -31,7 +31,7 @@ void main() {
     await pumpForm(tester, NewM3uPlaylistScreen());
 
     // The submit button is the one that decides whether onboarding completes.
-    final submit = find.byType(ElevatedButton);
+    final submit = find.byType(FilledButton);
     expect(submit, findsWidgets,
         reason: 'the create-playlist button must exist in the tree');
 
@@ -53,7 +53,7 @@ void main() {
     expect(find.byType(TextFormField), findsAtLeast(3),
         reason: 'url, username and password must all be built');
 
-    final submit = find.byType(ElevatedButton);
+    final submit = find.byType(FilledButton);
     expect(submit, findsWidgets);
 
     final scrollable = find.byType(Scrollable).first;

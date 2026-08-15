@@ -58,6 +58,41 @@ String foldGenreLabel(String input) {
       .join(' ');
 }
 
+/// Wraps a horizontal chip row/list in a [ShaderMask] that fades the leading
+/// and trailing ~24px to transparent, so a scrollable chip strip dissolves at
+/// the edges instead of being cut off at a hard line. The gradient's alpha is
+/// what matters (BlendMode.dstIn), so the RGB colour is irrelevant — it never
+/// tints the theme. Painting-only: the mask does not intercept hit-testing, so
+/// scrolling and taps still reach the chips underneath.
+Widget _fadeEdges(Widget child) {
+  const double fade = 24.0;
+  return ShaderMask(
+    blendMode: BlendMode.dstIn,
+    shaderCallback: (Rect bounds) {
+      // Rows narrower than two fade zones would fade to nothing; keep them
+      // fully opaque instead.
+      if (bounds.width <= fade * 2) {
+        return const LinearGradient(
+          colors: [Colors.black, Colors.black],
+        ).createShader(bounds);
+      }
+      final double f = fade / bounds.width;
+      return LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: const [
+          Colors.transparent,
+          Colors.black,
+          Colors.black,
+          Colors.transparent,
+        ],
+        stops: [0.0, f, 1 - f, 1.0],
+      ).createShader(bounds);
+    },
+    child: child,
+  );
+}
+
 /// "Explorar" — type tabs (Todo / Películas / Series) + genre chips over a
 /// 3-column poster grid, fed by the real catalogue.
 ///
@@ -166,6 +201,10 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
   /// previews→full transition deterministically instead of guessing at pumps.
   @visibleForTesting
   Future<void>? get loadFuture => _loadFut;
+
+  /// Count of merged movies after the global dedup — for the volume/anti-ANR test.
+  @visibleForTesting
+  int get debugFullMovieCount => _fullMovies.length;
 
   /// One GlobalKey per genre chip, so [_selectGenre] can scroll the active chip
   /// fully into view on D-pad/TV and in RTL (mirrors search_redesign).
@@ -627,7 +666,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
             // Type tabs
             Padding(
               padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 12),
-              child: Row(
+              child: _fadeEdges(Row(
                 children: [
                   for (final e in [
                     ['all', context.loc.search_filter_all],
@@ -635,7 +674,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
                     ['series', context.loc.series_plural],
                   ])
                     Padding(
-                      padding: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsetsDirectional.only(end: 8),
                       child: RensiChip(
                         label: e[1],
                         active: _tab == e[0],
@@ -646,14 +685,14 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
                       ),
                     ),
                 ],
-              ),
+              )),
             ),
             // Genre chips — hidden entirely when the catalogue carries no
             // genres (only the 'Todos' sentinel), so we never show an empty row.
             if (genres.length > 1) ...[
               SizedBox(
                 height: 60,
-                child: ListView.separated(
+                child: _fadeEdges(ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: EdgeInsetsDirectional.fromSTEB(sidePad, 0, sidePad, 0),
                   itemCount: genres.length,
@@ -674,7 +713,7 @@ class _BrowseRedesignState extends State<BrowseRedesign> {
                       onTap: () => _selectGenre(g),
                     );
                   },
-                ),
+                )),
               ),
               const SizedBox(height: 12),
             ],

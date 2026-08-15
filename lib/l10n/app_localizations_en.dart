@@ -9,6 +9,157 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get accent_color => 'Accent colour';
+
+  @override
+  String get search_trending => 'Trending';
+
+  @override
+  String get dvr_record => 'Record';
+
+  @override
+  String get dvr_stop => 'Stop recording';
+
+  @override
+  String get dvr_recording => 'Recording…';
+
+  @override
+  String get dvr_saved => 'Recording saved';
+
+  @override
+  String get dvr_failed => 'Couldn\'t record this stream';
+
+  @override
+  String get dvr_experimental => 'DVR (experimental)';
+
+  @override
+  String get dvr_experimental_hint =>
+      'Record a live channel while watching. Reliability depends on the provider stream.';
+
+  @override
+  String get epg_catchup_play => 'Play from start';
+
+  @override
+  String get epg_catchup_unavailable =>
+      'Catch-up isn\'t available for this programme';
+
+  @override
+  String get epg_section => 'TV Guide (EPG)';
+
+  @override
+  String get epg_xmltv_url => 'XMLTV guide URL';
+
+  @override
+  String get epg_xmltv_hint =>
+      'Optional. A full programme guide (XMLTV) for the now/next timeline.';
+
+  @override
+  String get epg_refresh => 'Save & refresh guide';
+
+  @override
+  String epg_refreshed(Object count) {
+    return 'Guide updated ($count programmes)';
+  }
+
+  @override
+  String get epg_refresh_failed => 'Could not load the guide';
+
+  @override
+  String get epg_guide => 'Guide';
+
+  @override
+  String get set_reminder => 'Remind me';
+
+  @override
+  String get reminder_set => 'Reminder set';
+
+  @override
+  String get reminder_removed => 'Reminder removed';
+
+  @override
+  String get confirm => 'Confirm';
+
+  @override
+  String get parental_control => 'Parental control';
+
+  @override
+  String get parental_enter_pin => 'Enter PIN';
+
+  @override
+  String get parental_wrong_pin => 'Wrong PIN';
+
+  @override
+  String get parental_set_pin => 'Set PIN';
+
+  @override
+  String get parental_remove_pin => 'Remove PIN';
+
+  @override
+  String get parental_lock_category => 'Lock (parental)';
+
+  @override
+  String get parental_pin_hint => '4-digit PIN';
+
+  @override
+  String get parental_locked_note =>
+      'Locked categories ask for the PIN when opened. Set a PIN to enable.';
+
+  @override
+  String get amoled_dark => 'AMOLED (pure black)';
+
+  @override
+  String get open_external_player => 'Open in external player';
+
+  @override
+  String get external_player_failed => 'No external player found';
+
+  @override
+  String get reorder => 'Reorder';
+
+  @override
+  String get reorder_done => 'Done';
+
+  @override
+  String get screen_fit => 'Screen fit';
+
+  @override
+  String get fit_contain => 'Fit';
+
+  @override
+  String get fit_cover => 'Zoom';
+
+  @override
+  String get fit_fill => 'Stretch';
+
+  @override
+  String get tmdb_onboarding_title => 'Get the best artwork';
+
+  @override
+  String get tmdb_onboarding_body =>
+      'Rensi uses TMDb to show posters and backdrops for your catalogue. Add your free TMDb API key for the richest experience, or skip — you can always add it later in Settings.';
+
+  @override
+  String get tmdb_onboarding_skip => 'Skip for now';
+
+  @override
+  String get cast_audio => 'Audio';
+
+  @override
+  String get cast_subtitles => 'Subtitles';
+
+  @override
+  String get cast_subtitles_off => 'Off';
+
+  @override
+  String get paste => 'Paste';
+
+  @override
+  String get show_password => 'Show password';
+
+  @override
+  String get hide_password => 'Hide password';
+
+  @override
   String get prebuffer_too_slow => 'Connection too slow for this quality';
 
   @override

@@ -57,4 +57,71 @@ void main() {
     m.add(s(25, 1, 2000));
     expect(m.progress, 1.0);
   });
+
+  // FIX-1: discriminador reproducción-real-vs-seek. Prueba determinista del bug
+  // "la TV muestra 'conexión lenta' pero ya reproduce por detrás".
+  group('isRealPlaybackAdvance', () {
+    Duration ms(int v) => Duration(milliseconds: v);
+
+    test('reproducción real: Δpos ≈ Δwall (tick de 500ms) → true', () {
+      expect(
+        isRealPlaybackAdvance(playing: true, dPos: ms(500), dWall: ms(500)),
+        isTrue,
+      );
+    });
+
+    test('EL BUG: reads del demuxer colgados retrasan el tick, Δpos y Δwall '
+        'crecen juntos (~2s) → SIGUE siendo reproducción real', () {
+      // Este es el caso exacto: getProperty hace timeout (1s c/u) → el tick se
+      // retrasa ~2s; el vídeo avanzó ~2s por debajo. Un techo fijo de 1.5s lo
+      // rechazaría; comparar contra Δwall lo acepta correctamente.
+      expect(
+        isRealPlaybackAdvance(playing: true, dPos: ms(2000), dWall: ms(2000)),
+        isTrue,
+      );
+    });
+
+    test('SEEK al abrir (reanudación "Continuar viendo" a 84s): Δpos ≫ Δwall '
+        '→ NO es reproducción (no descartar el overlay ante el salto)', () {
+      expect(
+        isRealPlaybackAdvance(playing: true, dPos: ms(84000), dWall: ms(500)),
+        isFalse,
+      );
+    });
+
+    test('en pausa (playing=false) → false, aunque la posición saltara', () {
+      expect(
+        isRealPlaybackAdvance(playing: false, dPos: ms(500), dWall: ms(500)),
+        isFalse,
+      );
+    });
+
+    test('congelado (Δpos=0) → false (protege el latch terminal legítimo)', () {
+      expect(
+        isRealPlaybackAdvance(playing: true, dPos: ms(0), dWall: ms(500)),
+        isFalse,
+      );
+    });
+
+    test('retroceso de posición (Δpos<0) → false', () {
+      expect(
+        isRealPlaybackAdvance(playing: true, dPos: ms(-200), dWall: ms(500)),
+        isFalse,
+      );
+    });
+
+    test('jitter dentro del margen (Δpos = Δwall + 600ms) → true', () {
+      expect(
+        isRealPlaybackAdvance(playing: true, dPos: ms(1100), dWall: ms(500)),
+        isTrue,
+      );
+    });
+
+    test('salto justo por encima del margen (Δpos = Δwall + 900ms) → false', () {
+      expect(
+        isRealPlaybackAdvance(playing: true, dPos: ms(1400), dWall: ms(500)),
+        isFalse,
+      );
+    });
+  });
 }

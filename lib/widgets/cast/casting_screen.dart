@@ -1,13 +1,15 @@
 // Controles completos del casting (se abre desde el mini-control global): destino,
 // play/pausa, zap ± (solo en vivo y si hay catálogo), selección de pista de audio
 // y de subtítulos (poblada con las pistas reales que reporta la TV), y detener.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../controllers/cast_sender_controller.dart';
 import '../../l10n/localization_extension.dart';
-
-const _accent = Color(0xFFD2603A);
+import '../../redesign/rensi_widgets.dart';
+import '../../utils/app_themes.dart';
 
 class CastingScreen extends StatelessWidget {
   const CastingScreen({super.key});
@@ -18,44 +20,50 @@ class CastingScreen extends StatelessWidget {
     final c = context.watch<CastSenderController>();
     final device = c.device?.name ?? '';
     final title = c.media?.title ?? '';
+    final r = rensi(context);
+    final scheme = Theme.of(context).colorScheme;
 
     return Container(
-      color: const Color(0xFF0B0B0D),
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const SizedBox(height: 24),
-              const Icon(Icons.cast_connected, color: _accent, size: 56),
+              Icon(Icons.cast_connected, color: r.accent, size: 56),
               const SizedBox(height: 16),
               Text(loc.cast_playing_on,
-                  style: const TextStyle(color: Colors.white54, fontSize: 15)),
+                  style: TextStyle(color: r.text2, fontSize: AppThemes.bodySmallSize)),
               const SizedBox(height: 4),
               Text(device,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  style: TextStyle(
+                      color: scheme.onSurface,
+                      fontSize: AppThemes.h3Size,
+                      fontWeight: FontWeight.bold)),
               if (title.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Text(title,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white70, fontSize: 17)),
+                    style: TextStyle(color: r.text2, fontSize: AppThemes.bodySize)),
               ],
               const SizedBox(height: 6),
               Text(loc.cast_remote_hint,
-                  style: const TextStyle(color: Colors.white38, fontSize: 13)),
+                  style: TextStyle(color: r.text3, fontSize: AppThemes.labelSize)),
               const SizedBox(height: 28),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (c.canZap) _roundBtn(Icons.skip_previous, c.channelDown),
-                  _roundBtn(Icons.play_arrow, c.playPause, big: true),
-                  if (c.canZap) _roundBtn(Icons.skip_next, c.channelUp),
+                  if (c.canZap) _roundBtn(context, Icons.skip_previous, c.channelDown),
+                  _roundBtn(context, c.isTvPlaying ? Icons.pause : Icons.play_arrow,
+                      c.playPause,
+                      big: true),
+                  if (c.canZap) _roundBtn(context, Icons.skip_next, c.channelUp),
                   // Serie: saltar manualmente al siguiente episodio en la TV
                   // (canZap es solo-vivo y canCastNextEpisode solo-serie: nunca
                   // aparecen a la vez).
                   if (c.canCastNextEpisode)
-                    _roundBtn(Icons.skip_next, c.castNextEpisode),
+                    _roundBtn(context, Icons.skip_next, c.castNextEpisode),
                 ],
               ),
               // Scrub de posición (seek móvil→TV): solo VOD/serie. En vivo se
@@ -69,14 +77,14 @@ class CastingScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Row(
                   children: [
-                    Icon(_volumeIcon(c.volume), color: Colors.white70, size: 22),
+                    Icon(_volumeIcon(c.volume), color: r.text2, size: 22),
                     Expanded(
                       child: SliderTheme(
                         data: SliderTheme.of(context).copyWith(
-                          activeTrackColor: _accent,
-                          thumbColor: _accent,
-                          inactiveTrackColor: const Color(0xFF1E1E24),
-                          overlayColor: _accent.withValues(alpha: 0.2),
+                          activeTrackColor: r.accent,
+                          thumbColor: r.accent,
+                          inactiveTrackColor: r.surface3,
+                          overlayColor: r.accent.withValues(alpha: 0.2),
                         ),
                         child: Slider(
                           value: c.volume / 100,
@@ -96,19 +104,19 @@ class CastingScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _pillBtn(Icons.audiotrack, 'Audio',
+                  _pillBtn(context, Icons.audiotrack, loc.cast_audio,
                       () => _openTracks(context, c, audio: true)),
                   const SizedBox(width: 12),
-                  _pillBtn(Icons.subtitles, 'Subtítulos',
+                  _pillBtn(context, Icons.subtitles, loc.cast_subtitles,
                       () => _openTracks(context, c, audio: false)),
                 ],
               ),
               const SizedBox(height: 24),
               TextButton.icon(
                 onPressed: c.stopCasting,
-                icon: const Icon(Icons.stop_circle_outlined, color: Colors.white70),
+                icon: Icon(Icons.stop_circle_outlined, color: r.text2),
                 label: Text(loc.cast_stop,
-                    style: const TextStyle(color: Colors.white70, fontSize: 16)),
+                    style: TextStyle(color: r.text2, fontSize: AppThemes.bodySmallSize)),
               ),
               const SizedBox(height: 16),
             ],
@@ -123,53 +131,10 @@ class CastingScreen extends StatelessWidget {
     c.requestTracks(); // pide a la TV sus pistas actuales
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: const Color(0xFF15151A),
+      backgroundColor: rensi(context).surface2,
       builder: (_) => ChangeNotifierProvider<CastSenderController>.value(
         value: c,
-        child: Consumer<CastSenderController>(
-          builder: (context, c, _) {
-            final tracks = audio ? c.audioTracks : c.subtitleTracks;
-            return SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(audio ? 'Audio' : 'Subtítulos',
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
-                  if (!audio)
-                    ListTile(
-                      leading: const Icon(Icons.subtitles_off, color: Colors.white54),
-                      title: const Text('Desactivados',
-                          style: TextStyle(color: Colors.white)),
-                      onTap: () {
-                        c.selectSubtitle('');
-                        Navigator.pop(context);
-                      },
-                    ),
-                  if (tracks.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: CircularProgressIndicator(color: _accent),
-                    ),
-                  for (final t in tracks)
-                    ListTile(
-                      leading: Icon(t.selected ? Icons.check : Icons.circle_outlined,
-                          color: t.selected ? _accent : Colors.white38),
-                      title: Text(t.label, style: const TextStyle(color: Colors.white)),
-                      onTap: () {
-                        audio ? c.selectAudio(t.id) : c.selectSubtitle(t.id);
-                        Navigator.pop(context);
-                      },
-                    ),
-                  const SizedBox(height: 12),
-                ],
-              ),
-            );
-          },
-        ),
+        child: TrackSheetBody(audio: audio),
       ),
     );
   }
@@ -196,10 +161,10 @@ class CastingScreen extends StatelessWidget {
         children: [
           SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor: _accent,
-              thumbColor: _accent,
-              inactiveTrackColor: const Color(0xFF1E1E24),
-              overlayColor: _accent.withValues(alpha: 0.2),
+              activeTrackColor: rensi(context).accent,
+              thumbColor: rensi(context).accent,
+              inactiveTrackColor: rensi(context).surface3,
+              overlayColor: rensi(context).accent.withValues(alpha: 0.2),
             ),
             child: Slider(
               value: value,
@@ -223,11 +188,11 @@ class CastingScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(_fmtDuration(posMs),
-                    style:
-                        const TextStyle(color: Colors.white54, fontSize: 12)),
+                    style: TextStyle(
+                        color: rensi(context).text2, fontSize: AppThemes.labelSize)),
                 Text(enabled ? _fmtDuration(durMs) : '--:--',
-                    style:
-                        const TextStyle(color: Colors.white54, fontSize: 12)),
+                    style: TextStyle(
+                        color: rensi(context).text2, fontSize: AppThemes.labelSize)),
               ],
             ),
           ),
@@ -249,12 +214,14 @@ class CastingScreen extends StatelessWidget {
     return h > 0 ? '$h:$mm:$ss' : '$mm:$ss';
   }
 
-  Widget _roundBtn(IconData icon, VoidCallback onTap, {bool big = false}) {
+  Widget _roundBtn(BuildContext context, IconData icon, VoidCallback onTap,
+      {bool big = false}) {
+    final r = rensi(context);
     final size = big ? 72.0 : 56.0;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Material(
-        color: big ? _accent : const Color(0xFF1E1E24),
+        color: big ? r.accent : r.surface3,
         shape: const CircleBorder(),
         child: InkWell(
           customBorder: const CircleBorder(),
@@ -262,23 +229,124 @@ class CastingScreen extends StatelessWidget {
           child: SizedBox(
             width: size,
             height: size,
-            child: Icon(icon, color: Colors.white, size: big ? 38 : 28),
+            child: Icon(icon,
+                color: big ? r.onAccent : Theme.of(context).colorScheme.onSurface,
+                size: big ? 38 : 28),
           ),
         ),
       ),
     );
   }
 
-  Widget _pillBtn(IconData icon, String label, VoidCallback onTap) {
+  Widget _pillBtn(
+      BuildContext context, IconData icon, String label, VoidCallback onTap) {
     return TextButton.icon(
       onPressed: onTap,
       style: TextButton.styleFrom(
-        backgroundColor: const Color(0xFF1E1E24),
-        foregroundColor: Colors.white,
+        backgroundColor: rensi(context).surface3,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       ),
       icon: Icon(icon, size: 20),
       label: Text(label),
+    );
+  }
+}
+
+/// Cuerpo del selector de pistas (audio/subtítulos). FIX-3: si la TV no responde
+/// a `getTracks` (socket muerto en reconexión, o contenido sin pistas), el
+/// spinner NO gira para siempre — tras un timeout muestra un estado vacío honesto
+/// ("sin pistas") en vez de una rueda eterna.
+class TrackSheetBody extends StatefulWidget {
+  const TrackSheetBody({required this.audio});
+  final bool audio;
+
+  @override
+  State<TrackSheetBody> createState() => TrackSheetBodyState();
+}
+
+class TrackSheetBodyState extends State<TrackSheetBody> {
+  Timer? _timeout;
+  bool _timedOut = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timeout = Timer(const Duration(seconds: 6), () {
+      if (mounted) setState(() => _timedOut = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timeout?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final audio = widget.audio;
+    final r = rensi(context);
+    return Consumer<CastSenderController>(
+      builder: (context, c, _) {
+        final tracks = audio ? c.audioTracks : c.subtitleTracks;
+        // Pistas llegaron → cancelar el timeout (por si un rebuild posterior).
+        if (tracks.isNotEmpty && !_timedOut) _timeout?.cancel();
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                    audio ? context.loc.cast_audio : context.loc.cast_subtitles,
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontSize: AppThemes.bodySize,
+                        fontWeight: FontWeight.bold)),
+              ),
+              if (!audio)
+                ListTile(
+                  leading: Icon(Icons.subtitles_off, color: r.text2),
+                  title: Text(context.loc.cast_subtitles_off,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface)),
+                  onTap: () {
+                    c.selectSubtitle('');
+                    Navigator.pop(context);
+                  },
+                ),
+              if (tracks.isEmpty && !_timedOut)
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: CircularProgressIndicator(color: r.accent),
+                ),
+              if (tracks.isEmpty && _timedOut)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 20),
+                  child: Text(context.loc.no_tracks_available,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: r.text3)),
+                ),
+              for (final t in tracks)
+                ListTile(
+                  leading: Icon(
+                      t.selected ? Icons.check : Icons.circle_outlined,
+                      color: t.selected ? r.accent : r.text3),
+                  title: Text(t.label,
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface)),
+                  onTap: () {
+                    audio ? c.selectAudio(t.id) : c.selectSubtitle(t.id);
+                    Navigator.pop(context);
+                  },
+                ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
     );
   }
 }

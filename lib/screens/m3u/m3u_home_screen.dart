@@ -5,6 +5,8 @@ import 'package:rensi_iptv/models/watch_history.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/controllers/watch_history_controller.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/models/view_state.dart';
+import 'package:rensi_iptv/widgets/playlist_states.dart';
 import 'package:rensi_iptv/screens/m3u/m3u_playlist_settings_screen.dart';
 import 'package:rensi_iptv/widgets/confirm_exit_scope.dart';
 import 'package:flutter/material.dart';
@@ -158,6 +160,16 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
   Widget _buildMainContent(BuildContext context, M3UHomeController controller) {
     if (controller.isLoading) {
       return _buildLoadingScreen(context);
+    }
+    if (controller.viewState == ViewState.error) {
+      return Scaffold(
+        body: SafeArea(
+          child: PlaylistErrorState(
+            error: controller.errorMessage ?? context.loc.error_occurred,
+            onRetry: controller.retry,
+          ),
+        ),
+      );
     }
 
     return ConfirmExitScope(
@@ -328,6 +340,8 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
       ListRedesign(
         key: ValueKey('milista_${controller.currentIndex == 3}'),
         onOpen: (it) => navigateByContentType(context, it),
+        // Empty-state "Explorar catálogo" → Browse tab (index 1); was a no-op.
+        onBrowse: () => controller.onNavigationTap(1),
       ),
       M3uPlaylistSettingsScreen(playlist: widget.playlist),
     ];

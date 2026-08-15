@@ -114,6 +114,294 @@ abstract class AppLocalizations {
     Locale('zh'),
   ];
 
+  /// No description provided for @accent_color.
+  ///
+  /// In en, this message translates to:
+  /// **'Accent colour'**
+  String get accent_color;
+
+  /// No description provided for @search_trending.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending'**
+  String get search_trending;
+
+  /// No description provided for @dvr_record.
+  ///
+  /// In en, this message translates to:
+  /// **'Record'**
+  String get dvr_record;
+
+  /// No description provided for @dvr_stop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop recording'**
+  String get dvr_stop;
+
+  /// No description provided for @dvr_recording.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording…'**
+  String get dvr_recording;
+
+  /// No description provided for @dvr_saved.
+  ///
+  /// In en, this message translates to:
+  /// **'Recording saved'**
+  String get dvr_saved;
+
+  /// No description provided for @dvr_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t record this stream'**
+  String get dvr_failed;
+
+  /// No description provided for @dvr_experimental.
+  ///
+  /// In en, this message translates to:
+  /// **'DVR (experimental)'**
+  String get dvr_experimental;
+
+  /// No description provided for @dvr_experimental_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Record a live channel while watching. Reliability depends on the provider stream.'**
+  String get dvr_experimental_hint;
+
+  /// No description provided for @epg_catchup_play.
+  ///
+  /// In en, this message translates to:
+  /// **'Play from start'**
+  String get epg_catchup_play;
+
+  /// No description provided for @epg_catchup_unavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Catch-up isn\'t available for this programme'**
+  String get epg_catchup_unavailable;
+
+  /// No description provided for @epg_section.
+  ///
+  /// In en, this message translates to:
+  /// **'TV Guide (EPG)'**
+  String get epg_section;
+
+  /// No description provided for @epg_xmltv_url.
+  ///
+  /// In en, this message translates to:
+  /// **'XMLTV guide URL'**
+  String get epg_xmltv_url;
+
+  /// No description provided for @epg_xmltv_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. A full programme guide (XMLTV) for the now/next timeline.'**
+  String get epg_xmltv_hint;
+
+  /// No description provided for @epg_refresh.
+  ///
+  /// In en, this message translates to:
+  /// **'Save & refresh guide'**
+  String get epg_refresh;
+
+  /// No description provided for @epg_refreshed.
+  ///
+  /// In en, this message translates to:
+  /// **'Guide updated ({count} programmes)'**
+  String epg_refreshed(Object count);
+
+  /// No description provided for @epg_refresh_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load the guide'**
+  String get epg_refresh_failed;
+
+  /// No description provided for @epg_guide.
+  ///
+  /// In en, this message translates to:
+  /// **'Guide'**
+  String get epg_guide;
+
+  /// No description provided for @set_reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Remind me'**
+  String get set_reminder;
+
+  /// No description provided for @reminder_set.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder set'**
+  String get reminder_set;
+
+  /// No description provided for @reminder_removed.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder removed'**
+  String get reminder_removed;
+
+  /// No description provided for @confirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm'**
+  String get confirm;
+
+  /// No description provided for @parental_control.
+  ///
+  /// In en, this message translates to:
+  /// **'Parental control'**
+  String get parental_control;
+
+  /// No description provided for @parental_enter_pin.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter PIN'**
+  String get parental_enter_pin;
+
+  /// No description provided for @parental_wrong_pin.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong PIN'**
+  String get parental_wrong_pin;
+
+  /// No description provided for @parental_set_pin.
+  ///
+  /// In en, this message translates to:
+  /// **'Set PIN'**
+  String get parental_set_pin;
+
+  /// No description provided for @parental_remove_pin.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove PIN'**
+  String get parental_remove_pin;
+
+  /// No description provided for @parental_lock_category.
+  ///
+  /// In en, this message translates to:
+  /// **'Lock (parental)'**
+  String get parental_lock_category;
+
+  /// No description provided for @parental_pin_hint.
+  ///
+  /// In en, this message translates to:
+  /// **'4-digit PIN'**
+  String get parental_pin_hint;
+
+  /// No description provided for @parental_locked_note.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked categories ask for the PIN when opened. Set a PIN to enable.'**
+  String get parental_locked_note;
+
+  /// No description provided for @amoled_dark.
+  ///
+  /// In en, this message translates to:
+  /// **'AMOLED (pure black)'**
+  String get amoled_dark;
+
+  /// No description provided for @open_external_player.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in external player'**
+  String get open_external_player;
+
+  /// No description provided for @external_player_failed.
+  ///
+  /// In en, this message translates to:
+  /// **'No external player found'**
+  String get external_player_failed;
+
+  /// No description provided for @reorder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reorder'**
+  String get reorder;
+
+  /// No description provided for @reorder_done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get reorder_done;
+
+  /// No description provided for @screen_fit.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen fit'**
+  String get screen_fit;
+
+  /// No description provided for @fit_contain.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit'**
+  String get fit_contain;
+
+  /// No description provided for @fit_cover.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom'**
+  String get fit_cover;
+
+  /// No description provided for @fit_fill.
+  ///
+  /// In en, this message translates to:
+  /// **'Stretch'**
+  String get fit_fill;
+
+  /// No description provided for @tmdb_onboarding_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Get the best artwork'**
+  String get tmdb_onboarding_title;
+
+  /// No description provided for @tmdb_onboarding_body.
+  ///
+  /// In en, this message translates to:
+  /// **'Rensi uses TMDb to show posters and backdrops for your catalogue. Add your free TMDb API key for the richest experience, or skip — you can always add it later in Settings.'**
+  String get tmdb_onboarding_body;
+
+  /// No description provided for @tmdb_onboarding_skip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip for now'**
+  String get tmdb_onboarding_skip;
+
+  /// No description provided for @cast_audio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get cast_audio;
+
+  /// No description provided for @cast_subtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles'**
+  String get cast_subtitles;
+
+  /// No description provided for @cast_subtitles_off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get cast_subtitles_off;
+
+  /// No description provided for @paste.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste'**
+  String get paste;
+
+  /// No description provided for @show_password.
+  ///
+  /// In en, this message translates to:
+  /// **'Show password'**
+  String get show_password;
+
+  /// No description provided for @hide_password.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide password'**
+  String get hide_password;
+
   /// No description provided for @prebuffer_too_slow.
   ///
   /// In en, this message translates to:

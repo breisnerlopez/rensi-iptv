@@ -22,6 +22,16 @@ class ContentItem {
   final int? season;
   final M3uItem? m3uItem;
 
+  /// When set, this URL is used verbatim instead of deriving one from the
+  /// content type/creds. Used for catch-up/timeshift, whose URL is a recorded
+  /// window that [buildMediaUrl] can't reconstruct from id alone.
+  final String? overrideUrl;
+
+  /// True for a catch-up/timeshift playback: it plays as a seekable VOD but must
+  /// NOT be persisted to "Continue watching" — the archive URL expires with the
+  /// provider's retention window, so a saved resume would 404 later.
+  final bool isCatchup;
+
   ContentItem(
     this.id,
     this.name,
@@ -36,8 +46,10 @@ class ContentItem {
     this.seriesStream,
     this.season,
     this.m3uItem,
+    this.overrideUrl,
+    this.isCatchup = false,
   }) {
-    url = isXtreamCode ? buildMediaUrl(this) : m3uItem?.url ?? id;
+    url = overrideUrl ?? (isXtreamCode ? buildMediaUrl(this) : m3uItem?.url ?? id);
   }
 
   /// The TMDb id of the underlying owned stream, when the catalogue has one

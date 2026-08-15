@@ -108,6 +108,12 @@ class FavoritesRepository {
     return await _database.getAllFavoritesAcrossPlaylists();
   }
 
+  /// Persist a manual drag order: favourite row id → position. Same position is
+  /// written to every row of a deduplicated card by the caller.
+  Future<void> setSortOrders(Map<String, int> orders) async {
+    await _database.setFavoriteSortOrders(orders);
+  }
+
   Future<List<Favorite>> getFavoritesByContentType(
     ContentType contentType,
   ) async {

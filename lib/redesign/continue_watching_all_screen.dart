@@ -79,7 +79,9 @@ class ContinueWatchingAllScreen extends StatelessWidget {
                         child: Text(
                           context.loc.history_empty_message,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white70),
+                          // SYS-M2: mensaje de empty-state sobre surface (no video)
+                          // → token temático en vez de white70 literal.
+                          style: TextStyle(color: rensi(context).text2),
                         ),
                       ),
                     );

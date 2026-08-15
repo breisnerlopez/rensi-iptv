@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 // --- FIX: ADD REQUIRED IMPORT ---
@@ -7,6 +8,31 @@ import '../models/playlist_content_model.dart';
 abstract class PlayerState {
   static List<VideoTrack> videos = [];
   static VideoTrack selectedVideo = VideoTrack.auto();
+
+  /// How the video fills its box: contain (fit, letterboxed — default), cover
+  /// (fill the screen, crop), or fill (stretch). Reactive so the player rebuilds
+  /// when the user changes it from the "screen fit" control. Persisted separately
+  /// in UserPreferences.
+  static final ValueNotifier<BoxFit> videoFit =
+      ValueNotifier<BoxFit>(BoxFit.contain);
+
+  /// Maps the persisted string ⇄ BoxFit for the fit setting.
+  static BoxFit videoFitFromString(String v) {
+    switch (v) {
+      case 'cover':
+        return BoxFit.cover;
+      case 'fill':
+        return BoxFit.fill;
+      default:
+        return BoxFit.contain;
+    }
+  }
+
+  static String videoFitToString(BoxFit f) {
+    if (f == BoxFit.cover) return 'cover';
+    if (f == BoxFit.fill) return 'fill';
+    return 'contain';
+  }
 
   static List<AudioTrack> audios = [];
   static AudioTrack selectedAudio = AudioTrack.auto();

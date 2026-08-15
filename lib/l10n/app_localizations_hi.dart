@@ -9,6 +9,157 @@ class AppLocalizationsHi extends AppLocalizations {
   AppLocalizationsHi([String locale = 'hi']) : super(locale);
 
   @override
+  String get accent_color => 'एक्सेंट रंग';
+
+  @override
+  String get search_trending => 'ट्रेंडिंग';
+
+  @override
+  String get dvr_record => 'रिकॉर्ड';
+
+  @override
+  String get dvr_stop => 'रिकॉर्डिंग रोकें';
+
+  @override
+  String get dvr_recording => 'रिकॉर्ड हो रहा है…';
+
+  @override
+  String get dvr_saved => 'रिकॉर्डिंग सहेजी गई';
+
+  @override
+  String get dvr_failed => 'यह स्ट्रीम रिकॉर्ड नहीं हो सकी';
+
+  @override
+  String get dvr_experimental => 'DVR (प्रायोगिक)';
+
+  @override
+  String get dvr_experimental_hint =>
+      'देखते हुए लाइव चैनल रिकॉर्ड करें। विश्वसनीयता प्रदाता स्ट्रीम पर निर्भर करती है।';
+
+  @override
+  String get epg_catchup_play => 'शुरू से देखें';
+
+  @override
+  String get epg_catchup_unavailable =>
+      'इस कार्यक्रम के लिए कैच-अप उपलब्ध नहीं है';
+
+  @override
+  String get epg_section => 'टीवी गाइड (EPG)';
+
+  @override
+  String get epg_xmltv_url => 'XMLTV गाइड URL';
+
+  @override
+  String get epg_xmltv_hint =>
+      'वैकल्पिक. अभी/अगला टाइमलाइन के लिए पूर्ण प्रोग्राम गाइड (XMLTV)।';
+
+  @override
+  String get epg_refresh => 'सहेजें और गाइड ताज़ा करें';
+
+  @override
+  String epg_refreshed(Object count) {
+    return 'गाइड अपडेट हुई ($count प्रोग्राम)';
+  }
+
+  @override
+  String get epg_refresh_failed => 'गाइड लोड नहीं हो सकी';
+
+  @override
+  String get epg_guide => 'गाइड';
+
+  @override
+  String get set_reminder => 'याद दिलाएं';
+
+  @override
+  String get reminder_set => 'रिमाइंडर सेट';
+
+  @override
+  String get reminder_removed => 'रिमाइंडर हटाया';
+
+  @override
+  String get confirm => 'पुष्टि करें';
+
+  @override
+  String get parental_control => 'अभिभावक नियंत्रण';
+
+  @override
+  String get parental_enter_pin => 'PIN दर्ज करें';
+
+  @override
+  String get parental_wrong_pin => 'गलत PIN';
+
+  @override
+  String get parental_set_pin => 'PIN सेट करें';
+
+  @override
+  String get parental_remove_pin => 'PIN हटाएं';
+
+  @override
+  String get parental_lock_category => 'लॉक करें (अभिभावक)';
+
+  @override
+  String get parental_pin_hint => '4-अंकीय PIN';
+
+  @override
+  String get parental_locked_note =>
+      'लॉक की गई श्रेणियां खोलने पर PIN मांगती हैं। सक्षम करने के लिए PIN सेट करें।';
+
+  @override
+  String get amoled_dark => 'AMOLED (शुद्ध काला)';
+
+  @override
+  String get open_external_player => 'बाहरी प्लेयर में खोलें';
+
+  @override
+  String get external_player_failed => 'कोई बाहरी प्लेयर नहीं मिला';
+
+  @override
+  String get reorder => 'क्रम बदलें';
+
+  @override
+  String get reorder_done => 'पूर्ण';
+
+  @override
+  String get screen_fit => 'स्क्रीन फ़िट';
+
+  @override
+  String get fit_contain => 'फ़िट';
+
+  @override
+  String get fit_cover => 'ज़ूम';
+
+  @override
+  String get fit_fill => 'खींचें';
+
+  @override
+  String get tmdb_onboarding_title => 'बेहतरीन आर्टवर्क पाएं';
+
+  @override
+  String get tmdb_onboarding_body =>
+      'Rensi आपके कैटलॉग के पोस्टर और बैकड्रॉप दिखाने के लिए TMDb का उपयोग करता है। बेहतरीन अनुभव के लिए अपनी मुफ़्त TMDb API कुंजी जोड़ें, या छोड़ दें — आप इसे बाद में सेटिंग्स में जोड़ सकते हैं।';
+
+  @override
+  String get tmdb_onboarding_skip => 'अभी छोड़ें';
+
+  @override
+  String get cast_audio => 'ऑडियो';
+
+  @override
+  String get cast_subtitles => 'सबटाइटल';
+
+  @override
+  String get cast_subtitles_off => 'बंद';
+
+  @override
+  String get paste => 'पेस्ट करें';
+
+  @override
+  String get show_password => 'पासवर्ड दिखाएं';
+
+  @override
+  String get hide_password => 'पासवर्ड छिपाएं';
+
+  @override
   String get prebuffer_too_slow => 'इस गुणवत्ता के लिए कनेक्शन बहुत धीमा है';
 
   @override
@@ -307,16 +458,16 @@ class AppLocalizationsHi extends AppLocalizations {
   String get audio_track => 'ऑडियो ट्रैक';
 
   @override
-  String get speed => 'Speed';
+  String get speed => 'गति';
 
   @override
-  String get load => 'Load';
+  String get load => 'लोड करें';
 
   @override
-  String get external_subtitle => 'External subtitle';
+  String get external_subtitle => 'बाहरी सबटाइटल';
 
   @override
-  String get external_subtitle_url => 'External subtitle (URL)';
+  String get external_subtitle_url => 'बाहरी सबटाइटल (URL)';
 
   @override
   String get subtitle_track => 'सबटाइटल ट्रैक';
@@ -325,7 +476,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get settings => 'सेटिंग्स';
 
   @override
-  String get hold_ok_for_options => 'Hold OK for audio & subtitles';
+  String get hold_ok_for_options => 'ऑडियो और सबटाइटल के लिए OK दबाए रखें';
 
   @override
   String get general_settings => 'सामान्य सेटिंग्स';
@@ -1074,7 +1225,7 @@ class AppLocalizationsHi extends AppLocalizations {
       'GitHub पर प्रोजेक्ट में योगदान दें';
 
   @override
-  String get last_channel => 'Last channel';
+  String get last_channel => 'पिछला चैनल';
 
   @override
   String get select_channel => 'चैनल चुनें';
@@ -1669,7 +1820,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get tv_cast_replay_hint =>
-      'Watched by casting from your phone. Send it again from your phone to play it here.';
+      'आपके फ़ोन से कास्ट करके देखा गया। इसे यहाँ चलाने के लिए अपने फ़ोन से दोबारा भेजें।';
 
   @override
   String tv_status_discoverable(String deviceName) {

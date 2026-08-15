@@ -9,6 +9,156 @@ class AppLocalizationsRu extends AppLocalizations {
   AppLocalizationsRu([String locale = 'ru']) : super(locale);
 
   @override
+  String get accent_color => 'Акцентный цвет';
+
+  @override
+  String get search_trending => 'В тренде';
+
+  @override
+  String get dvr_record => 'Запись';
+
+  @override
+  String get dvr_stop => 'Остановить запись';
+
+  @override
+  String get dvr_recording => 'Идёт запись…';
+
+  @override
+  String get dvr_saved => 'Запись сохранена';
+
+  @override
+  String get dvr_failed => 'Не удалось записать этот поток';
+
+  @override
+  String get dvr_experimental => 'DVR (экспериментально)';
+
+  @override
+  String get dvr_experimental_hint =>
+      'Запись прямого эфира во время просмотра. Надёжность зависит от провайдера.';
+
+  @override
+  String get epg_catchup_play => 'Смотреть с начала';
+
+  @override
+  String get epg_catchup_unavailable => 'Архив недоступен для этой передачи';
+
+  @override
+  String get epg_section => 'Телегид (EPG)';
+
+  @override
+  String get epg_xmltv_url => 'URL гида XMLTV';
+
+  @override
+  String get epg_xmltv_hint =>
+      'Необязательно. Полный телегид (XMLTV) для линии сейчас/далее.';
+
+  @override
+  String get epg_refresh => 'Сохранить и обновить';
+
+  @override
+  String epg_refreshed(Object count) {
+    return 'Гид обновлён ($count программ)';
+  }
+
+  @override
+  String get epg_refresh_failed => 'Не удалось загрузить гид';
+
+  @override
+  String get epg_guide => 'Гид';
+
+  @override
+  String get set_reminder => 'Напомнить';
+
+  @override
+  String get reminder_set => 'Напоминание включено';
+
+  @override
+  String get reminder_removed => 'Напоминание удалено';
+
+  @override
+  String get confirm => 'Подтвердить';
+
+  @override
+  String get parental_control => 'Родительский контроль';
+
+  @override
+  String get parental_enter_pin => 'Введите PIN';
+
+  @override
+  String get parental_wrong_pin => 'Неверный PIN';
+
+  @override
+  String get parental_set_pin => 'Задать PIN';
+
+  @override
+  String get parental_remove_pin => 'Удалить PIN';
+
+  @override
+  String get parental_lock_category => 'Заблокировать (родит.)';
+
+  @override
+  String get parental_pin_hint => '4-значный PIN';
+
+  @override
+  String get parental_locked_note =>
+      'Заблокированные категории запрашивают PIN при открытии. Задайте PIN для включения.';
+
+  @override
+  String get amoled_dark => 'AMOLED (чистый чёрный)';
+
+  @override
+  String get open_external_player => 'Открыть во внешнем плеере';
+
+  @override
+  String get external_player_failed => 'Внешний плеер не найден';
+
+  @override
+  String get reorder => 'Изменить порядок';
+
+  @override
+  String get reorder_done => 'Готово';
+
+  @override
+  String get screen_fit => 'Формат экрана';
+
+  @override
+  String get fit_contain => 'Вписать';
+
+  @override
+  String get fit_cover => 'Масштаб';
+
+  @override
+  String get fit_fill => 'Растянуть';
+
+  @override
+  String get tmdb_onboarding_title => 'Лучшие обложки';
+
+  @override
+  String get tmdb_onboarding_body =>
+      'Rensi использует TMDb для показа постеров и фонов вашего каталога. Добавьте свой бесплатный API-ключ TMDb для наилучшего результата или пропустите — его можно добавить позже в настройках.';
+
+  @override
+  String get tmdb_onboarding_skip => 'Пропустить';
+
+  @override
+  String get cast_audio => 'Аудио';
+
+  @override
+  String get cast_subtitles => 'Субтитры';
+
+  @override
+  String get cast_subtitles_off => 'Выкл.';
+
+  @override
+  String get paste => 'Вставить';
+
+  @override
+  String get show_password => 'Показать пароль';
+
+  @override
+  String get hide_password => 'Скрыть пароль';
+
+  @override
   String get prebuffer_too_slow =>
       'Соединение слишком медленное для этого качества';
 
@@ -309,16 +459,16 @@ class AppLocalizationsRu extends AppLocalizations {
   String get audio_track => 'Аудиодорожка';
 
   @override
-  String get speed => 'Speed';
+  String get speed => 'Скорость';
 
   @override
-  String get load => 'Load';
+  String get load => 'Загрузить';
 
   @override
-  String get external_subtitle => 'External subtitle';
+  String get external_subtitle => 'Внешние субтитры';
 
   @override
-  String get external_subtitle_url => 'External subtitle (URL)';
+  String get external_subtitle_url => 'Внешние субтитры (URL)';
 
   @override
   String get subtitle_track => 'Дорожка субтитров';
@@ -327,7 +477,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get settings => 'Настройки';
 
   @override
-  String get hold_ok_for_options => 'Hold OK for audio & subtitles';
+  String get hold_ok_for_options => 'Удерживайте OK для аудио и субтитров';
 
   @override
   String get general_settings => 'Общие настройки';
@@ -1080,7 +1230,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get support_on_github_description => 'Внести вклад в проект на GitHub';
 
   @override
-  String get last_channel => 'Last channel';
+  String get last_channel => 'Последний канал';
 
   @override
   String get select_channel => 'Выбрать Канал';
@@ -1673,7 +1823,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get tv_cast_replay_hint =>
-      'Watched by casting from your phone. Send it again from your phone to play it here.';
+      'Просмотрено при трансляции с телефона. Отправьте снова с телефона, чтобы воспроизвести здесь.';
 
   @override
   String tv_status_discoverable(String deviceName) {

@@ -9,6 +9,157 @@ class AppLocalizationsAr extends AppLocalizations {
   AppLocalizationsAr([String locale = 'ar']) : super(locale);
 
   @override
+  String get accent_color => 'لون التمييز';
+
+  @override
+  String get search_trending => 'الأكثر رواجًا';
+
+  @override
+  String get dvr_record => 'تسجيل';
+
+  @override
+  String get dvr_stop => 'إيقاف التسجيل';
+
+  @override
+  String get dvr_recording => 'جارٍ التسجيل…';
+
+  @override
+  String get dvr_saved => 'تم حفظ التسجيل';
+
+  @override
+  String get dvr_failed => 'تعذّر تسجيل هذا البث';
+
+  @override
+  String get dvr_experimental => 'DVR (تجريبي)';
+
+  @override
+  String get dvr_experimental_hint =>
+      'سجّل قناة مباشرة أثناء المشاهدة. تعتمد الموثوقية على بث المزوّد.';
+
+  @override
+  String get epg_catchup_play => 'المشاهدة من البداية';
+
+  @override
+  String get epg_catchup_unavailable =>
+      'إعادة المشاهدة غير متاحة لهذا البرنامج';
+
+  @override
+  String get epg_section => 'دليل التلفزيون (EPG)';
+
+  @override
+  String get epg_xmltv_url => 'رابط دليل XMLTV';
+
+  @override
+  String get epg_xmltv_hint =>
+      'اختياري. دليل برامج كامل (XMLTV) لعرض الآن/التالي.';
+
+  @override
+  String get epg_refresh => 'حفظ وتحديث الدليل';
+
+  @override
+  String epg_refreshed(Object count) {
+    return 'تم تحديث الدليل ($count برنامج)';
+  }
+
+  @override
+  String get epg_refresh_failed => 'تعذّر تحميل الدليل';
+
+  @override
+  String get epg_guide => 'الدليل';
+
+  @override
+  String get set_reminder => 'ذكّرني';
+
+  @override
+  String get reminder_set => 'تم ضبط التذكير';
+
+  @override
+  String get reminder_removed => 'تمت إزالة التذكير';
+
+  @override
+  String get confirm => 'تأكيد';
+
+  @override
+  String get parental_control => 'الرقابة الأبوية';
+
+  @override
+  String get parental_enter_pin => 'أدخل الرمز';
+
+  @override
+  String get parental_wrong_pin => 'رمز غير صحيح';
+
+  @override
+  String get parental_set_pin => 'تعيين رمز';
+
+  @override
+  String get parental_remove_pin => 'إزالة الرمز';
+
+  @override
+  String get parental_lock_category => 'قفل (أبوي)';
+
+  @override
+  String get parental_pin_hint => 'رمز من 4 أرقام';
+
+  @override
+  String get parental_locked_note =>
+      'الفئات المقفلة تطلب الرمز عند فتحها. عيّن رمزًا للتفعيل.';
+
+  @override
+  String get amoled_dark => 'AMOLED (أسود نقي)';
+
+  @override
+  String get open_external_player => 'فتح في مشغل خارجي';
+
+  @override
+  String get external_player_failed => 'لم يتم العثور على مشغل خارجي';
+
+  @override
+  String get reorder => 'إعادة الترتيب';
+
+  @override
+  String get reorder_done => 'تم';
+
+  @override
+  String get screen_fit => 'ملاءمة الشاشة';
+
+  @override
+  String get fit_contain => 'ملاءمة';
+
+  @override
+  String get fit_cover => 'تكبير';
+
+  @override
+  String get fit_fill => 'تمديد';
+
+  @override
+  String get tmdb_onboarding_title => 'احصل على أفضل الصور';
+
+  @override
+  String get tmdb_onboarding_body =>
+      'يستخدم Rensi خدمة TMDb لعرض ملصقات وخلفيات مكتبتك. أضِف مفتاح TMDb API المجاني للحصول على أفضل تجربة، أو تخطَّ — يمكنك إضافته لاحقًا من الإعدادات.';
+
+  @override
+  String get tmdb_onboarding_skip => 'تخطٍّ الآن';
+
+  @override
+  String get cast_audio => 'الصوت';
+
+  @override
+  String get cast_subtitles => 'الترجمة';
+
+  @override
+  String get cast_subtitles_off => 'إيقاف';
+
+  @override
+  String get paste => 'لصق';
+
+  @override
+  String get show_password => 'إظهار كلمة المرور';
+
+  @override
+  String get hide_password => 'إخفاء كلمة المرور';
+
+  @override
   String get prebuffer_too_slow => 'الاتصال بطيء جدًا لهذه الجودة';
 
   @override
@@ -307,16 +458,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get audio_track => 'مسار الصوت';
 
   @override
-  String get speed => 'Speed';
+  String get speed => 'السرعة';
 
   @override
-  String get load => 'Load';
+  String get load => 'تحميل';
 
   @override
-  String get external_subtitle => 'External subtitle';
+  String get external_subtitle => 'ترجمة خارجية';
 
   @override
-  String get external_subtitle_url => 'External subtitle (URL)';
+  String get external_subtitle_url => 'ترجمة خارجية (رابط)';
 
   @override
   String get subtitle_track => 'مسار الترجمة';
@@ -325,7 +476,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settings => 'الإعدادات';
 
   @override
-  String get hold_ok_for_options => 'Hold OK for audio & subtitles';
+  String get hold_ok_for_options => 'اضغط مطولاً على OK للصوت والترجمة';
 
   @override
   String get general_settings => 'الإعدادات العامة';
@@ -1071,7 +1222,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get support_on_github_description => 'ساهم في المشروع على GitHub';
 
   @override
-  String get last_channel => 'Last channel';
+  String get last_channel => 'القناة الأخيرة';
 
   @override
   String get select_channel => 'اختر القناة';
@@ -1660,7 +1811,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get tv_cast_replay_hint =>
-      'Watched by casting from your phone. Send it again from your phone to play it here.';
+      'تمت مشاهدته عبر البث من هاتفك. أعد إرساله من هاتفك لتشغيله هنا.';
 
   @override
   String tv_status_discoverable(String deviceName) {

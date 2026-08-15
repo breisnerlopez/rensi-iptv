@@ -12,6 +12,11 @@ import 'package:rensi_iptv/utils/picker_helper.dart';
 import 'package:rensi_iptv/utils/show_loading_dialog.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:rensi_iptv/services/parental_service.dart';
+import 'package:rensi_iptv/services/epg_refresh_service.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
+import 'package:rensi_iptv/widgets/parental_pin_dialog.dart';
 import 'package:rensi_iptv/controllers/watch_history_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
@@ -26,6 +31,7 @@ import '../../repositories/user_preferences.dart';
 import '../../services/app_state.dart';
 import '../../services/cast/standalone_consent_store.dart';
 import '../../services/m3u_parser.dart';
+import '../../redesign/rensi_settings.dart';
 import '../../widgets/dropdown_tile_widget.dart';
 import '../../widgets/section_title_widget.dart';
 import '../developer_screen.dart';
@@ -80,6 +86,10 @@ String _videoDecoder = 'auto';
   String _appVersion = '';
   String _tmdbToken = '';
   bool _hasTmdbCredential = false;
+  bool _hasParentalPin = false;
+  String _xmltvUrl = '';
+  bool _refreshingEpg = false;
+  final _xmltvController = TextEditingController();
 
   // Feature H — "TV / Casting": el permiso maestro (default OFF) para persistir
   // credenciales en la TV, y la lista de consentimientos por-(TV,proveedor)
@@ -96,6 +106,12 @@ String _videoDecoder = 'auto';
   void initState() {
     super.initState();
     _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    _xmltvController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSettings() async {
@@ -118,7 +134,11 @@ String _videoDecoder = 'auto';
       final speed = await UserPreferences.getPlaybackSpeed();
       final decoder = await UserPreferences.getVideoDecoder();
       final packageInfo = await PackageInfo.fromPlatform();
-      final tmdb = await TmdbCredentialsService.getCredential();
+      // hasStored (not getCredential): the display reflects whether the USER
+      // saved their OWN key, not whether the shared embedded default is active.
+      final hasOwnTmdb = await TmdbCredentialsService.hasStoredCredential();
+      final hasParentalPin = await ParentalService.instance.hasPin();
+      final xmltvUrl = await UserPreferences.getXmltvUrl();
       final tvStandaloneAllowed =
           await UserPreferences.getTvStandaloneAllowed();
       final pauseCastOnCall = await UserPreferences.getPauseCastOnCall();
@@ -143,7 +163,10 @@ String _videoDecoder = 'auto';
         _autoPipOnHome = autoPipOnHome;
         _pipSupported = pipSupported;
         _appVersion = packageInfo.version;
-        _hasTmdbCredential = tmdb != null;
+        _hasTmdbCredential = hasOwnTmdb;
+        _hasParentalPin = hasParentalPin;
+        _xmltvUrl = xmltvUrl;
+        _xmltvController.text = xmltvUrl;
         _tvStandaloneAllowed = tvStandaloneAllowed;
         _pauseCastOnCall = pauseCastOnCall;
         _standaloneGrants = standaloneGrants;
@@ -302,6 +325,118 @@ String _videoDecoder = 'auto';
     ).showSnackBar(SnackBar(content: Text(context.loc.tmdb_credential_saved)));
   }
 
+  // ---- Parental control PIN ----
+  Future<void> _setOrChangeParentalPin() async {
+    final svc = ParentalService.instance;
+    if (await svc.hasPin()) {
+      if (!mounted) return;
+      // Verify the current PIN before allowing a change.
+      if (!await showParentalPinDialog(context)) return;
+    }
+    if (!mounted) return;
+    final newPin = await _promptNewPin();
+    if (newPin == null) return;
+    await svc.setPin(newPin);
+    if (!mounted) return;
+    setState(() => _hasParentalPin = true);
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(context.loc.parental_set_pin)));
+  }
+
+  Future<void> _saveAndRefreshEpg() async {
+    if (_refreshingEpg) return;
+    final url = _xmltvController.text.trim();
+    await UserPreferences.setXmltvUrl(url);
+    final messenger = ScaffoldMessenger.of(context);
+    final loc = context.loc;
+    final pid = AppState.currentPlaylist?.id;
+    setState(() {
+      _xmltvUrl = url;
+      _refreshingEpg = true;
+    });
+    try {
+      if (url.isEmpty || pid == null) throw EpgRefreshException('no_url');
+      final n = await EpgRefreshService(database).refreshFromXmltv(url, pid);
+      messenger.showSnackBar(SnackBar(content: Text(loc.epg_refreshed(n))));
+    } catch (_) {
+      messenger.showSnackBar(SnackBar(content: Text(loc.epg_refresh_failed)));
+    } finally {
+      if (mounted) setState(() => _refreshingEpg = false);
+    }
+  }
+
+  Future<void> _removeParentalPin() async {
+    if (!await showParentalPinDialog(context)) return; // verify first
+    await ParentalService.instance.clearPin();
+    if (!mounted) return;
+    setState(() => _hasParentalPin = false);
+  }
+
+  /// Prompt a new PIN twice; returns it only if ≥4 digits and both match.
+  Future<String?> _promptNewPin() {
+    final c1 = TextEditingController();
+    final c2 = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        String? err;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => AlertDialog(
+            title: Text(context.loc.parental_set_pin),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TvFieldTraversal(
+                  child: TextField(
+                    controller: c1,
+                    autofocus: true,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                      labelText: context.loc.parental_pin_hint,
+                      prefixIcon: Icon(Icons.lock_outline,
+                          color: Theme.of(context).colorScheme.primary),
+                    ),
+                  ),
+                ),
+                TvFieldTraversal(
+                  child: TextField(
+                    controller: c2,
+                    obscureText: true,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: InputDecoration(
+                        labelText: context.loc.parental_enter_pin,
+                        prefixIcon: Icon(Icons.lock_outline,
+                            color: Theme.of(context).colorScheme.primary),
+                        errorText: err),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(context.loc.cancel)),
+              FilledButton(
+                onPressed: () {
+                  final p1 = c1.text.trim();
+                  if (p1.length < 4 || p1 != c2.text.trim()) {
+                    setLocal(() => err = context.loc.parental_wrong_pin);
+                    return;
+                  }
+                  Navigator.pop(ctx, p1);
+                },
+                child: Text(context.loc.confirm),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _confirmClearHistory() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -447,6 +582,8 @@ String _videoDecoder = 'auto';
                       },
                       decoration: InputDecoration(
                         labelText: context.loc.backup_passphrase_field,
+                        prefixIcon: Icon(Icons.lock_outline,
+                            color: Theme.of(context).colorScheme.primary),
                         errorText: errorText,
                       ),
                     )),
@@ -460,6 +597,8 @@ String _videoDecoder = 'auto';
                         onSubmitted: (_) => confirmSubmit(),
                         decoration: InputDecoration(
                           labelText: context.loc.backup_passphrase_confirm,
+                          prefixIcon: Icon(Icons.lock_outline,
+                              color: Theme.of(context).colorScheme.primary),
                         ),
                       )),
                       const SizedBox(height: 8),
@@ -520,7 +659,7 @@ String _videoDecoder = 'auto';
               // refresh its contents, filter categories, and the TMDb
               // credential that enriches that content with metadata.
               SectionTitleWidget(title: context.loc.general_settings),
-              Card(
+              RensiSettingsCard(
                 child: Column(
                   children: [
                     ListTile(
@@ -608,7 +747,7 @@ String _videoDecoder = 'auto';
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Padding(
-                            padding: EdgeInsets.only(top: 12, right: 12),
+                            padding: EdgeInsetsDirectional.only(top: 12, end: 12),
                             child: Icon(Icons.key, size: 24),
                           ),
                           Expanded(
@@ -636,6 +775,10 @@ String _videoDecoder = 'auto';
                                   decoration: InputDecoration(
                                     isDense: true,
                                     border: const OutlineInputBorder(),
+                                    prefixIcon: Icon(Icons.vpn_key_outlined,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary),
                                     labelText:
                                         context.loc.tmdb_credential_field_label,
                                   ),
@@ -658,10 +801,57 @@ String _videoDecoder = 'auto';
                 ),
               ),
               const SizedBox(height: 10),
+              // TV Guide (EPG): optional external XMLTV source for the full guide.
+              SectionTitleWidget(title: context.loc.epg_section),
+              RensiSettingsCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(context.loc.epg_xmltv_hint,
+                          style: TextStyle(
+                              fontSize: AppThemes.bodySmallSize,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant)),
+                      const SizedBox(height: 10),
+                      TvFieldTraversal(
+                        child: TextField(
+                          controller: _xmltvController,
+                          keyboardType: TextInputType.url,
+                          decoration: InputDecoration(
+                            labelText: context.loc.epg_xmltv_url,
+                            hintText: 'https://…',
+                            prefixIcon: Icon(Icons.link,
+                                color: Theme.of(context).colorScheme.primary),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton.icon(
+                          onPressed: _refreshingEpg ? null : _saveAndRefreshEpg,
+                          icon: _refreshingEpg
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2))
+                              : const Icon(Icons.refresh),
+                          label: Text(context.loc.epg_refresh),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
               // Group 2 — Playback: decoder, audio/subtitle tracks, speed,
               // resume-in-background/PiP, and touch gestures.
               SectionTitleWidget(title: context.loc.player_settings),
-              Card(
+              RensiSettingsCard(
                 child: Column(
                   children: [
                     SwitchListTile(
@@ -848,7 +1038,7 @@ String _videoDecoder = 'auto';
               ),
               const SizedBox(height: 10),
               // Group 3 — Downloads/storage.
-              Card(
+              RensiSettingsCard(
                 child: ListTile(
                   leading: const Icon(Icons.download_for_offline_outlined),
                   title: Text(context.loc.downloads_title),
@@ -868,7 +1058,7 @@ String _videoDecoder = 'auto';
               // trusted TV keep your provider creds so it can play standalone,
               // plus a list to forget per-(TV, provider) grants.
               SectionTitleWidget(title: context.loc.tv_standalone_section),
-              Card(
+              RensiSettingsCard(
                 child: Column(
                   children: [
                     SwitchListTile(
@@ -926,7 +1116,7 @@ String _videoDecoder = 'auto';
               const SizedBox(height: 10),
               // Group 4 — Appearance/language.
               SectionTitleWidget(title: context.loc.appearance),
-              Card(
+              RensiSettingsCard(
                 child: Column(
                   children: [
                     DropdownTileWidget<Locale>(
@@ -977,6 +1167,60 @@ String _videoDecoder = 'auto';
                         }
                       },
                     ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      secondary: const Icon(Icons.contrast),
+                      title: Text(context.loc.amoled_dark),
+                      value: themeProvider.amoled,
+                      onChanged: (v) => themeProvider.setAmoled(v),
+                    ),
+                    const Divider(height: 1),
+                    // F4 — selector de acento (presets curados, cada uno
+                    // pre-validado WCAG en claro/oscuro/AMOLED).
+                    ListTile(
+                      leading: const Icon(Icons.palette_outlined),
+                      title: Text(context.loc.accent_color),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+                      child: Wrap(
+                        spacing: 14,
+                        runSpacing: 12,
+                        children: [
+                          for (final a in AppThemes.accents)
+                            _AccentSwatch(
+                              accent: a,
+                              selected: themeProvider.accent.id == a.id,
+                              onTap: () => themeProvider.setAccent(a),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Parental control: set/remove the PIN. Categories are locked from
+              // the "hide categories" screen (lock icon per row); a locked
+              // category asks for this PIN when opened.
+              SectionTitleWidget(title: context.loc.parental_control),
+              RensiSettingsCard(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.lock_outline),
+                      title: Text(context.loc.parental_set_pin),
+                      subtitle: Text(context.loc.parental_locked_note),
+                      onTap: _setOrChangeParentalPin,
+                    ),
+                    if (_hasParentalPin) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.lock_open_outlined),
+                        title: Text(context.loc.parental_remove_pin),
+                        onTap: _removeParentalPin,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -984,7 +1228,7 @@ String _videoDecoder = 'auto';
               // Group 5 — Backup/data: export/import plus clearing local
               // history, all operations on the app's stored data.
               SectionTitleWidget(title: context.loc.backup_section),
-              Card(
+              RensiSettingsCard(
                 child: Column(
                   children: [
                     ListTile(
@@ -1029,7 +1273,7 @@ String _videoDecoder = 'auto';
               const SizedBox(height: 10),
               // Group 6 — About/diagnostics.
               SectionTitleWidget(title: context.loc.about),
-              Card(
+              RensiSettingsCard(
                 child: Column(
                   children: [
                     ListTile(
@@ -1177,5 +1421,49 @@ String _videoDecoder = 'auto';
     }
 
     return updatedItems;
+  }
+}
+
+/// F4 — muestra de un preset de acento: un círculo relleno del color, con un
+/// anillo + check cuando está seleccionado. Tappable para elegirlo.
+class _AccentSwatch extends StatelessWidget {
+  const _AccentSwatch({
+    required this.accent,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AccentSet accent;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: accent.id,
+      child: InkResponse(
+        onTap: onTap,
+        radius: 28,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: accent.accent,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: selected
+                  ? Theme.of(context).colorScheme.onSurface
+                  : Colors.transparent,
+              width: 3,
+            ),
+          ),
+          child: selected
+              ? Icon(Icons.check, size: 20, color: accent.onAccent)
+              : null,
+        ),
+      ),
+    );
   }
 }

@@ -129,11 +129,20 @@ class _SearchRedesignState extends State<SearchRedesign> {
   /// Recent searches (newest-first), loaded once and refreshed on engagement.
   List<String> _recent = const [];
 
+  // MOV-B1: "Trending" para el estado idle sin historial. Aditivo y condicionado:
+  // popularMovies (trending/week) degrada a [] sin clave TMDb, así que el idle
+  // mantiene su icono+hint por defecto y esto solo aparece cuando hay datos.
+  final TmdbService _tmdbTrending = TmdbService();
+  List<TmdbSearchResult> _trending = const [];
+
   @override
   void initState() {
     super.initState();
     _loadRecent();
     _initVoice();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadTrending();
+    });
     // Deep-link into a cast actor's filmography: pre-select the people filter
     // and, once the first frame can read the locale, load their credits via the
     // same path a person pick uses.
@@ -149,6 +158,62 @@ class _SearchRedesignState extends State<SearchRedesign> {
   Future<void> _loadRecent() async {
     final recent = await RecentSearchesService.getAll();
     if (mounted) setState(() => _recent = recent);
+  }
+
+  /// MOV-B1: carga "trending" (best-effort). Sin clave TMDb / fallo de red →
+  /// lista vacía → el idle se queda con su icono+hint (sin regresión).
+  Future<void> _loadTrending() async {
+    try {
+      final locale = Localizations.localeOf(context);
+      final r = await _tmdbTrending.popularMovies(PopularWindow.month,
+          locale: locale);
+      if (mounted) setState(() => _trending = r);
+    } catch (_) {
+      // degradar en silencio
+    }
+  }
+
+  /// Franja horizontal de pósters "trending" que abre el detalle TMDb al tocar.
+  Widget _trendingStrip(double sidePad, bool tv) {
+    final r = rensi(context);
+    final h = tv ? 200.0 : 150.0;
+    final w = h * 2 / 3; // póster 2:3
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(title: context.loc.search_trending, sidePad: sidePad),
+        SizedBox(
+          height: h,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsetsDirectional.only(start: sidePad, end: sidePad),
+            itemCount: _trending.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) {
+              final t = _trending[i];
+              return GestureDetector(
+                onTap: () => widget.onOpen(_tmdbAsContentItem(t)),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: SizedBox(
+                    width: w,
+                    child: RensiKeyArt.raw(
+                      seed: 'tmdb:${t.id}',
+                      title: t.title,
+                      imagePath: t.posterUrl,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        SizedBox(height: tv ? 20 : 16),
+        Text(context.loc.search_catalog_hint,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: r.text3, fontSize: AppThemes.labelSize)),
+      ],
+    );
   }
 
   /// Records the current query as a recent search (on engagement, not per
@@ -990,6 +1055,13 @@ class _SearchRedesignState extends State<SearchRedesign> {
     if (res == null) {
       if (_loading) return const Center(child: CircularProgressIndicator());
       if (q.isEmpty && _recent.isNotEmpty) return _recentSection(sidePad);
+      // MOV-B1: idle sin historial → si hay trending (clave TMDb + datos),
+      // mostrarlo; si no, el icono+hint de siempre (degradación sin regresión).
+      if (q.isEmpty && _trending.isNotEmpty) {
+        return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: _trendingStrip(sidePad, tv));
+      }
       return _centered(Icons.search_rounded, loc.search_catalog_hint);
     }
 

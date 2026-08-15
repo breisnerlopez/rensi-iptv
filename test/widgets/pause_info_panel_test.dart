@@ -6,12 +6,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:rensi_iptv/l10n/app_localizations.dart';
 import 'package:rensi_iptv/models/content_type.dart';
 import 'package:rensi_iptv/services/cast/cast_protocol.dart';
+import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/widgets/cast/pause_info_panel.dart';
 import 'package:rensi_iptv/widgets/tmdb_cast_rail.dart';
 import 'package:rensi_iptv/widgets/tmdb_enrichment.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
       locale: const Locale('es'),
+      // Panel now reads RensiColors via rensi(context) for its accent — supply
+      // the real app theme (which registers that ThemeExtension).
+      theme: AppThemes.darkTheme,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(body: Stack(children: [child])),

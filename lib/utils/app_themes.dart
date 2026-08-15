@@ -9,6 +9,7 @@ import 'package:rensi_iptv/utils/responsive_helper.dart';
 class RensiColors extends ThemeExtension<RensiColors> {
   const RensiColors({
     required this.accent,
+    required this.accentInk,
     required this.accent2,
     required this.accentSoft,
     required this.accentGlow,
@@ -24,6 +25,10 @@ class RensiColors extends ThemeExtension<RensiColors> {
   });
 
   final Color accent;
+  /// Relleno oscurecido del acento para superficies que llevan TEXTO normal
+  /// (botones/chips): `onAccent` sobre el `accent` crudo mide ~3.9:1 (&lt;4.5),
+  /// sobre `accentInk` ≥4.5. Nunca uses `accent` crudo como fondo de texto.
+  final Color accentInk;
   final Color accent2;
   final Color accentSoft;
   final Color accentGlow;
@@ -40,6 +45,7 @@ class RensiColors extends ThemeExtension<RensiColors> {
   @override
   RensiColors copyWith({
     Color? accent,
+    Color? accentInk,
     Color? accent2,
     Color? accentSoft,
     Color? accentGlow,
@@ -55,6 +61,7 @@ class RensiColors extends ThemeExtension<RensiColors> {
   }) {
     return RensiColors(
       accent: accent ?? this.accent,
+      accentInk: accentInk ?? this.accentInk,
       accent2: accent2 ?? this.accent2,
       accentSoft: accentSoft ?? this.accentSoft,
       accentGlow: accentGlow ?? this.accentGlow,
@@ -75,6 +82,7 @@ class RensiColors extends ThemeExtension<RensiColors> {
     if (other is! RensiColors) return this;
     return RensiColors(
       accent: Color.lerp(accent, other.accent, t)!,
+      accentInk: Color.lerp(accentInk, other.accentInk, t)!,
       accent2: Color.lerp(accent2, other.accent2, t)!,
       accentSoft: Color.lerp(accentSoft, other.accentSoft, t)!,
       accentGlow: Color.lerp(accentGlow, other.accentGlow, t)!,
@@ -91,19 +99,89 @@ class RensiColors extends ThemeExtension<RensiColors> {
   }
 }
 
+/// F4 — un preset de acento curado (pre-validado WCAG en las 3 rampas). Ver
+/// [AppThemes.accents]. Inmutable; cada tupla se elige para que el `accent` pase
+/// ≥3:1 sobre cada surface (iconos/formas) y `onAccent` sobre `accentInk` pase
+/// ≥4.5:1 (texto de botones/chips). `test/utils/contrast_test.dart` lo verifica.
+class AccentSet {
+  const AccentSet({
+    required this.id,
+    required this.accent,
+    required this.accentInk,
+    required this.onAccent,
+    required this.accent2,
+  });
+
+  /// Clave estable persistida en preferencias (no el índice, que podría cambiar
+  /// si se reordena la paleta).
+  final String id;
+  final Color accent;
+  final Color accentInk;
+  final Color onAccent;
+  final Color accent2;
+}
+
 class AppThemes {
   static const String _displayFont = 'Bricolage Grotesque';
   static const String _uiFont = 'Hanken Grotesk';
 
-  // Terracotta brand accent — single source the rest derives from.
-  static const Color _accent = Color(0xFFC75F41);
-  /// Darker accent for FILLED buttons, which carry text. `#FFF5F0` on [_accent]
-  /// measures 3.81:1 — under the 4.5:1 WCAG AA needs for normal text — while on
-  /// this it is 4.99:1. [_accent] stays for icons and large shapes, which only
-  /// need 3:1. Also used by selected chips, whose labels are normal-size text.
-  static const Color _accentInk = Color(0xFFB04C2E);
-  static const Color _accent2 = Color(0xFFDA8A56); // accent 72% + warm gold
-  static const Color _onAccent = Color(0xFFFFF5F0);
+  // F4 — Acento personalizable por PRESETS curados. Cada preset es una tupla
+  // pre-validada (test/utils/contrast_test.dart la verifica en las 3 rampas):
+  //  - accent: iconos/bordes/rieles/formas (barra WCAG 3:1 sobre cada surface).
+  //  - accentInk: relleno de botones/chips que llevan TEXTO (onAccent encima
+  //    ≥4.5:1; el accent crudo daría ~3.8:1, insuficiente para texto normal).
+  //  - onAccent: texto sobre accentInk.
+  //  - accent2: secundario (degradados/detalles), no crítico para texto.
+  // La mayoría de los usos de colorScheme.primary son iconos/bordes/fondos
+  // (3:1). Los pocos que llevan TEXTO (CTA "guardar", selector de fuente) usan
+  // rensi.accentInk como relleno (onAccent encima ≥4.5), NUNCA el accent crudo.
+  static const AccentSet defaultAccent = AccentSet(
+    id: 'terracotta',
+    accent: Color(0xFFC75F41),
+    accentInk: Color(0xFFB04C2E),
+    onAccent: Color(0xFFFFF5F0),
+    accent2: Color(0xFFDA8A56),
+  );
+
+  static const List<AccentSet> accents = [
+    defaultAccent,
+    AccentSet(
+      id: 'teal',
+      accent: Color(0xFF2E857C),
+      accentInk: Color(0xFF2C7B74),
+      onAccent: Color(0xFFF2FFFD),
+      accent2: Color(0xFF6FD0C6),
+    ),
+    AccentSet(
+      id: 'violet',
+      accent: Color(0xFF8A6AD0),
+      accentInk: Color(0xFF5E44A8),
+      onAccent: Color(0xFFF7F4FF),
+      accent2: Color(0xFFB9A2F2),
+    ),
+    AccentSet(
+      id: 'rose',
+      accent: Color(0xFFCB5074),
+      accentInk: Color(0xFFB84666),
+      onAccent: Color(0xFFFFF4F8),
+      accent2: Color(0xFFEE93AE),
+    ),
+    AccentSet(
+      id: 'amber',
+      accent: Color(0xFFA9761F),
+      accentInk: Color(0xFF7E5713),
+      onAccent: Color(0xFFFFFBF2),
+      accent2: Color(0xFFE7BE72),
+    ),
+    AccentSet(
+      id: 'ocean',
+      accent: Color(0xFF4380D0),
+      accentInk: Color(0xFF356FBE),
+      onAccent: Color(0xFFF3F8FF),
+      accent2: Color(0xFF83B4EF),
+    ),
+  ];
+
   static const Color _gold = Color(0xFFD8A34A);
   static const Color _live = Color(0xFFE0563E);
 
@@ -144,14 +222,37 @@ class AppThemes {
 
   static final ThemeData darkTheme = _build(Brightness.dark);
   static final ThemeData lightTheme = _build(Brightness.light);
+  // AMOLED: the dark theme with pure-black background and near-black surfaces
+  // (true black saves power on OLED and is a common request). Text tokens are
+  // unchanged — light text on black is trivially above AA — so no accent/contrast
+  // retune is involved. Built once, selected via ThemeProvider.amoled.
+  static final ThemeData amoledTheme = _build(Brightness.dark, amoled: true);
 
-  static ThemeData _build(Brightness brightness) {
+  // AMOLED dark surfaces: pure-black background (the OLED power win, most of the
+  // screen) with surfaces lifted enough to stay visible as cards. Card-vs-bg
+  // separation also rests on the RensiColors hairline borders (surface alone,
+  // near-black, would be too subtle) — the surfaces are lifted here so the
+  // combination reads, not the surface colour on its own.
+  static const Color _aBg = Color(0xFF000000);
+  static const Color _aSurface = Color(0xFF181818);
+  static const Color _aSurface2 = Color(0xFF202020);
+  static const Color _aSurface3 = Color(0xFF2A2A2A);
+
+  /// Fábrica pública parametrizada por acento (F4): reconstruye el tema al
+  /// cambiar el preset elegido. `darkTheme`/`lightTheme`/`amoledTheme` siguen
+  /// siendo el default (terracota) para quien no pasa acento.
+  static ThemeData themeFor(Brightness brightness,
+          {bool amoled = false, AccentSet accent = defaultAccent}) =>
+      _build(brightness, amoled: amoled, accent: accent);
+
+  static ThemeData _build(Brightness brightness,
+      {bool amoled = false, AccentSet accent = defaultAccent}) {
     final isDark = brightness == Brightness.dark;
 
-    final bg = isDark ? _dBg : _lBg;
-    final surface = isDark ? _dSurface : _lSurface;
-    final surface2 = isDark ? _dSurface2 : _lSurface2;
-    final surface3 = isDark ? _dSurface3 : _lSurface3;
+    final bg = isDark ? (amoled ? _aBg : _dBg) : _lBg;
+    final surface = isDark ? (amoled ? _aSurface : _dSurface) : _lSurface;
+    final surface2 = isDark ? (amoled ? _aSurface2 : _dSurface2) : _lSurface2;
+    final surface3 = isDark ? (amoled ? _aSurface3 : _dSurface3) : _lSurface3;
     final text = isDark ? _dText : _lText;
     final text2 = isDark ? _dText2 : _lText2;
     final text3 = isDark ? _dText3 : _lText3;
@@ -164,15 +265,15 @@ class AppThemes {
 
     final scheme = ColorScheme(
       brightness: brightness,
-      primary: _accent,
-      onPrimary: _onAccent,
+      primary: accent.accent,
+      onPrimary: accent.onAccent,
       primaryContainer: Color.alphaBlend(
-        _accent.withValues(alpha: isDark ? 0.22 : 0.16),
+        accent.accent.withValues(alpha: isDark ? 0.22 : 0.16),
         surface,
       ),
       onPrimaryContainer: text,
-      secondary: _accent2,
-      onSecondary: _onAccent,
+      secondary: accent.accent2,
+      onSecondary: accent.onAccent,
       secondaryContainer: surface2,
       onSecondaryContainer: text,
       tertiary: _gold,
@@ -184,8 +285,10 @@ class AppThemes {
       onSurfaceVariant: text2,
       surfaceContainerLowest: bg,
       // Retinted with the rest of the ramp; it was the one step left at the
-      // old blue-violet hue.
-      surfaceContainerLow: isDark ? const Color(0xFF120F0D) : _lBg,
+      // old blue-violet hue. AMOLED gets a near-black step too (not the warm one).
+      surfaceContainerLow: isDark
+          ? (amoled ? const Color(0xFF101010) : const Color(0xFF120F0D))
+          : _lBg,
       surfaceContainer: surface,
       surfaceContainerHigh: surface2,
       surfaceContainerHighest: surface3,
@@ -195,7 +298,7 @@ class AppThemes {
       scrim: Colors.black,
       inverseSurface: text,
       onInverseSurface: bg,
-      inversePrimary: _accent,
+      inversePrimary: accent.accent,
     );
 
     final baseText = ThemeData(brightness: brightness).textTheme;
@@ -216,11 +319,12 @@ class AppThemes {
         );
 
     final rensi = RensiColors(
-      accent: _accent,
-      accent2: _accent2,
-      accentSoft: _accent.withValues(alpha: 0.16),
-      accentGlow: _accent.withValues(alpha: 0.45),
-      onAccent: _onAccent,
+      accent: accent.accent,
+      accentInk: accent.accentInk,
+      accent2: accent.accent2,
+      accentSoft: accent.accent.withValues(alpha: 0.16),
+      accentGlow: accent.accent.withValues(alpha: 0.45),
+      onAccent: accent.onAccent,
       gold: _gold,
       live: _live,
       surface2: surface2,
@@ -242,12 +346,12 @@ class AppThemes {
       extensions: [rensi],
       dividerColor: hairline,
       // Filled buttons carry text, so they need the darker accent: white on
-      // _accent measures 3.9:1, below the 4.5:1 WCAG AA needs for normal text.
-      // Icons and large shapes keep _accent (they only need 3:1).
+      // accent.accent measures 3.9:1, below the 4.5:1 WCAG AA needs for normal text.
+      // Icons and large shapes keep accent.accent (they only need 3:1).
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: _accentInk,
-          foregroundColor: _onAccent,
+          backgroundColor: accent.accentInk,
+          foregroundColor: accent.onAccent,
           // Without these an explicit backgroundColor makes the disabled state
           // resolve to null, i.e. a transparent button instead of the grey one.
           disabledBackgroundColor: text.withValues(alpha: 0.12),
@@ -271,14 +375,14 @@ class AppThemes {
       chipTheme: ChipThemeData(
         backgroundColor: surface2,
         // Chip labels are normal-size text, so they need the AA-safe accent.
-        selectedColor: _accentInk,
+        selectedColor: accent.accentInk,
         side: BorderSide(color: hairline),
         labelStyle: TextStyle(color: text2, fontFamily: _uiFont),
         shape: const StadiumBorder(),
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: surface,
-        selectedItemColor: _accent,
+        selectedItemColor: accent.accent,
         unselectedItemColor: text3,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -289,20 +393,20 @@ class AppThemes {
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
-        indicatorColor: _accent.withValues(alpha: 0.18),
+        indicatorColor: accent.accent.withValues(alpha: 0.18),
       ),
       sliderTheme: SliderThemeData(
-        activeTrackColor: _accent,
-        thumbColor: _accent,
+        activeTrackColor: accent.accent,
+        thumbColor: accent.accent,
         inactiveTrackColor: hairline2,
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(color: _accent),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: accent.accent),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? _onAccent : text3,
+          (s) => s.contains(WidgetState.selected) ? accent.onAccent : text3,
         ),
         trackColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? _accent : surface3,
+          (s) => s.contains(WidgetState.selected) ? accent.accent : surface3,
         ),
       ),
       dialogTheme: DialogThemeData(backgroundColor: surface),
@@ -337,6 +441,9 @@ class AppThemes {
   static const double bodySize = 18;
   static const double bodySmallSize = 16;
   static const double labelSize = 14;
+  // SYS-M2: token para micro-etiquetas (antes un `11.5` suelto en
+  // save_to_list_button) — entero, sin medios-puntos, y snap a la escala.
+  static const double microSize = 12;
   static const double tvBodyMin = 14;
 
   /// Promotes a phone-tuned size onto the 10-foot scale, leaving phones alone.
@@ -381,8 +488,11 @@ class AppThemes {
   /// (contrast 1.03:1 against their white fill — i.e. invisible) and a filled
   /// terracotta background on the nav rail. On a 10-foot UI the user navigates
   /// by tracking a single bright point; five dialects break that contract.
-  static Color focusRing(Brightness brightness) =>
-      brightness == Brightness.dark ? const Color(0xFFFFFFFF) : _accent;
+  /// El anillo de foco en claro es el acento (F4: parametrizado, se pasa el
+  /// `colorScheme.primary` del tema activo). En oscuro es blanco (un único punto
+  /// brillante en la UI de 10 pies).
+  static Color focusRing(Brightness brightness, Color accent) =>
+      brightness == Brightness.dark ? const Color(0xFFFFFFFF) : accent;
 
   /// Returns [base] augmented with TV-grade focus visuals: a strong accent
   /// ring + tinted overlay on every interactive Material widget. Applied
@@ -391,7 +501,7 @@ class AppThemes {
     final scheme = base.colorScheme;
     // Single source of truth, shared with FocusHighlight so the two can never
     // drift into different dialects.
-    final ring = focusRing(base.brightness);
+    final ring = focusRing(base.brightness, scheme.primary);
     final focusOverlay = ring.withValues(alpha: 0.28);
 
     return base.copyWith(

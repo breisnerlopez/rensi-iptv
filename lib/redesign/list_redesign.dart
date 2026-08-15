@@ -16,6 +16,7 @@ import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/event_bus.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
 import 'package:rensi_iptv/l10n/localization_extension.dart';
+import 'package:rensi_iptv/widgets/playlist_states.dart';
 
 /// One unified-list favourite card: the resolved [content] plus the [origin]
 /// playlist it belongs to. "Mi lista" is now GLOBAL across every playlist, so a
@@ -26,7 +27,15 @@ class _FavCard {
   final ContentItem content;
   final Playlist origin;
   final bool fromActivePlaylist;
-  const _FavCard(this.content, this.origin, this.fromActivePlaylist);
+  // ALL favourite row ids that deduplicate into this card. Manual reorder writes
+  // the SAME sort position to every one so the order is deterministic (the card,
+  // not one arbitrary winning row, owns the position).
+  final List<String> favIds;
+  const _FavCard(this.content, this.origin, this.fromActivePlaylist,
+      [this.favIds = const []]);
+
+  _FavCard withIds(List<String> ids) =>
+      _FavCard(content, origin, fromActivePlaylist, ids);
 }
 
 /// The two kinds of card "Mi lista" renders: an owned IPTV favourite (plays on
@@ -63,6 +72,10 @@ class _ListRedesignState extends State<ListRedesign> {
   late Future<_ListData> _future;
   StreamSubscription<dynamic>? _favSub;
   StreamSubscription<dynamic>? _wishSub;
+  // Reorder mode: a temporary ReorderableListView (built-in; no grid-reorder
+  // package) over a mutable working copy of the favourites.
+  bool _reordering = false;
+  List<_FavCard> _work = [];
 
   @override
   void initState() {
@@ -102,6 +115,7 @@ class _ListRedesignState extends State<ListRedesign> {
     // recent — favs arrive createdAt desc, so the FIRST-seen copy is the most
     // recent and wins by default.
     final byKey = <String, _FavCard>{};
+    final idsByKey = <String, List<String>>{};
     final order = <String>[];
     for (final f in favs) {
       final resolved = await _repo.resolveFavorite(f);
@@ -114,6 +128,9 @@ class _ListRedesignState extends State<ListRedesign> {
         card.content.name,
         card.content.contentType,
       );
+      // Track EVERY underlying row id for this card (for the deterministic
+      // dedup-group reorder write).
+      (idsByKey[key] ??= <String>[]).add(f.id);
       final existing = byKey[key];
       if (existing == null) {
         byKey[key] = card;
@@ -125,7 +142,7 @@ class _ListRedesignState extends State<ListRedesign> {
       }
       // else keep existing (already active, or first-seen = most recent).
     }
-    final out = [for (final k in order) byKey[k]!];
+    final out = [for (final k in order) byKey[k]!.withIds(idsByKey[k] ?? const [])];
 
     // Dedup the TMDb wishlist against owned favourites, keyed the same way:
     // a title the user OWNS (IPTV favourite) AND saved on TMDb showed up twice.
@@ -218,25 +235,66 @@ class _ListRedesignState extends State<ListRedesign> {
               children: [
                 Padding(
                   padding: EdgeInsets.fromLTRB(sidePad, 10, sidePad, 4),
-                  child: Column(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(context.loc.nav_my_list,
-                          style: TextStyle(
-                              fontFamily: 'Bricolage Grotesque',
-                              fontSize: AppThemes.h2Size,
-                              fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 3),
-                      Text(context.loc.saved_titles_count(data.length),
-                          style: TextStyle(fontSize: AppThemes.bodySmallSize, color: r.text3)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(context.loc.nav_my_list,
+                                style: TextStyle(
+                                    fontFamily: 'Bricolage Grotesque',
+                                    fontSize: AppThemes.h2Size,
+                                    fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 3),
+                            Text(context.loc.saved_titles_count(data.length),
+                                style: TextStyle(
+                                    fontSize: AppThemes.bodySmallSize,
+                                    color: r.text3)),
+                          ],
+                        ),
+                      ),
+                      // Reorder toggle (only worthwhile with 2+ favourites).
+                      if (favs.length > 1)
+                        IconButton(
+                          icon: Icon(_reordering ? Icons.check : Icons.swap_vert,
+                              color: r.text2),
+                          tooltip: _reordering
+                              ? context.loc.reorder_done
+                              : context.loc.reorder,
+                          onPressed: () => setState(() {
+                            if (_reordering) {
+                              _reordering = false;
+                              // Re-read so the grid shows the persisted order, and
+                              // let other screens (home) refresh.
+                              _future = _load();
+                              EventBus().emit('favorites_changed', null);
+                            } else {
+                              _work = List.of(favs);
+                              _reordering = true;
+                            }
+                          }),
+                        ),
                     ],
                   ),
                 ),
                 Expanded(
                   child: snap.connectionState == ConnectionState.waiting
                       ? const Center(child: CircularProgressIndicator())
-                      : data.isEmpty
+                      : snap.hasError
+                          // Don't mask a load failure as "empty list": a user
+                          // WITH favourites whose _load() threw must see an
+                          // error + retry, not "no tienes títulos".
+                          ? PlaylistErrorState(
+                              error: snap.error.toString(),
+                              onRetry: () =>
+                                  setState(() => _future = _load()),
+                            )
+                          : data.isEmpty
                           ? _empty(context)
+                          : _reordering
+                          ? _buildReorder(sidePad)
                           : GridView.builder(
                               padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 24),
                               gridDelegate:
@@ -290,6 +348,53 @@ class _ListRedesignState extends State<ListRedesign> {
         ),
       ),
     );
+  }
+
+  Widget _buildReorder(double sidePad) {
+    final r = rensi(context);
+    return ReorderableListView.builder(
+      padding: EdgeInsets.fromLTRB(sidePad, 12, sidePad, 24),
+      itemCount: _work.length,
+      onReorder: _onReorder,
+      itemBuilder: (context, i) {
+        final card = _work[i];
+        return Container(
+          key: ValueKey('reo_${card.content.id}_${card.origin.id}'),
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: r.surface2,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: r.hairline),
+          ),
+          child: ListTile(
+            title: Text(card.content.name,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            trailing: Icon(Icons.drag_handle, color: r.text3),
+          ),
+        );
+      },
+    );
+  }
+
+  void _onReorder(int oldIndex, int newIndex) {
+    setState(() {
+      if (newIndex > oldIndex) newIndex -= 1;
+      final item = _work.removeAt(oldIndex);
+      _work.insert(newIndex, item);
+    });
+    _persistOrder();
+  }
+
+  Future<void> _persistOrder() async {
+    final orders = <String, int>{};
+    for (var i = 0; i < _work.length; i++) {
+      // Same position to EVERY underlying row of the deduplicated card, so the
+      // order is deterministic regardless of which row wins the dedup.
+      for (final id in _work[i].favIds) {
+        orders[id] = i;
+      }
+    }
+    await _repo.setSortOrders(orders);
   }
 
   Widget _empty(BuildContext context) => RensiEmptyState(

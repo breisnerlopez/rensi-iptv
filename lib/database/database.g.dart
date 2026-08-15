@@ -3255,6 +3255,30 @@ class $LiveStreamsTable extends LiveStreams
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _tvArchiveMeta = const VerificationMeta(
+    'tvArchive',
+  );
+  @override
+  late final GeneratedColumn<int> tvArchive = GeneratedColumn<int>(
+    'tv_archive',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _tvArchiveDurationMeta = const VerificationMeta(
+    'tvArchiveDuration',
+  );
+  @override
+  late final GeneratedColumn<int> tvArchiveDuration = GeneratedColumn<int>(
+    'tv_archive_duration',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     streamId,
@@ -3264,6 +3288,8 @@ class $LiveStreamsTable extends LiveStreams
     epgChannelId,
     playlistId,
     createdAt,
+    tvArchive,
+    tvArchiveDuration,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -3334,6 +3360,21 @@ class $LiveStreamsTable extends LiveStreams
         createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
+    if (data.containsKey('tv_archive')) {
+      context.handle(
+        _tvArchiveMeta,
+        tvArchive.isAcceptableOrUnknown(data['tv_archive']!, _tvArchiveMeta),
+      );
+    }
+    if (data.containsKey('tv_archive_duration')) {
+      context.handle(
+        _tvArchiveDurationMeta,
+        tvArchiveDuration.isAcceptableOrUnknown(
+          data['tv_archive_duration']!,
+          _tvArchiveDurationMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -3371,6 +3412,14 @@ class $LiveStreamsTable extends LiveStreams
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      tvArchive: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tv_archive'],
+      )!,
+      tvArchiveDuration: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}tv_archive_duration'],
+      )!,
     );
   }
 
@@ -3388,6 +3437,8 @@ class LiveStreamsData extends DataClass implements Insertable<LiveStreamsData> {
   final String epgChannelId;
   final String playlistId;
   final DateTime createdAt;
+  final int tvArchive;
+  final int tvArchiveDuration;
   const LiveStreamsData({
     required this.streamId,
     required this.name,
@@ -3396,6 +3447,8 @@ class LiveStreamsData extends DataClass implements Insertable<LiveStreamsData> {
     required this.epgChannelId,
     required this.playlistId,
     required this.createdAt,
+    required this.tvArchive,
+    required this.tvArchiveDuration,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -3407,6 +3460,8 @@ class LiveStreamsData extends DataClass implements Insertable<LiveStreamsData> {
     map['epg_channel_id'] = Variable<String>(epgChannelId);
     map['playlist_id'] = Variable<String>(playlistId);
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['tv_archive'] = Variable<int>(tvArchive);
+    map['tv_archive_duration'] = Variable<int>(tvArchiveDuration);
     return map;
   }
 
@@ -3419,6 +3474,8 @@ class LiveStreamsData extends DataClass implements Insertable<LiveStreamsData> {
       epgChannelId: Value(epgChannelId),
       playlistId: Value(playlistId),
       createdAt: Value(createdAt),
+      tvArchive: Value(tvArchive),
+      tvArchiveDuration: Value(tvArchiveDuration),
     );
   }
 
@@ -3435,6 +3492,8 @@ class LiveStreamsData extends DataClass implements Insertable<LiveStreamsData> {
       epgChannelId: serializer.fromJson<String>(json['epgChannelId']),
       playlistId: serializer.fromJson<String>(json['playlistId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      tvArchive: serializer.fromJson<int>(json['tvArchive']),
+      tvArchiveDuration: serializer.fromJson<int>(json['tvArchiveDuration']),
     );
   }
   @override
@@ -3448,6 +3507,8 @@ class LiveStreamsData extends DataClass implements Insertable<LiveStreamsData> {
       'epgChannelId': serializer.toJson<String>(epgChannelId),
       'playlistId': serializer.toJson<String>(playlistId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'tvArchive': serializer.toJson<int>(tvArchive),
+      'tvArchiveDuration': serializer.toJson<int>(tvArchiveDuration),
     };
   }
 
@@ -3459,6 +3520,8 @@ class LiveStreamsData extends DataClass implements Insertable<LiveStreamsData> {
     String? epgChannelId,
     String? playlistId,
     DateTime? createdAt,
+    int? tvArchive,
+    int? tvArchiveDuration,
   }) => LiveStreamsData(
     streamId: streamId ?? this.streamId,
     name: name ?? this.name,
@@ -3467,6 +3530,8 @@ class LiveStreamsData extends DataClass implements Insertable<LiveStreamsData> {
     epgChannelId: epgChannelId ?? this.epgChannelId,
     playlistId: playlistId ?? this.playlistId,
     createdAt: createdAt ?? this.createdAt,
+    tvArchive: tvArchive ?? this.tvArchive,
+    tvArchiveDuration: tvArchiveDuration ?? this.tvArchiveDuration,
   );
   LiveStreamsData copyWithCompanion(LiveStreamsCompanion data) {
     return LiveStreamsData(
@@ -3485,6 +3550,10 @@ class LiveStreamsData extends DataClass implements Insertable<LiveStreamsData> {
           ? data.playlistId.value
           : this.playlistId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      tvArchive: data.tvArchive.present ? data.tvArchive.value : this.tvArchive,
+      tvArchiveDuration: data.tvArchiveDuration.present
+          ? data.tvArchiveDuration.value
+          : this.tvArchiveDuration,
     );
   }
 
@@ -3497,7 +3566,9 @@ class LiveStreamsData extends DataClass implements Insertable<LiveStreamsData> {
           ..write('categoryId: $categoryId, ')
           ..write('epgChannelId: $epgChannelId, ')
           ..write('playlistId: $playlistId, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('tvArchive: $tvArchive, ')
+          ..write('tvArchiveDuration: $tvArchiveDuration')
           ..write(')'))
         .toString();
   }
@@ -3511,6 +3582,8 @@ class LiveStreamsData extends DataClass implements Insertable<LiveStreamsData> {
     epgChannelId,
     playlistId,
     createdAt,
+    tvArchive,
+    tvArchiveDuration,
   );
   @override
   bool operator ==(Object other) =>
@@ -3522,7 +3595,9 @@ class LiveStreamsData extends DataClass implements Insertable<LiveStreamsData> {
           other.categoryId == this.categoryId &&
           other.epgChannelId == this.epgChannelId &&
           other.playlistId == this.playlistId &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.tvArchive == this.tvArchive &&
+          other.tvArchiveDuration == this.tvArchiveDuration);
 }
 
 class LiveStreamsCompanion extends UpdateCompanion<LiveStreamsData> {
@@ -3533,6 +3608,8 @@ class LiveStreamsCompanion extends UpdateCompanion<LiveStreamsData> {
   final Value<String> epgChannelId;
   final Value<String> playlistId;
   final Value<DateTime> createdAt;
+  final Value<int> tvArchive;
+  final Value<int> tvArchiveDuration;
   final Value<int> rowid;
   const LiveStreamsCompanion({
     this.streamId = const Value.absent(),
@@ -3542,6 +3619,8 @@ class LiveStreamsCompanion extends UpdateCompanion<LiveStreamsData> {
     this.epgChannelId = const Value.absent(),
     this.playlistId = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.tvArchive = const Value.absent(),
+    this.tvArchiveDuration = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LiveStreamsCompanion.insert({
@@ -3552,6 +3631,8 @@ class LiveStreamsCompanion extends UpdateCompanion<LiveStreamsData> {
     required String epgChannelId,
     required String playlistId,
     this.createdAt = const Value.absent(),
+    this.tvArchive = const Value.absent(),
+    this.tvArchiveDuration = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : streamId = Value(streamId),
        name = Value(name),
@@ -3567,6 +3648,8 @@ class LiveStreamsCompanion extends UpdateCompanion<LiveStreamsData> {
     Expression<String>? epgChannelId,
     Expression<String>? playlistId,
     Expression<DateTime>? createdAt,
+    Expression<int>? tvArchive,
+    Expression<int>? tvArchiveDuration,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3577,6 +3660,8 @@ class LiveStreamsCompanion extends UpdateCompanion<LiveStreamsData> {
       if (epgChannelId != null) 'epg_channel_id': epgChannelId,
       if (playlistId != null) 'playlist_id': playlistId,
       if (createdAt != null) 'created_at': createdAt,
+      if (tvArchive != null) 'tv_archive': tvArchive,
+      if (tvArchiveDuration != null) 'tv_archive_duration': tvArchiveDuration,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3589,6 +3674,8 @@ class LiveStreamsCompanion extends UpdateCompanion<LiveStreamsData> {
     Value<String>? epgChannelId,
     Value<String>? playlistId,
     Value<DateTime>? createdAt,
+    Value<int>? tvArchive,
+    Value<int>? tvArchiveDuration,
     Value<int>? rowid,
   }) {
     return LiveStreamsCompanion(
@@ -3599,6 +3686,8 @@ class LiveStreamsCompanion extends UpdateCompanion<LiveStreamsData> {
       epgChannelId: epgChannelId ?? this.epgChannelId,
       playlistId: playlistId ?? this.playlistId,
       createdAt: createdAt ?? this.createdAt,
+      tvArchive: tvArchive ?? this.tvArchive,
+      tvArchiveDuration: tvArchiveDuration ?? this.tvArchiveDuration,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3627,6 +3716,12 @@ class LiveStreamsCompanion extends UpdateCompanion<LiveStreamsData> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (tvArchive.present) {
+      map['tv_archive'] = Variable<int>(tvArchive.value);
+    }
+    if (tvArchiveDuration.present) {
+      map['tv_archive_duration'] = Variable<int>(tvArchiveDuration.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3643,6 +3738,8 @@ class LiveStreamsCompanion extends UpdateCompanion<LiveStreamsData> {
           ..write('epgChannelId: $epgChannelId, ')
           ..write('playlistId: $playlistId, ')
           ..write('createdAt: $createdAt, ')
+          ..write('tvArchive: $tvArchive, ')
+          ..write('tvArchiveDuration: $tvArchiveDuration, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -10873,6 +10970,17 @@ class $FavoritesTable extends Favorites
     requiredDuringInsert: false,
     defaultValue: currentDateAndTime,
   );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -10885,6 +10993,7 @@ class $FavoritesTable extends Favorites
     imagePath,
     createdAt,
     updatedAt,
+    sortOrder,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -10968,6 +11077,12 @@ class $FavoritesTable extends Favorites
         updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
       );
     }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
     return context;
   }
 
@@ -11017,6 +11132,10 @@ class $FavoritesTable extends Favorites
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      ),
     );
   }
 
@@ -11037,6 +11156,11 @@ class FavoritesData extends DataClass implements Insertable<FavoritesData> {
   final String? imagePath;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// Manual drag order (nullable): NULL rows fall back to createdAt-desc. Written
+  /// to ALL rows of a deduplicated "Mi lista" card so the order is deterministic
+  /// and doesn't depend on which row wins the dedup (schema v14).
+  final int? sortOrder;
   const FavoritesData({
     required this.id,
     required this.playlistId,
@@ -11048,6 +11172,7 @@ class FavoritesData extends DataClass implements Insertable<FavoritesData> {
     this.imagePath,
     required this.createdAt,
     required this.updatedAt,
+    this.sortOrder,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -11068,6 +11193,9 @@ class FavoritesData extends DataClass implements Insertable<FavoritesData> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || sortOrder != null) {
+      map['sort_order'] = Variable<int>(sortOrder);
+    }
     return map;
   }
 
@@ -11089,6 +11217,9 @@ class FavoritesData extends DataClass implements Insertable<FavoritesData> {
           : Value(imagePath),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      sortOrder: sortOrder == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sortOrder),
     );
   }
 
@@ -11108,6 +11239,7 @@ class FavoritesData extends DataClass implements Insertable<FavoritesData> {
       imagePath: serializer.fromJson<String?>(json['imagePath']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      sortOrder: serializer.fromJson<int?>(json['sortOrder']),
     );
   }
   @override
@@ -11124,6 +11256,7 @@ class FavoritesData extends DataClass implements Insertable<FavoritesData> {
       'imagePath': serializer.toJson<String?>(imagePath),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'sortOrder': serializer.toJson<int?>(sortOrder),
     };
   }
 
@@ -11138,6 +11271,7 @@ class FavoritesData extends DataClass implements Insertable<FavoritesData> {
     Value<String?> imagePath = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
+    Value<int?> sortOrder = const Value.absent(),
   }) => FavoritesData(
     id: id ?? this.id,
     playlistId: playlistId ?? this.playlistId,
@@ -11149,6 +11283,7 @@ class FavoritesData extends DataClass implements Insertable<FavoritesData> {
     imagePath: imagePath.present ? imagePath.value : this.imagePath,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    sortOrder: sortOrder.present ? sortOrder.value : this.sortOrder,
   );
   FavoritesData copyWithCompanion(FavoritesCompanion data) {
     return FavoritesData(
@@ -11166,6 +11301,7 @@ class FavoritesData extends DataClass implements Insertable<FavoritesData> {
       imagePath: data.imagePath.present ? data.imagePath.value : this.imagePath,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
     );
   }
 
@@ -11181,7 +11317,8 @@ class FavoritesData extends DataClass implements Insertable<FavoritesData> {
           ..write('name: $name, ')
           ..write('imagePath: $imagePath, ')
           ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('sortOrder: $sortOrder')
           ..write(')'))
         .toString();
   }
@@ -11198,6 +11335,7 @@ class FavoritesData extends DataClass implements Insertable<FavoritesData> {
     imagePath,
     createdAt,
     updatedAt,
+    sortOrder,
   );
   @override
   bool operator ==(Object other) =>
@@ -11212,7 +11350,8 @@ class FavoritesData extends DataClass implements Insertable<FavoritesData> {
           other.name == this.name &&
           other.imagePath == this.imagePath &&
           other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
+          other.updatedAt == this.updatedAt &&
+          other.sortOrder == this.sortOrder);
 }
 
 class FavoritesCompanion extends UpdateCompanion<FavoritesData> {
@@ -11226,6 +11365,7 @@ class FavoritesCompanion extends UpdateCompanion<FavoritesData> {
   final Value<String?> imagePath;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<int?> sortOrder;
   final Value<int> rowid;
   const FavoritesCompanion({
     this.id = const Value.absent(),
@@ -11238,6 +11378,7 @@ class FavoritesCompanion extends UpdateCompanion<FavoritesData> {
     this.imagePath = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   FavoritesCompanion.insert({
@@ -11251,6 +11392,7 @@ class FavoritesCompanion extends UpdateCompanion<FavoritesData> {
     this.imagePath = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.sortOrder = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        playlistId = Value(playlistId),
@@ -11268,6 +11410,7 @@ class FavoritesCompanion extends UpdateCompanion<FavoritesData> {
     Expression<String>? imagePath,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<int>? sortOrder,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -11281,6 +11424,7 @@ class FavoritesCompanion extends UpdateCompanion<FavoritesData> {
       if (imagePath != null) 'image_path': imagePath,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (sortOrder != null) 'sort_order': sortOrder,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -11296,6 +11440,7 @@ class FavoritesCompanion extends UpdateCompanion<FavoritesData> {
     Value<String?>? imagePath,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
+    Value<int?>? sortOrder,
     Value<int>? rowid,
   }) {
     return FavoritesCompanion(
@@ -11309,6 +11454,7 @@ class FavoritesCompanion extends UpdateCompanion<FavoritesData> {
       imagePath: imagePath ?? this.imagePath,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      sortOrder: sortOrder ?? this.sortOrder,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -11346,6 +11492,9 @@ class FavoritesCompanion extends UpdateCompanion<FavoritesData> {
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -11365,6 +11514,837 @@ class FavoritesCompanion extends UpdateCompanion<FavoritesData> {
           ..write('imagePath: $imagePath, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $EpgProgramsTable extends EpgPrograms
+    with TableInfo<$EpgProgramsTable, EpgProgramData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $EpgProgramsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _channelIdMeta = const VerificationMeta(
+    'channelId',
+  );
+  @override
+  late final GeneratedColumn<String> channelId = GeneratedColumn<String>(
+    'channel_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _playlistIdMeta = const VerificationMeta(
+    'playlistId',
+  );
+  @override
+  late final GeneratedColumn<String> playlistId = GeneratedColumn<String>(
+    'playlist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startMeta = const VerificationMeta('start');
+  @override
+  late final GeneratedColumn<DateTime> start = GeneratedColumn<DateTime>(
+    'start',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _stopMeta = const VerificationMeta('stop');
+  @override
+  late final GeneratedColumn<DateTime> stop = GeneratedColumn<DateTime>(
+    'stop',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    channelId,
+    playlistId,
+    start,
+    stop,
+    title,
+    description,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'epg_programs';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<EpgProgramData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('channel_id')) {
+      context.handle(
+        _channelIdMeta,
+        channelId.isAcceptableOrUnknown(data['channel_id']!, _channelIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_channelIdMeta);
+    }
+    if (data.containsKey('playlist_id')) {
+      context.handle(
+        _playlistIdMeta,
+        playlistId.isAcceptableOrUnknown(data['playlist_id']!, _playlistIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_playlistIdMeta);
+    }
+    if (data.containsKey('start')) {
+      context.handle(
+        _startMeta,
+        start.isAcceptableOrUnknown(data['start']!, _startMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startMeta);
+    }
+    if (data.containsKey('stop')) {
+      context.handle(
+        _stopMeta,
+        stop.isAcceptableOrUnknown(data['stop']!, _stopMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stopMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {channelId, playlistId, start};
+  @override
+  EpgProgramData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return EpgProgramData(
+      channelId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}channel_id'],
+      )!,
+      playlistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}playlist_id'],
+      )!,
+      start: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start'],
+      )!,
+      stop: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}stop'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+    );
+  }
+
+  @override
+  $EpgProgramsTable createAlias(String alias) {
+    return $EpgProgramsTable(attachedDatabase, alias);
+  }
+}
+
+class EpgProgramData extends DataClass implements Insertable<EpgProgramData> {
+  final String channelId;
+  final String playlistId;
+  final DateTime start;
+  final DateTime stop;
+  final String title;
+  final String? description;
+  const EpgProgramData({
+    required this.channelId,
+    required this.playlistId,
+    required this.start,
+    required this.stop,
+    required this.title,
+    this.description,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['channel_id'] = Variable<String>(channelId);
+    map['playlist_id'] = Variable<String>(playlistId);
+    map['start'] = Variable<DateTime>(start);
+    map['stop'] = Variable<DateTime>(stop);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    return map;
+  }
+
+  EpgProgramsCompanion toCompanion(bool nullToAbsent) {
+    return EpgProgramsCompanion(
+      channelId: Value(channelId),
+      playlistId: Value(playlistId),
+      start: Value(start),
+      stop: Value(stop),
+      title: Value(title),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+    );
+  }
+
+  factory EpgProgramData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return EpgProgramData(
+      channelId: serializer.fromJson<String>(json['channelId']),
+      playlistId: serializer.fromJson<String>(json['playlistId']),
+      start: serializer.fromJson<DateTime>(json['start']),
+      stop: serializer.fromJson<DateTime>(json['stop']),
+      title: serializer.fromJson<String>(json['title']),
+      description: serializer.fromJson<String?>(json['description']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'channelId': serializer.toJson<String>(channelId),
+      'playlistId': serializer.toJson<String>(playlistId),
+      'start': serializer.toJson<DateTime>(start),
+      'stop': serializer.toJson<DateTime>(stop),
+      'title': serializer.toJson<String>(title),
+      'description': serializer.toJson<String?>(description),
+    };
+  }
+
+  EpgProgramData copyWith({
+    String? channelId,
+    String? playlistId,
+    DateTime? start,
+    DateTime? stop,
+    String? title,
+    Value<String?> description = const Value.absent(),
+  }) => EpgProgramData(
+    channelId: channelId ?? this.channelId,
+    playlistId: playlistId ?? this.playlistId,
+    start: start ?? this.start,
+    stop: stop ?? this.stop,
+    title: title ?? this.title,
+    description: description.present ? description.value : this.description,
+  );
+  EpgProgramData copyWithCompanion(EpgProgramsCompanion data) {
+    return EpgProgramData(
+      channelId: data.channelId.present ? data.channelId.value : this.channelId,
+      playlistId: data.playlistId.present
+          ? data.playlistId.value
+          : this.playlistId,
+      start: data.start.present ? data.start.value : this.start,
+      stop: data.stop.present ? data.stop.value : this.stop,
+      title: data.title.present ? data.title.value : this.title,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EpgProgramData(')
+          ..write('channelId: $channelId, ')
+          ..write('playlistId: $playlistId, ')
+          ..write('start: $start, ')
+          ..write('stop: $stop, ')
+          ..write('title: $title, ')
+          ..write('description: $description')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(channelId, playlistId, start, stop, title, description);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is EpgProgramData &&
+          other.channelId == this.channelId &&
+          other.playlistId == this.playlistId &&
+          other.start == this.start &&
+          other.stop == this.stop &&
+          other.title == this.title &&
+          other.description == this.description);
+}
+
+class EpgProgramsCompanion extends UpdateCompanion<EpgProgramData> {
+  final Value<String> channelId;
+  final Value<String> playlistId;
+  final Value<DateTime> start;
+  final Value<DateTime> stop;
+  final Value<String> title;
+  final Value<String?> description;
+  final Value<int> rowid;
+  const EpgProgramsCompanion({
+    this.channelId = const Value.absent(),
+    this.playlistId = const Value.absent(),
+    this.start = const Value.absent(),
+    this.stop = const Value.absent(),
+    this.title = const Value.absent(),
+    this.description = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  EpgProgramsCompanion.insert({
+    required String channelId,
+    required String playlistId,
+    required DateTime start,
+    required DateTime stop,
+    required String title,
+    this.description = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : channelId = Value(channelId),
+       playlistId = Value(playlistId),
+       start = Value(start),
+       stop = Value(stop),
+       title = Value(title);
+  static Insertable<EpgProgramData> custom({
+    Expression<String>? channelId,
+    Expression<String>? playlistId,
+    Expression<DateTime>? start,
+    Expression<DateTime>? stop,
+    Expression<String>? title,
+    Expression<String>? description,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (channelId != null) 'channel_id': channelId,
+      if (playlistId != null) 'playlist_id': playlistId,
+      if (start != null) 'start': start,
+      if (stop != null) 'stop': stop,
+      if (title != null) 'title': title,
+      if (description != null) 'description': description,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  EpgProgramsCompanion copyWith({
+    Value<String>? channelId,
+    Value<String>? playlistId,
+    Value<DateTime>? start,
+    Value<DateTime>? stop,
+    Value<String>? title,
+    Value<String?>? description,
+    Value<int>? rowid,
+  }) {
+    return EpgProgramsCompanion(
+      channelId: channelId ?? this.channelId,
+      playlistId: playlistId ?? this.playlistId,
+      start: start ?? this.start,
+      stop: stop ?? this.stop,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (channelId.present) {
+      map['channel_id'] = Variable<String>(channelId.value);
+    }
+    if (playlistId.present) {
+      map['playlist_id'] = Variable<String>(playlistId.value);
+    }
+    if (start.present) {
+      map['start'] = Variable<DateTime>(start.value);
+    }
+    if (stop.present) {
+      map['stop'] = Variable<DateTime>(stop.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('EpgProgramsCompanion(')
+          ..write('channelId: $channelId, ')
+          ..write('playlistId: $playlistId, ')
+          ..write('start: $start, ')
+          ..write('stop: $stop, ')
+          ..write('title: $title, ')
+          ..write('description: $description, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RemindersTable extends Reminders
+    with TableInfo<$RemindersTable, ReminderData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RemindersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _channelIdMeta = const VerificationMeta(
+    'channelId',
+  );
+  @override
+  late final GeneratedColumn<String> channelId = GeneratedColumn<String>(
+    'channel_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _playlistIdMeta = const VerificationMeta(
+    'playlistId',
+  );
+  @override
+  late final GeneratedColumn<String> playlistId = GeneratedColumn<String>(
+    'playlist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _startMeta = const VerificationMeta('start');
+  @override
+  late final GeneratedColumn<DateTime> start = GeneratedColumn<DateTime>(
+    'start',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _notificationIdMeta = const VerificationMeta(
+    'notificationId',
+  );
+  @override
+  late final GeneratedColumn<int> notificationId = GeneratedColumn<int>(
+    'notification_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    channelId,
+    playlistId,
+    title,
+    start,
+    notificationId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reminders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReminderData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('channel_id')) {
+      context.handle(
+        _channelIdMeta,
+        channelId.isAcceptableOrUnknown(data['channel_id']!, _channelIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_channelIdMeta);
+    }
+    if (data.containsKey('playlist_id')) {
+      context.handle(
+        _playlistIdMeta,
+        playlistId.isAcceptableOrUnknown(data['playlist_id']!, _playlistIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_playlistIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('start')) {
+      context.handle(
+        _startMeta,
+        start.isAcceptableOrUnknown(data['start']!, _startMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_startMeta);
+    }
+    if (data.containsKey('notification_id')) {
+      context.handle(
+        _notificationIdMeta,
+        notificationId.isAcceptableOrUnknown(
+          data['notification_id']!,
+          _notificationIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_notificationIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReminderData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReminderData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      channelId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}channel_id'],
+      )!,
+      playlistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}playlist_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      start: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start'],
+      )!,
+      notificationId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}notification_id'],
+      )!,
+    );
+  }
+
+  @override
+  $RemindersTable createAlias(String alias) {
+    return $RemindersTable(attachedDatabase, alias);
+  }
+}
+
+class ReminderData extends DataClass implements Insertable<ReminderData> {
+  final String id;
+  final String channelId;
+  final String playlistId;
+  final String title;
+  final DateTime start;
+  final int notificationId;
+  const ReminderData({
+    required this.id,
+    required this.channelId,
+    required this.playlistId,
+    required this.title,
+    required this.start,
+    required this.notificationId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['channel_id'] = Variable<String>(channelId);
+    map['playlist_id'] = Variable<String>(playlistId);
+    map['title'] = Variable<String>(title);
+    map['start'] = Variable<DateTime>(start);
+    map['notification_id'] = Variable<int>(notificationId);
+    return map;
+  }
+
+  RemindersCompanion toCompanion(bool nullToAbsent) {
+    return RemindersCompanion(
+      id: Value(id),
+      channelId: Value(channelId),
+      playlistId: Value(playlistId),
+      title: Value(title),
+      start: Value(start),
+      notificationId: Value(notificationId),
+    );
+  }
+
+  factory ReminderData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReminderData(
+      id: serializer.fromJson<String>(json['id']),
+      channelId: serializer.fromJson<String>(json['channelId']),
+      playlistId: serializer.fromJson<String>(json['playlistId']),
+      title: serializer.fromJson<String>(json['title']),
+      start: serializer.fromJson<DateTime>(json['start']),
+      notificationId: serializer.fromJson<int>(json['notificationId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'channelId': serializer.toJson<String>(channelId),
+      'playlistId': serializer.toJson<String>(playlistId),
+      'title': serializer.toJson<String>(title),
+      'start': serializer.toJson<DateTime>(start),
+      'notificationId': serializer.toJson<int>(notificationId),
+    };
+  }
+
+  ReminderData copyWith({
+    String? id,
+    String? channelId,
+    String? playlistId,
+    String? title,
+    DateTime? start,
+    int? notificationId,
+  }) => ReminderData(
+    id: id ?? this.id,
+    channelId: channelId ?? this.channelId,
+    playlistId: playlistId ?? this.playlistId,
+    title: title ?? this.title,
+    start: start ?? this.start,
+    notificationId: notificationId ?? this.notificationId,
+  );
+  ReminderData copyWithCompanion(RemindersCompanion data) {
+    return ReminderData(
+      id: data.id.present ? data.id.value : this.id,
+      channelId: data.channelId.present ? data.channelId.value : this.channelId,
+      playlistId: data.playlistId.present
+          ? data.playlistId.value
+          : this.playlistId,
+      title: data.title.present ? data.title.value : this.title,
+      start: data.start.present ? data.start.value : this.start,
+      notificationId: data.notificationId.present
+          ? data.notificationId.value
+          : this.notificationId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReminderData(')
+          ..write('id: $id, ')
+          ..write('channelId: $channelId, ')
+          ..write('playlistId: $playlistId, ')
+          ..write('title: $title, ')
+          ..write('start: $start, ')
+          ..write('notificationId: $notificationId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, channelId, playlistId, title, start, notificationId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReminderData &&
+          other.id == this.id &&
+          other.channelId == this.channelId &&
+          other.playlistId == this.playlistId &&
+          other.title == this.title &&
+          other.start == this.start &&
+          other.notificationId == this.notificationId);
+}
+
+class RemindersCompanion extends UpdateCompanion<ReminderData> {
+  final Value<String> id;
+  final Value<String> channelId;
+  final Value<String> playlistId;
+  final Value<String> title;
+  final Value<DateTime> start;
+  final Value<int> notificationId;
+  final Value<int> rowid;
+  const RemindersCompanion({
+    this.id = const Value.absent(),
+    this.channelId = const Value.absent(),
+    this.playlistId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.start = const Value.absent(),
+    this.notificationId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RemindersCompanion.insert({
+    required String id,
+    required String channelId,
+    required String playlistId,
+    required String title,
+    required DateTime start,
+    required int notificationId,
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       channelId = Value(channelId),
+       playlistId = Value(playlistId),
+       title = Value(title),
+       start = Value(start),
+       notificationId = Value(notificationId);
+  static Insertable<ReminderData> custom({
+    Expression<String>? id,
+    Expression<String>? channelId,
+    Expression<String>? playlistId,
+    Expression<String>? title,
+    Expression<DateTime>? start,
+    Expression<int>? notificationId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (channelId != null) 'channel_id': channelId,
+      if (playlistId != null) 'playlist_id': playlistId,
+      if (title != null) 'title': title,
+      if (start != null) 'start': start,
+      if (notificationId != null) 'notification_id': notificationId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RemindersCompanion copyWith({
+    Value<String>? id,
+    Value<String>? channelId,
+    Value<String>? playlistId,
+    Value<String>? title,
+    Value<DateTime>? start,
+    Value<int>? notificationId,
+    Value<int>? rowid,
+  }) {
+    return RemindersCompanion(
+      id: id ?? this.id,
+      channelId: channelId ?? this.channelId,
+      playlistId: playlistId ?? this.playlistId,
+      title: title ?? this.title,
+      start: start ?? this.start,
+      notificationId: notificationId ?? this.notificationId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (channelId.present) {
+      map['channel_id'] = Variable<String>(channelId.value);
+    }
+    if (playlistId.present) {
+      map['playlist_id'] = Variable<String>(playlistId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (start.present) {
+      map['start'] = Variable<DateTime>(start.value);
+    }
+    if (notificationId.present) {
+      map['notification_id'] = Variable<int>(notificationId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RemindersCompanion(')
+          ..write('id: $id, ')
+          ..write('channelId: $channelId, ')
+          ..write('playlistId: $playlistId, ')
+          ..write('title: $title, ')
+          ..write('start: $start, ')
+          ..write('notificationId: $notificationId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -11390,6 +12370,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $M3uSeriesTable m3uSeries = $M3uSeriesTable(this);
   late final $M3uEpisodesTable m3uEpisodes = $M3uEpisodesTable(this);
   late final $FavoritesTable favorites = $FavoritesTable(this);
+  late final $EpgProgramsTable epgPrograms = $EpgProgramsTable(this);
+  late final $RemindersTable reminders = $RemindersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -11411,6 +12393,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     m3uSeries,
     m3uEpisodes,
     favorites,
+    epgPrograms,
+    reminders,
   ];
 }
 
@@ -12959,6 +13943,8 @@ typedef $$LiveStreamsTableCreateCompanionBuilder =
       required String epgChannelId,
       required String playlistId,
       Value<DateTime> createdAt,
+      Value<int> tvArchive,
+      Value<int> tvArchiveDuration,
       Value<int> rowid,
     });
 typedef $$LiveStreamsTableUpdateCompanionBuilder =
@@ -12970,6 +13956,8 @@ typedef $$LiveStreamsTableUpdateCompanionBuilder =
       Value<String> epgChannelId,
       Value<String> playlistId,
       Value<DateTime> createdAt,
+      Value<int> tvArchive,
+      Value<int> tvArchiveDuration,
       Value<int> rowid,
     });
 
@@ -13014,6 +14002,16 @@ class $$LiveStreamsTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tvArchive => $composableBuilder(
+    column: $table.tvArchive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get tvArchiveDuration => $composableBuilder(
+    column: $table.tvArchiveDuration,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -13061,6 +14059,16 @@ class $$LiveStreamsTableOrderingComposer
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get tvArchive => $composableBuilder(
+    column: $table.tvArchive,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get tvArchiveDuration => $composableBuilder(
+    column: $table.tvArchiveDuration,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$LiveStreamsTableAnnotationComposer
@@ -13100,6 +14108,14 @@ class $$LiveStreamsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get tvArchive =>
+      $composableBuilder(column: $table.tvArchive, builder: (column) => column);
+
+  GeneratedColumn<int> get tvArchiveDuration => $composableBuilder(
+    column: $table.tvArchiveDuration,
+    builder: (column) => column,
+  );
 }
 
 class $$LiveStreamsTableTableManager
@@ -13140,6 +14156,8 @@ class $$LiveStreamsTableTableManager
                 Value<String> epgChannelId = const Value.absent(),
                 Value<String> playlistId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<int> tvArchive = const Value.absent(),
+                Value<int> tvArchiveDuration = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LiveStreamsCompanion(
                 streamId: streamId,
@@ -13149,6 +14167,8 @@ class $$LiveStreamsTableTableManager
                 epgChannelId: epgChannelId,
                 playlistId: playlistId,
                 createdAt: createdAt,
+                tvArchive: tvArchive,
+                tvArchiveDuration: tvArchiveDuration,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -13160,6 +14180,8 @@ class $$LiveStreamsTableTableManager
                 required String epgChannelId,
                 required String playlistId,
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<int> tvArchive = const Value.absent(),
+                Value<int> tvArchiveDuration = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => LiveStreamsCompanion.insert(
                 streamId: streamId,
@@ -13169,6 +14191,8 @@ class $$LiveStreamsTableTableManager
                 epgChannelId: epgChannelId,
                 playlistId: playlistId,
                 createdAt: createdAt,
+                tvArchive: tvArchive,
+                tvArchiveDuration: tvArchiveDuration,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -16521,6 +17545,7 @@ typedef $$FavoritesTableCreateCompanionBuilder =
       Value<String?> imagePath,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<int?> sortOrder,
       Value<int> rowid,
     });
 typedef $$FavoritesTableUpdateCompanionBuilder =
@@ -16535,6 +17560,7 @@ typedef $$FavoritesTableUpdateCompanionBuilder =
       Value<String?> imagePath,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
+      Value<int?> sortOrder,
       Value<int> rowid,
     });
 
@@ -16594,6 +17620,11 @@ class $$FavoritesTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -16656,6 +17687,11 @@ class $$FavoritesTableOrderingComposer
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$FavoritesTableAnnotationComposer
@@ -16700,6 +17736,9 @@ class $$FavoritesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
 }
 
 class $$FavoritesTableTableManager
@@ -16743,6 +17782,7 @@ class $$FavoritesTableTableManager
                 Value<String?> imagePath = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<int?> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FavoritesCompanion(
                 id: id,
@@ -16755,6 +17795,7 @@ class $$FavoritesTableTableManager
                 imagePath: imagePath,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                sortOrder: sortOrder,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -16769,6 +17810,7 @@ class $$FavoritesTableTableManager
                 Value<String?> imagePath = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<int?> sortOrder = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => FavoritesCompanion.insert(
                 id: id,
@@ -16781,6 +17823,7 @@ class $$FavoritesTableTableManager
                 imagePath: imagePath,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
+                sortOrder: sortOrder,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -16806,6 +17849,452 @@ typedef $$FavoritesTableProcessedTableManager =
         BaseReferences<_$AppDatabase, $FavoritesTable, FavoritesData>,
       ),
       FavoritesData,
+      PrefetchHooks Function()
+    >;
+typedef $$EpgProgramsTableCreateCompanionBuilder =
+    EpgProgramsCompanion Function({
+      required String channelId,
+      required String playlistId,
+      required DateTime start,
+      required DateTime stop,
+      required String title,
+      Value<String?> description,
+      Value<int> rowid,
+    });
+typedef $$EpgProgramsTableUpdateCompanionBuilder =
+    EpgProgramsCompanion Function({
+      Value<String> channelId,
+      Value<String> playlistId,
+      Value<DateTime> start,
+      Value<DateTime> stop,
+      Value<String> title,
+      Value<String?> description,
+      Value<int> rowid,
+    });
+
+class $$EpgProgramsTableFilterComposer
+    extends Composer<_$AppDatabase, $EpgProgramsTable> {
+  $$EpgProgramsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get channelId => $composableBuilder(
+    column: $table.channelId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get playlistId => $composableBuilder(
+    column: $table.playlistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get start => $composableBuilder(
+    column: $table.start,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get stop => $composableBuilder(
+    column: $table.stop,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$EpgProgramsTableOrderingComposer
+    extends Composer<_$AppDatabase, $EpgProgramsTable> {
+  $$EpgProgramsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get channelId => $composableBuilder(
+    column: $table.channelId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get playlistId => $composableBuilder(
+    column: $table.playlistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get start => $composableBuilder(
+    column: $table.start,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get stop => $composableBuilder(
+    column: $table.stop,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$EpgProgramsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $EpgProgramsTable> {
+  $$EpgProgramsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get channelId =>
+      $composableBuilder(column: $table.channelId, builder: (column) => column);
+
+  GeneratedColumn<String> get playlistId => $composableBuilder(
+    column: $table.playlistId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get start =>
+      $composableBuilder(column: $table.start, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get stop =>
+      $composableBuilder(column: $table.stop, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+}
+
+class $$EpgProgramsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $EpgProgramsTable,
+          EpgProgramData,
+          $$EpgProgramsTableFilterComposer,
+          $$EpgProgramsTableOrderingComposer,
+          $$EpgProgramsTableAnnotationComposer,
+          $$EpgProgramsTableCreateCompanionBuilder,
+          $$EpgProgramsTableUpdateCompanionBuilder,
+          (
+            EpgProgramData,
+            BaseReferences<_$AppDatabase, $EpgProgramsTable, EpgProgramData>,
+          ),
+          EpgProgramData,
+          PrefetchHooks Function()
+        > {
+  $$EpgProgramsTableTableManager(_$AppDatabase db, $EpgProgramsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$EpgProgramsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$EpgProgramsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$EpgProgramsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> channelId = const Value.absent(),
+                Value<String> playlistId = const Value.absent(),
+                Value<DateTime> start = const Value.absent(),
+                Value<DateTime> stop = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EpgProgramsCompanion(
+                channelId: channelId,
+                playlistId: playlistId,
+                start: start,
+                stop: stop,
+                title: title,
+                description: description,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String channelId,
+                required String playlistId,
+                required DateTime start,
+                required DateTime stop,
+                required String title,
+                Value<String?> description = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => EpgProgramsCompanion.insert(
+                channelId: channelId,
+                playlistId: playlistId,
+                start: start,
+                stop: stop,
+                title: title,
+                description: description,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$EpgProgramsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $EpgProgramsTable,
+      EpgProgramData,
+      $$EpgProgramsTableFilterComposer,
+      $$EpgProgramsTableOrderingComposer,
+      $$EpgProgramsTableAnnotationComposer,
+      $$EpgProgramsTableCreateCompanionBuilder,
+      $$EpgProgramsTableUpdateCompanionBuilder,
+      (
+        EpgProgramData,
+        BaseReferences<_$AppDatabase, $EpgProgramsTable, EpgProgramData>,
+      ),
+      EpgProgramData,
+      PrefetchHooks Function()
+    >;
+typedef $$RemindersTableCreateCompanionBuilder =
+    RemindersCompanion Function({
+      required String id,
+      required String channelId,
+      required String playlistId,
+      required String title,
+      required DateTime start,
+      required int notificationId,
+      Value<int> rowid,
+    });
+typedef $$RemindersTableUpdateCompanionBuilder =
+    RemindersCompanion Function({
+      Value<String> id,
+      Value<String> channelId,
+      Value<String> playlistId,
+      Value<String> title,
+      Value<DateTime> start,
+      Value<int> notificationId,
+      Value<int> rowid,
+    });
+
+class $$RemindersTableFilterComposer
+    extends Composer<_$AppDatabase, $RemindersTable> {
+  $$RemindersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get channelId => $composableBuilder(
+    column: $table.channelId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get playlistId => $composableBuilder(
+    column: $table.playlistId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get start => $composableBuilder(
+    column: $table.start,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RemindersTableOrderingComposer
+    extends Composer<_$AppDatabase, $RemindersTable> {
+  $$RemindersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get channelId => $composableBuilder(
+    column: $table.channelId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get playlistId => $composableBuilder(
+    column: $table.playlistId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get start => $composableBuilder(
+    column: $table.start,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RemindersTableAnnotationComposer
+    extends Composer<_$AppDatabase, $RemindersTable> {
+  $$RemindersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get channelId =>
+      $composableBuilder(column: $table.channelId, builder: (column) => column);
+
+  GeneratedColumn<String> get playlistId => $composableBuilder(
+    column: $table.playlistId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get start =>
+      $composableBuilder(column: $table.start, builder: (column) => column);
+
+  GeneratedColumn<int> get notificationId => $composableBuilder(
+    column: $table.notificationId,
+    builder: (column) => column,
+  );
+}
+
+class $$RemindersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $RemindersTable,
+          ReminderData,
+          $$RemindersTableFilterComposer,
+          $$RemindersTableOrderingComposer,
+          $$RemindersTableAnnotationComposer,
+          $$RemindersTableCreateCompanionBuilder,
+          $$RemindersTableUpdateCompanionBuilder,
+          (
+            ReminderData,
+            BaseReferences<_$AppDatabase, $RemindersTable, ReminderData>,
+          ),
+          ReminderData,
+          PrefetchHooks Function()
+        > {
+  $$RemindersTableTableManager(_$AppDatabase db, $RemindersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RemindersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RemindersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RemindersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> channelId = const Value.absent(),
+                Value<String> playlistId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<DateTime> start = const Value.absent(),
+                Value<int> notificationId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RemindersCompanion(
+                id: id,
+                channelId: channelId,
+                playlistId: playlistId,
+                title: title,
+                start: start,
+                notificationId: notificationId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String channelId,
+                required String playlistId,
+                required String title,
+                required DateTime start,
+                required int notificationId,
+                Value<int> rowid = const Value.absent(),
+              }) => RemindersCompanion.insert(
+                id: id,
+                channelId: channelId,
+                playlistId: playlistId,
+                title: title,
+                start: start,
+                notificationId: notificationId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RemindersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $RemindersTable,
+      ReminderData,
+      $$RemindersTableFilterComposer,
+      $$RemindersTableOrderingComposer,
+      $$RemindersTableAnnotationComposer,
+      $$RemindersTableCreateCompanionBuilder,
+      $$RemindersTableUpdateCompanionBuilder,
+      (
+        ReminderData,
+        BaseReferences<_$AppDatabase, $RemindersTable, ReminderData>,
+      ),
+      ReminderData,
       PrefetchHooks Function()
     >;
 
@@ -16844,4 +18333,8 @@ class $AppDatabaseManager {
       $$M3uEpisodesTableTableManager(_db, _db.m3uEpisodes);
   $$FavoritesTableTableManager get favorites =>
       $$FavoritesTableTableManager(_db, _db.favorites);
+  $$EpgProgramsTableTableManager get epgPrograms =>
+      $$EpgProgramsTableTableManager(_db, _db.epgPrograms);
+  $$RemindersTableTableManager get reminders =>
+      $$RemindersTableTableManager(_db, _db.reminders);
 }

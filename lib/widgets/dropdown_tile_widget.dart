@@ -102,7 +102,7 @@ class DropdownTileWidget<T> extends StatelessWidget {
           if (description != null) ...[
             const SizedBox(height: 2),
             Padding(
-              padding: const EdgeInsets.only(left: 36),
+              padding: const EdgeInsetsDirectional.only(start: 36),
               child: Text(
                 key: dropdownTileDescriptionKey,
                 description!,

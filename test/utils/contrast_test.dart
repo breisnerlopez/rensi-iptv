@@ -78,7 +78,9 @@ void main() {
     });
 
     test('the focus ring is unmistakable on light surfaces too', () {
-      expectAA('light focus ring', AppThemes.focusRing(Brightness.light),
+      expectAA(
+          'light focus ring',
+          AppThemes.focusRing(Brightness.light, light.colorScheme.primary),
           light.colorScheme.surface,
           min: aaLarge);
     });
@@ -112,9 +114,51 @@ void main() {
   test('the focus ring is unmistakable against the dark background', () {
     expectAA(
       'focus ring',
-      AppThemes.focusRing(Brightness.dark),
+      AppThemes.focusRing(Brightness.dark, dark.colorScheme.primary),
       dark.colorScheme.surfaceContainerLowest,
       min: aaLarge,
     );
+  });
+
+  // F4 — cada preset de acento curado debe pasar WCAG en las 3 rampas. Esto es
+  // la RED DE SEGURIDAD que convierte la garantía hand-tuned (antes 3 valores del
+  // terracota) en una cubierta automáticamente para TODOS los acentos ofrecidos.
+  group('F4 accent presets clear WCAG on every ramp', () {
+    final ramps = <String, ThemeData Function(AccentSet)>{
+      'dark': (a) => AppThemes.themeFor(Brightness.dark, accent: a),
+      'light': (a) => AppThemes.themeFor(Brightness.light, accent: a),
+      'amoled': (a) =>
+          AppThemes.themeFor(Brightness.dark, amoled: true, accent: a),
+    };
+    for (final a in AppThemes.accents) {
+      test('accent "${a.id}"', () {
+        // Texto de botones/chips: onAccent sobre el relleno accentInk (normal).
+        expectAA('${a.id} onAccent on accentInk', a.onAccent, a.accentInk);
+        for (final ramp in ramps.entries) {
+          final theme = ramp.value(a);
+          final scheme = theme.colorScheme;
+          final rensi = theme.extension<RensiColors>()!;
+          final surfaces = <String, Color>{
+            'bg': scheme.surfaceContainerLowest,
+            'surface': scheme.surface,
+            'surface2': rensi.surface2,
+            'surface3': rensi.surface3,
+          };
+          for (final s in surfaces.entries) {
+            // accent como icono/forma/borde → barra grande/gráfica (3:1). La
+            // auditoría confirmó que los 34 colorScheme.primary son de este tipo.
+            expectAA('${a.id} accent on ${ramp.key}/${s.key}', a.accent,
+                s.value,
+                min: aaLarge);
+          }
+        }
+        // El anillo de foco en light-TV es el acento sobre surface clara (3:1).
+        final lightSurface =
+            AppThemes.themeFor(Brightness.light, accent: a).colorScheme.surface;
+        expectAA('${a.id} focus ring (light-TV)',
+            AppThemes.focusRing(Brightness.light, a.accent), lightSurface,
+            min: aaLarge);
+      });
+    }
   });
 }

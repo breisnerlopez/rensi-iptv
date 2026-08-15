@@ -98,7 +98,8 @@ class _FocusHighlightState extends State<FocusHighlight> {
     // light theme (white surfaces) fall back to the brand accent so the ring
     // never vanishes into a white card.
     // Same token the theme uses, so the ring cannot drift per widget.
-    final ring = AppThemes.focusRing(Theme.of(context).brightness);
+    final ring = AppThemes.focusRing(Theme.of(context).brightness,
+        Theme.of(context).colorScheme.primary);
 
     // RepaintBoundary is load-bearing here, not decoration. The scale is a
     // compositing transform: with the child isolated in its own layer, a focus

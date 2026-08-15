@@ -552,16 +552,22 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Semantics(
-            header: true,
-            child: Text(
-            title,
-            style: TextStyle(
-              fontFamily: 'Bricolage Grotesque',
-              fontSize: big ? 24 : 19,
-              fontWeight: FontWeight.w700,
+          // Expanded + ellipsis: a long title (e.g. German "Zuletzt angesehen")
+          // next to the "Ver todo" action would otherwise overflow the Row.
+          Expanded(
+            child: Semantics(
+              header: true,
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontFamily: 'Bricolage Grotesque',
+                  fontSize: big ? 24 : 19,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-          ),
           ),
           if (actionLabel != null)
             FocusHighlight(

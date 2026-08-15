@@ -20,6 +20,17 @@
          still run but never promote to a foreground service and the OS is
          more likely to kill them once the app is backgrounded. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- EPG programme reminders: exact alarms fire the notification at the right
+         time. USE_EXACT_ALARM is auto-granted for an alarm/reminder app;
+         SCHEDULE_EXACT_ALARM is the fallback the OS may revoke, in which case the
+         reminder degrades to an inexact alarm (see ReminderService). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Re-arm scheduled EPG reminders after a device reboot / app update.
+         Without this, flutter_local_notifications' AlarmManager alarms are lost
+         on reboot and the reminder never fires (the guide window is 2 days, so a
+         restart in between would silently drop it). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- background_downloader (offline downloads): on Android 14+ (API 34+;
          this app targets API 36), the plugin calls setForeground(..., dataSync)
          while a download's 'running' notification is active (see its
@@ -129,6 +140,22 @@
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
             </intent-filter>
         </receiver>
+
+        <!-- flutter_local_notifications: deliver scheduled EPG reminders and
+             re-schedule the pending ones after a reboot / app replacement. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false" />
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
     </application>
 
     <!-- Required to query activities that can process text, see:
@@ -154,6 +181,13 @@
             <action android:name="android.intent.action.VIEW"/>
             <category android:name="android.intent.category.BROWSABLE"/>
             <data android:scheme="https"/>
+        </intent>
+        <!-- "Open in external player" (VLC/MX/…): declare the VIEW+video/* intent
+             so package visibility (Android 11+) lets the chooser resolve them;
+             without this the intent silently fails to find any handler. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:mimeType="video/*"/>
         </intent>
     </queries>
 </manifest>

@@ -175,8 +175,26 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
   // toggle equivocado). [_callWatchRequested] evita re-pedir el permiso.
   StreamSubscription<String>? _callSub;
   bool _pausedForCall = false;
+  // F2: intent DIFERIDO de reanudar-tras-llamada cuando la llamada terminó
+  // MIENTRAS reconectábamos (socket muerto). Flag SEPARADO de `_pausedForCall`
+  // a propósito: `_pausedForCall` significa "nosotros pausamos por la llamada"
+  // (sigue true durante la reconexión); este flag significa "la llamada YA
+  // terminó, reanuda en cuanto vuelva el socket". Sin separarlos, una
+  // reconexión-éxito con la llamada AÚN activa reanudaría la TV en mitad de la
+  // llamada.
+  bool _resumePendingAfterReconnect = false;
+  // FIX-2: LATCH — la TV mandó su estado play/pausa REAL (campo 'playing' del
+  // protocolo nuevo). Al recibirlo una vez, la inferencia por avance de posición
+  // se apaga PERMANENTEMENTE para esta sesión, para que un eco de posición
+  // rezagado no sobrescriba un 'playing:false' autoritativo. False = TV vieja que
+  // no manda el campo → se sigue infiriendo (compat).
+  bool _tvAuthoritative = false;
   bool _callWatchRequested = false;
   bool _tvPlaying = false;
+  // Tras un playPause manual, saltar la inferencia-de-avance del PRIMER heartbeat:
+  // ese heartbeat reporta la posición alcanzada al pausar (> la del último tick en
+  // reproducción), que se leería como "avanzó" y revertiría el icono ~5s.
+  bool _suppressAdvanceInferenceOnce = false;
 
   // Streaming de un archivo LOCAL (descarga offline) del móvil a la TV por la
   // LAN. Cuando [_localUrl] != null, el LOAD envía esta URL (sin credenciales)
@@ -331,6 +349,11 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
 
   bool get isCasting => _phase == CastPhase.casting;
 
+  /// Intended playback state of the TV, so the mini-controller / casting screen
+  /// can show pause vs play. Optimistically flipped by [playPause] and corrected
+  /// by the TV's own `state` messages.
+  bool get isTvPlaying => _tvPlaying;
+
   void _set(CastPhase p, {String? error}) {
     final wasCasting = _phase == CastPhase.casting;
     _phase = p;
@@ -367,6 +390,9 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
     _index = index;
     _wrongPin = false;
     _superseded = false; // un cast nuevo puede volver a reconectar
+    _pausedForCall = false; // F2: cast nuevo arranca sin estado de llamada
+    _resumePendingAfterReconnect = false;
+    _tvAuthoritative = false; // FIX-2: latch por-sesión (posible TV distinta)
     _cancelResync(); // un cast nuevo no debe arrastrar un reenganche pendiente
     // Sesión nueva: invalida cualquier sonda de liveness de una sesión anterior
     // (una que aún no venció NO debe forzar una reconexión sobre ESTE cast).
@@ -1190,6 +1216,14 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
           // se recupera con un re-LOAD en la última posición viva (cubre una TV
           // que sí se reinició/paró de verdad).
           _armResyncFallback();
+          // F2: una llamada terminó mientras reconectábamos → ahora que el canal
+          // volvió, honrar la reanudación diferida (con `_reconnecting` ya false,
+          // resumeAfterCall reanuda de verdad). Si la llamada SIGUE activa, el
+          // flag es false y no se reanuda.
+          if (_resumePendingAfterReconnect) {
+            _resumePendingAfterReconnect = false;
+            resumeAfterCall();
+          }
           // Feature H (fase 5) — reengancharse es otra oportunidad de reconciliar
           // "continuar viendo" con la TV (una sola vez por reconexión).
           unawaited(_syncHistory());
@@ -1228,16 +1262,26 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
 
   void playPause() {
     if (_sender == null) return;
+    // FIX-4: durante la reconexión `_sender` apunta a un socket muerto en backoff
+    // (mismo hazard que zap/seek/castNext). No voltear el icono ni mandar: el
+    // toggle óptimista mentiría (el icono cambia pero la TV no reacciona) hasta el
+    // próximo `state`. No-op seguro; al re-sincronizar el botón vuelve a funcionar.
+    if (_reconnecting) return;
     _sender!.sendCommand(CmdType.playPause);
     // Rastrear el estado INTENCIONADO de la TV: playPause es un toggle, así que
     // pauseForCall/resumeAfterCall necesitan saber si estaba reproduciendo para
     // no dar el toggle equivocado. Un `state` posterior lo corrige si drifta.
     _tvPlaying = !_tvPlaying;
+    _suppressAdvanceInferenceOnce = true; // ignora el 1er heartbeat post-toggle
     // Si el usuario togglea a mano MIENTRAS estamos pausados-por-llamada, su
     // acción manual toma el control: soltamos el flag para que, al colgar,
     // resumeAfterCall() NO dispare un toggle automático que revierta lo que el
     // usuario acaba de decidir (sería un toggle "fantasma" no pedido por nadie).
     _pausedForCall = false;
+    _resumePendingAfterReconnect = false; // F2: acción manual cancela el resume diferido
+    // Flip the play/pause icon immediately (optimistic); a later `state` message
+    // from the TV corrects it if it drifts.
+    notifyListeners();
   }
 
   // ── Pausa-al-recibir-llamada (solo mientras se castea) ────────────────────
@@ -1279,6 +1323,9 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
     _callSub = null;
     _callWatchRequested = false;
     _pausedForCall = false;
+    // F2 (corrección del retador): sellar el resume diferido en TODA transición
+    // fase→idle (incluye superseded/_teardownSilently), no solo en beginCast.
+    _resumePendingAfterReconnect = false;
   }
 
   /// Pausa la TV por una llamada entrante, SOLO si está reproduciendo (evita un
@@ -1286,6 +1333,9 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
   /// vuelve a togglear. Recuerda que fuimos nosotros para reanudar luego.
   void pauseForCall() {
     if (_phase != CastPhase.casting || _sender == null) return;
+    // FIX-4: no tocar un socket muerto en reconexión (no dejar `_pausedForCall`
+    // colgado sobre una sesión que aún no estabiliza).
+    if (_reconnecting) return;
     if (_pausedForCall || !_tvPlaying) return;
     _sender!.sendCommand(CmdType.playPause);
     _tvPlaying = false;
@@ -1296,6 +1346,15 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
   /// pausamos (si el usuario ya la había pausado a mano, no la reanudamos).
   void resumeAfterCall() {
     if (!_pausedForCall) return;
+    // F2: si la llamada termina MIENTRAS reconectamos, no podemos alcanzar la TV
+    // ahora. Recordar el intent en un flag SEPARADO (no tocar `_pausedForCall`,
+    // que sigue significando "la pausamos") y salir; la reconexión exitosa lo
+    // honra. Una reconexión con la llamada aún activa nunca llega aquí, así que
+    // no reanuda por error.
+    if (_reconnecting) {
+      _resumePendingAfterReconnect = true;
+      return;
+    }
     _pausedForCall = false;
     if (_phase != CastPhase.casting || _sender == null) return;
     _sender!.sendCommand(CmdType.playPause);
@@ -1497,6 +1556,19 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
     // → cancelar la recuperación por re-LOAD (ver [_reconnect]). Debe correr para
     // CUALQUIER `state` (incluso pos<=0), por eso va antes del guard de pos/dur.
     if (_awaitingResync) _cancelResync();
+    // FIX-2: estado play/pausa AUTORITATIVO. Cuando la TV manda 'playing' (bool,
+    // protocolo nuevo) es la verdad; se procesa ANTES del guard pos/dur porque una
+    // pausa puede llegar con la posición congelada. Y LATCH: a partir de aquí se
+    // apaga la inferencia por posición para esta sesión (una TV vieja sin el campo
+    // sigue infiriendo). No se pisa un pausado-por-llamada (estado interno).
+    final authPlaying = msg['playing'];
+    if (authPlaying is bool && !_pausedForCall) {
+      _tvAuthoritative = true;
+      if (_tvPlaying != authPlaying) {
+        _tvPlaying = authPlaying;
+        notifyListeners();
+      }
+    }
     // Eco de volumen: la TV manda su volumen real en cada `state`. Campo
     // OPCIONAL (compat. hacia atrás con una TV vieja que no lo envía aún):
     // solo se actualiza si viene y difiere, para no notificar de más. Mientras
@@ -1514,10 +1586,27 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
     final pos = (msg['pos'] as num?)?.toInt() ?? 0;
     final dur = (msg['dur'] as num?)?.toInt() ?? 0;
     if (pos <= 0 || dur <= 0) return;
-    // Un `state` con posición real es prueba de que la TV está reproduciendo:
-    // corrige el estado intencionado por si driftó (salvo que lo tengamos pausado
-    // por una llamada, para que un eco rezagado no dispare un resume espurio).
-    if (!_pausedForCall) _tvPlaying = true;
+    // Inferir reproducción/pausa por si la posición AVANZÓ desde el último
+    // `state` (`_lastPos` aún tiene el valor previo aquí; se actualiza más abajo).
+    // Una posición CONGELADA significa que la TV está pausada: NO forzar
+    // _tvPlaying de vuelta a true, o el icono play/pausa volvería a "reproduciendo"
+    // ~5s después de que el usuario pausa. Solo una posición que avanza de verdad
+    // prueba reproducción. Se omite en pausado-por-llamada para que un eco rezagado
+    // no dispare un resume espurio.
+    // (Fix autoritativo pleno = que el receptor mande su estado real de
+    //  reproducción; hoy manda 'status':'playing' hardcodeado, por eso se infiere.)
+    if (!_pausedForCall && !_tvAuthoritative) {
+      if (_suppressAdvanceInferenceOnce) {
+        // Saltar el primer heartbeat tras un playPause manual (ver campo).
+        _suppressAdvanceInferenceOnce = false;
+      } else if (pos > _lastPos) {
+        // Avance REAL de posición ⇒ reproduciendo. Deliberadamente NO se fuerza a
+        // false en posición congelada: un buffering transitorio la congela y eso
+        // haría parpadear el icono a "pausa". El estado óptimista de playPause se
+        // mantiene entre heartbeats; solo un avance real lo confirma a true.
+        _tvPlaying = true;
+      }
+    }
     // La duración siempre se toma (habilita el slider de scrub). La posición se
     // ignora mientras el usuario arrastra el slider (igual que el eco de volumen):
     // un eco en tránsito no debe pelear con el dedo. Notifica para que el slider
@@ -1653,6 +1742,10 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
     _lastHistoryWrite = null;
     _lastPos = 0;
     _lastDur = 0;
+    // F2: fin de sesión → descartar pausa-por-llamada y el resume diferido (caso
+    // c: la reconexión se agotó y terminamos; no hay TV que reanudar).
+    _pausedForCall = false;
+    _resumePendingAfterReconnect = false;
     _cancelResync();
     // Fin de sesión: invalida cualquier sonda de liveness en vuelo, para que un
     // stop seguido de un nuevo cast dentro de la ventana no herede la sonda vieja.
