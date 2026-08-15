@@ -709,7 +709,7 @@
   "tv_preparing_series": "Подготовка…",
   "tv_playback_settings": "Настройки воспроизведения",
   "tv_replay_failed": "Не удалось получить этот контент для воспроизведения.",
-  "cast_need_wifi": "Подключитесь к той же сети Wi‑Fi, что и TV, чтобы отправить файл.",
+  "cast_need_wifi": "Подключитесь к той же сети Wi‑Fi, что и телевизор, чтобы транслировать.",
   "download_err_http": "Ошибка HTTP",
   "download_err_start_failed": "Не удалось начать загрузку",
   "download_err_file_missing": "Загруженный файл больше недоступен",

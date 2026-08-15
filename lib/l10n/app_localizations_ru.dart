@@ -1786,6 +1786,20 @@ class AppLocalizationsRu extends AppLocalizations {
       'Не удалось загрузить — нажмите, чтобы повторить';
 
   @override
+  String get download_on_cellular_title => 'Download on mobile data?';
+
+  @override
+  String get download_on_cellular_body =>
+      'You\'re on mobile data and this download may use a lot of it. Continue?';
+
+  @override
+  String get download_anyway => 'Download';
+
+  @override
+  String get reminder_needs_notifications =>
+      'Turn on notifications to get reminders.';
+
+  @override
   String get tv_ready_subtitle => 'Готово к приёму контента с телефона';
 
   @override
@@ -1797,7 +1811,7 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get cast_need_wifi =>
-      'Подключитесь к той же сети Wi‑Fi, что и TV, чтобы отправить файл.';
+      'Подключитесь к той же сети Wi‑Fi, что и телевизор, чтобы транслировать.';
 
   @override
   String get download_err_http => 'Ошибка HTTP';

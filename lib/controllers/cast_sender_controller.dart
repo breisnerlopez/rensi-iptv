@@ -18,6 +18,7 @@ import '../models/content_type.dart';
 import '../models/playlist_model.dart';
 import '../models/watch_history.dart';
 import '../repositories/user_preferences.dart';
+import '../utils/connectivity_helper.dart';
 import '../services/app_state.dart';
 import '../services/service_locator.dart';
 import '../services/event_bus.dart';
@@ -399,6 +400,13 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
     _sessionGen++;
     _cancelLivenessProbe();
     _lastTvInboundAt = null;
+    // En datos móviles no hay LAN alcanzable: cortar YA con un mensaje claro
+    // ("conéctate al Wi‑Fi de la TV") en vez de girar 4s en discover y caer en
+    // 'no_devices'. Cubre tanto el cast de stream como el de archivo local.
+    if (await ConnectivityHelper.isCellularOnly()) {
+      _set(CastPhase.error, error: 'no_wifi');
+      return;
+    }
     _set(CastPhase.discovering);
     try {
       final finder = _senderFactory();
@@ -697,6 +705,12 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
     int index = 0,
   }) async {
     _localFilePath = filePath;
+    // En datos móviles no hay LAN alcanzable: cortar ANTES de arrancar el
+    // servidor HTTP local (no tiene sentido levantarlo para descartarlo).
+    if (await ConnectivityHelper.isCellularOnly()) {
+      _set(CastPhase.error, error: 'no_wifi');
+      return;
+    }
     final server = _fileServer ??= LocalFileServer();
     final String lanUrl;
     try {
@@ -705,6 +719,8 @@ class CastSenderController extends ChangeNotifier with WidgetsBindingObserver {
       _set(CastPhase.error, error: e.toString());
       return;
     }
+    // El caso celular ya se cortó arriba; lanIp() cubre el resto (modo avión /
+    // sin red): sin IP de LAN la TV no puede alcanzar la URL servida.
     if (await server.lanIp() == null) {
       await server.stop();
       _set(CastPhase.error, error: 'no_wifi');

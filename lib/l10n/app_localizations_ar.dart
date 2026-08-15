@@ -1775,6 +1775,20 @@ class AppLocalizationsAr extends AppLocalizations {
   String get download_failed_retry => 'فشل التنزيل — انقر لإعادة المحاولة';
 
   @override
+  String get download_on_cellular_title => 'Download on mobile data?';
+
+  @override
+  String get download_on_cellular_body =>
+      'You\'re on mobile data and this download may use a lot of it. Continue?';
+
+  @override
+  String get download_anyway => 'Download';
+
+  @override
+  String get reminder_needs_notifications =>
+      'Turn on notifications to get reminders.';
+
+  @override
   String get tv_ready_subtitle => 'جاهز لاستقبال المحتوى من هاتفك';
 
   @override
@@ -1785,7 +1799,7 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get cast_need_wifi =>
-      'اتصل بنفس شبكة Wi‑Fi المتصلة بها TV لإرسال الملف.';
+      'اتصل بنفس شبكة Wi‑Fi المتصل بها التلفزيون للإرسال إلى الشاشة.';
 
   @override
   String get download_err_http => 'خطأ HTTP';

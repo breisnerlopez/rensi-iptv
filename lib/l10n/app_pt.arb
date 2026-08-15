@@ -709,7 +709,7 @@
   "tv_preparing_series": "Preparando…",
   "tv_playback_settings": "Configurações de reprodução",
   "tv_replay_failed": "Não foi possível recuperar este conteúdo para reproduzi-lo.",
-  "cast_need_wifi": "Conecte-se à mesma rede Wi‑Fi da TV para enviar o arquivo.",
+  "cast_need_wifi": "Conecte-se à mesma rede Wi‑Fi da sua TV para transmitir.",
   "download_err_http": "Erro HTTP",
   "download_err_start_failed": "Não foi possível iniciar o download",
   "download_err_file_missing": "O arquivo baixado não está mais disponível",

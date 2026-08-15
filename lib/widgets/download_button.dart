@@ -16,6 +16,7 @@ import '../models/content_type.dart';
 import '../models/playlist_content_model.dart';
 import '../services/app_state.dart';
 import '../services/download_service.dart';
+import '../utils/connectivity_helper.dart';
 
 class DownloadButton extends StatefulWidget {
   const DownloadButton({super.key, required this.item});
@@ -28,6 +29,9 @@ class DownloadButton extends StatefulWidget {
 
 class _DownloadButtonState extends State<DownloadButton> {
   Future<Download?>? _future;
+  // Evita reentrancia: un doble-tap no debe apilar dos diálogos de confirmación
+  // ni encolar dos veces (enqueue no es atómico: check-then-insert).
+  bool _enqueuing = false;
 
   ContentItem get item => widget.item;
 
@@ -55,18 +59,50 @@ class _DownloadButtonState extends State<DownloadButton> {
   }
 
   Future<void> _enqueue() async {
-    final playlistId = AppState.currentPlaylist?.id ?? '';
-    final contentType = item.contentType == ContentType.series ? 'series' : 'vod';
-    await DownloadService.instance.enqueue(
-      contentId: item.id,
-      contentType: contentType,
-      title: item.name,
-      imagePath: item.imagePath,
-      ext: item.containerExtension,
-      url: item.url,
-      playlistId: playlistId,
-    );
-    if (mounted) _refresh();
+    if (_enqueuing) return; // reentrancia: doble-tap en vuelo
+    _enqueuing = true;
+    try {
+      // En datos móviles una descarga puede consumir bastante (VOD de 1+ GB): no
+      // bloquear, pero pedir confirmación explícita. En Wi‑Fi/Ethernet arranca
+      // directo. Conservador: solo pregunta cuando la red es exclusivamente
+      // celular (ver ConnectivityHelper), nunca ante ambigüedad.
+      if (await ConnectivityHelper.isCellularOnly()) {
+        if (!mounted) return;
+        final proceed = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(ctx.loc.download_on_cellular_title),
+            content: Text(ctx.loc.download_on_cellular_body),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(ctx.loc.cancel),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(ctx.loc.download_anyway),
+              ),
+            ],
+          ),
+        );
+        if (proceed != true) return;
+      }
+      final playlistId = AppState.currentPlaylist?.id ?? '';
+      final contentType =
+          item.contentType == ContentType.series ? 'series' : 'vod';
+      await DownloadService.instance.enqueue(
+        contentId: item.id,
+        contentType: contentType,
+        title: item.name,
+        imagePath: item.imagePath,
+        ext: item.containerExtension,
+        url: item.url,
+        playlistId: playlistId,
+      );
+      if (mounted) _refresh();
+    } finally {
+      _enqueuing = false;
+    }
   }
 
   @override

@@ -1,3 +1,18 @@
+## [2.20.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.20.0...v2.20.1) (2026-08-15)
+
+
+### Features
+
+* **Casting más inteligente con datos móviles:** si estás con datos (sin Wi‑Fi) ya no te pregunta "¿enviar esto a tu TV?" —no hay ninguna TV alcanzable— y se reproduce directo en el teléfono. Si intentás enviar a propósito, te avisa "conectate al Wi‑Fi de tu TV" en vez de quedarse cargando y fallar
+* **Aviso al descargar con datos móviles:** antes de empezar una descarga usando datos, te pide confirmación (una película puede consumir bastante); en Wi‑Fi arranca directo
+
+
+### Bug Fixes
+
+* **Arranque de reproducción más fluido:** las películas y series empiezan sin tironeos y la app ya no se pone lenta los primeros segundos (se ajustó cuánto se precarga en memoria al abrir; los canales en vivo se mantienen igual de estables)
+* **Los recordatorios ya no fallan en silencio:** al activar un recordatorio, si las notificaciones estaban desactivadas ahora se piden; si las rechazás, la campanita no se enciende en falso (antes parecía activa pero nunca avisaba)
+
+
 # [2.20.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.19.2...v2.20.0) (2026-08-15)
 
 

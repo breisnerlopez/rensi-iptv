@@ -254,6 +254,25 @@ class _EpgGuideSheetState extends State<EpgGuideSheet> {
                                   color: reminderOn ? r.accent : r.text2,
                                   tooltip: loc.set_reminder,
                                   onPressed: () async {
+                                    // Al ACTIVAR, asegurar el permiso de
+                                    // notificaciones primero: si no, el toggle
+                                    // devolvería false y se mostraría el mensaje
+                                    // engañoso "recordatorio quitado" cuando en
+                                    // realidad nunca llegaría a avisar.
+                                    final turningOn =
+                                        !(_reminderOn[key] ?? false);
+                                    if (turningOn &&
+                                        !await ReminderService
+                                            .ensureNotificationPermission()) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              loc.reminder_needs_notifications),
+                                        ),
+                                      );
+                                      return;
+                                    }
                                     final on = await _reminders.toggle(
                                       playlistId: widget.playlistId,
                                       channelId: widget.channelId,

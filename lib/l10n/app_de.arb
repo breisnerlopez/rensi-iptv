@@ -709,7 +709,7 @@
   "tv_preparing_series": "Wird vorbereitet…",
   "tv_playback_settings": "Wiedergabeeinstellungen",
   "tv_replay_failed": "Dieser Inhalt konnte zum Abspielen nicht abgerufen werden.",
-  "cast_need_wifi": "Verbinde dich mit demselben Wi‑Fi-Netzwerk wie die TV, um die Datei zu senden.",
+  "cast_need_wifi": "Verbinde dich mit demselben Wi‑Fi-Netzwerk wie dein Fernseher, um zu casten.",
   "download_err_http": "HTTP-Fehler",
   "download_err_start_failed": "Der Download konnte nicht gestartet werden",
   "download_err_file_missing": "Die heruntergeladene Datei ist nicht mehr verfügbar",

@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:rensi_iptv/database/database.dart';
@@ -43,6 +42,20 @@ class ReminderService {
     return 'Etc/GMT${hours >= 0 ? '+' : ''}$hours';
   }
 
+  /// Ensures the OS notification permission (Android 13+ POST_NOTIFICATIONS).
+  /// Returns true when a notification could actually be shown. Without it a
+  /// scheduled reminder is a SILENT no-op (the alarm fires but nothing is
+  /// posted), so callers must gate turning a reminder ON on this — otherwise
+  /// the bell would light up while the user never gets notified.
+  static Future<bool> ensureNotificationPermission() async {
+    await _ensureInit();
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return true; // non-Android → nothing to grant
+    if (await android.areNotificationsEnabled() ?? false) return true;
+    return await android.requestNotificationsPermission() ?? false;
+  }
+
   String reminderId(String playlistId, String channelId, DateTime start) =>
       '$playlistId:$channelId:${start.millisecondsSinceEpoch}';
 
@@ -62,6 +75,9 @@ class ReminderService {
     final fireAt = start.subtract(lead);
     if (fireAt.isBefore(DateTime.now())) return false;
     await _ensureInit();
+    // Sin permiso de notificaciones el zonedSchedule no lanzaría nada visible:
+    // no persistir el recordatorio para que la UI no lo pinte como activo.
+    if (!await ensureNotificationPermission()) return false;
     final id = reminderId(playlistId, channelId, start);
     final notifId = id.hashCode & 0x7fffffff;
 

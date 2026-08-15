@@ -18,6 +18,7 @@ import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
 import 'package:rensi_iptv/utils/audio_handler.dart';
+import 'package:rensi_iptv/utils/connectivity_helper.dart';
 import 'package:rensi_iptv/widgets/player_widget.dart';
 
 import 'harness.dart';
@@ -92,6 +93,24 @@ void main() {
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 150));
     }
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
+  testWidgets('datos móviles (celular): el gate de casting NO aparece', (tester) async {
+    await registerDeps();
+    // En datos móviles no hay LAN donde vivir un receptor → el prompt se suprime
+    // aunque la URL sea http (streaming). Seam en lugar del plugin de plataforma.
+    ConnectivityHelper.debugIsCellularOnly = () async => true;
+    addTearDown(() => ConnectivityHelper.debugIsCellularOnly = null);
+    final c = CastSenderController(senderFactory: () => _FakeSender());
+
+    await tester.pumpWidget(_wrap(c, _item('http://127.0.0.1:1/dead.mp4')));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 150));
+    }
+
+    expect(find.text('¿Enviar esto a tu TV?'), findsNothing,
+        reason: 'en datos móviles no hay TV alcanzable → sin prompt de cast');
+    expect(tester.any(find.byType(PlayerWidget)), isTrue);
   }, timeout: const Timeout(Duration(seconds: 60)));
 
   testWidgets('url local (offline): el gate de casting NO aparece', (tester) async {

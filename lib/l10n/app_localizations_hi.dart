@@ -1781,6 +1781,20 @@ class AppLocalizationsHi extends AppLocalizations {
       'डाउनलोड विफल — पुनः प्रयास के लिए टैप करें';
 
   @override
+  String get download_on_cellular_title => 'Download on mobile data?';
+
+  @override
+  String get download_on_cellular_body =>
+      'You\'re on mobile data and this download may use a lot of it. Continue?';
+
+  @override
+  String get download_anyway => 'Download';
+
+  @override
+  String get reminder_needs_notifications =>
+      'Turn on notifications to get reminders.';
+
+  @override
   String get tv_ready_subtitle =>
       'आपके फ़ोन से सामग्री प्राप्त करने के लिए तैयार';
 
@@ -1793,7 +1807,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get cast_need_wifi =>
-      'फ़ाइल भेजने के लिए TV के समान Wi‑Fi नेटवर्क से कनेक्ट करें।';
+      'कास्ट करने के लिए अपने TV के समान Wi‑Fi नेटवर्क से कनेक्ट करें।';
 
   @override
   String get download_err_http => 'HTTP त्रुटि';

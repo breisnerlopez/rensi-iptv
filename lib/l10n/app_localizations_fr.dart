@@ -1803,6 +1803,20 @@ class AppLocalizationsFr extends AppLocalizations {
       'Échec du téléchargement — appuyez pour réessayer';
 
   @override
+  String get download_on_cellular_title => 'Download on mobile data?';
+
+  @override
+  String get download_on_cellular_body =>
+      'You\'re on mobile data and this download may use a lot of it. Continue?';
+
+  @override
+  String get download_anyway => 'Download';
+
+  @override
+  String get reminder_needs_notifications =>
+      'Turn on notifications to get reminders.';
+
+  @override
   String get tv_ready_subtitle =>
       'Prêt à recevoir du contenu depuis votre téléphone';
 
@@ -1815,7 +1829,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get cast_need_wifi =>
-      'Connectez-vous au même réseau Wi‑Fi que la TV pour envoyer le fichier.';
+      'Connectez-vous au même réseau Wi‑Fi que votre TV pour caster.';
 
   @override
   String get download_err_http => 'Erreur HTTP';

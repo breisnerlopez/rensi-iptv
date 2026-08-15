@@ -17,6 +17,7 @@ import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
 import 'package:rensi_iptv/services/cast/standalone_consent_store.dart';
 import 'package:rensi_iptv/services/service_locator.dart';
 import 'package:rensi_iptv/services/watch_history_service.dart';
+import 'package:rensi_iptv/utils/connectivity_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/test_database.dart';
@@ -177,6 +178,14 @@ void main() {
       username: 'u123',
       password: 's3cr3t',
     );
+    // Por defecto, red LAN (no celular): los tests de cast asumen Wi‑Fi. Cada
+    // caso puede sobrescribirlo. Determinista (no depende de que el plugin de
+    // conectividad lance MissingPluginException en el binding de test).
+    ConnectivityHelper.debugIsCellularOnly = () async => false;
+  });
+
+  tearDown(() {
+    ConnectivityHelper.debugIsCellularOnly = null;
   });
 
   CastSenderController make(_FakeSender fake) =>
@@ -252,6 +261,31 @@ void main() {
     await c.beginCast(media);
     expect(c.phase, CastPhase.error);
     expect(c.error, 'no_devices');
+  });
+
+  test('datos móviles → no_wifi ANTES de descubrir (no gira 4s en discover)',
+      () async {
+    ConnectivityHelper.debugIsCellularOnly = () async => true;
+    // Hay una TV alcanzable en LAN, pero estamos en celular: aun así debe
+    // cortar con 'no_wifi' sin intentar el descubrimiento ni cargar nada.
+    final fake = _FakeSender(devices: [oneTv], correctPin: '123456');
+    final c = make(fake);
+    await c.beginCast(media);
+    expect(c.phase, CastPhase.error);
+    expect(c.error, 'no_wifi');
+    expect(fake.loads, isEmpty);
+  });
+
+  test('castLocalFile en datos móviles → no_wifi SIN arrancar el file server',
+      () async {
+    ConnectivityHelper.debugIsCellularOnly = () async => true;
+    final c = make(_FakeSender(devices: [oneTv]));
+    // El check de celular corta ANTES de servir el fichero: no importa que la
+    // ruta no exista, no se llega a abrir el LocalFileServer.
+    await c.castLocalFile(
+        filePath: '/tmp/no-existe.mp4', contentId: 'x', title: 'X');
+    expect(c.phase, CastPhase.error);
+    expect(c.error, 'no_wifi');
   });
 
   test('fallo de conexión → error', () async {

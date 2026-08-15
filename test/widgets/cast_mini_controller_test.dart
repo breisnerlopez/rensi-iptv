@@ -15,6 +15,7 @@ import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
+import 'package:rensi_iptv/utils/connectivity_helper.dart';
 import 'package:rensi_iptv/widgets/cast/cast_mini_controller.dart';
 
 class _FakeSender extends PhoneSenderService {
@@ -70,8 +71,14 @@ void main() {
     // (aquí no hay plugin nativo) y beginCast/submitPin cuelgan para siempre.
     // Mismo patrón que test/controllers/cast_sender_controller_test.dart.
     SharedPreferences.setMockInitialValues({});
+    // beginCast() consulta ConnectivityHelper.isCellularOnly(); sin seam llamaría
+    // al canal real de connectivity_plus, que en flutter test no está mockeado y
+    // CUELGA (igual que SharedPreferences arriba). El seam lo evita.
+    ConnectivityHelper.debugIsCellularOnly = () async => false;
     AppState.currentPlaylist = Playlist(id: 'p', name: 'P', type: PlaylistType.xtream, createdAt: DateTime(2026, 1, 1), url: 'http://h:8080', username: 'u', password: 'p');
   });
+
+  tearDown(() => ConnectivityHelper.debugIsCellularOnly = null);
 
   testWidgets('se monta sin Overlay-assert ni overflow en ancho de telefono', (tester) async {
     await tester.binding.setSurfaceSize(const Size(411, 914));

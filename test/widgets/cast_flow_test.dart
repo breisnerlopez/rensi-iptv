@@ -11,6 +11,7 @@ import 'package:rensi_iptv/services/app_state.dart';
 import 'package:rensi_iptv/services/cast/cast_protocol.dart';
 import 'package:rensi_iptv/services/cast/phone_sender_service.dart';
 import 'package:rensi_iptv/utils/app_themes.dart';
+import 'package:rensi_iptv/utils/connectivity_helper.dart';
 import 'package:rensi_iptv/widgets/cast/casting_screen.dart';
 
 class _FakeSender extends PhoneSenderService {
@@ -79,7 +80,12 @@ void main() {
       username: 'u',
       password: 'p',
     );
+    // beginCast() consulta ConnectivityHelper.isCellularOnly(); sin seam llamaría
+    // al canal real de connectivity_plus (no mockeado → cuelga en flutter test).
+    ConnectivityHelper.debugIsCellularOnly = () async => false;
   });
+
+  tearDown(() => ConnectivityHelper.debugIsCellularOnly = null);
 
   testWidgets('la pantalla de control muestra el destino y detiene el casting',
       (tester) async {

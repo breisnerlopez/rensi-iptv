@@ -3372,6 +3372,30 @@ abstract class AppLocalizations {
   /// **'Download failed — tap to retry'**
   String get download_failed_retry;
 
+  /// No description provided for @download_on_cellular_title.
+  ///
+  /// In en, this message translates to:
+  /// **'Download on mobile data?'**
+  String get download_on_cellular_title;
+
+  /// No description provided for @download_on_cellular_body.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re on mobile data and this download may use a lot of it. Continue?'**
+  String get download_on_cellular_body;
+
+  /// No description provided for @download_anyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get download_anyway;
+
+  /// No description provided for @reminder_needs_notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on notifications to get reminders.'**
+  String get reminder_needs_notifications;
+
   /// No description provided for @tv_ready_subtitle.
   ///
   /// In en, this message translates to:
@@ -3393,7 +3417,7 @@ abstract class AppLocalizations {
   /// No description provided for @cast_need_wifi.
   ///
   /// In en, this message translates to:
-  /// **'Connect to the same Wi‑Fi network as the TV to send the file.'**
+  /// **'Connect to the same Wi‑Fi network as your TV to cast.'**
   String get cast_need_wifi;
 
   /// No description provided for @download_err_http.

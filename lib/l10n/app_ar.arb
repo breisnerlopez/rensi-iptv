@@ -709,7 +709,7 @@
   "tv_preparing_series": "جارٍ التحضير…",
   "tv_playback_settings": "إعدادات التشغيل",
   "tv_replay_failed": "تعذّر استرجاع هذا المحتوى لتشغيله.",
-  "cast_need_wifi": "اتصل بنفس شبكة Wi‑Fi المتصلة بها TV لإرسال الملف.",
+  "cast_need_wifi": "اتصل بنفس شبكة Wi‑Fi المتصل بها التلفزيون للإرسال إلى الشاشة.",
   "download_err_http": "خطأ HTTP",
   "download_err_start_failed": "تعذّر بدء التنزيل",
   "download_err_file_missing": "الملف الذي تم تنزيله لم يعد متاحًا",

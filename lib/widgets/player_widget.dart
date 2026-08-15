@@ -33,6 +33,7 @@ import 'package:rensi_iptv/widgets/cast/cast_mini_controller.dart';
 import 'package:rensi_iptv/widgets/cast/pause_info_panel.dart';
 import 'package:rensi_iptv/utils/get_playlist_type.dart';
 import 'package:rensi_iptv/utils/subtitle_configuration.dart';
+import 'package:rensi_iptv/utils/connectivity_helper.dart';
 import 'package:rensi_iptv/widgets/video_widget.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -667,6 +668,13 @@ class _PlayerWidgetState extends State<PlayerWidget>
   Timer? _midPlayBufferTimer;
   double _midPlayBufferedSecs = 0;
   double _midPlaySpeedBps = 0;
+  // Repaint acotado al HUD de buffering (pre-buffer + rebuffer a mitad): en vez
+  // de un setState por tick (500/600 ms) que reconstruye TODO el árbol del
+  // player —justo cuando el equipo ya está cargado abriendo el stream—, se
+  // bombea este notifier y solo el overlay del HUD (envuelto en
+  // ValueListenableBuilder) se repinta. Las TRANSICIONES (aparecer / ocultar /
+  // terminal) siguen yendo por setState.
+  final ValueNotifier<int> _bufferHudTick = ValueNotifier<int>(0);
 
   void _startPreBuffer() {
     final isLive = widget.contentItem.contentType == ContentType.liveStream;
@@ -749,7 +757,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       }
       _lastPreBufferPos = pos;
       _lastPreBufferElapsed = elapsed;
-      if (mounted) setState(() {}); // setState alcanzable en cada tick
+      if (mounted) _bufferHudTick.value++; // repinta SOLO el HUD, no el árbol
       final tv = ResponsiveHelper.isTelevisionDevice;
       // Piso (solo TV): mostrar "preparando" al menos 1.5s tras enviar el
       // contenido; con buena conexión el colchón se llena en 1-2 ticks y no se
@@ -811,10 +819,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
         } catch (_) {}
       }
       if (!mounted || !_midPlayBuffering) return;
-      setState(() {
-        _midPlayBufferedSecs = buf;
-        _midPlaySpeedBps = spd;
-      });
+      // Repaint acotado: actualizar los campos y bombear el notifier del HUD en
+      // vez de un setState que reconstruye todo el player cada 600 ms.
+      _midPlayBufferedSecs = buf;
+      _midPlaySpeedBps = spd;
+      _bufferHudTick.value++;
     }
 
     sample();
@@ -1372,9 +1381,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
     // Fix #10b: start clean so a stale one-shot flag from a previous player can't
     // swallow the first BACK of this one.
     PlayerState.overlayClosedByBack = false;
-    // Bigger packet buffer smooths out network jitter on TV boxes.
+    // NOTA: en media_kit, PlayerConfiguration.bufferSize fija demuxer-max-bytes
+    // /-back-bytes al CONSTRUIR (real.dart:2417-2418); _tuneForPerformance (justo
+    // debajo) los sobrescribe con setProperty, que es lo autoritativo en régimen.
+    // Este valor solo gobierna la ventana inicial: en VIVO se mantiene grande
+    // (2× el default, señal débil en cajas de TV); en VOD se deja en el default
+    // (32 MiB) para no reservar de más al abrir.
+    final isLiveStream =
+        widget.contentItem.contentType == ContentType.liveStream;
     _player = Player(
-      configuration: const PlayerConfiguration(bufferSize: 64 * 1024 * 1024),
+      configuration: PlayerConfiguration(
+        bufferSize: (isLiveStream ? 64 : 32) * 1024 * 1024,
+      ),
     );
     _tuneForPerformance();
     watchHistoryService = WatchHistoryService();
@@ -1608,6 +1626,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
     SleepTimerService.instance.cancel();
     _channelBufferSubscription?.cancel();
     _channelBuffer.dispose();
+    _bufferHudTick.dispose();
     _toggleChannelListSub?.cancel();
     _toggleVideoInfoSub?.cancel();
     _toggleVideoSettingsSub?.cancel();
@@ -2102,9 +2121,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
 
     // Gate de casting (solo móvil): ofrecer enviar a la TV ANTES de cargar el
     // stream aquí (para no gastar datos). Si se elige enviar, no abrimos local.
-    if (_needsCastGate()) {
+    // En DATOS MÓVILES no hay LAN donde pueda vivir un receptor, así que
+    // preguntar "¿enviar a la TV?" es pura fricción (el descubrimiento fallaría
+    // a los 4s con 'no_devices'): se suprime el prompt y se reproduce local.
+    // Conservador: solo se salta cuando la red es EXCLUSIVAMENTE celular (ver
+    // ConnectivityHelper), nunca en Wi‑Fi/Ethernet/VPN ni ante ambigüedad.
+    final wantCastGate = _needsCastGate();
+    final onCellularOnly =
+        wantCastGate && await ConnectivityHelper.isCellularOnly();
+    if (!mounted) return; // el widget pudo desmontarse durante el await de red
+    if (wantCastGate && !onCellularOnly) {
       _castGateActive = true;
-      if (mounted) setState(() {});
+      setState(() {});
       // Resolver el meta TMDb en paralelo mientras el usuario decide/empareja:
       // así, si elige "Enviar a la TV", el LOAD ya lo lleva sin añadir latencia.
       _kickoffCastMeta();
@@ -2883,15 +2911,23 @@ class _PlayerWidgetState extends State<PlayerWidget>
         // to DISK; on slow eMMC/flash that causes periodic I/O stalls. Cache in
         // RAM instead.
         await platform.setProperty('cache-on-disk', 'no');
-        // Más bytes de buffer para absorber señal débil (el readahead grande de
-        // abajo necesita headroom de bytes o topa antes de llenar los segundos).
-        await platform.setProperty('demuxer-max-bytes', '128MiB');
-        await platform.setProperty('demuxer-max-back-bytes', '32MiB');
-        // Colchón de lectura anticipada. Más alto = más resistente a cortes de
-        // señal. En vivo se subió (era 5s) para señal débil, a costa de un poco
-        // más de latencia al cambiar de canal.
+        // Perfil de caché diferenciado live/VOD (esto es lo AUTORITATIVO: pisa
+        // los valores que bufferSize dejó en la construcción — ver nota arriba).
+        // VIVO queda IGUAL que antes (señal débil en cajas de TV). En VOD el
+        // TECHO de demuxer baja 128→64 MiB; pero lo que gobierna el consumo y el
+        // BURST inicial es readahead-secs (abajo): mpv solo llena esos segundos,
+        // acotado por este techo. 64 MiB deja holgura para VOD 4K de bitrate alto
+        // (10s a ~50 Mbps ≈ 62 MB).
         await platform.setProperty(
-            'demuxer-readahead-secs', isLive ? '15' : '20');
+            'demuxer-max-bytes', isLive ? '128MiB' : '64MiB');
+        await platform.setProperty(
+            'demuxer-max-back-bytes', isLive ? '32MiB' : '16MiB');
+        // Colchón de lectura anticipada — la palanca REAL contra el arranque
+        // lento: mpv descarga A TOPE para llenar estos segundos, así que en VOD
+        // 20→10 ~halva el burst inicial que saturaba red/memoria. Vivo se
+        // mantiene en 15s (era 5s; se subió para señal débil).
+        await platform.setProperty(
+            'demuxer-readahead-secs', isLive ? '15' : '10');
         // Don't freeze on brief IPTV network hiccups.
         await platform.setProperty('cache-pause', 'no');
         // AUTO-RECONEXIÓN de red (ffmpeg): si el stream HTTP se corta un instante
@@ -3880,7 +3916,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
             // enviar a la TV sin esperar a que cargue el stream.
             _buildCastGate(context),
             // Pre-buffer: velocidad/buffer/estado (por encima de la carga).
-            _buildPreBuffer(context),
+            ValueListenableBuilder<int>(
+              valueListenable: _bufferHudTick,
+              builder: (_, __, ___) => _buildPreBuffer(context),
+            ),
             // Atascado (VOD/serie que no arranca): repone el Reintentar.
             if (_stuckBuffering && !isLoading && !hasError)
               Positioned.fill(child: _buildStuckRetry(context)),
@@ -3899,7 +3938,10 @@ class _PlayerWidgetState extends State<PlayerWidget>
             // enviar a la TV sin esperar a que cargue el stream.
             _buildCastGate(context),
             // Pre-buffer: velocidad/buffer/estado (por encima de la carga).
-            _buildPreBuffer(context),
+            ValueListenableBuilder<int>(
+              valueListenable: _bufferHudTick,
+              builder: (_, __, ___) => _buildPreBuffer(context),
+            ),
             // Atascado (VOD/serie que no arranca): repone el Reintentar.
             if (_stuckBuffering && !isLoading && !hasError)
               Positioned.fill(child: _buildStuckRetry(context)),
@@ -4181,11 +4223,14 @@ class _PlayerWidgetState extends State<PlayerWidget>
           // when a stream that ALREADY started playing stalls to re-buffer —
           // distinct from the initial pre-buffer panel and from the
           // never-started stuck watchdog. Auto-hides when buffering clears.
-          PlayerBufferingIndicator(
-            visible: _midPlayBuffering,
-            bufferedSecs: _midPlayBufferedSecs,
-            speedBps: _midPlaySpeedBps,
-            label: context.loc.prebuffer_preparing,
+          ValueListenableBuilder<int>(
+            valueListenable: _bufferHudTick,
+            builder: (_, __, ___) => PlayerBufferingIndicator(
+              visible: _midPlayBuffering,
+              bufferedSecs: _midPlayBufferedSecs,
+              speedBps: _midPlaySpeedBps,
+              label: context.loc.prebuffer_preparing,
+            ),
           ),
 
           // Transient TV hint: "Hold OK for audio & subtitles".
