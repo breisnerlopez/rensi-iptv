@@ -26,19 +26,15 @@ jobs:
           body: |
             ## 🎉 Rensi IPTV ${{ github.ref_name }}
 
-            Reproductor IPTV para **Android móvil y Android TV** (build de
-            escritorio Linux incluido como extra).
+            Reproductor IPTV para **Android móvil y Android TV**.
 
             ### 📥 Descargas
             - **Android TV / móvil (recomendado)**: `rensi-iptv-android-arm64-v8a-${{ github.ref_name }}.apk`
             - **Emulador Android / equipos x86_64**: `rensi-iptv-android-x86_64-${{ github.ref_name }}.apk`
             - **Dispositivos ARM de 32 bits**: `rensi-iptv-android-armeabi-v7a-${{ github.ref_name }}.apk`
-            - **Google Play (bundle)**: `rensi-iptv-android-${{ github.ref_name }}.aab`
-            - **Linux (escritorio)**: `rensi-iptv-linux-${{ github.ref_name }}.zip`
 
             ### 🔧 Instalación
             - **Android TV / móvil**: instala el APK (sideload). En TV, usa el arm64-v8a.
-            - **Linux**: extrae el zip y ejecuta `iptv_player`
 
             ---
             Rensi IPTV is a fork of [bsogulcan/another-iptv-player](https://github.com/bsogulcan/another-iptv-player) — see the repository LICENSE for the dual copyright notice.
@@ -136,46 +132,13 @@ jobs:
 #          allowUpdates: true
 #          token: ${{ secrets.GITHUB_TOKEN }}
 
-  build-linux:
-    needs: create-release
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libstdc++-12-dev \
-            libasound2-dev libpulse-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
-            libunwind-dev libmpv-dev mpv libavcodec-dev libavformat-dev libavutil-dev \
-            libswscale-dev libavfilter-dev libavdevice-dev libswresample-dev \
-            libsecret-1-dev libjsoncpp-dev libsqlite3-dev
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.35.7'
-          channel: 'stable'
-      - name: Install dependencies
-        run: flutter pub get
-      - name: Generate files
-        run: flutter packages pub run build_runner build --delete-conflicting-outputs
-      - name: Build Linux
-        run: flutter build linux
-      - name: Create Linux Archive
-        run: |
-          cd build/linux/x64/release/bundle
-          zip -r ../../../../../rensi-iptv-linux-${{ github.ref_name }}.zip .
-      - name: Upload Linux Release Asset
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ github.ref_name }}
-          artifacts: rensi-iptv-linux-${{ github.ref_name }}.zip
-          allowUpdates: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+# build-linux RETIRADO: solo se publican los APK de Android (política actual).
+# El build de escritorio Linux ya no se genera. Restaurar desde el historial de
+# git (este mismo archivo) si se vuelve a querer el zip de Linux.
 
-  # Los APK van en un job PROPIO y se suben en cuanto están firmados, SIN
-  # esperar al aab (que es lo lento y solo sirve para Google Play). Así el
-  # usuario tiene los APK instalables lo antes posible. build-apks, build-aab y
-  # build-linux corren en PARALELO (todos solo dependen de create-release).
+  # El release publica SOLO los APK de Android. build-apks es el único job de
+  # build (depende de create-release). El App Bundle (.aab, Google Play) y el
+  # build de Linux fueron retirados a propósito.
   build-apks:
     needs: create-release
     runs-on: ubuntu-latest
@@ -231,60 +194,9 @@ jobs:
           omitNameDuringUpdate: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # El App Bundle (Google Play) va aparte y en paralelo: es lo más lento y NO
-  # bloquea la disponibilidad de los APK.
-  build-aab:
-    needs: create-release
-    runs-on: ubuntu-latest
-    env:
-      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.35.7'
-          channel: 'stable'
-      - name: Install dependencies
-        run: flutter pub get
-      - name: Generate files
-        run: flutter packages pub run build_runner build --delete-conflicting-outputs
-      - name: Decode release keystore
-        if: env.ANDROID_KEYSTORE_BASE64 != ''
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-        run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/keystore.jks
-          cat > android/key.properties <<EOF
-          storePassword=$KEYSTORE_PASSWORD
-          keyPassword=$KEY_PASSWORD
-          keyAlias=$KEY_ALIAS
-          storeFile=../keystore.jks
-          EOF
-      - name: Build Android App Bundle
-        run: flutter build appbundle --release
-      - name: Rename aab
-        run: |
-          cp build/app/outputs/bundle/release/app-release.aab \
-             rensi-iptv-android-${{ github.ref_name }}.aab
-      - name: Remove signing material
-        if: always()
-        run: rm -f android/keystore.jks android/key.properties
-      - name: Upload aab Release Asset
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ github.ref_name }}
-          artifacts: rensi-iptv-android-${{ github.ref_name }}.aab
-          allowUpdates: true
-          omitBodyDuringUpdate: true
-          omitNameDuringUpdate: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+# build-aab RETIRADO: el App Bundle (.aab) solo hace falta para publicar en
+# Google Play; hoy la política es publicar SOLO los APK. Restaurar este job
+# desde el historial de git cuando se vaya a subir a Play.
 
 # build-ios is parked until codesign secrets land. flutter build ios
 # --no-codesign succeeds but the .app shipped from a non-signed archive
