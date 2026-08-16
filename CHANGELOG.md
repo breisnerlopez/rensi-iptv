@@ -1,3 +1,11 @@
+## [2.21.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.21.1...v2.21.2) (2026-08-16)
+
+
+### Bug Fixes
+
+* **Reproducción más fluida en formatos entrelazados:** se activó el desentrelazado, que corrige los microcortes/"efecto peine" en contenido entrelazado (1080i/576i, muy común en IPTV) sin afectar ni suavizar el contenido progresivo. Aplica tanto en reproducción directa como al enviar a la TV
+
+
 ## [2.21.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.21.0...v2.21.1) (2026-08-16)
 
 

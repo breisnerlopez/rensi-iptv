@@ -2977,6 +2977,15 @@ class _PlayerWidgetState extends State<PlayerWidget>
             'demuxer-lavf-o',
             'reconnect=1,reconnect_streamed=1,reconnect_on_network_error=1,'
                 'reconnect_delay_max=5');
+        // DESENTRELAZADO: mucho contenido IPTV es ENTRELAZADO (1080i/576i) y sin
+        // desentrelazar se ve con microcortes/"peine" — justo el síntoma de
+        // "algunos formatos cortan". mpv solo desentrelaza los frames MARCADOS
+        // como entrelazados (respeta el flag de campo), así que el contenido
+        // PROGRESIVO no se toca ni se suaviza. En su propio try para que, si el
+        // build de libmpv no acepta el valor, no afecte a los ajustes de arriba.
+        try {
+          await platform.setProperty('deinterlace', 'yes');
+        } catch (_) {}
       } catch (_) {
         // Best-effort; defaults are fine if a property is unsupported.
       }
