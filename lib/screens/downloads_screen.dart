@@ -431,11 +431,11 @@ const List<String> _importVideoExtensions = [
 ];
 
 // Debounce: un import en vuelo bloquea otro (doble-tap del botón o mientras se
-// copia) → evita abrir dos selectores y duplicar 1-2 GB en disco.
+// copia) → evita abrir dos selectores y duplicar el archivo en disco.
 bool _importInFlight = false;
 
-/// Flujo de import de un video local: elegir → copiar en streaming con progreso
-/// → aparece en Descargas → enriquecer con TMDb (best-effort). Botón "Importar".
+/// Flujo de import de un video local: elegir → traer a la biblioteca → aparece
+/// en Descargas → enriquecer con TMDb (best-effort). Botón "Importar".
 Future<void> importLocalVideo(BuildContext context) async {
   if (_importInFlight) return;
   _importInFlight = true;
@@ -443,20 +443,27 @@ Future<void> importLocalVideo(BuildContext context) async {
     final picked = await _pickVideoSource(context);
     if (picked == null || !context.mounted) return;
 
+    // Móvil → `movePath` (file_picker ya cacheó el archivo; MOVERLO es
+    // instantáneo, no hace falta barra). TV → `source` (copia del original, con
+    // barra de progreso).
+    final isCopy = picked.source != null;
     final progress = ValueNotifier<double?>(null);
     final navigator = Navigator.of(context, rootNavigator: true);
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) =>
-          _ImportProgressDialog(name: picked.name, progress: progress),
-    );
+    if (isCopy) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) =>
+            _ImportProgressDialog(name: picked.name, progress: progress),
+      );
+    }
 
     Download? row;
     Object? error;
     try {
       row = await DownloadService.instance.importLocalFile(
         source: picked.source,
+        movePath: picked.movePath,
         fileName: picked.name,
         sizeBytes: picked.size,
         onProgress: (copied, total) {
@@ -469,7 +476,7 @@ Future<void> importLocalVideo(BuildContext context) async {
       error = e;
     }
 
-    if (navigator.mounted) navigator.pop(); // cerrar el diálogo de progreso
+    if (isCopy && navigator.mounted) navigator.pop(); // cerrar el progreso
     progress.dispose();
 
     if (!context.mounted) return;
@@ -485,11 +492,19 @@ Future<void> importLocalVideo(BuildContext context) async {
   }
 }
 
-/// Elige un video devolviendo un STREAM (no bytes → sin OOM en 1-2 GB) + nombre
-/// + tamaño. En TV, navegador in-app (ruta real); en el resto, file_picker con
-/// `withReadStream` (evita cargar en RAM y la doble copia de `withData`).
-Future<({Stream<List<int>> source, String name, int? size})?> _pickVideoSource(
-    BuildContext context) async {
+/// Elige un video. Móvil: file_picker cachea el archivo → devolvemos `movePath`
+/// (esa cache, para MOVERLA a la biblioteca; NO usamos `withReadStream`, que en
+/// file_picker 8.x lanza si el `path` viene nulo). Muestra un overlay
+/// "Importando…" mientras file_picker copia (paso opaco y lento en archivos
+/// grandes → sin esto la app se ve congelada). TV: navegador in-app → `source`
+/// (copia del original, sin moverlo).
+Future<
+    ({
+      Stream<List<int>>? source,
+      String? movePath,
+      String name,
+      int? size
+    })?> _pickVideoSource(BuildContext context) async {
   if (ResponsiveHelper.isDesktopOrTV(context)) {
     final file = await Navigator.of(context).push<File?>(
       MaterialPageRoute(
@@ -504,18 +519,88 @@ Future<({Stream<List<int>> source, String name, int? size})?> _pickVideoSource(
     final name = file.uri.pathSegments.isNotEmpty
         ? file.uri.pathSegments.last
         : file.path;
-    return (source: file.openRead(), name: name, size: size);
+    return (source: file.openRead(), movePath: null, name: name, size: size);
   }
-  final result = await FilePicker.platform.pickFiles(
-    type: FileType.video,
-    allowMultiple: false,
-    withReadStream: true,
-  );
-  if (result == null || result.files.isEmpty) return null;
+
+  final nav = Navigator.of(context, rootNavigator: true);
+  var busyShown = false;
+  void showBusy() {
+    if (busyShown || !context.mounted) return;
+    busyShown = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _ImportBusyDialog(),
+    );
+  }
+
+  void hideBusy() {
+    if (busyShown && nav.mounted) {
+      nav.pop();
+      busyShown = false;
+    }
+  }
+
+  FilePickerResult? result;
+  try {
+    result = await FilePicker.platform.pickFiles(
+      type: FileType.video,
+      allowMultiple: false,
+      // file_picker copia el content:// a su cache DENTRO de este await (lento y
+      // opaco en archivos grandes); el callback nos deja mostrar "Importando…".
+      onFileLoading: (status) =>
+          status == FilePickerStatus.picking ? showBusy() : hideBusy(),
+    );
+  } catch (e) {
+    hideBusy();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.loc.import_failed)));
+    }
+    return null;
+  }
+  hideBusy(); // seguridad si el 'done' no llegó
+  if (result == null || result.files.isEmpty) return null; // cancelado
   final f = result.files.single;
-  final stream = f.readStream;
-  if (stream == null) return null;
-  return (source: stream, name: f.name, size: f.size);
+
+  final path = f.path;
+  if (path != null && path.isNotEmpty) {
+    // file_picker ya cacheó el archivo aquí → MOVER esa copia a la biblioteca.
+    return (source: null, movePath: path, name: f.name, size: f.size);
+  }
+  // Sin ruta (algún provider cloud sin archivo local): no se pudo leer → avisar.
+  if (context.mounted) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(context.loc.import_failed)));
+  }
+  return null;
+}
+
+/// Overlay indeterminado mientras file_picker copia el archivo elegido a su
+/// cache (paso que no reporta progreso). Evita que la app se vea congelada.
+class _ImportBusyDialog extends StatelessWidget {
+  const _ImportBusyDialog();
+  @override
+  Widget build(BuildContext context) {
+    // PopScope(canPop:false): el back no debe cerrar este overlay (si no, el pop
+    // programático de cierre caería sobre DownloadsScreen y echaría al usuario).
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 3),
+            ),
+            const SizedBox(width: 20),
+            Expanded(child: Text(context.loc.importing)),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// Empareja el import con TMDb (best-effort): parsea el nombre, busca como serie
@@ -549,30 +634,36 @@ class _ImportProgressDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(context.loc.importing),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(name, maxLines: 2, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 16),
-          ValueListenableBuilder<double?>(
-            valueListenable: progress,
-            builder: (context, value, _) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                LinearProgressIndicator(value: value),
-                if (value != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text('${(value * 100).round()}%',
-                        style: Theme.of(context).textTheme.bodySmall),
-                  ),
-              ],
+    // PopScope(canPop:false): el botón/mando ATRÁS no debe cerrar este diálogo
+    // (si no, el pop de cierre programático caería sobre DownloadsScreen y
+    // echaría al usuario). Solo se cierra por código al terminar el import.
+    return PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: Text(context.loc.importing),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(name, maxLines: 2, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 16),
+            ValueListenableBuilder<double?>(
+              valueListenable: progress,
+              builder: (context, value, _) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LinearProgressIndicator(value: value),
+                  if (value != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text('${(value * 100).round()}%',
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

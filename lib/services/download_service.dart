@@ -306,11 +306,14 @@ class DownloadService {
   /// llamador muestra el error. NO invoca la purga por espacio: no debe borrar
   /// descargas ajenas del usuario para hacer sitio a un import.
   Future<Download> importLocalFile({
-    required Stream<List<int>> source,
+    Stream<List<int>>? source,
+    String? movePath,
     required String fileName,
     int? sizeBytes,
     void Function(int copied, int? total)? onProgress,
   }) async {
+    assert(source != null || movePath != null,
+        'importLocalFile necesita `source` (copiar) o `movePath` (mover)');
     final contentId = 'import_${const Uuid().v4()}';
     final rawExt = p.extension(fileName); // ".mkv" o ""
     final ext = rawExt.isNotEmpty ? rawExt.substring(1).toLowerCase() : '';
@@ -325,27 +328,27 @@ class DownloadService {
     // usar el contentId (uuid) evita colisiones y saneado.
     final destPath =
         p.join(downloadsDir.path, '$contentId${ext.isEmpty ? '' : '.$ext'}');
-    final destFile = File(destPath);
-    final sink = destFile.openWrite();
-    var copied = 0;
-    try {
-      await for (final chunk in source) {
-        sink.add(chunk);
-        copied += chunk.length;
-        onProgress?.call(copied, sizeBytes);
+    int copied;
+    if (movePath != null) {
+      // Caso móvil: file_picker YA copió el archivo a su cache (mismo filesystem
+      // app-privado) → MOVERLO (rename) es instantáneo y evita una SEGUNDA copia
+      // de varios GB (el bug de "2 min congelado"). Si el rename cruza
+      // dispositivos (raro), caer a copia en streaming y borrar el origen.
+      final src = File(movePath);
+      try {
+        final moved = await src.rename(destPath);
+        copied = await moved.length();
+      } on FileSystemException {
+        copied =
+            await _streamCopy(src.openRead(), destPath, sizeBytes, onProgress);
+        try {
+          if (await src.exists()) await src.delete();
+        } catch (_) {}
       }
-      await sink.flush();
-      await sink.close();
-    } catch (e) {
-      // Copia fallida (disco lleno, IO, cancelación): cerrar y limpiar el
-      // parcial — NUNCA dejar una fila 'complete' apuntando a un archivo a medio.
-      try {
-        await sink.close();
-      } catch (_) {}
-      try {
-        if (await destFile.exists()) await destFile.delete();
-      } catch (_) {}
-      rethrow;
+    } else {
+      // Caso TV / archivo ORIGINAL del usuario: copiar en streaming (NO mover ni
+      // borrar su original).
+      copied = await _streamCopy(source!, destPath, sizeBytes, onProgress);
     }
 
     final now = DateTime.now().millisecondsSinceEpoch;
@@ -365,6 +368,36 @@ class DownloadService {
           ),
         );
     return (await _rowById(rowId))!;
+  }
+
+  /// Copia [source] a [destPath] EN STREAMING con BACKPRESSURE: `addStream`
+  /// pausa la lectura cuando el sink está ocupado → memoria acotada Y el hilo de
+  /// UI respira (la barra de progreso se pinta durante una copia de varios GB,
+  /// en vez de congelarse). Limpia el parcial ante error. Devuelve bytes copiados.
+  Future<int> _streamCopy(Stream<List<int>> source, String destPath,
+      int? sizeBytes, void Function(int, int?)? onProgress) async {
+    final destFile = File(destPath);
+    final sink = destFile.openWrite();
+    var copied = 0;
+    try {
+      await sink.addStream(source.map((chunk) {
+        copied += chunk.length;
+        onProgress?.call(copied, sizeBytes);
+        return chunk;
+      }));
+      await sink.flush();
+      await sink.close();
+      return copied;
+    } catch (e) {
+      // Parcial: cerrar y borrar — NUNCA dejar una fila 'complete' a medio.
+      try {
+        await sink.close();
+      } catch (_) {}
+      try {
+        if (await destFile.exists()) await destFile.delete();
+      } catch (_) {}
+      rethrow;
+    }
   }
 
   /// Actualiza título/póster de un import tras un match de TMDb (best-effort).

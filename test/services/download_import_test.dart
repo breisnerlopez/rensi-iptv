@@ -65,6 +65,27 @@ void main() {
     expect(await f.readAsBytes(), bytes);
   });
 
+  test('movePath MUEVE el archivo (rename) a la biblioteca sin dejar el origen',
+      () async {
+    // Simula la cache de file_picker (mismo filesystem que la carpeta destino).
+    final src = File('${tempDir.path}/picker_cache.mkv');
+    await src.writeAsBytes(List<int>.generate(500, (i) => i % 256));
+
+    final row = await DownloadService.instance.importLocalFile(
+      movePath: src.path,
+      fileName: 'Peli.mkv',
+      sizeBytes: 500,
+    );
+
+    expect(row.imported, isTrue);
+    expect(row.status, 'complete');
+    expect(row.filePath, isNotNull);
+    expect(await File(row.filePath!).exists(), isTrue);
+    expect(await File(row.filePath!).length(), 500);
+    expect(await src.exists(), isFalse,
+        reason: 'el origen (cache) se MOVIÓ, no quedó una copia duplicada');
+  });
+
   test('un import visto NO se auto-borra (imported excluido del delete-watched)',
       () async {
     final row = await DownloadService.instance.importLocalFile(

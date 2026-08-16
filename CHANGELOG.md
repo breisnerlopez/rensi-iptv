@@ -1,3 +1,12 @@
+## [2.21.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.21.0...v2.21.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* **Importar un video grande ya no parece congelar la app:** al importar un archivo de varios GB, la app quedaba "pensando" sin mostrar nada durante minutos. Ahora el archivo se mueve a la biblioteca en vez de copiarse dos veces (instantáneo) y se muestra "Importando…" durante la parte lenta, así ves que está trabajando
+* **El botón atrás durante el import ya no te saca de Descargas:** presionar atrás mientras se importaba cerraba el aviso y, al terminar, te expulsaba de la pantalla
+
+
 # [2.21.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.20.3...v2.21.0) (2026-08-16)
 
 
