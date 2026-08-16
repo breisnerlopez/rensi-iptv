@@ -2691,7 +2691,7 @@ abstract class AppLocalizations {
   /// No description provided for @import_failed.
   ///
   /// In en, this message translates to:
-  /// **'Backup import failed'**
+  /// **'Couldn\'t import the file'**
   String get import_failed;
 
   /// No description provided for @import_summary.
@@ -3365,6 +3365,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Available offline'**
   String get download_available_offline;
+
+  /// No description provided for @import_file.
+  ///
+  /// In en, this message translates to:
+  /// **'Import file'**
+  String get import_file;
+
+  /// No description provided for @importing.
+  ///
+  /// In en, this message translates to:
+  /// **'Importing…'**
+  String get importing;
 
   /// No description provided for @download_failed_retry.
   ///

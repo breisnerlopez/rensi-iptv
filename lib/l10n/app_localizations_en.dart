@@ -1398,7 +1398,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get import_cancelled => 'Backup import cancelled';
 
   @override
-  String get import_failed => 'Backup import failed';
+  String get import_failed => 'Couldn\'t import the file';
 
   @override
   String import_summary(int created, int updated, int skipped) {
@@ -1772,6 +1772,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get download_available_offline => 'Available offline';
+
+  @override
+  String get import_file => 'Import file';
+
+  @override
+  String get importing => 'Importing…';
 
   @override
   String get download_failed_retry => 'Download failed — tap to retry';

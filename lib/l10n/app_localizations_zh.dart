@@ -1716,6 +1716,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get download_available_offline => '可离线观看';
 
   @override
+  String get import_file => 'Import file';
+
+  @override
+  String get importing => 'Importing…';
+
+  @override
   String get download_failed_retry => '下载失败 — 点按以重试';
 
   @override

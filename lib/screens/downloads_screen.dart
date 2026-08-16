@@ -5,9 +5,11 @@
 // argumentos de navegación.
 //
 // Sin claves de i18n todavía (ver reporte): los textos son literales.
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../l10n/localization_extension.dart';
@@ -16,10 +18,15 @@ import '../models/content_type.dart';
 import '../models/m3u_item.dart';
 import '../models/playlist_content_model.dart';
 import '../models/playlist_model.dart';
+import '../models/tmdb_search_result.dart';
 import '../services/app_state.dart';
 import '../services/download_service.dart';
+import '../services/tmdb_service.dart';
+import '../utils/imported_filename.dart';
+import '../utils/responsive_helper.dart';
 import '../widgets/cast/cast_flow.dart';
 import '../widgets/player_widget.dart';
+import 'file_browser_screen.dart';
 
 const _offlinePlaylistId = '__offline__';
 
@@ -29,7 +36,16 @@ class DownloadsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(context.loc.downloads_title)),
+      appBar: AppBar(
+        title: Text(context.loc.downloads_title),
+        actions: [
+          IconButton(
+            tooltip: context.loc.import_file,
+            icon: const Icon(Icons.file_upload_outlined),
+            onPressed: () => importLocalVideo(context),
+          ),
+        ],
+      ),
       body: StreamBuilder<List<Download>>(
         stream: DownloadService.instance.watchAll(),
         builder: (context, snapshot) {
@@ -237,12 +253,20 @@ class _DownloadTile extends StatelessWidget {
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: Text(dialogContext.loc.close),
           ),
+          // Import: no hay re-descarga posible; el botón borra la fila (honesto)
+          // en vez de "reintentar" (que borraría en silencio).
           TextButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              DownloadService.instance.retry(download.id);
+              if (download.imported) {
+                DownloadService.instance.delete(download.id);
+              } else {
+                DownloadService.instance.retry(download.id);
+              }
             },
-            child: Text(dialogContext.loc.download_retry),
+            child: Text(download.imported
+                ? dialogContext.loc.download_delete
+                : dialogContext.loc.download_retry),
           ),
         ],
       ),
@@ -345,11 +369,14 @@ class _DownloadTile extends StatelessWidget {
         ];
       case 'failed':
         return [
-          IconButton(
-            tooltip: context.loc.download_retry,
-            icon: const Icon(Icons.refresh),
-            onPressed: () => DownloadService.instance.retry(download.id),
-          ),
+          // Un import no es re-descargable (no tiene URL de origen); "reintentar"
+          // solo borraría la fila en silencio, así que se omite para imports.
+          if (!download.imported)
+            IconButton(
+              tooltip: context.loc.download_retry,
+              icon: const Icon(Icons.refresh),
+              onPressed: () => DownloadService.instance.retry(download.id),
+            ),
           IconButton(
             tooltip: context.loc.download_delete,
             icon: const Icon(Icons.delete_outline),
@@ -393,6 +420,161 @@ class _DownloadTile extends StatelessWidget {
           ),
         ];
     }
+  }
+}
+
+/// Extensiones de video aceptadas al importar (para el navegador in-app de la
+/// TV; en móvil file_picker filtra por FileType.video).
+const List<String> _importVideoExtensions = [
+  'mp4', 'mkv', 'avi', 'mov', 'webm', 'm4v', 'ts', 'flv', 'wmv', 'mpg', 'mpeg',
+  '3gp',
+];
+
+// Debounce: un import en vuelo bloquea otro (doble-tap del botón o mientras se
+// copia) → evita abrir dos selectores y duplicar 1-2 GB en disco.
+bool _importInFlight = false;
+
+/// Flujo de import de un video local: elegir → copiar en streaming con progreso
+/// → aparece en Descargas → enriquecer con TMDb (best-effort). Botón "Importar".
+Future<void> importLocalVideo(BuildContext context) async {
+  if (_importInFlight) return;
+  _importInFlight = true;
+  try {
+    final picked = await _pickVideoSource(context);
+    if (picked == null || !context.mounted) return;
+
+    final progress = ValueNotifier<double?>(null);
+    final navigator = Navigator.of(context, rootNavigator: true);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          _ImportProgressDialog(name: picked.name, progress: progress),
+    );
+
+    Download? row;
+    Object? error;
+    try {
+      row = await DownloadService.instance.importLocalFile(
+        source: picked.source,
+        fileName: picked.name,
+        sizeBytes: picked.size,
+        onProgress: (copied, total) {
+          progress.value = (total != null && total > 0)
+              ? (copied / total).clamp(0.0, 1.0)
+              : null;
+        },
+      );
+    } catch (e) {
+      error = e;
+    }
+
+    if (navigator.mounted) navigator.pop(); // cerrar el diálogo de progreso
+    progress.dispose();
+
+    if (!context.mounted) return;
+    if (error != null || row == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(context.loc.import_failed)));
+      return;
+    }
+    // Best-effort, NO bloquea: la fila ya aparece con el nombre del archivo.
+    unawaited(_enrichImportWithTmdb(row, picked.name));
+  } finally {
+    _importInFlight = false;
+  }
+}
+
+/// Elige un video devolviendo un STREAM (no bytes → sin OOM en 1-2 GB) + nombre
+/// + tamaño. En TV, navegador in-app (ruta real); en el resto, file_picker con
+/// `withReadStream` (evita cargar en RAM y la doble copia de `withData`).
+Future<({Stream<List<int>> source, String name, int? size})?> _pickVideoSource(
+    BuildContext context) async {
+  if (ResponsiveHelper.isDesktopOrTV(context)) {
+    final file = await Navigator.of(context).push<File?>(
+      MaterialPageRoute(
+        builder: (_) => FileBrowserScreen(
+          title: context.loc.import_file,
+          extensions: _importVideoExtensions,
+        ),
+      ),
+    );
+    if (file == null) return null;
+    final size = await file.length();
+    final name = file.uri.pathSegments.isNotEmpty
+        ? file.uri.pathSegments.last
+        : file.path;
+    return (source: file.openRead(), name: name, size: size);
+  }
+  final result = await FilePicker.platform.pickFiles(
+    type: FileType.video,
+    allowMultiple: false,
+    withReadStream: true,
+  );
+  if (result == null || result.files.isEmpty) return null;
+  final f = result.files.single;
+  final stream = f.readStream;
+  if (stream == null) return null;
+  return (source: stream, name: f.name, size: f.size);
+}
+
+/// Empareja el import con TMDb (best-effort): parsea el nombre, busca como serie
+/// o película según el patrón de episodio, y si hay match actualiza
+/// título+póster. Silencioso ante sin-clave/sin-red/sin-match (queda el nombre).
+Future<void> _enrichImportWithTmdb(Download row, String fileName) async {
+  try {
+    final info = parseImportedFilename(fileName);
+    final results = await TmdbService().searchTitle(
+      info.title,
+      year: info.year,
+      mediaType: info.isEpisode ? TmdbMediaType.tv : TmdbMediaType.movie,
+    );
+    if (results.isEmpty) return;
+    final best = results.first;
+    if (best.title.isEmpty) return;
+    await DownloadService.instance.updateImportMetadata(
+      row.id,
+      title: best.title,
+      imagePath: best.posterUrl,
+    );
+  } catch (_) {
+    // sin clave / sin red / sin match → se conserva el nombre del archivo.
+  }
+}
+
+class _ImportProgressDialog extends StatelessWidget {
+  const _ImportProgressDialog({required this.name, required this.progress});
+  final String name;
+  final ValueNotifier<double?> progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(context.loc.importing),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(name, maxLines: 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 16),
+          ValueListenableBuilder<double?>(
+            valueListenable: progress,
+            builder: (context, value, _) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LinearProgressIndicator(value: value),
+                if (value != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text('${(value * 100).round()}%',
+                        style: Theme.of(context).textTheme.bodySmall),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

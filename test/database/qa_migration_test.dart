@@ -191,7 +191,7 @@ void main() {
 
       // The migration reached v13 and stays there (no half-migrated re-crash).
       final after = sqlite3.open(path);
-      expect(after.userVersion, 17,
+      expect(after.userVersion, 18,
           reason: 'user_version bumped to 13 — migration completed');
       after.dispose();
       dir.deleteSync(recursive: true);
@@ -271,7 +271,7 @@ void main() {
               "SELECT COUNT(*) c FROM sqlite_master WHERE type='table' AND name='downloads'")
           .first['c'];
       expect(dlExistsAfter, 1, reason: 'downloads table now exists');
-      expect(after.userVersion, 17,
+      expect(after.userVersion, 18,
           reason: 'user_version bumped to 13 — migration completed');
       after.dispose();
       dir.deleteSync(recursive: true);
@@ -343,7 +343,7 @@ void main() {
           reason: 'from<=6 deleteTable cleared ONLY m3u_items (0 rows)');
       expect(afterWatch, 4,
           reason: 'watch_histories kept all 4 rows through the scoped DROP');
-      expect(afterVersion, 17,
+      expect(afterVersion, 18,
           reason: 'migration completed and bumped user_version to 13');
 
       dir.deleteSync(recursive: true);
@@ -475,7 +475,7 @@ void main() {
           .map((r) => r['name'] as String)
           .toList();
       expect(seriesCols.where((c) => c == 'tmdb_id'), hasLength(1));
-      expect(after.userVersion, 17,
+      expect(after.userVersion, 18,
           reason: 'migration completed and bumped user_version to 13');
       after.dispose();
       dir.deleteSync(recursive: true);
@@ -534,10 +534,14 @@ void main() {
       expect(dl.single.error, 'net error',
           reason: 'the values the buggy build wrote are preserved verbatim');
       expect(dl.single.url, 'http://x');
+      // La columna `imported` (v18, aditiva) aterriza en false por defecto: una
+      // descarga preexistente NO es un import → sigue sujeta al auto-borrado.
+      expect(dl.single.imported, isFalse,
+          reason: 'migrated download rows default to imported=false');
       await db.close();
 
       final after = sqlite3.open(path);
-      expect(after.userVersion, 17,
+      expect(after.userVersion, 18,
           reason: 'the stuck-at-10 cohort is rescued to v13');
       after.dispose();
       dir.deleteSync(recursive: true);
@@ -596,7 +600,7 @@ void main() {
       await db.close();
 
       final after = sqlite3.open(path);
-      expect(after.userVersion, 17);
+      expect(after.userVersion, 18);
       final vodCols = after
           .select('PRAGMA table_info(vod_streams)')
           .map((r) => r['name'] as String)
@@ -648,7 +652,7 @@ void main() {
       // must re-run onUpgrade(10,13) over already-present columns/tables and NOT
       // throw (createTable is IF NOT EXISTS; addColumns are idempotent).
       final mid = sqlite3.open(path);
-      expect(mid.userVersion, 17);
+      expect(mid.userVersion, 18);
       mid.userVersion = 10;
       mid.dispose();
 
@@ -658,7 +662,7 @@ void main() {
       await db2.close();
 
       final after = sqlite3.open(path);
-      expect(after.userVersion, 17, reason: 're-run completes back to v13');
+      expect(after.userVersion, 18, reason: 're-run completes back to v13');
       after.dispose();
       dir.deleteSync(recursive: true);
     });
@@ -804,7 +808,7 @@ void main() {
           .toList();
       expect(colsAfter.where((c) => c == 'container_extension'), hasLength(1));
       expect(colsAfter.where((c) => c == 'provider_id'), hasLength(1));
-      expect(after.userVersion, 17,
+      expect(after.userVersion, 18,
           reason: 'user_version bumped to 13 — migration completed');
       after.dispose();
       dir.deleteSync(recursive: true);
@@ -852,7 +856,7 @@ void main() {
       // now-fully-v13 schema. Reopening must re-run onUpgrade(12,13) over the
       // already-present columns and NOT throw — _addColumnIfMissing no-ops.
       final mid = sqlite3.open(path);
-      expect(mid.userVersion, 17);
+      expect(mid.userVersion, 18);
       mid.userVersion = 12;
       mid.dispose();
 
@@ -862,7 +866,7 @@ void main() {
       await db2.close();
 
       final after = sqlite3.open(path);
-      expect(after.userVersion, 17, reason: 're-run completes back to v13');
+      expect(after.userVersion, 18, reason: 're-run completes back to v13');
       // Still exactly one of each new column — no duplicate created.
       final cols = after
           .select('PRAGMA table_info(watch_histories)')
@@ -937,7 +941,7 @@ void main() {
       await db.close();
 
       final after = sqlite3.open(path);
-      expect(after.userVersion, 17);
+      expect(after.userVersion, 18);
       // sort_order landed on favorites, exactly once.
       final favCols = after
           .select('PRAGMA table_info(favorites)')

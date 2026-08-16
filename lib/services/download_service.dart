@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 import '../database/database.dart';
 import '../utils/build_media_url.dart' show kVodExtensionCandidates, swapUrlExtension;
@@ -39,6 +40,11 @@ const String _taskGroup = 'rensi_offline_downloads';
 /// contenido M3U que trae su propio `user-agent` se respeta ese (ver
 /// [_resolveUserAgent]), igual que hace la reproducción.
 const String kDownloadUserAgent = 'VLC/3.0.20 LibVLC/3.0.20';
+
+/// playlistId sintético de los archivos IMPORTADOS por el usuario (no hay FK a
+/// `Playlists`; es solo una etiqueta para identificarlos). La reproducción usa
+/// su propia playlist sintética en runtime, así que este valor no afecta al play.
+const String kImportedPlaylistId = '__imported__';
 
 class DownloadService {
   DownloadService._internal();
@@ -288,6 +294,88 @@ class DownloadService {
     await _startTaskForRow(rowId, contentId: contentId, url: url, ext: ext);
   }
 
+  /// Importa un archivo local del usuario (elegido FUERA de la app) como una
+  /// descarga YA COMPLETA. Copia [source] EN STREAMING (sin cargar el archivo en
+  /// RAM — clave para videos de 1-2 GB) a la carpeta de descargas app-privada y
+  /// crea la fila `Downloads` con `imported=true`, que la excluye del
+  /// auto-borrado (watched→delete y purga por espacio): un import NO es
+  /// re-descargable, así que solo el usuario puede borrarlo.
+  ///
+  /// [onProgress] recibe (bytes copiados, total|null) para una barra de
+  /// progreso. Lanza si la copia falla (tras limpiar el archivo parcial); el
+  /// llamador muestra el error. NO invoca la purga por espacio: no debe borrar
+  /// descargas ajenas del usuario para hacer sitio a un import.
+  Future<Download> importLocalFile({
+    required Stream<List<int>> source,
+    required String fileName,
+    int? sizeBytes,
+    void Function(int copied, int? total)? onProgress,
+  }) async {
+    final contentId = 'import_${const Uuid().v4()}';
+    final rawExt = p.extension(fileName); // ".mkv" o ""
+    final ext = rawExt.isNotEmpty ? rawExt.substring(1).toLowerCase() : '';
+    final title = p.basenameWithoutExtension(fileName).trim();
+
+    final supportDir = await getApplicationSupportDirectory();
+    final downloadsDir = Directory(p.join(supportDir.path, _downloadsSubdir));
+    if (!await downloadsDir.exists()) {
+      await downloadsDir.create(recursive: true);
+    }
+    // El filename en disco es cosmético (la reproducción resuelve por `filePath`);
+    // usar el contentId (uuid) evita colisiones y saneado.
+    final destPath =
+        p.join(downloadsDir.path, '$contentId${ext.isEmpty ? '' : '.$ext'}');
+    final destFile = File(destPath);
+    final sink = destFile.openWrite();
+    var copied = 0;
+    try {
+      await for (final chunk in source) {
+        sink.add(chunk);
+        copied += chunk.length;
+        onProgress?.call(copied, sizeBytes);
+      }
+      await sink.flush();
+      await sink.close();
+    } catch (e) {
+      // Copia fallida (disco lleno, IO, cancelación): cerrar y limpiar el
+      // parcial — NUNCA dejar una fila 'complete' apuntando a un archivo a medio.
+      try {
+        await sink.close();
+      } catch (_) {}
+      try {
+        if (await destFile.exists()) await destFile.delete();
+      } catch (_) {}
+      rethrow;
+    }
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final rowId = await _db.into(_db.downloads).insert(
+          DownloadsCompanion.insert(
+            contentId: contentId,
+            contentType: 'vod',
+            title: title.isEmpty ? fileName : title,
+            filePath: Value(destPath),
+            ext: Value(ext),
+            totalBytes: Value(copied),
+            bytesDownloaded: Value(copied),
+            status: const Value('complete'),
+            addedAt: now,
+            playlistId: kImportedPlaylistId,
+            imported: const Value(true),
+          ),
+        );
+    return (await _rowById(rowId))!;
+  }
+
+  /// Actualiza título/póster de un import tras un match de TMDb (best-effort).
+  /// No-op silencioso si la fila ya no existe.
+  Future<void> updateImportMetadata(int id,
+      {required String title, required String imagePath}) async {
+    await (_db.update(_db.downloads)..where((d) => d.id.equals(id))).write(
+      DownloadsCompanion(title: Value(title), imagePath: Value(imagePath)),
+    );
+  }
+
   /// Construye y encola la DownloadTask de una fila (reusado por [enqueue] y por
   /// la auto-corrección de extensión). Marca la fila 'failed' si el plugin no
   /// acepta el encolado.
@@ -431,7 +519,10 @@ class DownloadService {
   Future<void> _purgeForIncoming(int incomingBytes) async {
     final rows = await _db.select(_db.downloads).get();
     final entries = rows
-        .where((d) => d.status == 'complete')
+        // Los imports NUNCA entran en la purga por espacio: no son
+        // re-descargables, borrarlos para hacer sitio a otra descarga sería
+        // pérdida de datos del usuario.
+        .where((d) => d.status == 'complete' && !d.imported)
         .map((d) => DownloadEntry(
               id: d.id,
               bytes: d.totalBytes ?? d.bytesDownloaded,
@@ -641,7 +732,8 @@ class DownloadService {
     await (_db.update(_db.downloads)..where((d) => d.id.equals(row.id)))
         .write(const DownloadsCompanion(watched: Value(true)));
 
-    if (policy.deleteWatched) {
+    // Un import se marca 'visto' pero NUNCA se auto-borra: no es re-descargable.
+    if (policy.deleteWatched && !row.imported) {
       await _deleteRow(row.id);
     }
   }

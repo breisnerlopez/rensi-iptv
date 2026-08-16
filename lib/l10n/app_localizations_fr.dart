@@ -1799,6 +1799,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get download_available_offline => 'Disponible hors ligne';
 
   @override
+  String get import_file => 'Import file';
+
+  @override
+  String get importing => 'Importing…';
+
+  @override
   String get download_failed_retry =>
       'Échec du téléchargement — appuyez pour réessayer';
 

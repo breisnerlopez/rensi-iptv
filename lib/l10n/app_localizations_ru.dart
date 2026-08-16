@@ -1782,6 +1782,12 @@ class AppLocalizationsRu extends AppLocalizations {
   String get download_available_offline => 'Доступно офлайн';
 
   @override
+  String get import_file => 'Import file';
+
+  @override
+  String get importing => 'Importing…';
+
+  @override
   String get download_failed_retry =>
       'Не удалось загрузить — нажмите, чтобы повторить';
 

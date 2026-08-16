@@ -634,6 +634,21 @@ class $DownloadsTable extends Downloads
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _importedMeta = const VerificationMeta(
+    'imported',
+  );
+  @override
+  late final GeneratedColumn<bool> imported = GeneratedColumn<bool>(
+    'imported',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("imported" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -652,6 +667,7 @@ class $DownloadsTable extends Downloads
     playlistId,
     error,
     url,
+    imported,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -774,6 +790,12 @@ class $DownloadsTable extends Downloads
         url.isAcceptableOrUnknown(data['url']!, _urlMeta),
       );
     }
+    if (data.containsKey('imported')) {
+      context.handle(
+        _importedMeta,
+        imported.isAcceptableOrUnknown(data['imported']!, _importedMeta),
+      );
+    }
     return context;
   }
 
@@ -847,6 +869,10 @@ class $DownloadsTable extends Downloads
         DriftSqlType.string,
         data['${effectivePrefix}url'],
       ),
+      imported: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}imported'],
+      )!,
     );
   }
 
@@ -873,6 +899,7 @@ class Download extends DataClass implements Insertable<Download> {
   final String playlistId;
   final String? error;
   final String? url;
+  final bool imported;
   const Download({
     required this.id,
     required this.contentId,
@@ -890,6 +917,7 @@ class Download extends DataClass implements Insertable<Download> {
     required this.playlistId,
     this.error,
     this.url,
+    required this.imported,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -922,6 +950,7 @@ class Download extends DataClass implements Insertable<Download> {
     if (!nullToAbsent || url != null) {
       map['url'] = Variable<String>(url);
     }
+    map['imported'] = Variable<bool>(imported);
     return map;
   }
 
@@ -951,6 +980,7 @@ class Download extends DataClass implements Insertable<Download> {
           ? const Value.absent()
           : Value(error),
       url: url == null && nullToAbsent ? const Value.absent() : Value(url),
+      imported: Value(imported),
     );
   }
 
@@ -976,6 +1006,7 @@ class Download extends DataClass implements Insertable<Download> {
       playlistId: serializer.fromJson<String>(json['playlistId']),
       error: serializer.fromJson<String?>(json['error']),
       url: serializer.fromJson<String?>(json['url']),
+      imported: serializer.fromJson<bool>(json['imported']),
     );
   }
   @override
@@ -998,6 +1029,7 @@ class Download extends DataClass implements Insertable<Download> {
       'playlistId': serializer.toJson<String>(playlistId),
       'error': serializer.toJson<String?>(error),
       'url': serializer.toJson<String?>(url),
+      'imported': serializer.toJson<bool>(imported),
     };
   }
 
@@ -1018,6 +1050,7 @@ class Download extends DataClass implements Insertable<Download> {
     String? playlistId,
     Value<String?> error = const Value.absent(),
     Value<String?> url = const Value.absent(),
+    bool? imported,
   }) => Download(
     id: id ?? this.id,
     contentId: contentId ?? this.contentId,
@@ -1035,6 +1068,7 @@ class Download extends DataClass implements Insertable<Download> {
     playlistId: playlistId ?? this.playlistId,
     error: error.present ? error.value : this.error,
     url: url.present ? url.value : this.url,
+    imported: imported ?? this.imported,
   );
   Download copyWithCompanion(DownloadsCompanion data) {
     return Download(
@@ -1062,6 +1096,7 @@ class Download extends DataClass implements Insertable<Download> {
           : this.playlistId,
       error: data.error.present ? data.error.value : this.error,
       url: data.url.present ? data.url.value : this.url,
+      imported: data.imported.present ? data.imported.value : this.imported,
     );
   }
 
@@ -1083,7 +1118,8 @@ class Download extends DataClass implements Insertable<Download> {
           ..write('watched: $watched, ')
           ..write('playlistId: $playlistId, ')
           ..write('error: $error, ')
-          ..write('url: $url')
+          ..write('url: $url, ')
+          ..write('imported: $imported')
           ..write(')'))
         .toString();
   }
@@ -1106,6 +1142,7 @@ class Download extends DataClass implements Insertable<Download> {
     playlistId,
     error,
     url,
+    imported,
   );
   @override
   bool operator ==(Object other) =>
@@ -1126,7 +1163,8 @@ class Download extends DataClass implements Insertable<Download> {
           other.watched == this.watched &&
           other.playlistId == this.playlistId &&
           other.error == this.error &&
-          other.url == this.url);
+          other.url == this.url &&
+          other.imported == this.imported);
 }
 
 class DownloadsCompanion extends UpdateCompanion<Download> {
@@ -1146,6 +1184,7 @@ class DownloadsCompanion extends UpdateCompanion<Download> {
   final Value<String> playlistId;
   final Value<String?> error;
   final Value<String?> url;
+  final Value<bool> imported;
   const DownloadsCompanion({
     this.id = const Value.absent(),
     this.contentId = const Value.absent(),
@@ -1163,6 +1202,7 @@ class DownloadsCompanion extends UpdateCompanion<Download> {
     this.playlistId = const Value.absent(),
     this.error = const Value.absent(),
     this.url = const Value.absent(),
+    this.imported = const Value.absent(),
   });
   DownloadsCompanion.insert({
     this.id = const Value.absent(),
@@ -1181,6 +1221,7 @@ class DownloadsCompanion extends UpdateCompanion<Download> {
     required String playlistId,
     this.error = const Value.absent(),
     this.url = const Value.absent(),
+    this.imported = const Value.absent(),
   }) : contentId = Value(contentId),
        contentType = Value(contentType),
        title = Value(title),
@@ -1203,6 +1244,7 @@ class DownloadsCompanion extends UpdateCompanion<Download> {
     Expression<String>? playlistId,
     Expression<String>? error,
     Expression<String>? url,
+    Expression<bool>? imported,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1221,6 +1263,7 @@ class DownloadsCompanion extends UpdateCompanion<Download> {
       if (playlistId != null) 'playlist_id': playlistId,
       if (error != null) 'error': error,
       if (url != null) 'url': url,
+      if (imported != null) 'imported': imported,
     });
   }
 
@@ -1241,6 +1284,7 @@ class DownloadsCompanion extends UpdateCompanion<Download> {
     Value<String>? playlistId,
     Value<String?>? error,
     Value<String?>? url,
+    Value<bool>? imported,
   }) {
     return DownloadsCompanion(
       id: id ?? this.id,
@@ -1259,6 +1303,7 @@ class DownloadsCompanion extends UpdateCompanion<Download> {
       playlistId: playlistId ?? this.playlistId,
       error: error ?? this.error,
       url: url ?? this.url,
+      imported: imported ?? this.imported,
     );
   }
 
@@ -1313,6 +1358,9 @@ class DownloadsCompanion extends UpdateCompanion<Download> {
     if (url.present) {
       map['url'] = Variable<String>(url.value);
     }
+    if (imported.present) {
+      map['imported'] = Variable<bool>(imported.value);
+    }
     return map;
   }
 
@@ -1334,7 +1382,8 @@ class DownloadsCompanion extends UpdateCompanion<Download> {
           ..write('watched: $watched, ')
           ..write('playlistId: $playlistId, ')
           ..write('error: $error, ')
-          ..write('url: $url')
+          ..write('url: $url, ')
+          ..write('imported: $imported')
           ..write(')'))
         .toString();
   }
@@ -12654,6 +12703,7 @@ typedef $$DownloadsTableCreateCompanionBuilder =
       required String playlistId,
       Value<String?> error,
       Value<String?> url,
+      Value<bool> imported,
     });
 typedef $$DownloadsTableUpdateCompanionBuilder =
     DownloadsCompanion Function({
@@ -12673,6 +12723,7 @@ typedef $$DownloadsTableUpdateCompanionBuilder =
       Value<String> playlistId,
       Value<String?> error,
       Value<String?> url,
+      Value<bool> imported,
     });
 
 class $$DownloadsTableFilterComposer
@@ -12761,6 +12812,11 @@ class $$DownloadsTableFilterComposer
 
   ColumnFilters<String> get url => $composableBuilder(
     column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get imported => $composableBuilder(
+    column: $table.imported,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -12853,6 +12909,11 @@ class $$DownloadsTableOrderingComposer
     column: $table.url,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get imported => $composableBuilder(
+    column: $table.imported,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DownloadsTableAnnotationComposer
@@ -12919,6 +12980,9 @@ class $$DownloadsTableAnnotationComposer
 
   GeneratedColumn<String> get url =>
       $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<bool> get imported =>
+      $composableBuilder(column: $table.imported, builder: (column) => column);
 }
 
 class $$DownloadsTableTableManager
@@ -12965,6 +13029,7 @@ class $$DownloadsTableTableManager
                 Value<String> playlistId = const Value.absent(),
                 Value<String?> error = const Value.absent(),
                 Value<String?> url = const Value.absent(),
+                Value<bool> imported = const Value.absent(),
               }) => DownloadsCompanion(
                 id: id,
                 contentId: contentId,
@@ -12982,6 +13047,7 @@ class $$DownloadsTableTableManager
                 playlistId: playlistId,
                 error: error,
                 url: url,
+                imported: imported,
               ),
           createCompanionCallback:
               ({
@@ -13001,6 +13067,7 @@ class $$DownloadsTableTableManager
                 required String playlistId,
                 Value<String?> error = const Value.absent(),
                 Value<String?> url = const Value.absent(),
+                Value<bool> imported = const Value.absent(),
               }) => DownloadsCompanion.insert(
                 id: id,
                 contentId: contentId,
@@ -13018,6 +13085,7 @@ class $$DownloadsTableTableManager
                 playlistId: playlistId,
                 error: error,
                 url: url,
+                imported: imported,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

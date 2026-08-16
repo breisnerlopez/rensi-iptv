@@ -1772,6 +1772,12 @@ class AppLocalizationsAr extends AppLocalizations {
   String get download_available_offline => 'متاح دون اتصال';
 
   @override
+  String get import_file => 'Import file';
+
+  @override
+  String get importing => 'Importing…';
+
+  @override
   String get download_failed_retry => 'فشل التنزيل — انقر لإعادة المحاولة';
 
   @override

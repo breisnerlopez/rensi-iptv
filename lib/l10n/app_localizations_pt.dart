@@ -1785,6 +1785,12 @@ class AppLocalizationsPt extends AppLocalizations {
   String get download_available_offline => 'Disponível offline';
 
   @override
+  String get import_file => 'Import file';
+
+  @override
+  String get importing => 'Importing…';
+
+  @override
   String get download_failed_retry =>
       'Falha no download — toque para tentar novamente';
 

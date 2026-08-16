@@ -1,3 +1,12 @@
+# [2.21.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.20.3...v2.21.0) (2026-08-16)
+
+
+### Features
+
+* **Importar tus propios videos:** desde el botón "Importar" en Descargas ahora podés traer a la app un video que descargaste fuera (por ejemplo un MKV). Se copia a tu biblioteca offline, se reproduce con el reproductor de la app y se puede enviar a la TV — con todas sus pistas de audio y subtítulos incrustadas. Si configuraste TMDb, intenta ponerle póster y título automáticamente; si no, usa el nombre del archivo
+* **Un archivo importado nunca se borra solo:** a diferencia de las descargas del proveedor (que se pueden volver a bajar), un video que importaste solo lo borrás vos — no lo elimina el borrado automático al terminar de verlo ni la limpieza por espacio
+
+
 ## [2.20.3](https://github.com/breisnerlopez/rensi-iptv/compare/v2.20.2...v2.20.3) (2026-08-16)
 
 

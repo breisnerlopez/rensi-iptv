@@ -1777,6 +1777,12 @@ class AppLocalizationsHi extends AppLocalizations {
   String get download_available_offline => 'ऑफ़लाइन उपलब्ध';
 
   @override
+  String get import_file => 'Import file';
+
+  @override
+  String get importing => 'Importing…';
+
+  @override
   String get download_failed_retry =>
       'डाउनलोड विफल — पुनः प्रयास के लिए टैप करें';
 

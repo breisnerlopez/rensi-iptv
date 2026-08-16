@@ -543,6 +543,10 @@ class Downloads extends Table {
   // reintentar una descarga fallida sin depender de que el plugin todavía
   // conserve el DownloadTask original (no lo garantiza una vez 'failed').
   TextColumn get url => text().nullable()();
+  // True si la fila es un archivo IMPORTADO por el usuario (no una descarga del
+  // proveedor). Los imports NO son re-descargables → NUNCA se auto-borran (ni
+  // por watched→delete ni por la purga de espacio); solo el usuario los borra.
+  BoolColumn get imported => boolean().withDefault(const Constant(false))();
 }
 
 /// Full EPG programme guide (now/next/timeline). Populated from an external
@@ -627,7 +631,7 @@ class AppDatabase extends _$AppDatabase {
       );
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   // === PLAYLIST İŞLEMLERİ ===
 
@@ -2228,6 +2232,13 @@ class AppDatabase extends _$AppDatabase {
           await _addColumnIfMissing(m, liveStreams, liveStreams.tvArchive);
           await _addColumnIfMissing(
               m, liveStreams, liveStreams.tvArchiveDuration);
+        }
+        if (from <= 17) {
+          // Import de archivos locales del usuario: marca las filas importadas
+          // para excluirlas del auto-borrado (watched→delete y purga por
+          // espacio), ya que no son re-descargables. Aditiva, default 0 (false)
+          // → filas existentes quedan como NO-import. Idempotente.
+          await _addColumnIfMissing(m, downloads, downloads.imported);
         }
       });
     },

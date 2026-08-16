@@ -1410,7 +1410,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get import_cancelled => 'Importación de respaldo cancelada';
 
   @override
-  String get import_failed => 'Error al importar respaldo';
+  String get import_failed => 'No se pudo importar el archivo';
 
   @override
   String import_summary(int created, int updated, int skipped) {
@@ -1786,6 +1786,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get download_available_offline => 'Disponible sin conexión';
+
+  @override
+  String get import_file => 'Importar archivo';
+
+  @override
+  String get importing => 'Importando…';
 
   @override
   String get download_failed_retry => 'Falló la descarga: toca para reintentar';
