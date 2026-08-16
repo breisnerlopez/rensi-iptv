@@ -698,6 +698,7 @@ class _VideoChannelSelectorWidgetState
                     width: 50,
                     height: 35,
                     fit: BoxFit.cover,
+                    cacheWidth: 120, // logo de canal chico: no full-res
                     errorBuilder: (context, error, stackTrace) {
                       return Container(
                         width: 50,

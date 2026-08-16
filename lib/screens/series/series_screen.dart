@@ -921,6 +921,7 @@ class _SeriesScreenState extends State<SeriesScreen> {
                   child: Image.network(
                     episode.movieImage!,
                     fit: BoxFit.cover,
+                    cacheWidth: 320, // miniatura de episodio: no decodificar full-res
                     errorBuilder: (context, error, stackTrace) {
                       return Center(
                         child: Text(

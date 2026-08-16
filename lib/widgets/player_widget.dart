@@ -183,6 +183,9 @@ class _PlayerWidgetState extends State<PlayerWidget>
   // can't make it resolve to the wrong channel.
   String? _previousChannelId;
   Timer? _watchHistoryTimer;
+  // PERF: throttle del bookkeeping que ASIGNA (Media + Timer del debounce) en el
+  // listener de posición, para no presionar el GC en cada tick (varios Hz).
+  DateTime? _lastResumeSync;
   // Safety net for hard kills that never reach didChangeAppLifecycleState at
   // all (some OEM/OOM kills tear the process down without going through the
   // normal Flutter lifecycle callbacks): flush the resume position on a fixed
@@ -2458,27 +2461,19 @@ class _PlayerWidgetState extends State<PlayerWidget>
         _lastAdvanceWall = now;
       }
 
-      // Keep the resume position fresh, but never index past the current
-      // playlist length (guards against RangeError during open/reset).
-      final medias = _player.state.playlist.medias;
-      if (currentItemIndex >= 0 && currentItemIndex < medias.length) {
-        medias[currentItemIndex] = Media(contentItem.url, start: position);
-      }
-
-      // Debounce: Save watch history every 5 seconds instead of on every position update
+      // Asignaciones BARATAS por tick (sin objetos nuevos) → resume preciso.
       _pendingWatchDuration = position;
       _pendingTotalDuration = _player.state.duration;
       // Ancla de resume que sobrevive al vaciado de _pendingWatchDuration (ver
       // el campo): solo avanza con posiciones reales (>0), nunca se anula.
       if (position > Duration.zero) _lastGoodPosition = position;
 
-      // Prompt "Siguiente episodio" (móvil): aparece/desaparece según la
-      // posición cruce el umbral de los últimos ~30s del episodio.
+      // Prompt "Siguiente episodio" (móvil): edge-triggered (solo setState al
+      // cruzar el umbral de los últimos ~30s), barato por tick.
       _maybeUpdateNextEpisodePrompt(position, _player.state.duration);
 
       // Puente de casting: solo la TV receptora reenvía su posición al móvil
-      // para alimentar "continuar viendo". Emitir solo en TV evita trabajo por
-      // tick en el móvil, donde nadie consume el evento.
+      // para alimentar "continuar viendo".
       if (ResponsiveHelper.isTelevisionDevice) {
         EventBus().emit('cast_player_position', {
           'pos': position.inMilliseconds,
@@ -2486,10 +2481,28 @@ class _PlayerWidgetState extends State<PlayerWidget>
         });
       }
 
-      _watchHistoryTimer?.cancel();
-      _watchHistoryTimer = Timer(const Duration(seconds: 5), () {
-        _saveWatchHistory();
-      });
+      // PERF: lo que ASIGNA —un `Media` nuevo + recrear el `Timer` del debounce—
+      // se throttlea a ~1 Hz. El stream de posición emite a varios Hz durante
+      // TODA la reproducción; hacerlo por tick era churn de GC sostenido (pausas
+      // que se sienten como microtironeos). Sin pérdida de precisión de resume:
+      // `_pendingWatchDuration`/`_lastGoodPosition` se actualizan igual cada tick,
+      // y `_reopenCurrent` reanuda vía `_lastGoodPosition`, NO vía
+      // `medias[i].start` (que aquí solo se mantiene "fresco" por si acaso).
+      final now = DateTime.now();
+      if (_lastResumeSync == null ||
+          now.difference(_lastResumeSync!) >= const Duration(seconds: 1)) {
+        _lastResumeSync = now;
+        // Keep the resume position fresh, but never index past the current
+        // playlist length (guards against RangeError during open/reset).
+        final medias = _player.state.playlist.medias;
+        if (currentItemIndex >= 0 && currentItemIndex < medias.length) {
+          medias[currentItemIndex] = Media(contentItem.url, start: position);
+        }
+        // Debounce: guarda el historial ~5s tras la última actualización.
+        _watchHistoryTimer?.cancel();
+        _watchHistoryTimer =
+            Timer(const Duration(seconds: 5), () => _saveWatchHistory());
+      }
     });
 
     // Keep the screen on while actually playing; release it on pause/stop so
@@ -2672,6 +2685,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
       // posición como historial del ep2. El nuevo episodio arranca en 0.
       _lastGoodPosition = null;
       _pendingWatchDuration = null;
+      _lastResumeSync = null; // throttle "frío" para el nuevo episodio
       // Cambió el contenido: reiniciar la línea base del watchdog en vivo (no
       // arrastrar la posición del ítem saliente).
       _resetLiveWatchdogBaseline();

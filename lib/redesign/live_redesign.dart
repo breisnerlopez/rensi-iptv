@@ -634,6 +634,7 @@ class _ChannelRow extends StatelessWidget {
                             ? CachedNetworkImage(
                                 imageUrl: item.imagePath,
                                 fit: BoxFit.cover,
+                                memCacheWidth: 220, // logo en tile 92px
                                 errorWidget: (_, __, ___) =>
                                     Container(color: r.surface3),
                               )

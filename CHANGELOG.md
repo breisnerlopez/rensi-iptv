@@ -1,3 +1,12 @@
+## [2.21.3](https://github.com/breisnerlopez/rensi-iptv/compare/v2.21.2...v2.21.3) (2026-08-16)
+
+
+### Performance
+
+* **Reproducción más liviana:** se eliminó la creación de objetos innecesarios en cada actualización de posición del reproductor, reduciendo la presión de memoria (menos microtironeos por recolección de basura durante la reproducción)
+* **Scroll más fluido en las listas:** las miniaturas de episodios, los logos de canales y las fotos del reparto ahora se decodifican al tamaño en que se muestran (antes a resolución completa) → menos memoria y menos tirones al hacer scroll
+
+
 ## [2.21.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.21.1...v2.21.2) (2026-08-16)
 
 

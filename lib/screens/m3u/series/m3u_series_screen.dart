@@ -474,6 +474,7 @@ class _M3uSeriesScreenState extends State<M3uSeriesScreen> {
                         child: Image.network(
                           episode.cover!,
                           fit: BoxFit.cover,
+                          cacheWidth: 320, // miniatura de episodio
                           errorBuilder: (context, error, stackTrace) {
                             return Center(
                               child: Text(

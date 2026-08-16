@@ -119,6 +119,7 @@ class _CastAvatar extends StatelessWidget {
                           : CachedNetworkImage(
                               imageUrl: photo,
                               fit: BoxFit.cover,
+                              memCacheWidth: 240, // headshot de reparto (rail)
                               placeholder: (_, __) => _fallback(),
                               errorWidget: (_, __, ___) => _fallback(),
                             ),
