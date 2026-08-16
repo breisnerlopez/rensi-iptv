@@ -1,3 +1,11 @@
+## [2.20.3](https://github.com/breisnerlopez/rensi-iptv/compare/v2.20.2...v2.20.3) (2026-08-16)
+
+
+### Bug Fixes
+
+* **Controles de casting superpuestos:** al abrir la pantalla completa de control de la TV, la mini-barra de casting se quedaba pintada encima y tapaba los botones de esa pantalla (subtítulos/pistas) y el "Dejar de transmitir". Ahora la mini-barra se oculta mientras esa pantalla está abierta y reaparece al cerrarla
+
+
 ## [2.20.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.20.1...v2.20.2) (2026-08-16)
 
 

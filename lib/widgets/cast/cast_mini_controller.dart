@@ -13,6 +13,12 @@ import '../../services/app_navigator.dart';
 import '../../utils/app_themes.dart';
 import 'casting_screen.dart';
 
+/// True mientras la hoja de controles completos (CastingScreen) está abierta. El
+/// mini-control se oculta en ese lapso: está montado como HERMANO del Navigator
+/// (en MaterialApp.builder), así que si no se pintaría ENCIMA de esa pantalla y
+/// taparía sus botones (es el mismo control, duplicado y superpuesto).
+final ValueNotifier<bool> castControlsSheetOpen = ValueNotifier<bool>(false);
+
 class CastMiniController extends StatelessWidget {
   const CastMiniController({super.key});
 
@@ -20,6 +26,16 @@ class CastMiniController extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.watch<CastSenderController>();
     if (!c.isCasting) return const SizedBox.shrink();
+    // Mientras la hoja de controles completos está abierta, ocultar el mini para
+    // no superponerlo a esa pantalla (que ya trae los mismos controles).
+    return ValueListenableBuilder<bool>(
+      valueListenable: castControlsSheetOpen,
+      builder: (context, sheetOpen, _) =>
+          sheetOpen ? const SizedBox.shrink() : _bar(context, c),
+    );
+  }
+
+  Widget _bar(BuildContext context, CastSenderController c) {
     final loc = context.loc;
     final device = c.device?.name ?? '';
     final title = c.media?.title ?? '';
@@ -118,6 +134,8 @@ class CastMiniController extends StatelessWidget {
 /// mini-control y por el handoff del reproductor: al enviar un título a la TV,
 /// tras cerrar el player se muestran estos controles para tenerlos a mano.
 void openCastControls(BuildContext context, CastSenderController controller) {
+  // Ocultar el mini mientras la hoja está abierta (se restaura al cerrarse).
+  castControlsSheetOpen.value = true;
   showModalBottomSheet<void>(
     context: appNavigatorKey.currentContext ?? context,
     useRootNavigator: true,
@@ -133,5 +151,5 @@ void openCastControls(BuildContext context, CastSenderController controller) {
         ),
       ),
     ),
-  );
+  ).whenComplete(() => castControlsSheetOpen.value = false);
 }
