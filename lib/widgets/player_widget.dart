@@ -675,16 +675,28 @@ class _PlayerWidgetState extends State<PlayerWidget>
   // ValueListenableBuilder) se repinta. Las TRANSICIONES (aparecer / ocultar /
   // terminal) siguen yendo por setState.
   final ValueNotifier<int> _bufferHudTick = ValueNotifier<int>(0);
+  // Ancla para detectar AVANCE REAL de posición (frames renderizando de verdad)
+  // en el listener de posición y así bajar el pre-buffer/terminal. NO se usa el
+  // flag `playing` de mpv, que solo significa "no pausado" (se emite aunque no
+  // llegue un byte); un stream muerto tiene playing=true pero posición congelada.
+  Duration? _lastAdvancePos;
+  DateTime? _lastAdvanceWall;
 
   void _startPreBuffer() {
     final isLive = widget.contentItem.contentType == ContentType.liveStream;
     final tv = ResponsiveHelper.isTelevisionDevice;
-    _preBuffer = PreBufferMonitor(targetSecs: isLive ? 4 : 15);
+    // INVARIANTE: el target debe ser < demuxer-readahead-secs (ver
+    // _tuneForPerformance), o `isReady` (buf ≥ target) es INALCANZABLE porque el
+    // demuxer-cache topa en el readahead. VOD readahead=10 → target 7 (colchón
+    // razonable y alcanzable); vivo readahead=15 → target 4.
+    _preBuffer = PreBufferMonitor(targetSecs: isLive ? 4 : 7);
     _preBuffering = true;
     _preBufferTooSlow = false; // nuevo pre-buffer: limpiar el estado terminal
     _tooSlowStreak = 0;
     _lastPreBufferPos = null; // sin sembrar → el primer tick solo siembra
     _lastPreBufferElapsed = null;
+    _lastAdvancePos = null; // ancla del dismissal por avance real (listener pos)
+    _lastAdvanceWall = null;
     if (tv) {
       // En la TV (receptor de casting) NO retener el vídeo: algunas cajas no
       // llenan/reportan la caché con el vídeo en pausa antes del primer frame,
@@ -2418,6 +2430,34 @@ class _PlayerWidgetState extends State<PlayerWidget>
     });
 
     _player.stream.position.listen((position) {
+      // Dismissal del pre-buffer / terminal "conexión demasiado lenta" por AVANCE
+      // REAL de posición: si la posición progresa ~a tiempo de pared
+      // (isRealPlaybackAdvance descarta seeks/resume), el vídeo reproduce DE
+      // VERDAD → bajar el overlay, incluso si ya cayó en terminal (donde el timer
+      // del pre-buffer se canceló y dejaba el aviso pegado sobre el vídeo — el bug
+      // del receptor de cast). Un stream muerto (playing=true pero posición
+      // congelada) NO dispara esto, así que conserva la terminal con Reintentar.
+      if (_preBuffering || _preBufferTooSlow) {
+        final now = DateTime.now();
+        if (_lastAdvancePos != null &&
+            _lastAdvanceWall != null &&
+            isRealPlaybackAdvance(
+              playing: _player.state.playing,
+              dPos: position - _lastAdvancePos!,
+              dWall: now.difference(_lastAdvanceWall!),
+            )) {
+          // Piso anti-flicker (igual que `minShown` del tick): en TV no bajar el
+          // overlay "Preparando…" antes de 1.5s para que no parpadee. En TERMINAL
+          // no aplica (ya pasaron ≥8s y se quiere que se vaya en cuanto reproduce).
+          final minShown = !ResponsiveHelper.isTelevisionDevice ||
+              _preBufferTooSlow ||
+              _preBufferClock.elapsed >= const Duration(milliseconds: 1500);
+          if (minShown) _finishPreBuffer();
+        }
+        _lastAdvancePos = position;
+        _lastAdvanceWall = now;
+      }
+
       // Keep the resume position fresh, but never index past the current
       // playlist length (guards against RangeError during open/reset).
       final medias = _player.state.playlist.medias;

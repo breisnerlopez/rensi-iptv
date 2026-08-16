@@ -1,3 +1,12 @@
+## [2.20.2](https://github.com/breisnerlopez/rensi-iptv/compare/v2.20.1...v2.20.2) (2026-08-16)
+
+
+### Bug Fixes
+
+* **El aviso "Conexión demasiado lenta" ya no se queda pegado al castear:** al enviar contenido a la TV, ese aviso podía quedarse en pantalla aunque el video ya estuviera reproduciéndose por detrás, y no se iba ni tocando Reintentar. Ahora, en cuanto la reproducción arranca de verdad, el aviso desaparece solo
+* **Ese aviso aparecía de más:** se corrigió un umbral interno (quedó descoordinado con un ajuste de precarga de la versión anterior) que hacía que la ventana de "conexión lenta" saltara muchísimo más seguido de lo debido
+
+
 ## [2.20.1](https://github.com/breisnerlopez/rensi-iptv/compare/v2.20.0...v2.20.1) (2026-08-15)
 
 
