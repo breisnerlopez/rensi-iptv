@@ -227,6 +227,15 @@ class AppLocalizationsHi extends AppLocalizations {
   String get cast_stop => 'कास्ट करना बंद करें';
 
   @override
+  String get play => 'Play';
+
+  @override
+  String get pause => 'Pause';
+
+  @override
+  String get cast_active => 'Casting to TV';
+
+  @override
   String get cast_error => 'टीवी से कनेक्ट नहीं हो सका';
 
   @override

@@ -534,6 +534,24 @@ abstract class AppLocalizations {
   /// **'Stop casting'**
   String get cast_stop;
 
+  /// No description provided for @play.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get play;
+
+  /// No description provided for @pause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pause;
+
+  /// No description provided for @cast_active.
+  ///
+  /// In en, this message translates to:
+  /// **'Casting to TV'**
+  String get cast_active;
+
   /// No description provided for @cast_error.
   ///
   /// In en, this message translates to:

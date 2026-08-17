@@ -20,10 +20,15 @@ import 'l10n/supported_languages.dart';
 import 'utils/app_themes.dart';
 import 'utils/credential_scrubber.dart';
 import 'utils/responsive_helper.dart';
+import 'services/cast/cast_foreground_service.dart';
+import 'widgets/cast/cast_foreground_bridge.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _installErrorGuards();
+  // Prepara el foreground service del casting (canal de comunicación + config).
+  // No arranca nada; el CastForegroundBridge lo activa solo mientras se castea.
+  CastForegroundService.init();
   // Resolve the TV/leanback flag once so ResponsiveHelper.isDesktopOrTV has a
   // real platform signal instead of relying on screen width alone.
   await ResponsiveHelper.initTelevisionFlag();
@@ -170,8 +175,14 @@ class MyApp extends StatelessWidget {
         // Mini-control global de casting: persiste sobre cualquier pantalla
         // mientras se transmite, para seguir navegando. Se auto-oculta si no
         // hay casting (y en TV, donde la app es receptora).
-        Widget withCast(Widget c) =>
-            Stack(children: [c, const CastMiniController()]);
+        Widget withCast(Widget c) => Stack(children: [
+              c,
+              const CastMiniController(),
+              // Invisible: activa/retira el foreground service del casting según
+              // el estado del CastSenderController (mantiene viva la conexión en
+              // segundo plano + notificación con controles).
+              const CastForegroundBridge(),
+            ]);
         if (!ResponsiveHelper.isDesktopOrTV(context)) return withCast(child);
         final base = Theme.of(context);
         Widget themed = Theme(

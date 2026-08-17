@@ -1,3 +1,11 @@
+## [2.22.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.21.4...v2.22.0) (2026-08-17)
+
+
+### Features
+
+* **La reproducción ya no se corta al enviar a la TV en segundo plano:** cuando estás casteando y cambias de app o apagas la pantalla, una notificación persistente (con controles de reproducir/pausar y detener) mantiene viva la conexión de control con la TV. Antes, al pasar la app a segundo plano el sistema congelaba el proceso y la conexión se caía, lo que podía reiniciar el contenido en la TV. Se mantienen activos el CPU y el wifi con la pantalla apagada, y el servicio se cierra limpio al quitar la app de recientes (sin dejar nada consumiendo batería)
+
+
 ## [2.21.4](https://github.com/breisnerlopez/rensi-iptv/compare/v2.21.3...v2.21.4) (2026-08-17)
 
 

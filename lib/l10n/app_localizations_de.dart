@@ -228,6 +228,15 @@ class AppLocalizationsDe extends AppLocalizations {
   String get cast_stop => 'Streaming beenden';
 
   @override
+  String get play => 'Play';
+
+  @override
+  String get pause => 'Pause';
+
+  @override
+  String get cast_active => 'Casting to TV';
+
+  @override
   String get cast_error => 'Verbindung zum TV fehlgeschlagen';
 
   @override

@@ -227,6 +227,15 @@ class AppLocalizationsFr extends AppLocalizations {
   String get cast_stop => 'Arrêter la diffusion';
 
   @override
+  String get play => 'Play';
+
+  @override
+  String get pause => 'Pause';
+
+  @override
+  String get cast_active => 'Casting to TV';
+
+  @override
   String get cast_error => 'Impossible de se connecter au téléviseur';
 
   @override

@@ -227,6 +227,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get cast_stop => 'Dejar de transmitir';
 
   @override
+  String get play => 'Reproducir';
+
+  @override
+  String get pause => 'Pausar';
+
+  @override
+  String get cast_active => 'Enviando a la TV';
+
+  @override
   String get cast_error => 'No se pudo conectar con la TV';
 
   @override

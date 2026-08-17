@@ -227,6 +227,15 @@ class AppLocalizationsTr extends AppLocalizations {
   String get cast_stop => 'Yayını durdur';
 
   @override
+  String get play => 'Play';
+
+  @override
+  String get pause => 'Pause';
+
+  @override
+  String get cast_active => 'Casting to TV';
+
+  @override
   String get cast_error => 'TV\'ye bağlanılamadı';
 
   @override

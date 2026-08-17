@@ -133,6 +133,21 @@
             </intent-filter>
         </service>
 
+        <!-- flutter_foreground_task: foreground service que mantiene VIVO el
+             proceso del EMISOR de casting en segundo plano (móvil = control de
+             la TV). Sin esto, al cambiar de app Android congela/mata el proceso
+             y se cae la conexión de control (wss). Tipo `dataSync`: NO exige una
+             MediaSession activa (el móvil no reproduce nada local al castear) ni
+             un companion device (connectedDevice), así que arranca fiable en
+             Android 14/15; el cap de 6h/sesión de dataSync es de sobra para una
+             sesión de casting y se resetea al traer la app al frente. Permiso
+             FOREGROUND_SERVICE_DATA_SYNC ya declarado arriba. -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:stopWithTask="true"
+            android:exported="false" />
+
         <!-- Media Button Receiver -->
         <receiver android:name="com.ryanheise.audioservice.MediaButtonReceiver"
             android:exported="true" tools:ignore="Instantiatable">

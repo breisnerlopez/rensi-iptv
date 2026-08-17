@@ -2,7 +2,7 @@ name: rensi_iptv
 description: "Rensi IPTV — Reproductor IPTV para móvil y Android TV"
 publish_to: "none"
 
-version: 2.21.4+69
+version: 2.22.0+70
 
 environment:
   sdk: ^3.9.2
@@ -71,6 +71,7 @@ dependencies:
   basic_utils: ^5.7.0 # cert X.509 self-signed en runtime para wss (cert-pinning)
   crypto: ^3.0.0 # SHA-256 del cert DER (fingerprint para pinning)
   background_downloader: ^8.5.0 # descargas offline (background, pausa/reanudar)
+  flutter_foreground_task: ^9.2.2
 
 dependency_overrides:
   media_kit:

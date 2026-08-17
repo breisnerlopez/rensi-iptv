@@ -222,6 +222,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cast_stop => '停止投屏';
 
   @override
+  String get play => 'Play';
+
+  @override
+  String get pause => 'Pause';
+
+  @override
+  String get cast_active => 'Casting to TV';
+
+  @override
   String get cast_error => '无法连接到电视';
 
   @override
