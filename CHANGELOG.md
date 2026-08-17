@@ -1,3 +1,11 @@
+## [2.21.4](https://github.com/breisnerlopez/rensi-iptv/compare/v2.21.3...v2.21.4) (2026-08-17)
+
+
+### Features
+
+* **Acceso directo a Descargas desde el Inicio:** se agregó un ícono de Descargas en la pantalla principal (a un toque), en vez de tener que entrar a Ajustes y buscarlo. En móvil aparece junto al de búsqueda; en TV/tablet sigue accesible desde Ajustes
+
+
 ## [2.21.3](https://github.com/breisnerlopez/rensi-iptv/compare/v2.21.2...v2.21.3) (2026-08-16)
 
 

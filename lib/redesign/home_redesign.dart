@@ -35,6 +35,7 @@ class RedesignHome extends StatelessWidget {
     required this.onRemove,
     this.onSearch,
     this.onSettings,
+    this.onDownloads,
     this.onSeeAll,
     this.onSeeAllContinue,
     this.playlistSwitcher,
@@ -72,6 +73,7 @@ class RedesignHome extends StatelessWidget {
   final void Function(ContentItem) onPlay;
   final VoidCallback? onSearch;
   final VoidCallback? onSettings;
+  final VoidCallback? onDownloads;
   // Opens the full category grid ("Ver todo") — a rail only shows the first 18.
   final void Function(CategoryViewModel)? onSeeAll;
   // Opens the "Seguir viendo → Ver todo" screen (the last 20 watched). Null
@@ -158,6 +160,7 @@ class RedesignHome extends StatelessWidget {
           tv: tv,
           onSearch: onSearch,
           onSettings: onSettings,
+          onDownloads: onDownloads,
           playlistSwitcher: playlistSwitcher),
       if (hero != null)
         _Hero(item: hero, onOpen: onOpen, onPlay: onPlay, tv: tv),
@@ -351,9 +354,14 @@ class _CategoryRail extends StatelessWidget {
 
 class _TopBar extends StatelessWidget {
   const _TopBar(
-      {this.onSearch, this.onSettings, this.playlistSwitcher, this.tv = false});
+      {this.onSearch,
+      this.onSettings,
+      this.onDownloads,
+      this.playlistSwitcher,
+      this.tv = false});
   final VoidCallback? onSearch;
   final VoidCallback? onSettings;
+  final VoidCallback? onDownloads;
   final Widget? playlistSwitcher;
   final bool tv;
   /// El saludo estaba fijado a 'Buenas noches' en español, así que además de no
@@ -395,21 +403,39 @@ class _TopBar extends StatelessWidget {
                       letterSpacing: -0.4)),
             ],
           ),
-          Row(
-            children: [
-              if (playlistSwitcher != null) ...[
-                playlistSwitcher!,
-                const SizedBox(width: 6),
+          // Flexible + Flexible(switcher) para que el lado derecho ENCOJA (el
+          // switcher trunca su label) en pantallas chicas en vez de desbordar el
+          // Row cuando el nombre de la lista es largo + varios íconos.
+          Flexible(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (playlistSwitcher != null) ...[
+                  Flexible(child: playlistSwitcher!),
+                  const SizedBox(width: 6),
+                ],
+                // Search stays here on phone. On TV it now lives in the rail as
+                // a first-class destination, so duplicating it in the top bar
+                // would give the same target two homes.
+                if (!tv)
+                  _IconBtn(
+                      icon: Icons.search,
+                      tooltip: context.loc.search,
+                      onTap: onSearch),
+                // Acceso directo a Descargas: alcance MÓVIL-ONLY (decisión de
+                // producto). Se muestra solo en el layout de barra inferior
+                // (`!useNavigationRail` = teléfono <600dp). En tablet/TV (rail)
+                // NO hay ítem de Descargas — sigue accesible desde Ajustes. No
+                // es deduplicación: el rail nunca tuvo Descargas.
+                if (!ResponsiveHelper.useNavigationRail(context)) ...[
+                  const SizedBox(width: 6),
+                  _IconBtn(
+                      icon: Icons.download_for_offline_outlined,
+                      tooltip: context.loc.downloads_title,
+                      onTap: onDownloads),
+                ],
               ],
-              // Search stays here on phone. On TV it now lives in the rail as
-              // a first-class destination, so duplicating it in the top bar
-              // would give the same target two homes.
-              if (!tv) _IconBtn(icon: Icons.search, onTap: onSearch),
-              // The avatar was a second door to Settings, which the rail already
-              // owns — a decorative control competing with a real one. Removed;
-              // the identity it implied (a single letter "A") was not real
-              // either, since the app has no accounts.
-            ],
+            ),
           ),
         ],
       ),
@@ -418,13 +444,16 @@ class _TopBar extends StatelessWidget {
 }
 
 class _IconBtn extends StatelessWidget {
-  const _IconBtn({required this.icon, this.onTap});
+  const _IconBtn({required this.icon, this.onTap, this.tooltip});
   final IconData icon;
   final VoidCallback? onTap;
+  // a11y: nombre accesible (TalkBack/switch-access) + tooltip en long-press. Un
+  // icon-button sin texto lo necesita para no quedar anónimo.
+  final String? tooltip;
   @override
   Widget build(BuildContext context) {
     final r = rensi(context);
-    return FocusHighlight(
+    final btn = FocusHighlight(
       borderRadius: BorderRadius.circular(12),
       child: Material(
         color: Theme.of(context).colorScheme.surface,
@@ -439,6 +468,7 @@ class _IconBtn extends StatelessWidget {
         ),
       ),
     );
+    return tooltip == null ? btn : Tooltip(message: tooltip!, child: btn);
   }
 }
 

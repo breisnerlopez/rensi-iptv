@@ -26,6 +26,7 @@ import 'package:rensi_iptv/redesign/continue_watching_all_screen.dart';
 import 'package:rensi_iptv/redesign/live_redesign.dart';
 import 'package:rensi_iptv/redesign/list_redesign.dart';
 import 'package:rensi_iptv/redesign/search_redesign.dart';
+import 'package:rensi_iptv/screens/downloads_screen.dart';
 
 import '../../services/app_state.dart';
 import 'package:rensi_iptv/widgets/tv/navigation_models.dart';
@@ -294,6 +295,8 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
         onPlay: (it) => playByContentType(context, it),
         onSearch: _openSearch,
         onSettings: () => controller.onNavigationTap(4),
+        onDownloads: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const DownloadsScreen())),
         onSeeAll: _navigateToCategoryDetail,
         onSeeAllContinue: _navigateToContinueAll,
         continueWatching: resumableFrom(_history.continueWatching),
