@@ -2,7 +2,7 @@ name: rensi_iptv
 description: "Rensi IPTV — Reproductor IPTV para móvil y Android TV"
 publish_to: "none"
 
-version: 2.22.0+70
+version: 2.23.0+71
 
 environment:
   sdk: ^3.9.2

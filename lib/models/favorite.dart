@@ -52,9 +52,32 @@ class Favorite {
       'm3u_item_id': m3uItemId,
       'name': name,
       'image_path': imagePath,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
+      'created_at': createdAt.toUtc().toIso8601String(),
+      'updated_at': updatedAt.toUtc().toIso8601String(),
     };
+  }
+
+  factory Favorite.fromJson(Map<String, dynamic> json) {
+    final rawType = json['content_type'];
+    final typeIndex =
+        rawType is int ? rawType : int.tryParse('${rawType ?? ''}') ?? 0;
+    final safeIndex = (typeIndex >= 0 && typeIndex < ContentType.values.length)
+        ? typeIndex
+        : 0;
+    return Favorite(
+      id: json['id'] as String,
+      playlistId: json['playlist_id'] as String,
+      contentType: ContentType.values[safeIndex],
+      streamId: json['stream_id'] as String,
+      episodeId: json['episode_id'] as String?,
+      m3uItemId: json['m3u_item_id'] as String?,
+      name: (json['name'] as String?) ?? '',
+      imagePath: json['image_path'] as String?,
+      createdAt:
+          DateTime.tryParse('${json['created_at'] ?? ''}') ?? DateTime.now(),
+      updatedAt:
+          DateTime.tryParse('${json['updated_at'] ?? ''}') ?? DateTime.now(),
+    );
   }
 
   FavoritesCompanion toCompanion() {
@@ -68,6 +91,24 @@ class Favorite {
       name: Value(name),
       imagePath: Value(imagePath),
       updatedAt: Value(DateTime.now()),
+    );
+  }
+
+  /// Companion fiel para RESTAURAR desde backup: preserva createdAt/updatedAt
+  /// originales (a diferencia de [toCompanion], que fuerza updatedAt=now). No
+  /// usar para ediciones normales.
+  FavoritesCompanion toRestoreCompanion() {
+    return FavoritesCompanion(
+      id: Value(id),
+      playlistId: Value(playlistId),
+      contentType: Value(contentType.index),
+      streamId: Value(streamId),
+      episodeId: Value(episodeId),
+      m3uItemId: Value(m3uItemId),
+      name: Value(name),
+      imagePath: Value(imagePath),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
     );
   }
 

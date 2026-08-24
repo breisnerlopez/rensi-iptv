@@ -16,6 +16,12 @@ class WatchHistoryService {
         .insertOnConflictUpdate(history.toDriftCompanion());
   }
 
+  /// Todas las filas de historial de TODAS las playlists. Usado por el backup.
+  Future<List<WatchHistory>> getAllWatchHistory() async {
+    final results = await _database.select(_database.watchHistories).get();
+    return results.map((data) => WatchHistory.fromDrift(data)).toList();
+  }
+
   Future<WatchHistory?> getWatchHistory(
     String playlistId,
     String streamId,

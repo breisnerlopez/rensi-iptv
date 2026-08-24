@@ -13,6 +13,7 @@ import 'package:rensi_iptv/services/watch_history_service.dart';
 import 'package:rensi_iptv/repositories/favorites_repository.dart';
 import 'package:rensi_iptv/utils/channel_order.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
+import 'package:rensi_iptv/utils/resume_position.dart';
 import 'package:rensi_iptv/widgets/channel_number_overlay.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_info_widget.dart';
 import 'package:rensi_iptv/widgets/player-buttons/video_next_episode_widget.dart';
@@ -1815,6 +1816,18 @@ class _PlayerWidgetState extends State<PlayerWidget>
     return history?.watchDuration?.inMilliseconds ?? 0;
   }
 
+  /// Posición de inicio (ms) para un episodio NO-actual de la cola. Si ya se vio
+  /// prácticamente entero (≥95% del total), arranca en 0. Si no, al auto-avanzar
+  /// media_kit haría seek cerca del final del episodio ya visto → `completed` al
+  /// instante → lo salta y cascada al episodio equivocado. El ítem seleccionado
+  /// NO usa esto (reanuda vía _resumeMsFor); el reopen ya pasa 0 a los no-actuales.
+  int _queueStartMsFor(WatchHistory? history) {
+    return queuedItemStartMs(
+      history?.watchDuration?.inMilliseconds ?? 0,
+      history?.totalDuration?.inMilliseconds ?? 0,
+    );
+  }
+
   Future<void> _saveWatchHistory({bool ignoreMounted = false}) async {
     // In dispose the State is already unmounted, so allow an explicit
     // ignoreMounted to still flush the final position.
@@ -1842,7 +1855,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
           imagePath: contentItem.imagePath,
           totalDuration: _pendingTotalDuration,
           watchDuration: _pendingWatchDuration,
-          seriesId: contentItem.seriesStream?.seriesId,
+          // Los episodios del camino local no llevan seriesStream; usan el
+          // seriesId propio del ContentItem (poblado desde las pantallas de
+          // episodios) para vincular el historial a la serie. El cast standalone
+          // sí inyecta seriesStream, que tiene prioridad.
+          seriesId: contentItem.seriesStream?.seriesId ?? contentItem.seriesId,
           // Feature H — solo en un cast STANDALONE (widget.standaloneProviderId
           // no-null) se persisten estas dos columnas para el replay de fase 4;
           // en toda otra reproducción quedan null, como siempre.
@@ -2208,7 +2225,7 @@ class _PlayerWidgetState extends State<PlayerWidget>
               // si no el historial local. Para el resto de la cola, solo historial.
               'startPosition': item.id == contentItem.id
                   ? _resumeMsFor(itemWatchHistory)
-                  : (itemWatchHistory?.watchDuration?.inMilliseconds ?? 0),
+                  : _queueStartMsFor(itemWatchHistory),
             },
           ),
         );
@@ -4168,21 +4185,11 @@ class _PlayerWidgetState extends State<PlayerWidget>
       focusNode: _remoteFocusNode,
       autofocus: true,
       onKeyEvent: _handleRemoteKey,
-      child: GestureDetector(
-      onVerticalDragEnd: (details) {
-        if (_queue == null || _queue!.length <= 1) return;
-
-        // Yukarı swipe - sonraki kanal
-        if (details.primaryVelocity != null &&
-            details.primaryVelocity! < -500) {
-          _changeChannel(1);
-        }
-        // Aşağı swipe - önceki kanal
-        else if (details.primaryVelocity != null &&
-            details.primaryVelocity! > 500) {
-          _changeChannel(-1);
-        }
-      },
+      // El cambio de contenido por swipe vertical táctil se eliminó a propósito
+      // (chocaba con el gesto del sistema para mostrar la barra de Android y con
+      // el gesto de brillo/volumen de media_kit). La navegación por mando/teclado
+      // sigue vía _handleRemoteKey → _changeChannel; el prompt "Siguiente
+      // episodio" cubre el salto anticipado en móvil.
       child: Stack(
         children: [
           getVideo(
@@ -4306,7 +4313,6 @@ class _PlayerWidgetState extends State<PlayerWidget>
           if (_showNextEpisodePrompt) _buildNextEpisodePrompt(context),
 
         ],
-      ),
       ),
     );
   }

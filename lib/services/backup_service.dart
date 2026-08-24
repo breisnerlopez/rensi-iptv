@@ -7,10 +7,15 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:file_picker/file_picker.dart';
 
+import '../database/database.dart';
+import '../models/favorite.dart';
 import '../models/playlist_model.dart';
+import '../models/watch_history.dart';
 import '../repositories/user_preferences.dart';
 import 'playlist_service.dart';
+import 'service_locator.dart';
 import 'tmdb_credentials_service.dart';
+import 'watch_history_service.dart';
 import 'package:rensi_iptv/utils/credential_scrubber.dart';
 
 /// Public stats returned by the backup service so the UI can localize the
@@ -87,6 +92,18 @@ class BackupService {
         credentials['tmdb'] = tmdb;
       }
     }
+    // Historial de reproducción y favoritos viven en la BD (drift) y no se
+    // exportaban → transferir entre dispositivos perdía "continuar viendo" y lo
+    // marcado. Se incluyen solo con includeSecrets (transferir MI dispositivo);
+    // al compartir sin secretos no se filtran hábitos de uso.
+    List<Map<String, dynamic>> watchHistoryJson = const [];
+    List<Map<String, dynamic>> favoritesJson = const [];
+    if (includeSecrets) {
+      final watchHistory = await WatchHistoryService().getAllWatchHistory();
+      final favorites = await getIt<AppDatabase>().getAllFavorites();
+      watchHistoryJson = watchHistory.map((w) => w.toJson()).toList();
+      favoritesJson = favorites.map((f) => f.toJson()).toList();
+    }
     final payload = {
       'schemaVersion': _schemaVersion,
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
@@ -96,6 +113,8 @@ class BackupService {
           .toList(),
       'settings': settings,
       if (credentials.isNotEmpty) 'credentials': credentials,
+      if (watchHistoryJson.isNotEmpty) 'watchHistory': watchHistoryJson,
+      if (favoritesJson.isNotEmpty) 'favorites': favoritesJson,
     };
     final plain = Uint8List.fromList(utf8.encode(jsonEncode(payload)));
     if (passphrase == null || passphrase.isEmpty) {
@@ -253,6 +272,54 @@ class BackupService {
         final existing = await TmdbCredentialsService.getStoredCredential();
         if (existing == null || strategy == BackupMergeStrategy.overwrite) {
           await TmdbCredentialsService.saveCredential(tmdb);
+        }
+      }
+    }
+
+    // Restaurar historial de reproducción (upsert por PK {playlistId,streamId}).
+    // Cada ítem va en su try/catch: uno corrupto (backup manipulado) se salta
+    // sin abortar el resto del restore ni las playlists.
+    final watchHistoryRaw = decoded['watchHistory'];
+    if (watchHistoryRaw is List) {
+      final whService = WatchHistoryService();
+      final existingKeys = strategy == BackupMergeStrategy.keepLocal
+          ? (await whService.getAllWatchHistory())
+                .map((w) => '${w.playlistId} ${w.streamId}')
+                .toSet()
+          : const <String>{};
+      for (final item in watchHistoryRaw) {
+        if (item is! Map<String, dynamic>) continue;
+        try {
+          final wh = WatchHistory.fromJson(item);
+          if (strategy == BackupMergeStrategy.keepLocal &&
+              existingKeys.contains('${wh.playlistId} ${wh.streamId}')) {
+            continue;
+          }
+          await whService.saveWatchHistory(wh);
+        } catch (_) {
+          continue;
+        }
+      }
+    }
+
+    // Restaurar favoritos (upsert fiel por PK {id}).
+    final favoritesRaw = decoded['favorites'];
+    if (favoritesRaw is List) {
+      final db = getIt<AppDatabase>();
+      final existingIds = strategy == BackupMergeStrategy.keepLocal
+          ? (await db.getAllFavorites()).map((f) => f.id).toSet()
+          : const <String>{};
+      for (final item in favoritesRaw) {
+        if (item is! Map<String, dynamic>) continue;
+        try {
+          final fav = Favorite.fromJson(item);
+          if (strategy == BackupMergeStrategy.keepLocal &&
+              existingIds.contains(fav.id)) {
+            continue;
+          }
+          await db.restoreFavorite(fav);
+        } catch (_) {
+          continue;
         }
       }
     }

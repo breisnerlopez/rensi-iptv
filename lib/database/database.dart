@@ -1965,6 +1965,14 @@ class AppDatabase extends _$AppDatabase {
     await into(favorites).insert(favorite.toCompanion());
   }
 
+  /// Upsert fiel para RESTAURAR un favorito desde backup: conserva
+  /// createdAt/updatedAt originales y no duplica (PK {id}).
+  Future<void> restoreFavorite(Favorite favorite) async {
+    await into(
+      favorites,
+    ).insertOnConflictUpdate(favorite.toRestoreCompanion());
+  }
+
   Future<void> updateFavorite(Favorite favorite) async {
     await (update(
       favorites,

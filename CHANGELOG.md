@@ -1,3 +1,18 @@
+## [2.23.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.22.0...v2.23.0) (2026-08-24)
+
+
+### Bug Fixes
+
+* **En móvil, deslizar hacia abajo ya no cambia de contenido:** se quitó el gesto de swipe vertical que pasaba al episodio/película siguiente o anterior. Chocaba con el deslizamiento del sistema para mostrar la barra de Android (y con el gesto de brillo/volumen), así que un simple deslizar accidental te sacaba del contenido. La navegación por mando en la TV no cambia
+* **Las series ya no se saltan capítulos al continuar:** al abrir una serie, los episodios que ya viste completos (≥95%) arrancan desde el principio en la cola, en vez de arrancar al final y "completarse" al instante. Antes, una racha de episodios ya vistos hacía que el auto-avance los saltara y aterrizara en el capítulo equivocado
+
+
+### Features
+
+* **La transferencia entre dispositivos ahora lleva el historial y los favoritos:** al exportar/restaurar un backup (móvil ↔ TV) se incluyen el "continuar viendo" y lo marcado como favorito, no solo las listas y los ajustes. Solo viaja cuando incluyes tus datos privados (no al compartir una copia sin secretos), es compatible con backups anteriores, y una restauración nunca borra lo que ya tenías en el dispositivo
+* **El "Continuar viendo" agrupa cada serie en una sola tarjeta:** en vez de una tarjeta por episodio, una serie aparece una vez (por su episodio más reciente), dejando el riel más limpio. Además el historial ahora vincula cada episodio con su serie, lo que también ayuda a la reanudación autónoma en la TV
+
+
 ## [2.22.0](https://github.com/breisnerlopez/rensi-iptv/compare/v2.21.4...v2.22.0) (2026-08-17)
 
 

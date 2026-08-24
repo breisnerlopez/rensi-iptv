@@ -88,6 +88,7 @@ class _M3uEpisodeScreenState extends State<M3uEpisodeScreen> {
             x.cover ?? "",
             ContentType.series,
             season: x.seasonNumber,
+            seriesId: x.seriesId,
           );
         })
         .toList();

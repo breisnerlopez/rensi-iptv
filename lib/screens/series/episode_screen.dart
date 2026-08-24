@@ -93,6 +93,7 @@ class _EpisodeScreenState extends State<EpisodeScreen> {
         ContentType.series,
         containerExtension: x.containerExtension,
         season: x.season,
+        seriesId: x.seriesId,
       );
     })
         .toList();

@@ -299,7 +299,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
             MaterialPageRoute(builder: (_) => const DownloadsScreen())),
         onSeeAll: _navigateToCategoryDetail,
         onSeeAllContinue: _navigateToContinueAll,
-        continueWatching: resumableFrom(_history.continueWatching),
+        continueWatching: collapseSeriesByLatest(resumableFrom(_history.continueWatching)),
         onResume: (h) async {
           final started = await _history.playContent(context, h);
           if (!mounted) return;
@@ -369,7 +369,7 @@ class _M3UHomeScreenState extends State<M3UHomeScreen> {
         builder: (ctx) => ContinueWatchingAllScreen(
           listenable: _history,
           itemsBuilder: () =>
-              resumableFrom(_history.continueWatching).take(20).toList(),
+              collapseSeriesByLatest(resumableFrom(_history.continueWatching)).take(20).toList(),
           onResume: (h) async {
             final started = await _history.playContent(context, h);
             if (!mounted) return;

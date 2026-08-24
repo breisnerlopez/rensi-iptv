@@ -37,6 +37,24 @@ List<WatchHistory> resumableFrom(List<WatchHistory> all) => all.where((h) {
           progress < 0.95;
     }).toList();
 
+/// Colapsa el "continuar viendo" para el rail del home: de una serie con varios
+/// episodios resumibles deja solo el MÁS RECIENTE (una tarjeta por serie), en
+/// vez de una tarjeta por episodio. Requiere [items] ordenado por `lastWatched`
+/// descendente (como lo entrega `getContinueWatching`). Las filas de serie sin
+/// `seriesId` (historial local previo a poblar el vínculo episodio→serie) no se
+/// agrupan y se conservan tal cual.
+List<WatchHistory> collapseSeriesByLatest(List<WatchHistory> items) {
+  final seenSeries = <String>{};
+  final out = <WatchHistory>[];
+  for (final h in items) {
+    if (h.contentType == ContentType.series && h.seriesId != null) {
+      if (!seenSeries.add(h.seriesId!)) continue;
+    }
+    out.add(h);
+  }
+  return out;
+}
+
 class WatchHistory {
   late String playlistId;
   late ContentType contentType;
@@ -87,6 +105,55 @@ class WatchHistory {
     title = data.title;
     containerExtension = data.containerExtension;
     providerId = data.providerId;
+  }
+
+  /// Serialización para backup. `contentType` como índice del enum, duraciones
+  /// en ms, `lastWatched` en ISO-8601 UTC. Incluye containerExtension/providerId
+  /// para no perder la reconstrucción de URL autónoma en la TV al restaurar.
+  Map<String, dynamic> toJson() {
+    return {
+      'playlist_id': playlistId,
+      'content_type': contentType.index,
+      'stream_id': streamId,
+      'series_id': seriesId,
+      'watch_duration': watchDuration?.inMilliseconds,
+      'total_duration': totalDuration?.inMilliseconds,
+      'last_watched': lastWatched.toUtc().toIso8601String(),
+      'image_path': imagePath,
+      'title': title,
+      'container_extension': containerExtension,
+      'provider_id': providerId,
+    };
+  }
+
+  factory WatchHistory.fromJson(Map<String, dynamic> json) {
+    final rawType = json['content_type'];
+    final typeIndex =
+        rawType is int ? rawType : int.tryParse('${rawType ?? ''}') ?? 0;
+    final safeIndex = (typeIndex >= 0 && typeIndex < ContentType.values.length)
+        ? typeIndex
+        : 0;
+    int? asMs(dynamic v) =>
+        v == null ? null : (v is int ? v : int.tryParse('$v'));
+    return WatchHistory(
+      playlistId: json['playlist_id'] as String,
+      contentType: ContentType.values[safeIndex],
+      streamId: json['stream_id'] as String,
+      seriesId: json['series_id'] as String?,
+      watchDuration: asMs(json['watch_duration']) != null
+          ? Duration(milliseconds: asMs(json['watch_duration'])!)
+          : null,
+      totalDuration: asMs(json['total_duration']) != null
+          ? Duration(milliseconds: asMs(json['total_duration'])!)
+          : null,
+      lastWatched:
+          DateTime.tryParse('${json['last_watched'] ?? ''}')?.toLocal() ??
+          DateTime.now(),
+      imagePath: json['image_path'] as String?,
+      title: (json['title'] as String?) ?? '',
+      containerExtension: json['container_extension'] as String?,
+      providerId: json['provider_id'] as String?,
+    );
   }
 
   WatchHistoriesCompanion toDriftCompanion() {

@@ -409,7 +409,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
               MaterialPageRoute(builder: (_) => const DownloadsScreen())),
           onSeeAll: _navigateToCategoryDetail,
           onSeeAllContinue: _navigateToContinueAll,
-          continueWatching: resumableFrom(_history.continueWatching),
+          continueWatching: collapseSeriesByLatest(resumableFrom(_history.continueWatching)),
           // Reload on the way back: the viewer has just moved the position of
           // whatever they resumed, and a rail still showing the old progress —
           // or still showing a title they have now finished — is worse than one
@@ -502,7 +502,7 @@ class _XtreamCodeHomeScreenState extends State<XtreamCodeHomeScreen>
         builder: (ctx) => ContinueWatchingAllScreen(
           listenable: _history,
           itemsBuilder: () =>
-              resumableFrom(_history.continueWatching).take(20).toList(),
+              collapseSeriesByLatest(resumableFrom(_history.continueWatching)).take(20).toList(),
           onResume: (h) async {
             final started = await _history.playContent(context, h);
             if (!mounted) return;

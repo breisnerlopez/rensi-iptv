@@ -22,6 +22,12 @@ class ContentItem {
   final int? season;
   final M3uItem? m3uItem;
 
+  /// Id de la serie a la que pertenece este ítem cuando es un episodio. Permite
+  /// persistir el vínculo episodio→serie en el historial (agrupar "continuar
+  /// viendo" por serie y el replay standalone en la TV), ya que los ContentItem
+  /// de episodios no llevan [seriesStream].
+  final String? seriesId;
+
   /// When set, this URL is used verbatim instead of deriving one from the
   /// content type/creds. Used for catch-up/timeshift, whose URL is a recorded
   /// window that [buildMediaUrl] can't reconstruct from id alone.
@@ -46,6 +52,7 @@ class ContentItem {
     this.seriesStream,
     this.season,
     this.m3uItem,
+    this.seriesId,
     this.overrideUrl,
     this.isCatchup = false,
   }) {
